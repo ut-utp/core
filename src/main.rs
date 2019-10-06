@@ -1,51 +1,15 @@
 type Addr = u16;
 type Word = u16;
 
+mod control;
+mod memory;
+mod peripherals;
+
+mod isa;
 
 
-trait Memory {
-    fn read_word(&self, addr: Addr) -> Word;
-    fn write_word(&mut self, addr: Addr, word: Word);
-
-    fn flush(&self) -> Result<(), ()>;
-}
-
-struct MemoryShim {
-    memory: [Word; ((core::u16::MAX) / 2) as usize],
-}
-
-impl Default for MemoryShim {
-    fn default() -> Self {
-        Self {
-            memory: [0u16; ((core::u16::MAX) / 2) as usize]
-        }
-    }
-}
-
-// impl MemoryShim {
-//     fn foo(self) -> u16 {
-//         0
-//     }
-// }
-
-impl Memory for MemoryShim {
-    fn read_word(&self, addr: Addr) -> Word {
-        self.memory[addr as usize]
-    }
-
-    fn write_word(&mut self, addr: Addr, word: Word) {
-        self.memory[addr as usize] = word;
-    }
-
-    fn flush(&self) -> Result<(), ()> { Ok(()) }
-}
-
-trait Control {
-    fn set_pc(&mut self, addr: Addr);
-    fn step(&mut self);
-
-    fn write_word(&mut self, addr: Addr, word: Word);
-}
+use memory::Memory;
+use control::Control;
 
 struct Interpreter<M: Memory> {
     regs: [Word; 8],
