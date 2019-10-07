@@ -1,11 +1,12 @@
 use super::{Addr, Word};
+use core::future::Future;
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
 pub enum Event {
     Breakpoint { addr: Addr },
-    MemoryWatch { word: Word },
+    MemoryWatch { addr: Addr, data: Word },
     Interrupted // If we get paused or stepped, this is returned.
 }
 
@@ -15,6 +16,8 @@ pub enum State {
 }
 
 pub trait Control {
+    type EventFuture: Future<Output=Event>;
+
     fn get_pc(&self) -> Addr;
     fn set_pc(&mut self, addr: Addr); // Should be infallible.
 
@@ -46,7 +49,7 @@ pub trait Control {
     fn get_max_memory_watches() -> usize { MAX_MEMORY_WATCHES }
 
     // Execution control functions:
-    fn run_until_event(&mut self) -> Event; // Can be interrupted by step or pause.
+    fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
     fn step(&mut self);
     fn pause(&mut self);
 
