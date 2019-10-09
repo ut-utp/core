@@ -1,3 +1,3 @@
-//! [`Output` device trait](trait.Output.html) and friends.
+//! [`Output` device trait](Output) and friends.
 
 pub trait Output {}

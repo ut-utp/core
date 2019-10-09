@@ -1,4 +1,4 @@
-//! [`Adc` trait](trait.Adc.html) and associated types.
+//! [`Adc` trait](Adc) and associated types.
 
 use crate::peripheral_trait;
 

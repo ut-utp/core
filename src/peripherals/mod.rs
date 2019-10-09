@@ -1,5 +1,5 @@
-//! Peripherals! The [`Peripherals` supertrait](trait.Peripherals.html) and the
-//! rest of the peripheral and device traits.
+//! Peripherals! The [`Peripherals` supertrait](Peripherals) and the rest of the
+//! peripheral and device traits.
 
 pub mod adc;
 pub mod clock;

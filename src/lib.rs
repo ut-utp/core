@@ -1,5 +1,6 @@
 #![feature(stmt_expr_attributes)]
 #![feature(trace_macros)]
+
 // TODO: forbid
 #![warn(
     bad_style,
@@ -27,6 +28,7 @@
 // TODO: deny
 #![warn(
     missing_debug_implementations,
+    intra_doc_link_resolution_failure,
     missing_docs,
     unsafe_code,
     trivial_casts,
@@ -36,11 +38,12 @@
     unused_qualifications,
     unused_results
 )]
+
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
 #[cfg(feature = "shims")]
-mod shims;
+pub mod shims;
 
 // Can't have `no_std` and `shims` enabled!
 #[cfg(all(feature = "no_std", feature = "shims"))]

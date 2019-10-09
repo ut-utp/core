@@ -1,4 +1,4 @@
-//! [`Pwm` trait](trait.Pwm.html) and helpers.
+//! [`Pwm` trait](Pwm) and helpers.
 
 // TODO: Switch to enum for pins
 // TODO: Add Errors

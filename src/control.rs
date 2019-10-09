@@ -1,9 +1,9 @@
-//! The [`Control` trait](trait.Control.html) and friends.
+//! The [`Control` trait](crate::control::Control) and friends.
 //!
-//! Unlike the [`Peripherals` trait](../peripherals/trait.Peripherals.html) and
-//! the [`Memory` trait](../memory/trait.Memory.html), there is no shim
-//! implementation of Control; instead the 'shim' is an instruction level
-//! simulator that lives in the [interp module](../interp).
+//! Unlike the [`Peripherals` trait](crate::peripherals::Peripherals) and the
+//! [`Memory` trait](crate::memory::Memory), there is no shim implementation of
+//! Control; instead the 'shim' is an instruction level simulator that lives in
+//! the [interp module](crate::interp).
 
 use super::error::Error;
 use super::{Addr, Word};

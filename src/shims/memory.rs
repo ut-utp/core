@@ -1,7 +1,10 @@
-//! An extremely naive, terrible [`Memory` trait](../memory/trait.Memory.html)
-//! implementation called [`MemoryShim`](struct.MemoryShim.html).
+//! An extremely naive, terrible [`Memory` trait](crate::memory::Memory)
+//! implementation called [`MemoryShim`](memory::MemoryShim).
 
-/// Naive [`Memory` trait](../memory/trait.Memory.html) implementation.
+use crate::{Addr, Word};
+use crate::memory::{Memory, MemoryMiscError};
+
+/// Naive [`Memory` trait](crate::memory::Memory) implementation.
 ///
 /// Only good for hosted platforms since we just go and use 128 KiB of stack
 /// space.

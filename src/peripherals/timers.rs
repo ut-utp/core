@@ -1,4 +1,4 @@
-//! [`Timers` trait](trait.Timers.html) and related types.
+//! [`Timers` trait](Timers) and related types.
 
 use crate::Word;
 

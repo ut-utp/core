@@ -1,4 +1,4 @@
-//! [`Gpio` trait](trait.Gpio.html) and friends.
+//! [`Gpio` trait](Gpio) and friends.
 
 use core::convert::TryFrom;
 

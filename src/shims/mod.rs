@@ -1,5 +1,5 @@
-//! Shims for the various [peripheral](../peripheral) traits and for the
-//! [`Memory` trait](../memory/trait.Memory.html).
+//! Shims for the various [peripheral](crate::peripherals) traits and for the
+//! [`Memory` trait](crate::memory::Memory).
 
 // Peripherals:
 mod gpio;
@@ -7,3 +7,4 @@ mod gpio;
 // Devices:
 
 // Memory:
+mod memory;

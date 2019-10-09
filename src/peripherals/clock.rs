@@ -1,4 +1,4 @@
-//! [`Clock` trait](trait.Clock.html).
+//! [`Clock` trait](Clock).
 
 use crate::Word;
 

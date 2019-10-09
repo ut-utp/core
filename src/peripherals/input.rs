@@ -1,3 +1,3 @@
-//! [`Input` device trait](trait.Input.html) and related things.
+//! [`Input` device trait](Input) and related things.
 
 pub trait Input {}
