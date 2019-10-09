@@ -1,4 +1,5 @@
 use super::Word;
+use core::convert::TryFrom;
 
 trait Peripherals: Gpio + Adc + Pwm + Timers {
     fn generic_init(&mut self);
@@ -28,19 +29,132 @@ pub enum GpioState {
     Interrupt, // TBD: Can you call read on a pin configured for interrupts?
     Disabled,
 }
+
+pub struct GpioMiscError;
+
+type GpioStateMismatch = (GpioPin, GpioState);
+pub struct GpioReadError(GpioStateMismatch);
+pub struct GpioWriteError(GpioStateMismatch);
+
+type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
+
+type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>;// [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
+pub struct GpioReadErrors(GpioStateMismatches);
+pub struct GpioWriteErrors(GpioStateMismatches);
+
+// pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
+
 pub trait Gpio {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError>; // should probably be infallible
     fn get_state(&self, pin: GpioPin) -> GpioState;
+    fn get_states(&self) -> GpioPinArr<GpioState> {
+        let mut states = [GpioState::Disabled; NUM_GPIO_PINS as usize]; // TODO (again)
+
+        GPIO_PINS
+            .iter()
+            .enumerate()
+            .for_each(|(idx, g)| states[idx] = self.get_state(*g));
+
+        states
+    }
+
     fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError>; // errors on state mismatch (i.e. you tried to read but the pin is configured as an output)
+    fn read_all(&self) -> GpioPinArr<Result<bool, GpioReadError>> {
+        // TODO: here's a thing; [Result<bool, GpioReadError>] or Result<[bool], [GpioReadError]>?
+        // The interpreter will _probably_ just use a default value upon encountering read errors
+        // meaning that we don't want to do the latter which is all or nothing (i.e. if some of the
+        // reads worked, give us their values! We'll use them!).
+
+        let mut readings = [Ok(false); NUM_GPIO_PINS as usize]; // TODO: it's weird and gross that we have to use a default value here (derive macro save us pls!!)
+
+        GPIO_PINS
+            .iter()
+            .enumerate()
+            .for_each(|(idx, g)| readings[idx] = self.read(*g));
+
+        readings
+    }
+
     fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError>; // errors on state mismatch
+    fn write_all(&mut self, bits: GpioPinArr<bool>) -> GpioPinArr<Result<(), GpioWriteError>> {
+        // TODO: return an array of results or one result?
+        // For the actual interpreter, it doesn't make a difference; we have no mechanism by which
+        // we even communicate errors to the LC-3 program. But the debugger can communicate this kind
+        // of stuff so let's not throw the information away.
 
-    fn read(&self, pin: u8) -> Result<bool, ()>;
-    fn read_all(&self, pin: u8) -> Result<[bool; NUM_GPIO_PINS as usize], ()>;
+        let mut errors = [Ok(()); NUM_GPIO_PINS as usize];
 
-    fn write(&mut self, pin: u8, bit: bool) -> Result<(), ()>;
-    fn write_all(&mut self, pin: u8, bits: [bool; NUM_GPIO_PINS as usize]) -> Result<(), ()>;
+        GPIO_PINS.iter().zip(bits.iter()).enumerate().for_each(|(idx, (pin, bit))| {
+            errors[idx] = self.write(*pin, *bit);
+        });
 
-    fn register_interrupt(&mut self, pin: u8, func: impl FnMut(bool)) -> Result<(), ()>;
+        errors
+    }
+
+    // This error only make sense if you have to put the Gpio Pin in interrupt mode _before_ you set the interrupt handler.
+    // That doesn't really make any sense.
+    //
+    // This operation should probably be infallible. If we want to actually check that a handler has been registered, we could require that
+    // the handler be registered first and then when you call set_state, it can error if it's still using the default handler.
+    //
+    // But really, enabling interrupts and having them go to the default handler should be possible... (default handler should probably do nothing!)
+    //
+    // Another approach is to make adding interupts an extra thing that you can do when you're in Input mode. I don't like this because
+    // it means we now need to provide a disable_interrupt function though...
+    // fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioInterruptRegisterError>;
+
+    // Gonne switch to MiscError for now then (TODO ^^^^^^):
+    fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioMiscError>;
+}
+
+impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
+    type Error = ();
+
+    fn try_from(read_errors: GpioPinArr<Result<bool, GpioReadError>>) -> Result<GpioReadErrors, ()> {
+        if read_errors.iter().all(|r| r.is_ok()) {
+            Err(()) // No error!
+        } else {
+            let mut errors: GpioStateMismatches = [None; NUM_GPIO_PINS as usize];
+
+            read_errors
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, res)|
+                    res.map_err(|gpio_read_error| (idx, gpio_read_error)).err()
+                )
+                .for_each(|(idx, gpio_read_error)| {
+                    errors[idx] = Some(gpio_read_error.0);
+                });
+
+            Ok(GpioReadErrors(errors))
+        }
+    }
+}
+
+impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
+    type Error = ();
+
+    fn try_from(write_errors: GpioPinArr<Result<(), GpioWriteError>>) -> Result<GpioWriteErrors, ()> {
+        if write_errors.iter().all(|w| w.is_ok()) {
+            // None
+            Err(())
+        } else {
+            let mut errors: GpioStateMismatches = [None; NUM_GPIO_PINS as usize];
+
+            write_errors
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, res)|
+                    res.map_err(|gpio_write_error| (idx, gpio_write_error)).err()
+                )
+                .for_each(|(idx, gpio_write_error)| {
+                    errors[idx] = Some(gpio_write_error.0);
+                });
+
+            // Some(GpioWriteErrors(errors))
+            Ok(GpioWriteErrors(errors))
+}
+    }
 }
 
 pub const NUM_ADC_PINS: u8 = 4; // A0 - A3
