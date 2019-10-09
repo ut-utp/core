@@ -3,5 +3,19 @@ name = "prototype"
 version = "0.1.0"
 authors = ["Rahul Butani <rr.butani@gmail.com>"]
 edition = "2018"
+# default-run = "tui"
 
 [dependencies]
+
+[features]
+default = ["no_std"]
+no_std = []
+shims = []
+
+[dev-dependencies]
+tui = "0.6.2"
+
+[[example]]
+name = "tui"
+path = "bins/tui/main.rs"
+required-features = ["shims"]
