@@ -1,9 +1,6 @@
-use super::Word;
-use core::convert::TryFrom;
+//! [`Gpio` trait](trait.Gpio.html) and friends.
 
-trait Peripherals: Gpio + Adc + Pwm + Timers {
-    fn generic_init(&mut self);
-}
+use core::convert::TryFrom;
 
 // Switched to using enums to identify peripheral pin numbers; this way
 // referring to invalid/non-existent pin numbers isn't an error that peripheral
@@ -20,7 +17,7 @@ trait Peripherals: Gpio + Adc + Pwm + Timers {
 #[rustfmt::skip]
 #[derive(Copy, Clone)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
-pub const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
+const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
 const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
     use GpioPin::*;
     [G0, G1, G2, G3, G4, G5, G6, G7]
@@ -168,69 +165,3 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
     }
 }
 
-// TODO: Switch to enum for pins
-// TODO: Add Errors
-pub const NUM_ADC_PINS: u8 = 4; // A0 - A3
-pub enum AdcState {
-    Enabled,
-    Disabled,
-    Interrupt,
-}
-trait Adc {
-    fn set_state(&mut self, pin: u8, state: AdcState) -> Result<(), ()>;
-    fn get_state(&self, pin: u8) -> Option<AdcState>;
-    // fn get_states() // TODO
-
-
-    fn read(&self, pin: u8) -> Result<u8, ()>;
-
-    fn register_interrupt(&mut self, pin: u8, func: impl FnMut(u8)) -> Result<(), ()>;
-}
-
-// TODO: Switch to enum for pins
-// TODO: Add Errors
-pub const NUM_PWM_PINS: u8 = 2; // P0 - P1
-pub enum PwmState {
-    Enabled,
-    Disabled,
-}
-trait Pwm {
-    // enable, disable, set duty cycle, enable hystersis. start
-    fn set_state(&mut self, pin: u8, state: PwmState) -> Result<(), ()>;
-    fn get_state(&self, pin: u8) -> Option<PwmState>;
-    // fn get_states() // TODO
-
-    fn set_duty_cycle(duty: u16);
-    //Optionally enable hysterisis ?
-    fn start(&mut self, pin: u8); //Start the periodic timer interrupt
-    fn disable(&mut self, pin: u8);
-}
-
-
-// TODO: Switch to enum for pins
-// TODO: Add Errors
-// Timer periods: [0, core::u16::MAX)
-pub const NUM_TIMERS: u8 = 2; // T0 - T1
-pub enum TimerState {
-    Repeated,
-    SingleShot,
-    Disabled,
-}
-trait Timers {
-    fn set_state(&mut self, num: u8, state: TimerState) -> Result<(), ()>;
-    fn get_state(&mut self, num: u8) -> Option<TimerState>;
-
-    fn set_period(&mut self, num: u8, milliseconds: Word);
-    fn get_period(&mut self, num: u8) -> Option<Word>;
-
-    fn register_interrupt(&mut self, num: u8, func: impl FnMut(u8)) -> Result<(), ()>;
-}
-
-// Just 1 Clock! (millisecond units)
-trait Clock {
-    // fn enable(&mut self);   // Probably ditch (TODO).
-    // fn disable(&mut self);
-
-    fn get_milliseconds(&self) -> Word;
-    fn set_milliseconds(&mut self, ms: Word);
-}
