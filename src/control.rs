@@ -5,8 +5,8 @@
 //! implementation of Control; instead the 'shim' is an instruction level
 //! simulator that lives in the [interp module](../interp).
 
-use super::{Addr, Word};
 use super::error::Error;
+use super::{Addr, Word};
 use core::future::Future;
 
 pub const MAX_BREAKPOINTS: usize = 10;
@@ -104,7 +104,6 @@ pub trait Control {
     fn get_pwm_states();
     fn get_pwm_config();
     fn get_clock();
-
 
     // So with some of these functions that are basically straight wrappers over their Memory/Peripheral trait counterparts,
     // we have a bit of a choice. We can make Control a super trait of those traits so that we can have default impls of said

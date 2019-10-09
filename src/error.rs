@@ -1,6 +1,8 @@
+use super::peripherals::gpio::{
+    GpioMiscError, /* GpioInterruptRegisterError */
+    GpioReadError, GpioReadErrors, GpioWriteError, GpioWriteErrors,
+};
 use super::Word;
-use super::peripherals::gpio::{GpioReadError, GpioWriteError, GpioReadErrors, GpioWriteErrors, GpioMiscError/* GpioInterruptRegisterError */};
-
 
 // Lots of open questions here:
 //  - should this be implementation defined?
@@ -17,8 +19,8 @@ pub enum Error {
     InvalidGpioRead(GpioReadError),
     InvalidGpioReads(GpioReadErrors),
     GpioMiscError(GpioMiscError), // Unclear if we want to expose these kind of errors in the Control interface or just make the interpreter deal with them (probably expose...) (TODO)
-    // InvalidGpioInterruptRegistration(GpioInterruptRegisterError),
-    ///// TODO: finish
+                                  // InvalidGpioInterruptRegistration(GpioInterruptRegisterError),
+                                  ///// TODO: finish
 }
 
 // TODO: automate away with a proc macro (this is a common enough pattern...)
@@ -53,7 +55,10 @@ err!(GpioWriteError, Error::InvalidGpioWrite);
 pub enum ErrorHandlingStrategy {
     DefaultValue(Word),
     Silent,
-    FireException { interrupt_vector_table_number: u8, payload: Option<Word> },
+    FireException {
+        interrupt_vector_table_number: u8,
+        payload: Option<Word>,
+    },
 }
 
 impl From<Error> for ErrorHandlingStrategy {
@@ -68,7 +73,7 @@ impl From<Error> for ErrorHandlingStrategy {
             InvalidGpioReads(err) => {
                 unimplemented!()
                 // TODO: set all the mismatched bits to 0, etc.
-            },
+            }
             GpioMiscError(_) => Silent,
         }
     }

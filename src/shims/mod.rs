@@ -4,7 +4,6 @@
 // Peripherals:
 mod gpio;
 
-
 // Devices:
 
 // Memory:

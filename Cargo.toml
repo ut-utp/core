@@ -17,5 +17,5 @@ tui = "0.6.2"
 
 [[example]]
 name = "tui"
-path = "bins/tui/main.rs"
+path = "examples/tui/main.rs"
 required-features = ["shims"]

@@ -1,20 +1,20 @@
 //! Peripherals! The [`Peripherals` supertrait](trait.Peripherals.html) and the
 //! rest of the peripheral and device traits.
 
-pub mod gpio;
 pub mod adc;
+pub mod clock;
+pub mod gpio;
 pub mod pwm;
 pub mod timers;
-pub mod clock;
 
 pub mod input;
 pub mod output;
 
-use gpio::Gpio;
 use adc::Adc;
+use clock::Clock;
+use gpio::Gpio;
 use pwm::Pwm;
 use timers::Timers;
-use clock::Clock;
 
 use input::Input;
 use output::Output;
@@ -39,7 +39,7 @@ where
     timers: T,
     clock: C,
     input: I,
-    output: O
+    output: O,
 }
 
 #[doc(hidden)]
@@ -118,7 +118,6 @@ macro_rules! func_sig {
     // And, finally, the end:
     ($nom:ident, ) => {};
 }
-
 
 // impl<G, A, P, T, C, I, O> Gpio for PeripheralSet<G, A, P, T, C, I, O>
 // where

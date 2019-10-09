@@ -42,7 +42,7 @@ pub struct GpioWriteError(GpioStateMismatch);
 
 type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
 
-type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>;// [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
+type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
 #[derive(Copy, Clone)]
 pub struct GpioReadErrors(GpioStateMismatches);
@@ -92,9 +92,13 @@ pub trait Gpio {
 
         let mut errors = [Ok(()); NUM_GPIO_PINS as usize];
 
-        GPIO_PINS.iter().zip(bits.iter()).enumerate().for_each(|(idx, (pin, bit))| {
-            errors[idx] = self.write(*pin, *bit);
-        });
+        GPIO_PINS
+            .iter()
+            .zip(bits.iter())
+            .enumerate()
+            .for_each(|(idx, (pin, bit))| {
+                errors[idx] = self.write(*pin, *bit);
+            });
 
         errors
     }
@@ -112,13 +116,19 @@ pub trait Gpio {
     // fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioInterruptRegisterError>;
 
     // Gonne switch to MiscError for now then (TODO ^^^^^^):
-    fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioMiscError>;
+    fn register_interrupt(
+        &mut self,
+        pin: GpioPin,
+        func: impl FnMut(bool),
+    ) -> Result<(), GpioMiscError>;
 }
 
 impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
     type Error = ();
 
-    fn try_from(read_errors: GpioPinArr<Result<bool, GpioReadError>>) -> Result<GpioReadErrors, ()> {
+    fn try_from(
+        read_errors: GpioPinArr<Result<bool, GpioReadError>>,
+    ) -> Result<GpioReadErrors, ()> {
         if read_errors.iter().all(|r| r.is_ok()) {
             Err(()) // No error!
         } else {
@@ -127,9 +137,9 @@ impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
             read_errors
                 .iter()
                 .enumerate()
-                .filter_map(|(idx, res)|
+                .filter_map(|(idx, res)| {
                     res.map_err(|gpio_read_error| (idx, gpio_read_error)).err()
-                )
+                })
                 .for_each(|(idx, gpio_read_error)| {
                     errors[idx] = Some(gpio_read_error.0);
                 });
@@ -142,7 +152,9 @@ impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
 impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
     type Error = ();
 
-    fn try_from(write_errors: GpioPinArr<Result<(), GpioWriteError>>) -> Result<GpioWriteErrors, ()> {
+    fn try_from(
+        write_errors: GpioPinArr<Result<(), GpioWriteError>>,
+    ) -> Result<GpioWriteErrors, ()> {
         if write_errors.iter().all(|w| w.is_ok()) {
             // None
             Err(())
@@ -152,9 +164,10 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
             write_errors
                 .iter()
                 .enumerate()
-                .filter_map(|(idx, res)|
-                    res.map_err(|gpio_write_error| (idx, gpio_write_error)).err()
-                )
+                .filter_map(|(idx, res)| {
+                    res.map_err(|gpio_write_error| (idx, gpio_write_error))
+                        .err()
+                })
                 .for_each(|(idx, gpio_write_error)| {
                     errors[idx] = Some(gpio_write_error.0);
                 });
