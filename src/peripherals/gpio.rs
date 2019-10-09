@@ -165,3 +165,27 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
     }
 }
 
+use crate::peripheral_set_impl;
+
+// Impl for PeripheralSet
+peripheral_set_impl!(Gpio, {
+    fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
+        self.gpio.set_state(pin, state)
+    }
+    fn get_state(&self, pin: GpioPin) -> GpioState { self.gpio.get_state(pin) }
+    fn get_states(&self) -> GpioPinArr<GpioState> { self.gpio.get_states() }
+
+    fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError> { self.gpio.read(pin) }
+    fn read_all(&self) -> GpioPinArr<Result<bool, GpioReadError>> { self.gpio.read_all() }
+
+    fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
+        self.gpio.write(pin, bit)
+    }
+    fn write_all(&mut self, bits: GpioPinArr<bool>) -> GpioPinArr<Result<(), GpioWriteError>> {
+       self.gpio.write_all(bits)
+    }
+
+    fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioMiscError> {
+        self.gpio.register_interrupt(pin, func)
+    }
+});
