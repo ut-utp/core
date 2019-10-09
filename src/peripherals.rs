@@ -18,6 +18,7 @@ trait Peripherals: Gpio + Adc + Pwm + Timers {
 // described in `control.rs`.
 
 #[rustfmt::skip]
+#[derive(Copy, Clone)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
 pub const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
 const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
@@ -25,6 +26,7 @@ const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
     [G0, G1, G2, G3, G4, G5, G6, G7]
 }; // TODO: once we get the derive macro, get rid of this.
 
+#[derive(Copy, Clone)]
 pub enum GpioState {
     Input,
     Output,
@@ -35,15 +37,22 @@ pub enum GpioState {
 pub struct GpioMiscError;
 
 type GpioStateMismatch = (GpioPin, GpioState);
+
+#[derive(Copy, Clone)]
 pub struct GpioReadError(GpioStateMismatch);
+#[derive(Copy, Clone)]
 pub struct GpioWriteError(GpioStateMismatch);
 
 type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
 
 type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>;// [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
+
+#[derive(Copy, Clone)]
 pub struct GpioReadErrors(GpioStateMismatches);
+#[derive(Copy, Clone)]
 pub struct GpioWriteErrors(GpioStateMismatches);
 
+// #[derive(Copy, Clone)]
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
 
 pub trait Gpio {

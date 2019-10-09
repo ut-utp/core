@@ -44,7 +44,7 @@ macro_rules! err {
 }
 
 err!(GpioWriteError, Error::InvalidGpioWrite);
-
+// TODO: finish
 
 /// Just some musings; if we go with something like this it won't live here.
 ///
@@ -69,7 +69,7 @@ impl From<Error> for ErrorHandlingStrategy {
                 unimplemented!()
                 // TODO: set all the mismatched bits to 0, etc.
             },
-            GpioMiscError => Silent,
+            GpioMiscError(_) => Silent,
         }
     }
 }

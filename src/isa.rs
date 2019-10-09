@@ -28,7 +28,7 @@ pub enum Instruction {
     Trap { trapvec: u8 },                            // 8
 }
 
-trait Bits: Sized {
+trait Bits: Sized + Copy {
     fn bit(self, bit: u32) -> bool;
 
     fn b(self, bit: u32) -> bool {
@@ -138,6 +138,7 @@ impl From<Word> for Instruction {
 impl From<Instruction> for Word {
     #[rustfmt::skip]
     fn from(ins: Instruction) -> u16 {
+        #![allow(non_snake_case)]
         use Instruction::*;
 
         // fn rrr(op: u16, dr: RegNum, sr1: RegNum, sr2: RegNum) -> u16 {

@@ -1,4 +1,5 @@
 // #![feature(try_trait)]
+#![feature(stmt_expr_attributes)]
 
 type Addr = u16;
 type Word = u16;
@@ -23,20 +24,20 @@ struct Interpreter<M: Memory> {
     mem: M,
 }
 
-impl<M: Memory> Control for Interpreter<M> {
-    fn set_pc(&mut self, addr: Addr) {
-        self.pc = addr;
-    }
+// impl<M: Memory> Control for Interpreter<M> {
+//     fn set_pc(&mut self, addr: Addr) {
+//         self.pc = addr;
+//     }
 
-    fn step(&mut self) {
-        unimplemented!()
-    }
+//     fn step(&mut self) {
+//         unimplemented!()
+//     }
 
-    fn write_word(&mut self, addr: Addr, word: Word) {
-        // self.mem.foo();
-        self.mem.write_word(addr, word);
-    }
-}
+//     fn write_word(&mut self, addr: Addr, word: Word) {
+//         // self.mem.foo();
+//         self.mem.write_word(addr, word);
+//     }
+// }
 
 // fn foo(foo: impl Memory) -> () {
 //     foo.flush();

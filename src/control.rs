@@ -12,12 +12,14 @@ use core::future::Future;
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
+#[derive(Copy, Clone)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
     Interrupted, // If we get paused or stepped, this is returned.
 }
 
+#[derive(Copy, Clone)]
 pub enum State {
     Paused,
     RunningUntilEvent,
@@ -26,6 +28,7 @@ pub enum State {
 // TODO: derive macro to give us:
 //   - an iterator through all the variants
 //   - a const function with the number of variants (`Reg::num_variants()`)
+#[derive(Copy, Clone)]
 pub enum Reg {
     R0,
     R1,

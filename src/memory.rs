@@ -6,7 +6,7 @@ pub trait Memory {
     fn read_word(&self, addr: Addr) -> Word;
     fn write_word(&mut self, addr: Addr, word: Word);
 
-    fn commit(&self) -> Result<(), MemoryMiscError>;
+    fn commit(&mut self) -> Result<(), MemoryMiscError>;
 }
 
 /// An extremely naive, terrible [`Memory`](trait.Memory.html) implementation.
@@ -56,7 +56,7 @@ impl Memory for MemoryShim {
         self.staging[addr as usize] = word;
     }
 
-    fn commit(&self) -> Result<(), MemoryMiscError> {
+    fn commit(&mut self) -> Result<(), MemoryMiscError> {
         self.persistent = self.staging.clone();
 
         Ok(())
