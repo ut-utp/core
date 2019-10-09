@@ -23,3 +23,22 @@ pub trait Peripherals: Gpio + Adc + Pwm + Timers + Clock + Input + Output {
     fn init() -> Self;
 }
 
+pub struct PeripheralSet<G, A, P, T, C, I, O>
+where
+    G: Gpio,
+    A: Adc,
+    P: Pwm,
+    T: Timers,
+    C: Clock,
+    I: Input,
+    O: Output,
+{
+    gpio: G,
+    adc: A,
+    pwm: P,
+    timers: T,
+    clock: C,
+    input: I,
+    output: O
+}
+

@@ -117,4 +117,6 @@ pub trait Control {
     //
     // Associated types really don't seem to save us here (still gotta know where the state is stored which we don't know
     // when writing a default impl) and I can't think of a way that's appreciably better so I think we just have to eat it.
+    //
+    // We kind of got around this with the `PeripheralSet` struct in the peripherals module, but I'm not sure it'd work here.
 }
