@@ -1,5 +1,9 @@
+// #![feature(try_trait)]
+
 type Addr = u16;
 type Word = u16;
+
+mod error;
 
 mod control;
 mod memory;
@@ -7,15 +11,16 @@ mod peripherals;
 
 mod isa;
 
+mod interp;
 
-use memory::Memory;
 use control::Control;
+use memory::{Memory, MemoryShim};
 
 struct Interpreter<M: Memory> {
     regs: [Word; 8],
     pc: Word,
     psr: Word,
-    mem: M
+    mem: M,
 }
 
 impl<M: Memory> Control for Interpreter<M> {
@@ -33,9 +38,6 @@ impl<M: Memory> Control for Interpreter<M> {
     }
 }
 
-
-
-
 // fn foo(foo: impl Memory) -> () {
 //     foo.flush();
 // }
@@ -43,8 +45,6 @@ impl<M: Memory> Control for Interpreter<M> {
 // fn foo2<M: Memory>(foo: M) -> () {
 //     foo.flush();
 // }
-
-
 
 fn main() {
     println!("Hello, world!");

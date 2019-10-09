@@ -5,6 +5,7 @@ pub type RegNum = u8;
 
 // Alternative way is to use repr(C) with bitfields.
 
+#[rustfmt::skip]
 pub enum Instruction {
     AddReg { dr: RegNum, sr1: RegNum, sr2: RegNum }, // RRR
     AddImm { dr: RegNum, sr1: RegNum, imm5: i8 },    // RR5
@@ -98,6 +99,7 @@ impl From<Word> for Instruction {
     fn from(w: u16) -> Self {
         use Instruction::*;
 
+        #[rustfmt::skip]
         match w >> 12 {
             0b0000 => Br { n: w.b(11), z: w.b(10), p: w.b(9), offset9: w.i16(0..8) },
             0b0001 => match w.b(5) {
@@ -134,6 +136,7 @@ impl From<Word> for Instruction {
 }
 
 impl From<Instruction> for Word {
+    #[rustfmt::skip]
     fn from(ins: Instruction) -> u16 {
         use Instruction::*;
 

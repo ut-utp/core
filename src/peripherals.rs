@@ -16,6 +16,8 @@ trait Peripherals: Gpio + Adc + Pwm + Timers {
 //
 // This is currently a little wonky, but it'll be better once we write the macro
 // described in `control.rs`.
+
+#[rustfmt::skip]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
 pub const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
 const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
@@ -153,7 +155,7 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
 
             // Some(GpioWriteErrors(errors))
             Ok(GpioWriteErrors(errors))
-}
+        }
     }
 }
 
@@ -184,7 +186,7 @@ pub enum PwmState {
     Disabled,
 }
 trait Pwm {
-// enable, disable, set duty cycle, enable hystersis. start
+    // enable, disable, set duty cycle, enable hystersis. start
     fn set_state(&mut self, pin: u8, state: PwmState) -> Result<(), ()>;
     fn get_state(&self, pin: u8) -> Option<PwmState>;
     // fn get_states() // TODO
