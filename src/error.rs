@@ -1,5 +1,5 @@
 use super::Word;
-use super::peripherals::{GpioReadError, GpioWriteError, GpioReadErrors, GpioWriteErrors, GpioMiscError/* GpioInterruptRegisterError */};
+use super::peripherals::gpio::{GpioReadError, GpioWriteError, GpioReadErrors, GpioWriteErrors, GpioMiscError/* GpioInterruptRegisterError */};
 
 
 // Lots of open questions here:
