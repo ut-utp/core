@@ -83,4 +83,35 @@ pub trait Control {
     fn pause(&mut self);
 
     fn get_state(&self) -> State;
+
+    // TBD whether this is literally just an error for the last step or if it's the last error encountered.
+    // If it's the latter, we should return the PC value when the error was encountered.
+    //
+    // Leaning towards it being the error in the last step though.
+    fn get_error(&self) -> Option<Error>;
+
+    // I/O Access:
+    // TODO!! Does the state/reading separation make sense?
+    fn get_gpio_states();
+    fn get_gpio_reading();
+    fn get_adc_states();
+    fn get_adc_reading();
+    fn get_timer_states();
+    fn get_timer_config();
+    fn get_pwm_states();
+    fn get_pwm_config();
+    fn get_clock();
+
+
+    // So with some of these functions that are basically straight wrappers over their Memory/Peripheral trait counterparts,
+    // we have a bit of a choice. We can make Control a super trait of those traits so that we can have default impls of said
+    // functions or we can make the implementor of Control manually wrap those functions.
+    //
+    // The downside to the super trait way is that it's a little weird; it requires that one massive type hold all the state
+    // for all the Peripherals and Memory (and whatever the impl for Control ends up needing). You can of course store the
+    // state for those things in their own types within your big type, but then to impl, say, Memory, you'd have to manually
+    // pass all the calls along meaning we're back where we started.
+    //
+    // Associated types really don't seem to save us here (still gotta know where the state is stored which we don't know
+    // when writing a default impl) and I can't think of a way that's appreciably better so I think we just have to eat it.
 }
