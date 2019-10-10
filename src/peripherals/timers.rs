@@ -1,6 +1,7 @@
 //! [`Timers` trait](Timers) and related types.
 
 use crate::Word;
+use crate::peripheral_trait;
 
 // TODO: Switch to enum for pins
 // TODO: Add Errors
@@ -11,6 +12,7 @@ pub enum TimerState {
     SingleShot,
     Disabled,
 }
+peripheral_trait! {timers,
 pub trait Timers {
     fn set_state(&mut self, num: u8, state: TimerState) -> Result<(), ()>;
     fn get_state(&mut self, num: u8) -> Option<TimerState>;
@@ -19,4 +21,4 @@ pub trait Timers {
     fn get_period(&mut self, num: u8) -> Option<Word>;
 
     fn register_interrupt(&mut self, num: u8, func: impl FnMut(u8)) -> Result<(), ()>;
-}
+}}
