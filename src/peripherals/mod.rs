@@ -45,7 +45,8 @@ where
 #[doc(hidden)]
 #[macro_export]
 macro_rules! peripheral_trait {
-    ($nom:ident, pub trait $trait:ident { $($rest:tt)* }) => {
+    ($nom:ident, $(#[doc = $doc:expr])* pub trait $trait:ident { $($rest:tt)* }) => {
+        $(#[doc = $doc])*
         pub trait $trait { $($rest)* }
 
         $crate::peripheral_set_impl!($trait, { $crate::func_sig!($nom, $($rest)*); });
@@ -74,27 +75,27 @@ macro_rules! peripheral_set_impl {
 macro_rules! func_sig {
     // [No block + Ret] Our ideal form: specified return type, no block:
     // (none)
-    ($nom:ident, fn $fn_name:ident($($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident($($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
         fn $fn_name($($idents : $types),*) -> $ret { compile_error!("trait functions not supported yet!") }
         $crate::func_sig!($nom, $($rest)*);
     };
     // (self)
-    ($nom:ident, fn $fn_name:ident(self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
         fn $fn_name(self, $($idents : $types),*) -> $ret { self.$nom.$fn_name($($idents),*) }
         $crate::func_sig!($nom, $($rest)*);
     };
     // (mut self)
-    ($nom:ident, fn $fn_name:ident(mut self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
         fn $fn_name(mut self, $($idents : $types),*) -> $ret { self.$nom.$fn_name($($idents),*) }
         $crate::func_sig!($nom, $($rest)*);
     };
     // (&self)
-    ($nom:ident, fn $fn_name:ident(&self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
         fn $fn_name(&self, $($idents : $types),*) -> $ret { self.$nom.$fn_name($($idents),*) }
         $crate::func_sig!($nom, $($rest)*);
     };
     // (&mut self)
-    ($nom:ident, fn $fn_name:ident(&mut self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty; $($rest:tt)*) => {
         fn $fn_name(&mut self, $($idents : $types),*) -> $ret { self.$nom.$fn_name($($idents),*) }
         $crate::func_sig!($nom, $($rest)*);
     };
@@ -102,55 +103,55 @@ macro_rules! func_sig {
 
     // [Block + Ret] Ditch blocks if you've got them:
     // (none)
-    ($nom:ident, fn $fn_name:ident($($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident($($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name($($idents : $types),*) -> $ret; $($rest)*); };
     // (self)
-    ($nom:ident, fn $fn_name:ident(self, $($self:expr,)? $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(self, $($self:expr,)? $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(self, $($idents : $types),*) -> $ret; $($rest)*); };
     // (mut self)
-    ($nom:ident, fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(mut self, $($idents : $types),*) -> $ret; $($rest)*); };
     // (&self)
-    ($nom:ident, fn $fn_name:ident(&self $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&self $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(&self, $($idents : $types),*) -> $ret; $($rest)*); };
     // (&mut self)
-    ($nom:ident, fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(&mut self, $($idents : $types),*) -> $ret; $($rest)*); };
 
 
     // [No Block + No Ret] Add in return types if they're not specified:
     // (none)
-    ($nom:ident, fn $fn_name:ident($($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident($($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name($($idents : $types),*) -> (); $($rest)*); };
     // (self)
-    ($nom:ident, fn $fn_name:ident(self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(self, $($idents : $types),*) -> (); $($rest)*); };
     // (mut self)
-    ($nom:ident, fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(mut self, $($idents : $types),*) -> (); $($rest)*); };
     // (&self)
-    ($nom:ident, fn $fn_name:ident(&self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(&self, $($idents : $types),*) -> (); $($rest)*); };
     // (&mut self)
-    ($nom:ident, fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(&mut self, $($idents : $types),*) -> (); $($rest)*); };
 
 
     // [Block + No Ret] Strip blocks + add in return types:
     // (none)
-    ($nom:ident, fn $fn_name:ident( $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident( $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name($($idents : $types),*) -> (); $($rest)*); };
     // (self)
-    ($nom:ident, fn $fn_name:ident(self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(self, $($idents : $types),*) -> (); $($rest)*); };
     // (mut self)
-    ($nom:ident, fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(mut self, $($idents : $types),*) -> (); $($rest)*); };
     // (&self)
-    ($nom:ident, fn $fn_name:ident(&self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(&self $($idents : $types),*) -> (); $($rest)*); };
     // (&mut self)
-    ($nom:ident, fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($nom:ident, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($nom, fn $fn_name(&mut self, $($idents : $types),*) -> (); $($rest)*); };
 
 

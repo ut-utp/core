@@ -55,7 +55,10 @@ pub struct GpioWriteErrors(GpioStateMismatches);
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
 
 peripheral_trait! {gpio,
+/// GPIO Access for the Interpreter.
+/// GPIO Access for the Interpreter.
 pub trait Gpio {
+    /// Yo
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError>; // should probably be infallible
     fn get_state(&self, pin: GpioPin) -> GpioState;
     fn get_states(&self) -> GpioPinArr<GpioState> {
