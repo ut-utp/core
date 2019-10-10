@@ -1,7 +1,7 @@
 //! [`Timers` trait](Timers) and related types.
 
-use crate::Word;
 use crate::peripheral_trait;
+use crate::Word;
 
 // TODO: Switch to enum for pins
 // TODO: Add Errors

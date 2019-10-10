@@ -10,7 +10,6 @@ pub enum AdcState {
     Disabled,
     Interrupt,
 }
-// trace_macros!(true);
 
 peripheral_trait! {adc,
 pub trait Adc {

@@ -130,7 +130,7 @@ impl From<Word> for Instruction {
             0b1101 => unimplemented!(),
             0b1110 => Lea { dr: w.u8(9..11), offset9: w.i16(0..8) },
             0b1111 => Trap { trapvec: w.u8(0..7) },
-            _ => unreachable!(),
+            16..=core::u16::MAX => unreachable!(),
         }
     }
 }
@@ -140,14 +140,6 @@ impl From<Instruction> for Word {
     fn from(ins: Instruction) -> u16 {
         #![allow(non_snake_case)]
         use Instruction::*;
-
-        // fn rrr(op: u16, dr: RegNum, sr1: RegNum, sr2: RegNum) -> u16 {
-        //     (op << 12) | ((dr as u16) << 8) | ((sr1 as u16) << 5) | (sr2 as u16)
-        // }
-
-        // fn rr5(op: u16, dr: RegNum, sr1: RegNum, imm5: u8) -> u16 {
-        //     (op << 12) | ((dr as u16) << 8) | ((sr1 as u16))
-        // }
 
         fn Op(op: u8) -> Word { ((op as u16) & 0b1111) << 12 }
         fn Dr(dr: RegNum) -> Word { ((dr as u16) & 0b111) << 8 }
@@ -165,26 +157,25 @@ impl From<Instruction> for Word {
         fn Trapvec(trapvec: u8) -> Word { (trapvec as u16) & 0xFF }
 
         match ins {
-            // AddReg { dr, sr1, sr2 } => rrr(0b0001, dr, sr1, sr2),
-            AddReg { dr, sr1, sr2 } => Op(0b0001) | Dr(dr) | Sr1(sr1) | Sr2(sr2),
-            AddImm { dr, sr1, imm5 } => Op(0b001) | Dr(dr) | Sr1(sr1) | Imm5(imm5),
-            AndReg { dr, sr1, sr2 } => Op(0b0101) | Dr(dr) | Sr1(sr1) | Sr2(sr2),
-            AndImm { dr, sr1, imm5 } => Op(0b001) | Dr(dr) | Sr1(sr1) | Imm5(imm5),
-            Br { n, z, p, offset9 } => Op(0b0000) | N(n) | Z(z) | P(p) | O9(offset9),
-            Jmp { base } => Op(0b1100) | Base(base),
-            Jsr { offset11 } => Op(0b0100) | O11(offset11),
-            Jsrr { base } => Op(0b0100) | Base(base),
-            Ld { dr, offset9 } => Op(0b0010) | Dr(dr) | O9(offset9),
-            Ldi { dr, offset9 } => Op(0b1010) | Dr(dr) | O9(offset9),
+            AddReg { dr, sr1, sr2 }   => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Sr2(sr2)   ,
+            AddImm { dr, sr1, imm5 }  => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Imm5(imm5) ,
+            AndReg { dr, sr1, sr2 }   => Op(0b0101) | Dr(dr) | Sr1(sr1)   | Sr2(sr2)   ,
+            AndImm { dr, sr1, imm5 }  => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Imm5(imm5) ,
+            Br { n, z, p, offset9 }   => Op(0b0000) | N(n) | Z(z) | P(p)  | O9(offset9),
+            Jmp { base }              => Op(0b1100)          | Base(base)              ,
+            Jsr { offset11: offset }  => Op(0b0100)                       | O11(offset),
+            Jsrr { base }             => Op(0b0100)          | Base(base)              ,
+            Ld { dr, offset9 }        => Op(0b0010) | Dr(dr)              | O9(offset9),
+            Ldi { dr, offset9 }       => Op(0b1010) | Dr(dr)              | O9(offset9),
             Ldr { dr, base, offset6 } => Op(0b0110) | Dr(dr) | Base(base) | O6(offset6),
-            Lea { dr, offset9 } => Op(0b1110) | Dr(dr) | O9(offset9),
-            Not { dr, sr } => Op(0b1001) | Dr(dr) | Sr(sr),
-            Ret => Op(0b1100) | Base(0b111),
-            Rti => Op(0b1000),
-            St { sr, offset9 } => Op(0b0011) | Dr(sr) | O9(offset9),
-            Sti { sr, offset9 } => Op(0b1011) | Dr(sr) | O9(offset9),
+            Lea { dr, offset9 }       => Op(0b1110) | Dr(dr)              | O9(offset9),
+            Not { dr, sr }            => Op(0b1001) | Dr(dr) | Sr(sr)                  ,
+            Ret                       => Op(0b1100)          | Base(7)                 ,
+            Rti                       => Op(0b1000)                                    ,
+            St { sr, offset9 }        => Op(0b0011) | Dr(sr)              | O9(offset9),
+            Sti { sr, offset9 }       => Op(0b1011) | Dr(sr)              | O9(offset9),
             Str { sr, base, offset6 } => Op(0b0111) | Dr(sr) | Base(base) | O6(offset6),
-            Trap { trapvec } => Op(0b111) | Trapvec(trapvec),
+            Trap { trapvec }          => Op(0b0111)          | Trapvec(trapvec)        ,
         }
     }
 }

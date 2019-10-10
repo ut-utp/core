@@ -1,13 +1,7 @@
 //! [`Clock` trait](Clock).
 
-use crate::Word;
 use crate::peripheral_trait;
-
-
-// trace_macros!(true);
-// trait foo {
-//     fn yak(crate::self_macro!(self)) -> ();
-// }
+use crate::Word;
 
 // Just 1 Clock! (millisecond units)
 peripheral_trait! {clock,

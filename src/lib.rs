@@ -1,6 +1,5 @@
 #![feature(stmt_expr_attributes)]
 #![feature(trace_macros)]
-
 // TODO: forbid
 #![warn(
     bad_style,
@@ -38,7 +37,6 @@
     unused_qualifications,
     unused_results
 )]
-
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
