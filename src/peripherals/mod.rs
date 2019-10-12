@@ -70,27 +70,28 @@ where
 #[doc(hidden)]
 #[macro_export]
 macro_rules! peripheral_trait {
-    ($nom:ident, $(#[doc = $doc:expr])* pub trait $trait:ident $(: $bound:ident )? { $($rest:tt)* }) => {
+    ($nom:ident, $(#[doc = $doc:expr])* pub trait $trait:ident $(<$lifetime:lifetime>)? $(: $bound:ident )? { $($rest:tt)* }) => {
         $(#[doc = $doc])*
-        pub trait $trait where Self: $($bound)? { $($rest)* }
+        pub trait $trait $(<$lifetime>)? where Self: $($bound)? { $($rest)* }
 
-        $crate::peripheral_set_impl!($trait, { $crate::func_sig!($nom, $($rest)*); });
+        $crate::peripheral_set_impl!($trait<$($lifetime)?> $(| $lifetime |)?, { $crate::func_sig!($nom, $($rest)*); });
     };
 }
 
 #[doc(hidden)]
 #[macro_export]
 macro_rules! peripheral_set_impl {
-    ($trait:ty, { $($rest:tt)* }) => {
-        impl<G, A, P, T, C, I, O> $trait for $crate::peripherals::PeripheralSet<G, A, P, T, C, I, O>
+    ($trait:ty $(| $lifetime:lifetime |)?, { $($rest:tt)* }) => {
+        impl<$($lifetime,)? 'p, G, A, P, T, C, I, O> $trait for $crate::peripherals::PeripheralSet<'p, G, A, P, T, C, I, O>
         where
-            G: $crate::peripherals::gpio::Gpio,
-            A: $crate::peripherals::adc::Adc,
-            P: $crate::peripherals::pwm::Pwm,
-            T: $crate::peripherals::timers::Timers,
-            C: $crate::peripherals::clock::Clock,
-            I: $crate::peripherals::input::Input,
-            O: $crate::peripherals::output::Output,
+            $($lifetime: 'p,)?
+            G: 'p + $crate::peripherals::gpio::Gpio<'p>,
+            A: 'p + $crate::peripherals::adc::Adc,
+            P: 'p + $crate::peripherals::pwm::Pwm,
+            T: 'p + $crate::peripherals::timers::Timers,
+            C: 'p + $crate::peripherals::clock::Clock,
+            I: 'p + $crate::peripherals::input::Input,
+            O: 'p + $crate::peripherals::output::Output,
         { $($rest)* }
     };
 }
