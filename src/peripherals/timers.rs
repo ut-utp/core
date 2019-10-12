@@ -13,12 +13,12 @@ pub enum TimerState {
     Disabled,
 }
 peripheral_trait! {timers,
-pub trait Timers: Default {
+pub trait Timers<'a>: Default {
     fn set_state(&mut self, num: u8, state: TimerState) -> Result<(), ()>;
     fn get_state(&mut self, num: u8) -> Option<TimerState>;
 
     fn set_period(&mut self, num: u8, milliseconds: Word);
     fn get_period(&mut self, num: u8) -> Option<Word>;
 
-    fn register_interrupt(&mut self, num: u8, func: impl FnMut(u8)) -> Result<(), ()>;
+    fn register_interrupt(&mut self, num: u8, func: &'a dyn FnMut(u8)) -> Result<(), ()>;
 }}
