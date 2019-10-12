@@ -1,4 +1,4 @@
-//! Peripherals! The [`Peripherals` supertrait](Peripherals) and the rest of the
+//! Peripherals! The [`Peripherals` supertrait](peripherals::Peripherals) and the rest of the
 //! peripheral and device traits.
 
 pub mod adc;

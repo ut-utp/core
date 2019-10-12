@@ -19,8 +19,8 @@ use crate::peripheral_trait;
 #[rustfmt::skip]
 #[derive(Copy, Clone)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
-const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
-const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
+pub(crate) const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
+pub(crate) const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
     use GpioPin::*;
     [G0, G1, G2, G3, G4, G5, G6, G7]
 }; // TODO: once we get the derive macro, get rid of this.
@@ -29,7 +29,13 @@ const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
 pub enum GpioState {
     Input,
     Output,
-    Interrupt, // TBD: Can you call read on a pin configured for interrupts?
+    Interrupt, // TBD: Can you call read on a pin configured for interrupts? (TODO)
+               // Tentatively, yes.
+               //
+               // 00 -> Disabled
+               // 01 -> Output
+               // 10 -> Input
+               // 11 -> Interrupt (Rising Edge)
     Disabled,
 }
 
@@ -42,9 +48,9 @@ pub struct GpioReadError(GpioStateMismatch);
 #[derive(Copy, Clone)]
 pub struct GpioWriteError(GpioStateMismatch);
 
-type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
+pub(crate) type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
 
-type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
+pub(crate) type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
 #[derive(Copy, Clone)]
 pub struct GpioReadErrors(GpioStateMismatches);
@@ -55,6 +61,76 @@ pub struct GpioWriteErrors(GpioStateMismatches);
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
 
 peripheral_trait! {gpio,
+/// GPIO access trait.
+///
+/// Implementations of this trait must provide digital read, digital write, and rising
+/// edge trigger interrupt functionality for 8 GPIO pins which we'll call G0 - G7.
+///
+/// Additionally, implementors of this trait must also provide an implementation of
+/// [`Default`](core::default::Default).
+///
+/// ### State
+/// The interpreter (user of this trait) will set the states of all the pins to
+/// [`GpioState::Disabled`] on startup, so implementations can choose any default state
+/// they wish.
+///
+/// Implementations should maintain the state of the GPIO pins and querying this state
+/// ([`get_state`]) should be an infallible operation.
+///
+/// Setting pin state ([`set_state`]) is not infallible as implementations may change
+/// need to actually change the state of hardware peripherals in order to, for example,
+/// register a rising-edge interrupt for a particular pin. Though implementors are
+/// encouraged to make this operation infallible if possible, we realize this isn't
+/// always possible and in the event that it isn't, we'd rather have implementors pass
+/// the error onto the interpreter instead of panicking.
+///
+/// ### Reads and Writes
+/// Reading from pins should fail (with a [`GpioReadError`]) when pins are disabled or
+/// in output ([`GpioState::Output`]) mode. *Note:* reading from pins in interrupt
+/// ([`GpioState::Interrupt`]) mode is allowed.
+///
+/// Writing from pins should fail (with a [`GpioWriteError`]) when pins are disabled or
+/// in input ([`GpioState::Input`]) or interrupt ([`GpioState::Interrupt`]) mode.
+///
+/// ### Interrupts
+/// Registering interrupts (i.e. calling [`register_interrupt`]) does not automatically
+/// put a pin in [`interrupt`](GpioState::Interrupt) mode. Instead, this only updates
+/// the handler function for a pin.
+///
+/// Handler functions are `FnMut` implementors (they're allowed to mutate state) that
+/// take a [`GpioPin`] corresponding to the pin for which the rising-edge interrupt just
+/// fired.
+///
+/// Implementations should store the last handler function provided to
+/// [`register_interrupt`] _across pin state changes_. As in, if G0 (GPIO pin 0)'s
+/// handler is set to function A (i.e. `register_interrupt(GpioPin::G0, A)`), and then
+/// G0's state is changed to [`output`](GpioState::Output) and then to
+/// [`disabled`](GpioState::Disabled) and then to [`interrupt`](GpioState::Interrupt), A
+/// should be called when G0 goes from low to high.
+///
+/// Implementors should use a no-op handler (do nothing) for the pins by default. All
+/// users of this trait _should_ register handlers on initialization (just as they will
+/// explicitly set the state of all pins to [disabled](GpioState::Disabled)), but
+/// implementors shouldn't bank on this.
+///
+/// As is probably obvious, implementors should only call the handler function on a
+/// rising edge *if the pin is in [interrupt](GpioState::Interrupt) mode* (not just if
+/// a handler function has been provided).
+///
+/// ### Default Function Implementations
+/// The trait provides naïve default implementations of [`get_states`], [`read_all`],
+/// and [`write_all`] that just call their single pin variants across all pins; as an
+/// implementor you can choose to override these if you wish. If there's an easier way
+/// to do a particular operation across all the pins than just calling the single pin
+/// variant in a loop, then it's probably worth doing; i.e. if you happen to store
+/// [`GpioState`]s for the pins in an array, you could override [`get_states`] to just
+/// return your array pretty easily. Otherwise, the default implementations should work
+/// fine.
+///
+/// ### Tests
+/// There are [tests for this trait](crate::tests::gpio) in the [tests
+/// module](crate::tests) to help ensure that your implementation of this trait follows
+/// the rules above.
 pub trait Gpio: Default {
 
     /// Yo
@@ -116,7 +192,7 @@ pub trait Gpio: Default {
     //
     // But really, enabling interrupts and having them go to the default handler should be possible... (default handler should probably do nothing!)
     //
-    // Another approach is to make adding interupts an extra thing that you can do when you're in Input mode. I don't like this because
+    // Another approach is to make adding interrupts an extra thing that you can do when you're in Input mode. I don't like this because
     // it means we now need to provide a disable_interrupt function though...
     // fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioInterruptRegisterError>;
 
@@ -124,7 +200,7 @@ pub trait Gpio: Default {
     fn register_interrupt(
         &mut self,
         pin: GpioPin,
-        func: impl FnMut(bool)
+        handler: impl FnMut(GpioPin)
     ) -> Result<(), GpioMiscError>;
 }}
 
