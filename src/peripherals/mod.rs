@@ -10,6 +10,7 @@ pub mod timers;
 pub mod input;
 pub mod output;
 
+use core::marker::PhantomData;
 use adc::Adc;
 use clock::Clock;
 use gpio::Gpio;
@@ -19,13 +20,13 @@ use timers::Timers;
 use input::Input;
 use output::Output;
 
-pub trait Peripherals: Gpio + Adc + Pwm + Timers + Clock + Input + Output {
+pub trait Peripherals<'p>: Gpio<'p> + Adc + Pwm + Timers + Clock + Input + Output {
     fn init() -> Self;
 }
 
-pub struct PeripheralSet<G, A, P, T, C, I, O>
+pub struct PeripheralSet<'p, G, A, P, T, C, I, O>
 where
-    G: Gpio,
+    G: Gpio<'p>,
     A: Adc,
     P: Pwm,
     T: Timers,
@@ -40,14 +41,15 @@ where
     clock: C,
     input: I,
     output: O,
+    _marker: PhantomData<&'p ()>,
 }
 
 // TODO: is default a supertrait requirement or just an additional bound here
 // (as in, if all your things implement default, we'll give you a default
 // otherwise no).
-impl<G, A, P, T, C, I, O> Default for PeripheralSet<G, A, P, T, C, I, O>
+impl<'p, G, A, P, T, C, I, O> Default for PeripheralSet<'p, G, A, P, T, C, I, O>
 where
-    G: Gpio,
+    G: 'p + Gpio<'p>,
     A: Adc,
     P: Pwm,
     T: Timers,
