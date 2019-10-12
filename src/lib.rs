@@ -53,6 +53,8 @@ compile_error!(
 pub type Addr = u16;
 pub type Word = u16;
 
+pub mod tests;
+
 pub mod error;
 
 pub mod control;
