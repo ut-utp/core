@@ -10,9 +10,9 @@ pub mod timers;
 pub mod input;
 pub mod output;
 
-use core::marker::PhantomData;
 use adc::Adc;
 use clock::Clock;
+use core::marker::PhantomData;
 use gpio::Gpio;
 use pwm::Pwm;
 use timers::Timers;

@@ -1,4 +1,4 @@
-//! Shims for the various [peripheral](crate::peripherals) traits and for the
+//! Shims for the various [peripheral traits](crate::peripherals) and for the
 //! [`Memory` trait](crate::memory::Memory).
 
 // Peripherals:
@@ -15,7 +15,7 @@ mod output;
 // Memory:
 mod memory;
 
-use crate::memory::{Peripherals, PeripheralSet};
+use crate::peripherals::{PeripheralSet, Peripherals};
 
 pub use adc::AdcShim;
 pub use clock::ClockShim;
@@ -28,10 +28,11 @@ pub use output::OutputShim;
 
 pub use memory::MemoryShim;
 
-pub type PeripheralsShim = PeripheralSet<GpioShim, AdcShim, PwmShim, TimersShim, ClockShim, InputShim, OutputShim>;
+pub type PeripheralsShim<'s> =
+    PeripheralSet<'s, GpioShim<'s>, AdcShim, PwmShim, TimersShim, ClockShim, InputShim, OutputShim>;
 
-impl Peripherals for PeripheralsShim {
-    fn init() -> Self {
+// impl Peripherals for PeripheralsShim {
+//     fn init() -> Self {
 
-    }
-}
+//     }
+// }

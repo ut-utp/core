@@ -30,12 +30,12 @@ pub enum GpioState {
     Input,
     Output,
     Interrupt, // TBD: Can you call read on a pin configured for interrupts? (TODO)
-               // Tentatively, yes.
-               //
-               // 00 -> Disabled
-               // 01 -> Output
-               // 10 -> Input
-               // 11 -> Interrupt (Rising Edge)
+    // Tentatively, yes.
+    //
+    // 00 -> Disabled
+    // 01 -> Output
+    // 10 -> Input
+    // 11 -> Interrupt (Rising Edge)
     Disabled,
 }
 

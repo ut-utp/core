@@ -4,26 +4,35 @@
 use crate::memory::{Memory, MemoryMiscError};
 use crate::{Addr, Word};
 
+use core::mem::size_of;
+
+const fn pow_of_two(exp: usize) -> usize {
+    1 << exp
+}
+
+const ADDR_SPACE_SIZE_IN_WORDS: usize = (pow_of_two(size_of::<Addr>() * 8) / size_of::<Word>());
+// const MEMORY_SIZE_IN_WORDS: usize = ((core::u16::MAX as usize + 1) / 2);
+
 /// Naive [`Memory` trait](crate::memory::Memory) implementation.
 ///
 /// Only good for hosted platforms since we just go and use 128 KiB of stack
 /// space.
 pub struct MemoryShim {
-    persistent: [Word; ((core::u16::MAX) / 2) as usize],
-    staging: [Word; ((core::u16::MAX) / 2) as usize],
+    persistent: [Word; ADDR_SPACE_SIZE_IN_WORDS],
+    staging: [Word; ADDR_SPACE_SIZE_IN_WORDS],
 }
 
 impl Default for MemoryShim {
     fn default() -> Self {
         Self {
-            persistent: [0u16; ((core::u16::MAX) / 2) as usize],
-            staging: [0u16; ((core::u16::MAX) / 2) as usize],
+            persistent: [0u16; ADDR_SPACE_SIZE_IN_WORDS],
+            staging: [0u16; ADDR_SPACE_SIZE_IN_WORDS],
         }
     }
 }
 
 impl MemoryShim {
-    fn new(memory: [Word; ((core::u16::MAX) / 2) as usize]) -> Self {
+    fn new(memory: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
         Self {
             persistent: memory,
             staging: memory.clone(),
