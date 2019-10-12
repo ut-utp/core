@@ -44,22 +44,27 @@ pub struct GpioMiscError;
 type GpioStateMismatch = (GpioPin, GpioState);
 
 #[derive(Copy, Clone)]
-pub struct GpioReadError(GpioStateMismatch);
+pub struct GpioReadError(pub GpioStateMismatch);
 #[derive(Copy, Clone)]
-pub struct GpioWriteError(GpioStateMismatch);
+pub struct GpioWriteError(pub GpioStateMismatch);
 
 pub(crate) type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
 
 pub(crate) type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
 #[derive(Copy, Clone)]
-pub struct GpioReadErrors(GpioStateMismatches);
+pub struct GpioReadErrors(pub GpioStateMismatches);
 #[derive(Copy, Clone)]
-pub struct GpioWriteErrors(GpioStateMismatches);
+pub struct GpioWriteErrors(pub GpioStateMismatches);
 
 // #[derive(Copy, Clone)]
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
 
+// TODO: document all the weird cases
+//
+// Once a pin is set to output but before a write the pin is? 0? unknown? implementation defined?
+// Write to the register in input mode? Ignored
+// Read from the register in output mode? 0s? or do we cache the last written value?
 peripheral_trait! {gpio,
 /// GPIO access trait.
 ///
@@ -67,7 +72,9 @@ peripheral_trait! {gpio,
 /// edge trigger interrupt functionality for 8 GPIO pins which we'll call G0 - G7.
 ///
 /// Additionally, implementors of this trait must also provide an implementation of
-/// [`Default`](core::default::Default).
+/// [`Default`](core::default::Default). Implementors are also free (and encouraged!) to
+/// provide inherent methods on their implementation that allow for configuration of the
+/// peripheral.
 ///
 /// ### State
 /// The interpreter (user of this trait) will set the states of all the pins to
@@ -75,14 +82,14 @@ peripheral_trait! {gpio,
 /// they wish.
 ///
 /// Implementations should maintain the state of the GPIO pins and querying this state
-/// ([`get_state`]) should be an infallible operation.
+/// ([`get_state`](Gpio::get_state)) should be an infallible operation.
 ///
-/// Setting pin state ([`set_state`]) is not infallible as implementations may change
-/// need to actually change the state of hardware peripherals in order to, for example,
-/// register a rising-edge interrupt for a particular pin. Though implementors are
-/// encouraged to make this operation infallible if possible, we realize this isn't
-/// always possible and in the event that it isn't, we'd rather have implementors pass
-/// the error onto the interpreter instead of panicking.
+/// Setting pin state ([`set_state`](Gpio::set_state)) is not infallible as
+/// implementations may change need to actually change the state of hardware peripherals
+/// in order to, for example, register a rising-edge interrupt for a particular pin.
+/// Though implementors are encouraged to make this operation infallible if possible, we
+/// realize this isn't always possible and in the event that it isn't, we'd rather have
+/// implementors pass the error onto the interpreter instead of panicking.
 ///
 /// ### Reads and Writes
 /// Reading from pins should fail (with a [`GpioReadError`]) when pins are disabled or
@@ -93,20 +100,22 @@ peripheral_trait! {gpio,
 /// in input ([`GpioState::Input`]) or interrupt ([`GpioState::Interrupt`]) mode.
 ///
 /// ### Interrupts
-/// Registering interrupts (i.e. calling [`register_interrupt`]) does not automatically
-/// put a pin in [`interrupt`](GpioState::Interrupt) mode. Instead, this only updates
-/// the handler function for a pin.
+/// Registering interrupts (i.e. calling
+/// [`register_interrupt`](Gpio::register_interrupt)) does not automatically put a pin
+/// in [`interrupt`](GpioState::Interrupt) mode. Instead, this only updates the handler
+/// function for a pin.
 ///
 /// Handler functions are `FnMut` implementors (they're allowed to mutate state) that
 /// take a [`GpioPin`] corresponding to the pin for which the rising-edge interrupt just
 /// fired.
 ///
 /// Implementations should store the last handler function provided to
-/// [`register_interrupt`] _across pin state changes_. As in, if G0 (GPIO pin 0)'s
-/// handler is set to function A (i.e. `register_interrupt(GpioPin::G0, A)`), and then
-/// G0's state is changed to [`output`](GpioState::Output) and then to
-/// [`disabled`](GpioState::Disabled) and then to [`interrupt`](GpioState::Interrupt), A
-/// should be called when G0 goes from low to high.
+/// [`register_interrupt`](Gpio::register_interrupt) _across pin state changes_. As in,
+/// if G0 (GPIO pin 0)'s handler is set to function A (i.e.
+/// `register_interrupt(GpioPin::G0, A)`), and then G0's state is changed to
+/// [`output`](GpioState::Output) and then to [`disabled`](GpioState::Disabled) and then
+/// to [`interrupt`](GpioState::Interrupt), A should be called when G0 goes from low to
+/// high.
 ///
 /// Implementors should use a no-op handler (do nothing) for the pins by default. All
 /// users of this trait _should_ register handlers on initialization (just as they will
@@ -118,20 +127,20 @@ peripheral_trait! {gpio,
 /// a handler function has been provided).
 ///
 /// ### Default Function Implementations
-/// The trait provides naïve default implementations of [`get_states`], [`read_all`],
-/// and [`write_all`] that just call their single pin variants across all pins; as an
-/// implementor you can choose to override these if you wish. If there's an easier way
-/// to do a particular operation across all the pins than just calling the single pin
-/// variant in a loop, then it's probably worth doing; i.e. if you happen to store
-/// [`GpioState`]s for the pins in an array, you could override [`get_states`] to just
-/// return your array pretty easily. Otherwise, the default implementations should work
-/// fine.
+/// The trait provides naïve default implementations of
+/// [`get_states`](Gpio::get_states), [`read_all`](Gpio::read_all), and
+/// [`write_all`](Gpio::write_all) that just call their single pin variants across all
+/// pins; as an implementor you can choose to override these if you wish. If there's an
+/// easier way to do a particular operation across all the pins than just calling the
+/// single pin variant in a loop, then it's probably worth doing; i.e. if you happen to
+/// store [`GpioState`]s for the pins in an array, you could override
+/// [`get_states`](Gpio::get_states) to just return your array pretty easily. Otherwise,
+/// the default implementations should work fine.
 ///
 /// ### Tests
 /// There are [tests for this trait](crate::tests::gpio) in the [tests
 /// module](crate::tests) to help ensure that your implementation of this trait follows
 /// the rules above.
-peripheral_trait! {gpio,
 pub trait Gpio<'a>: Default {
 
     /// Yo

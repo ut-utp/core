@@ -66,9 +66,63 @@ where
             clock: C::default(),
             input: I::default(),
             output: O::default(),
+            _marker: PhantomData,
         }
     }
 }
+
+impl<'p, G, A, P, T, C, I, O> PeripheralSet<'p, G, A, P, T, C, I, O>
+where
+    G: Gpio<'p>,
+    A: Adc<'p>,
+    P: Pwm,
+    T: Timers<'p>,
+    C: Clock,
+    I: Input,
+    O: Output,
+{
+    pub fn new(gpio: G, adc: A, pwm: P, timers: T, clock: C, input: I, output: O) -> Self {
+        Self {
+            gpio,
+            adc,
+            pwm,
+            timers,
+            clock,
+            input,
+            output,
+            _marker: PhantomData,
+        }
+    }
+
+    pub fn get_gpio(&self) -> &G {
+        &self.gpio
+    }
+
+    pub fn get_adc(&self) -> &A {
+        &self.adc
+    }
+
+    pub fn get_pwm(&self) -> &P {
+        &self.pwm
+    }
+
+    pub fn get_timers(&self) -> &T {
+        &self.timers
+    }
+
+    pub fn get_clock(&self) -> &C {
+        &self.clock
+    }
+
+    pub fn get_input(&self) -> &I {
+        &self.input
+    }
+
+    pub fn get_output(&self) -> &O {
+        &self.output
+    }
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! peripheral_trait {
