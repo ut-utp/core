@@ -1,7 +1,9 @@
-
-use std::sync::{Arc, RwLock};
+use crate::peripherals::gpio::{
+    Gpio, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
+    NUM_GPIO_PINS,
+};
 use core::ops::{Index, IndexMut};
-use crate::peripherals::gpio::{Gpio, GpioPin, GpioState, GpioPinArr, GpioReadError, GpioWriteError, GpioMiscError, NUM_GPIO_PINS};
+use std::sync::{Arc, RwLock};
 
 #[derive(Copy, Clone, Debug)]
 pub enum State {
@@ -55,11 +57,7 @@ impl From<GpioPin> for usize {
 ///     retrieved at any time.
 pub struct GpioShim<'a> {
     states: GpioPinArr<State>,
-    handlers: GpioPinArr<&'a dyn Fn(GpioPin)>
-    // handlers: GpioPinArr<Box<dyn Fn(GpioPin)>>
-    // handlers: GpioPinArr<Box<dyn FnMut(GpioPin)>>
-    // handlers: GpioPinArr<&'static dyn FnMut(GpioPin)>
-    // handlers: GpioPinArr<&'a dyn FnMut(GpioPin)>,
+    handlers: GpioPinArr<&'a dyn Fn(GpioPin)>,
 }
 
 impl Index<GpioPin> for GpioShim<'_> {
@@ -76,7 +74,6 @@ impl IndexMut<GpioPin> for GpioShim<'_> {
     }
 }
 
-// static no_op: &dyn Fn(GpioPin) = &|_| {};
 const NO_OP: &dyn Fn(GpioPin) = &|_| {};
 
 impl Default for GpioShim<'_> {
@@ -114,7 +111,7 @@ impl GpioShim<'_> {
                 }
 
                 Interrupt(bit)
-            },
+            }
             Output(_) | Disabled => return None,
         };
 
@@ -133,16 +130,11 @@ impl GpioShim<'_> {
         }
     }
 
+    /// Gets the state of a pin. Infallible.
     pub fn get_pin_state(&self, pin: GpioPin) -> GpioState {
         self[pin].into()
     }
 }
-
-// impl Arc<RwLock<GpioShim>> {
-//     fn new() -> Self {
-//         Self::default()
-//     }
-// }
 
 impl<'a> Gpio<'a> for GpioShim<'a> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
@@ -183,18 +175,41 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
         }
     }
 
-    // fn register_interrupt<'a>(&'a mut self, pin: GpioPin, handler: impl FnMut(GpioPin) + 'a) -> Result<(), GpioMiscError> {
-    //     // self.handlers[Into::<usize>::into(pin)] = Box::new(handler);
-    //     self.handlers[Into::<usize>::into(pin)] = Box::new(handler);
-    //     // self.handlers[Into::<usize>::into(pin)] = &handler;
-
-    //     Ok(())
-    // }
-
-    fn register_interrupt(&mut self, pin: GpioPin, handler: &'a dyn Fn(GpioPin)) -> Result<(), GpioMiscError> {
+    fn register_interrupt(
+        &mut self,
+        pin: GpioPin,
+        handler: &'a dyn Fn(GpioPin),
+    ) -> Result<(), GpioMiscError> {
         self.handlers[Into::<usize>::into(pin)] = handler;
 
         Ok(())
     }
 }
 
+impl<'a> Gpio<'a> for Arc<RwLock<GpioShim<'a>>> {
+    fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
+        RwLock::write(self).unwrap().set_state(pin, state)
+    }
+
+    fn get_state(&self, pin: GpioPin) -> GpioState {
+        RwLock::read(self).unwrap().get_state(pin)
+    }
+
+    fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError> {
+        RwLock::read(self).unwrap().read(pin)
+    }
+
+    fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
+        RwLock::write(self).unwrap().write(pin, bit)
+    }
+
+    fn register_interrupt(
+        &mut self,
+        pin: GpioPin,
+        handler: &'a dyn Fn(GpioPin),
+    ) -> Result<(), GpioMiscError> {
+        RwLock::write(self)
+            .unwrap()
+            .register_interrupt(pin, handler)
+    }
+}
