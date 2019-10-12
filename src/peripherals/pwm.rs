@@ -10,7 +10,7 @@ pub enum PwmState {
     Disabled,
 }
 peripheral_trait! {pwm,
-pub trait Pwm {
+pub trait Pwm: Default {
     // enable, disable, set duty cycle, enable hystersis. start
     fn set_state(&mut self, pin: u8, state: PwmState) -> Result<(), ()>;
     fn get_state(&self, pin: u8) -> Option<PwmState>;

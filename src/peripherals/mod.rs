@@ -42,6 +42,31 @@ where
     output: O,
 }
 
+// TODO: is default a supertrait requirement or just an additional bound here
+// (as in, if all your things implement default, we'll give you a default
+// otherwise no).
+impl<G, A, P, T, C, I, O> Default for PeripheralSet<G, A, P, T, C, I, O>
+where
+    G: Gpio,
+    A: Adc,
+    P: Pwm,
+    T: Timers,
+    C: Clock,
+    I: Input,
+    O: Output,
+{
+    fn default() -> Self {
+        Self {
+            gpio: G::default(),
+            adc: A::default(),
+            pwm: P::default(),
+            timers: T::default(),
+            clock: C::default(),
+            input: I::default(),
+            output: O::default(),
+        }
+    }
+}
 #[doc(hidden)]
 #[macro_export]
 macro_rules! peripheral_trait {

@@ -14,7 +14,7 @@ pub enum AdcState {
 peripheral_trait! {adc,
 
 /// Adc access for the interpreter.
-pub trait Adc {
+pub trait Adc: Default {
     fn set_state(&mut self, pin: u8, state: AdcState) -> Result<(), ()>;
     fn get_state(&self, pin: u8) -> Option<AdcState>;
     // fn get_states() // TODO

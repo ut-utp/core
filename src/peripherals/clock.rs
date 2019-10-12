@@ -5,7 +5,7 @@ use crate::Word;
 
 // Just 1 Clock! (millisecond units)
 peripheral_trait! {clock,
-pub trait Clock {
+pub trait Clock: Default {
     // fn enable(&mut self);   // Probably ditch (TODO).
     // fn disable(&mut self);
 

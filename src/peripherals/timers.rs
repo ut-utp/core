@@ -13,7 +13,7 @@ pub enum TimerState {
     Disabled,
 }
 peripheral_trait! {timers,
-pub trait Timers {
+pub trait Timers: Default {
     fn set_state(&mut self, num: u8, state: TimerState) -> Result<(), ()>;
     fn get_state(&mut self, num: u8) -> Option<TimerState>;
 

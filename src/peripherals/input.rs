@@ -3,5 +3,5 @@
 use crate::peripheral_trait;
 
 peripheral_trait! {input,
-pub trait Input {}
+pub trait Input: Default {}
 }

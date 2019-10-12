@@ -3,5 +3,5 @@
 use crate::peripheral_trait;
 
 peripheral_trait! {output,
-pub trait Output {}
+pub trait Output: Default {}
 }
