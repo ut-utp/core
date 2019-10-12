@@ -45,9 +45,9 @@ where
 #[doc(hidden)]
 #[macro_export]
 macro_rules! peripheral_trait {
-    ($nom:ident, $(#[doc = $doc:expr])* pub trait $trait:ident { $($rest:tt)* }) => {
+    ($nom:ident, $(#[doc = $doc:expr])* pub trait $trait:ident $(: $bound:ident )? { $($rest:tt)* }) => {
         $(#[doc = $doc])*
-        pub trait $trait { $($rest)* }
+        pub trait $trait where Self: $($bound)? { $($rest)* }
 
         $crate::peripheral_set_impl!($trait, { $crate::func_sig!($nom, $($rest)*); });
     };
