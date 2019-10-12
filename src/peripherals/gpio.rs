@@ -131,7 +131,8 @@ peripheral_trait! {gpio,
 /// There are [tests for this trait](crate::tests::gpio) in the [tests
 /// module](crate::tests) to help ensure that your implementation of this trait follows
 /// the rules above.
-pub trait Gpio: Default {
+peripheral_trait! {gpio,
+pub trait Gpio<'a>: Default {
 
     /// Yo
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError>; // should probably be infallible
@@ -200,7 +201,9 @@ pub trait Gpio: Default {
     fn register_interrupt(
         &mut self,
         pin: GpioPin,
-        handler: impl FnMut(GpioPin)
+        // handler: impl FnMut(GpioPin)
+        // handler: &mut dyn FnMut(GpioPin)
+        handler: &'a impl Fn(GpioPin)
     ) -> Result<(), GpioMiscError>;
 }}
 
