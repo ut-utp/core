@@ -67,13 +67,81 @@ impl From<usize> for RegNum {
     }
 }
 
+impl From<u8> for RegNum {
+    fn from(reg_num: u8) -> RegNum {
+        use RegNum::*;
+        RegNum::from(Into::<usize>::into(dr))
+    }
+}
+
 impl<'a, M: Memory, P: Peripherals<'a>> Interp for Interpreter<'a, M, P> {
     fn step(&mut self) {
         use crate::isa::Instruction::*;
 
         // TODO: probably impl TryFrom instead so we don't just crash??
         match self.mem.read_word(self.pc).into() {
-            Jsr { offset11 } => {}
+            AddReg { dr, sr1, sr2 } => {
+                self::set_register(self::get_register(sr1) + self::get_register(sr2), dr);
+                todo!("Need to deal with wraparound");
+                todo!("Need to set condition codes!");
+            },
+            AddImm { dr, sr1, imm5 } => {
+                self::set_register(self::get_register(sr1) + imm5, dr);
+            },
+            AndReg { dr, sr1, sr2} => {
+
+            },
+            AndImm {dr, sr1, imm5} => {
+
+            },
+            Br { n, z, p, offset9 } => {
+
+            },
+            Jmp { base } => {
+                self.set_pc(self.get_register(RegNum::from(base)));
+            },
+            Jsr { offset11 } => {
+                self.set_register(RegNum::R7, self.pc);
+                todo!("Need to change to wrapping add somehow.");
+                self.set_pc(self.get_pc() + offset11);
+            },
+            Jsrr { base } => {
+                self.set_register(RegNum::R7, self.pc);
+                self.set_pc(self.get_register(base));
+            },
+            Ld { dr, offset9 } => {
+
+            },
+            Ldi { dr, offset9} => {
+
+            },
+            Ldr { dr, base, offset6 } => {
+
+            },
+            Lea { dr, offset9 } => {
+
+            },
+            Not { dr, sr } => {
+
+            },
+            Ret => {
+                self.set_pc(self.get_register(RegNum::R7));
+            },
+            Rti => {
+
+            },
+            St { sr, offset9 } => {
+
+            },
+            Sti { sr, offset9} => {
+
+            },
+            Str { sr, base, offset6 } => {
+
+            },
+            Trap { trapvec } => {
+
+            }
             _ => unimplemented!(),
         }
     }
@@ -106,52 +174,52 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interp for Interpreter<'a, M, P> {
     // }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::isa::Instruction;
-
-    // Test that the instructions work
-    // Test that the unimplemented instructions do <something>
-
-    fn interp_test_runner<'a, M: Memory, P: Peripherals<'a>>(
-        insns: Vec<Instruction>,
-        num_steps: Option<usize>,
-        regs: [Option<Word>; 8],
-        pc: Addr,
-        memory_locations: Vec<(Addr, Word)>,
-    ) {
-        let mut interp = Interpreter::<M, P>::default();
-
-        let mut addr = 0x3000;
-        for insn in insns {
-            interp.set_word(addr, insn.into());
-            addr += 2;
-        }
-
-        if let Some(num_steps) = num_steps {
-            for _ in 0..num_steps {
-                interp.step();
-            }
-        } else {
-            // TODO! (run until halted)
-        }
-
-        for (idx, r) in regs.iter().enumerate() {
-            if let Some(reg_word) = r {
-                assert_eq!(interp.get_register(idx.into()), *reg_word);
-            }
-        }
-    }
-
-    #[test]
-    fn nop() {
-        interp_test_runner<MemoryShim, _>(
-            vec![Instruction::Br { n: true, z: true, p: true, offset11: -1 }],
-            1,
-            [None, None, None, None, None, None, None, None],
-            0x3000,
-            vec![]
-        )
-    }
-}
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//    use crate::isa::Instruction;
+//
+//    // Test that the instructions work
+//    // Test that the unimplemented instructions do <something>
+//
+//    fn interp_test_runner<'a, M: Memory, P: Peripherals<'a>>(
+//        insns: Vec<Instruction>,
+//        num_steps: Option<usize>,
+//        regs: [Option<Word>; 8],
+//        pc: Addr,
+//        memory_locations: Vec<(Addr, Word)>,
+//    ) {
+//        let mut interp = Interpreter::<M, P>::default();
+//
+//        let mut addr = 0x3000;
+//        for insn in insns {
+//            interp.set_word(addr, insn.into());
+//            addr += 2;
+//        }
+//
+//        if let Some(num_steps) = num_steps {
+//            for _ in 0..num_steps {
+//                interp.step();
+//            }
+//        } else {
+//            // TODO! (run until halted)
+//        }
+//
+//        for (idx, r) in regs.iter().enumerate() {
+//            if let Some(reg_word) = r {
+//                assert_eq!(interp.get_register(idx.into()), *reg_word);
+//            }
+//        }
+//    }
+//
+//    #[test]
+//    fn nop() {
+//        interp_test_runner<MemoryShim, _>(
+//            vec![Instruction::Br { n: true, z: true, p: true, offset11: -1 }],
+//            1,
+//            [None, None, None, None, None, None, None, None],
+//            0x3000,
+//            vec![]
+//        )
+//    }
+//}

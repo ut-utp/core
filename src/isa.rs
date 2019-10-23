@@ -1,8 +1,6 @@
 use super::Word;
 use core::ops::Range;
 
-pub type RegOld = u8;
-
 pub enum RegNum {
     R0, R1, R2, R3, R4, R5, R6, R7
 }
@@ -11,24 +9,24 @@ pub enum RegNum {
 
 #[rustfmt::skip]
 pub enum Instruction {
-    AddReg { dr: RegOld, sr1: RegOld, sr2: RegOld }, // RRR
-    AddImm { dr: RegOld, sr1: RegOld, imm5: i8 },    // RR5
-    AndReg { dr: RegOld, sr1: RegOld, sr2: RegOld }, // RRR
-    AndImm { dr: RegOld, sr1: RegOld, imm5: i8 },    // RR5
+    AddReg { dr: RegNum, sr1: RegNum, sr2: RegNum }, // RRR
+    AddImm { dr: RegNum, sr1: RegNum, imm5: i8 },    // RR5
+    AndReg { dr: RegNum, sr1: RegNum, sr2: RegNum }, // RRR
+    AndImm { dr: RegNum, sr1: RegNum, imm5: i8 },    // RR5
     Br { n: bool, z: bool, p: bool, offset9: i16 },  // nzp9
-    Jmp { base: RegOld },                            // B
+    Jmp { base: RegNum },                            // B
     Jsr { offset11: i16 },                           // a
-    Jsrr { base: RegOld },                           // B
-    Ld { dr: RegOld, offset9: i16 },                 // R9
-    Ldi { dr: RegOld, offset9: i16 },                // R9
-    Ldr { dr: RegOld, base: RegOld, offset6: i8 },   // RR6
-    Lea { dr: RegOld, offset9: i16 },                // R9
-    Not { dr: RegOld, sr: RegOld },                  // RR
+    Jsrr { base: RegNum },                           // B
+    Ld { dr: RegNum, offset9: i16 },                 // R9
+    Ldi { dr: RegNum, offset9: i16 },                // R9
+    Ldr { dr: RegNum, base: RegNum, offset6: i8 },   // RR6
+    Lea { dr: RegNum, offset9: i16 },                // R9
+    Not { dr: RegNum, sr: RegNum },                  // RR
     Ret,                                             //
     Rti,                                             //
-    St { sr: RegOld, offset9: i16 },                 // R9
-    Sti { sr: RegOld, offset9: i16 },                // R9
-    Str { sr: RegOld, base: RegOld, offset6: i8 },   // RR6
+    St { sr: RegNum, offset9: i16 },                 // R9
+    Sti { sr: RegNum, offset9: i16 },                // R9
+    Str { sr: RegNum, base: RegNum, offset6: i8 },   // RR6
     Trap { trapvec: u8 },                            // 8
 }
 
@@ -146,18 +144,18 @@ impl From<Instruction> for Word {
         use Instruction::*;
 
         fn Op(op: u8) -> Word { ((op as u16) & 0b1111) << 12 }
-        fn Dr(dr: RegOld) -> Word { ((dr as u16) & 0b111) << 8 }
-        fn Sr1(sr1: RegOld) -> Word { ((sr1 as u16) & 0b111) << 5 }
-        fn Sr2(sr2: RegOld) -> Word { (sr2 as u16) & 0b111 }
+        fn Dr(dr: RegNum) -> Word { ((dr as u16) & 0b111) << 8 }
+        fn Sr1(sr1: RegNum) -> Word { ((sr1 as u16) & 0b111) << 5 }
+        fn Sr2(sr2: RegNum) -> Word { (sr2 as u16) & 0b111 }
         fn Imm5(imm5: i8) -> Word { (1 << 5) | ((imm5 as u16) & 0b11111) }
         fn N(n: bool) -> Word { (n as u16) << 10 }
         fn Z(z: bool) -> Word { (z as u16) << 9 }
         fn P(p: bool) -> Word { (p as u16) << 8 }
         fn O9(offset9: i16) -> Word { (offset9 as u16) & 0b111111111 }
         fn O11(offset11: i16) -> Word { (1 << 11) | ((offset11 as u16) & 0x7FF) }
-        fn Base(base: RegOld) -> Word { Sr1(base) }
+        fn Base(base: RegNum) -> Word { Sr1(base) }
         fn O6(offset6: i8) -> Word { (offset6 as u16) & 0b111111 }
-        fn Sr(sr: RegOld) -> Word { Sr1(sr) | 0b111111 }
+        fn Sr(sr: RegNum) -> Word { Sr1(sr) | 0b111111 }
         fn Trapvec(trapvec: u8) -> Word { (trapvec as u16) & 0xFF }
 
         match ins {
@@ -174,7 +172,7 @@ impl From<Instruction> for Word {
             Ldr { dr, base, offset6 } => Op(0b0110) | Dr(dr) | Base(base) | O6(offset6),
             Lea { dr, offset9 }       => Op(0b1110) | Dr(dr)              | O9(offset9),
             Not { dr, sr }            => Op(0b1001) | Dr(dr) | Sr(sr)                  ,
-            Ret                       => Op(0b1100)          | Base(7)                 ,
+            Ret                       => Op(0b1100)          | Base(RegNum::R7)                 ,
             Rti                       => Op(0b1000)                                    ,
             St { sr, offset9 }        => Op(0b0011) | Dr(sr)              | O9(offset9),
             Sti { sr, offset9 }       => Op(0b1011) | Dr(sr)              | O9(offset9),
