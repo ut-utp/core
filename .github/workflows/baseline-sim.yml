@@ -3,6 +3,8 @@ on:
     paths:
       - 'baseline-sim/**'
 
+name: baseline-sim
+
 jobs:
   check:
     name: Check + test

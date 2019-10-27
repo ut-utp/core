@@ -2,3 +2,13 @@
 
 # Build for all crates, w/all features, w/private items
 # Upload to GH Pages
+
+on: [ push ]
+
+name: docs
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1

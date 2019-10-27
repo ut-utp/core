@@ -1,1 +1,11 @@
 # TODO!
+
+on: [ push, pull_request ]
+
+name: coverage
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1

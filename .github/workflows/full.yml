@@ -1,5 +1,7 @@
 on: [ push, pull_request ]
 
+name: full
+
 jobs:
   check:
     name: Check + test
