@@ -12,6 +12,7 @@ jobs:
     name: Check + test
 
     strategy:
+      fail-fast: false
       matrix:
         crate: [ lc3-baseline-sim ]
         os: [ windows-latest, ubuntu-latest, macOS-latest ]
@@ -47,6 +48,7 @@ jobs:
     name: Format + run clippy
 
     strategy:
+      fail-fast: false
       matrix:
         crate: [ lc3-baseline-sim ]
         os: [ ubuntu-latest ]
