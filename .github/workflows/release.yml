@@ -1,0 +1,23 @@
+# TODO!
+
+# On tag
+# semverver
+# Check that versions match
+# Check for changelogs
+# GH Releases
+# push to crates.io
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - v*.*.*
+
+name: release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
