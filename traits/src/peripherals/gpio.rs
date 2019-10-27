@@ -212,7 +212,7 @@ pub trait Gpio<'a>: Default {
         pin: GpioPin,
         // handler: impl FnMut(GpioPin)
         // handler: &mut dyn FnMut(GpioPin)
-        handler: &'a dyn Fn(GpioPin)
+        handler: &'a (dyn Fn(GpioPin) + Send)
     ) -> Result<(), GpioMiscError>;
 }}
 

@@ -20,6 +20,7 @@ use timers::Timers;
 use input::Input;
 use output::Output;
 
+
 pub trait Peripherals<'p>: Gpio<'p> + Adc<'p> + Pwm + Timers<'p> + Clock + Input + Output {
     fn init() -> Self;
 }
