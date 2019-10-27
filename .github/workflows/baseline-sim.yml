@@ -13,8 +13,8 @@ jobs:
 
     strategy:
       matrix:
-        crate: lc3-baseline-sim
-        os: [windows-latest, ubuntu-18.04, ubuntu-latest, macOS-latest]
+        crate: [ lc3-baseline-sim ]
+        os: [ windows-latest, ubuntu-18.04, ubuntu-latest, macOS-latest ]
         rust:
           - stable
           - beta
@@ -48,8 +48,8 @@ jobs:
 
     strategy:
       matrix:
-        crate: lc3-baseline-sim
-        os: ubuntu-latest
+        crate: [ lc3-baseline-sim ]
+        os: [ ubuntu-latest ]
         rust: [ stable, nightly ]
 
     runs-on: ${{ matrix.os }}
