@@ -1,9 +1,7 @@
-# on:
-#   push:
-#     paths:
-#       - 'tui/**'
-
-on: push
+on:
+  push:
+    paths:
+      - 'tui/**'
 
 name: tui
 

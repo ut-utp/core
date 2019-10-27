@@ -1,9 +1,7 @@
-# on:
-#   push:
-#     paths:
-#       - 'macros/**'
-
-on: push
+on:
+  push:
+    paths:
+      - 'macros/**'
 
 name: macros
 

@@ -1,11 +1,7 @@
-# on:
-#   push:
-#     paths:
-#       - 'baseline-sim/**'
-
-on: push
-
-name: baseline-sim
+on:
+  push:
+    paths:
+      - 'baseline-sim/**'
 
 jobs:
   check:

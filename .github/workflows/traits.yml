@@ -1,9 +1,7 @@
-# on:
-#   push:
-#     paths:
-#       - 'traits/**'
-
-on: push
+on:
+  push:
+    paths:
+      - 'traits/**'
 
 name: traits
 

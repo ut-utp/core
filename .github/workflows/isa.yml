@@ -1,9 +1,7 @@
-# on:
-#   push:
-#     paths:
-#       - 'isa/**'
-
-on: push
+on:
+  push:
+    paths:
+      - 'isa/**'
 
 name: isa
 

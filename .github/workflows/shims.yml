@@ -1,9 +1,7 @@
-# on:
-#   push:
-#     paths:
-#       - 'shims/**'
-
-on: push
+on:
+  push:
+    paths:
+      - 'shims/**'
 
 name: shims
 
