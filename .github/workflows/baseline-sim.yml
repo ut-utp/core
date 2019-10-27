@@ -20,7 +20,7 @@ jobs:
           - stable
           - beta
           - nightly
-          - 1.39.0
+          - 1.38.0
 
     runs-on: ${{ matrix.os }}
     steps:
