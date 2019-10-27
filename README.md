@@ -23,3 +23,11 @@ Currently, the platform consists of these pieces:
  - A shiny TUI that uses all the other pieces.
      + Lives in the [`lc3-tui` crate].
      + Unlike the other things on this list, this is an application (you can run it).
+
+TODO:
+ - [ ] crate and doc badges on each crate
+ - [ ] doc badge to gh pages on the top level README (this file)
+ - CI:
+    + [ ] release (on tag)
+    + [ ] docs (upload to gh-pages)
+    + [ ] coverage (still want codecov over coveralls but may acquiesce)
