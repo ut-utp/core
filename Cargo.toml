@@ -1,21 +1,12 @@
-[package]
-name = "prototype"
-version = "0.1.0"
-authors = ["Rahul Butani <rr.butani@gmail.com>"]
-edition = "2018"
-# default-run = "tui"
+[workspace]
 
-[dependencies]
+members = [
+    "isa",
+    "traits",
+    "peripheral-shims",
+    "tui",
+    "baseline-sim",
+    "macros",
+]
 
-[features]
-default = ["no_std"]
-no_std = []
-shims = []
-
-[dev-dependencies]
-tui = "0.6.2"
-
-[[example]]
-name = "tui"
-path = "examples/tui/main.rs"
-required-features = ["shims"]
+# TODO: publish all w/CI (check versions match?)
