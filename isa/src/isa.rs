@@ -1,12 +1,11 @@
 use super::Word;
 
-use core::ops::Range;
 use core::convert::{TryFrom, TryInto};
+use core::ops::Range;
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone)]
 pub enum Reg { R0, R1, R2, R3, R4, R5, R6, R7 }
-
 
 // TODO: ditch these next three things once we write the macro...
 impl Reg {
@@ -29,14 +28,13 @@ impl TryFrom<u8> for Reg {
                 5 => R5,
                 6 => R6,
                 7 => R7,
-                _ => unreachable!()
+                _ => unreachable!(),
             })
         } else {
             Err(())
         }
     }
 }
-
 
 impl From<Reg> for u8 {
     fn from(reg: Reg) -> u8 {

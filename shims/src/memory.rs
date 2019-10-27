@@ -1,8 +1,8 @@
 //! An extremely naive, terrible [`Memory` trait](crate::memory::Memory)
 //! implementation called [`MemoryShim`](memory::MemoryShim).
 
-use crate::memory::{Memory, MemoryMiscError};
-use crate::{Addr, Word};
+use lc3_isa::{Addr, Word};
+use lc3_traits::memory::{Memory, MemoryMiscError};
 
 use core::mem::size_of;
 

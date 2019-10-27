@@ -1,4 +1,4 @@
-use crate::peripherals::clock::Clock;
+use lc3_traits::peripherals::clock::Clock;
 
 pub struct ClockShim {}
 

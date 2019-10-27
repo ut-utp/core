@@ -19,11 +19,28 @@ use crate::peripheral_trait;
 #[rustfmt::skip]
 #[derive(Copy, Clone)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
-pub(crate) const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
-pub(crate) const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
+pub const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
+pub const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
     use GpioPin::*;
     [G0, G1, G2, G3, G4, G5, G6, G7]
 }; // TODO: once we get the derive macro, get rid of this.
+
+impl From<GpioPin> for usize {
+    fn from(pin: GpioPin) -> usize {
+        use GpioPin::*;
+
+        match pin {
+            G0 => 0,
+            G1 => 1,
+            G2 => 2,
+            G3 => 3,
+            G4 => 4,
+            G5 => 5,
+            G6 => 6,
+            G7 => 7,
+        }
+    }
+}
 
 #[derive(Copy, Clone)]
 pub enum GpioState {
@@ -48,9 +65,9 @@ pub struct GpioReadError(pub GpioStateMismatch);
 #[derive(Copy, Clone)]
 pub struct GpioWriteError(pub GpioStateMismatch);
 
-pub(crate) type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
+pub type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
 
-pub(crate) type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
+pub type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
 #[derive(Copy, Clone)]
 pub struct GpioReadErrors(pub GpioStateMismatches);

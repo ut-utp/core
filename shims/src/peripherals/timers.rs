@@ -1,4 +1,4 @@
-use crate::peripherals::timers::Timers;
+use lc3_traits::peripherals::timers::Timers;
 
 pub struct TimersShim {}
 

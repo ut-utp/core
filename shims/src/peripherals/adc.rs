@@ -1,4 +1,4 @@
-use crate::peripherals::adc::Adc;
+use lc3_traits::peripherals::adc::Adc;
 
 pub struct AdcShim {}
 

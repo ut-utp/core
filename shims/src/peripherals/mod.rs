@@ -1,5 +1,4 @@
-//! Shims for the various [peripheral traits](crate::peripherals) and for the
-//! [`Memory` trait](crate::memory::Memory).
+//! Shims for the various [peripheral traits](crate::peripherals).
 
 // Peripherals:
 mod adc;
@@ -12,10 +11,7 @@ mod timers;
 mod input;
 mod output;
 
-// Memory:
-mod memory;
-
-use crate::peripherals::{PeripheralSet, Peripherals};
+use lc3_traits::peripherals::{PeripheralSet, Peripherals};
 
 pub use adc::AdcShim;
 pub use clock::ClockShim;
@@ -25,8 +21,6 @@ pub use timers::TimersShim;
 
 pub use input::InputShim;
 pub use output::OutputShim;
-
-pub use memory::MemoryShim;
 
 pub type PeripheralsShim<'s> =
     PeripheralSet<'s, GpioShim<'s>, AdcShim, PwmShim, TimersShim, ClockShim, InputShim, OutputShim>;

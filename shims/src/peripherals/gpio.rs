@@ -1,8 +1,8 @@
-use crate::peripherals::gpio::{
+use core::ops::{Index, IndexMut};
+use lc3_traits::peripherals::gpio::{
     Gpio, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
     NUM_GPIO_PINS,
 };
-use core::ops::{Index, IndexMut};
 use std::sync::{Arc, RwLock};
 
 #[derive(Copy, Clone, Debug)]
@@ -22,23 +22,6 @@ impl From<State> for GpioState {
             State::Output(_) => Output,
             State::Interrupt(_) => Interrupt,
             State::Disabled => Disabled,
-        }
-    }
-}
-
-impl From<GpioPin> for usize {
-    fn from(pin: GpioPin) -> usize {
-        use GpioPin::*;
-
-        match pin {
-            G0 => 0,
-            G1 => 1,
-            G2 => 2,
-            G3 => 3,
-            G4 => 4,
-            G5 => 5,
-            G6 => 6,
-            G7 => 7,
         }
     }
 }
@@ -186,30 +169,31 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
     }
 }
 
-impl<'a> Gpio<'a> for Arc<RwLock<GpioShim<'a>>> {
-    fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
-        RwLock::write(self).unwrap().set_state(pin, state)
-    }
+// TODO: Either newtype this or make this a blanket impl and move it to `lc3-traits` behind a feature gate (that this crate then requires).
+// impl<'a> Gpio<'a> for Arc<RwLock<GpioShim<'a>>> {
+//     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
+//         RwLock::write(self).unwrap().set_state(pin, state)
+//     }
 
-    fn get_state(&self, pin: GpioPin) -> GpioState {
-        RwLock::read(self).unwrap().get_state(pin)
-    }
+//     fn get_state(&self, pin: GpioPin) -> GpioState {
+//         RwLock::read(self).unwrap().get_state(pin)
+//     }
 
-    fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError> {
-        RwLock::read(self).unwrap().read(pin)
-    }
+//     fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError> {
+//         RwLock::read(self).unwrap().read(pin)
+//     }
 
-    fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
-        RwLock::write(self).unwrap().write(pin, bit)
-    }
+//     fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
+//         RwLock::write(self).unwrap().write(pin, bit)
+//     }
 
-    fn register_interrupt(
-        &mut self,
-        pin: GpioPin,
-        handler: &'a (dyn Fn(GpioPin) + Send),
-    ) -> Result<(), GpioMiscError> {
-        RwLock::write(self)
-            .unwrap()
-            .register_interrupt(pin, handler)
-    }
-}
+//     fn register_interrupt(
+//         &mut self,
+//         pin: GpioPin,
+//         handler: &'a (dyn Fn(GpioPin) + Send),
+//     ) -> Result<(), GpioMiscError> {
+//         RwLock::write(self)
+//             .unwrap()
+//             .register_interrupt(pin, handler)
+//     }
+// }

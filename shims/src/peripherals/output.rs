@@ -1,4 +1,4 @@
-use crate::peripherals::output::Output;
+use lc3_traits::peripherals::output::Output;
 
 pub struct OutputShim {}
 
