@@ -178,7 +178,7 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
     fn register_interrupt(
         &mut self,
         pin: GpioPin,
-        handler: &'a dyn Fn(GpioPin),
+        handler: &'a (dyn Fn(GpioPin) + Send),
     ) -> Result<(), GpioMiscError> {
         self.handlers[Into::<usize>::into(pin)] = handler;
 
@@ -206,7 +206,7 @@ impl<'a> Gpio<'a> for Arc<RwLock<GpioShim<'a>>> {
     fn register_interrupt(
         &mut self,
         pin: GpioPin,
-        handler: &'a dyn Fn(GpioPin),
+        handler: &'a (dyn Fn(GpioPin) + Send),
     ) -> Result<(), GpioMiscError> {
         RwLock::write(self)
             .unwrap()
