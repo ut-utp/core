@@ -4,7 +4,7 @@ use core::ops::Range;
 use core::convert::{TryFrom, TryInto};
 
 #[rustfmt::skip]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Reg { R0, R1, R2, R3, R4, R5, R6, R7 }
 
 
@@ -60,28 +60,28 @@ impl From<Reg> for u8 {
 #[rustfmt::skip]
 #[derive(Debug)]
 pub enum Instruction {
-    AddReg { dr: Reg, sr1: Reg, sr2: Reg }, // RRR
-    AddImm { dr: Reg, sr1: Reg, imm5: i8 },    // RR5
-    AndReg { dr: Reg, sr1: Reg, sr2: Reg }, // RRR
-    AndImm { dr: Reg, sr1: Reg, imm5: i8 },    // RR5
-    Br { n: bool, z: bool, p: bool, offset9: i16 },  // nzp9
-    Jmp { base: Reg },                            // B
-    Jsr { offset11: i16 },                           // a
-    Jsrr { base: Reg },                           // B
-    Ld { dr: Reg, offset9: i16 },                 // R9
-    Ldi { dr: Reg, offset9: i16 },                // R9
-    Ldr { dr: Reg, base: Reg, offset6: i8 },   // RR6
-    Lea { dr: Reg, offset9: i16 },                // R9
-    Not { dr: Reg, sr: Reg },                  // RR
-    Ret,                                             //
-    Rti,                                             //
-    St { sr: Reg, offset9: i16 },                 // R9
-    Sti { sr: Reg, offset9: i16 },                // R9
-    Str { sr: Reg, base: Reg, offset6: i8 },   // RR6
-    Trap { trapvec: u8 },                            // 8
+    AddReg { dr: Reg, sr1: Reg, sr2: Reg },         // RRR
+    AddImm { dr: Reg, sr1: Reg, imm5: i16 },        // RR5
+    AndReg { dr: Reg, sr1: Reg, sr2: Reg },         // RRR
+    AndImm { dr: Reg, sr1: Reg, imm5: i16 },        // RR5
+    Br { n: bool, z: bool, p: bool, offset9: i16 }, // nzp9
+    Jmp { base: Reg },                              // B
+    Jsr { offset11: i16 },                          // a
+    Jsrr { base: Reg },                             // B
+    Ld { dr: Reg, offset9: i16 },                   // R9
+    Ldi { dr: Reg, offset9: i16 },                  // R9
+    Ldr { dr: Reg, base: Reg, offset6: i8 },        // RR6
+    Lea { dr: Reg, offset9: i16 },                  // R9
+    Not { dr: Reg, sr: Reg },                       // RR
+    Ret,                                            //
+    Rti,                                            //
+    St { sr: Reg, offset9: i16 },                   // R9
+    Sti { sr: Reg, offset9: i16 },                  // R9
+    Str { sr: Reg, base: Reg, offset6: i8 },        // RR6
+    Trap { trapvec: u8 },                           // 8
 }
 
-trait Bits: Sized + Copy {
+pub trait Bits: Sized + Copy {
     fn bit(self, bit: u32) -> bool;
 
     fn b(self, bit: u32) -> bool {
@@ -151,18 +151,26 @@ impl Bits for Word {
     }
 }
 
-impl From<Word> for Instruction {
+impl TryFrom<Word> for Instruction {
+    type Error = Word;
+
     // Assuming Word = u16; compile error if not.
     #[rustfmt::skip]
-    fn from(w: u16) -> Self {
+    fn try_from(w: u16) -> Result<Self, u16> {
         use Instruction::*;
         use Reg::*;
 
-        match w >> 12 {
+        let op_code: u8 = (w >> 12).try_into().unwrap();
+
+        if op_code == 0b1101 {
+            return Err(w)
+        }
+
+        Ok(match op_code {
             0b0000 => Br { n: w.b(11), z: w.b(10), p: w.b(9), offset9: w.i16(0..8) },
             0b0001 => match w.b(5) {
                 false => AddReg { dr: w.reg(9), sr1: w.reg(6), sr2: w.reg(0) },
-                true => AddImm { dr: w.reg(9), sr1: w.reg(6), imm5: w.i8(0..4) },
+                true => AddImm { dr: w.reg(9), sr1: w.reg(6), imm5: w.i16(0..4) },
             },
             0b0010 => Ld { dr: w.reg(9), offset9: w.i16(0..8) },
             0b0011 => St { sr: w.reg(9), offset9: w.i16(0..8) },
@@ -172,7 +180,7 @@ impl From<Word> for Instruction {
             },
             0b0101 => match w.bit(5) {
                 false => AndReg { dr: w.reg(9), sr1: w.reg(6), sr2: w.reg(0) },
-                true => AndImm {  dr: w.reg(9), sr1: w.reg(6), imm5: w.i8(0..4) },
+                true => AndImm {  dr: w.reg(9), sr1: w.reg(6), imm5: w.i16(0..4) },
             },
             0b0110 => Ldr { dr: w.reg(9), base: w.reg(6), offset6: w.i8(0..5) },
             0b0111 => Str { sr: w.reg(9), base: w.reg(6), offset6: w.i8(0..5) },
@@ -184,11 +192,10 @@ impl From<Word> for Instruction {
                 R7 => Ret,
                 base => Jmp { base },
             },
-            0b1101 => unimplemented!(),
             0b1110 => Lea { dr: w.reg(9), offset9: w.i16(0..8) },
             0b1111 => Trap { trapvec: w.u8(0..7) },
-            16..=core::u16::MAX => unreachable!(),
-        }
+            0b1101 | 16..=core::u8::MAX => unreachable!(),
+        })
     }
 }
 
@@ -202,7 +209,7 @@ impl From<Instruction> for Word {
         fn Dr(dr: Reg) -> Word { ((dr as u16) & 0b111) << 8 }
         fn Sr1(sr1: Reg) -> Word { ((sr1 as u16) & 0b111) << 5 }
         fn Sr2(sr2: Reg) -> Word { (sr2 as u16) & 0b111 }
-        fn Imm5(imm5: i8) -> Word { (1 << 5) | ((imm5 as u16) & 0b11111) }
+        fn Imm5(imm5: i16) -> Word { (imm5 as u16) & 0b11111 }
         fn N(n: bool) -> Word { (n as u16) << 10 }
         fn Z(z: bool) -> Word { (z as u16) << 9 }
         fn P(p: bool) -> Word { (p as u16) << 8 }
@@ -240,3 +247,4 @@ impl From<Instruction> for Word {
 // TODO: tests
 // TODO: TryFrom, not From
 // TODO: basic macro
+// TODO: add a strict feature
