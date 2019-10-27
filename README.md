@@ -1,9 +1,8 @@
-### Undergraduate Teaching Platform: A Prototype 👷
+## Undergraduate Teaching Platform: A Prototype 👷
 
-[![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fut-utp%2Fprototype%2Fbadge&style=for-the-badge)](https://github.com/ut-utp/prototype/actions)
-[![License: MPL-2.0]https://img.shields.io/github/license/ut-utp/prototype?color=orange&style=for-the-badge)](https://opensource.org/licenses/MPL-2.0)
-[![](https://tokei.rs/b1/github/ut-utp/prototype)](https://github.com/ut-utp/prototype)
-[![codecov](https://codecov.io/gh/ut-utp/prototype/branch/master/graph/badge.svg)](https://codecov.io/gh/ut-utp/prototype)
+[![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%2Fut-utp%2Fprototype%2Fbadge&style=for-the-badge)](https://github.com/ut-utp/prototype/actions) [![License: MPL-2.0](https://img.shields.io/github/license/ut-utp/prototype?color=orange&style=for-the-badge)](https://opensource.org/licenses/MPL-2.0)
+--
+[![](https://tokei.rs/b1/github/ut-utp/prototype)](https://github.com/ut-utp/prototype) [![codecov](https://codecov.io/gh/ut-utp/prototype/branch/master/graph/badge.svg)](https://codecov.io/gh/ut-utp/prototype)
 
 
 🚧 🚧 This is very much not stable yet! 🚧 🚧
