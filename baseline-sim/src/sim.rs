@@ -1,12 +1,13 @@
-use crate::control::Control;
-use crate::isa::RegNum;
-use crate::memory::Memory;
-use crate::peripherals::PeripheralSet;
-use crate::peripherals::Peripherals;
-use crate::{Addr, Word};
-use core::marker::PhantomData;
+use lc3_isa::{Addr, Bits, Instruction, Reg, Word};
+use lc3_traits::control::Control;
+use lc3_traits::memory::Memory;
+use lc3_traits::peripherals::{PeripheralSet, Peripherals};
 
-struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
+use core::convert::TryInto;
+use core::marker::PhantomData;
+use core::ops::{Index, IndexMut};
+
+struct Simulator<'a, M: Memory, P: Peripherals<'a>> {
     mem: M,
     peripherals: P,
     regs: [Word; 8],
@@ -14,13 +15,21 @@ struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     _p: PhantomData<&'a ()>,
 }
 
-impl<'a, M: Memory, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
+impl<'a, M: Memory, P: Peripherals<'a>> Default for Simulator<'a, M, P> {
     fn default() -> Self {
         unimplemented!()
     }
 }
 
-pub(crate) trait Interp {
+pub const KBSR: Addr = 0xFE00;
+pub const KBDR: Addr = 0xFE02;
+pub const DSR: Addr = 0xFE04;
+pub const DDR: Addr = 0xFE06;
+pub const BSP: Addr = 0xFFFA; // TODO: when is this used!!!
+pub const PSR: Addr = 0xFFFC;
+pub const MCR: Addr = 0xFFFE;
+
+pub trait Sim {
     fn step(&mut self);
 
     fn set_pc(&mut self, addr: Addr);
@@ -29,120 +38,108 @@ pub(crate) trait Interp {
     fn set_word(&mut self, addr: Addr, word: Word);
     fn get_word(&self, addr: Addr) -> Word;
 
-    fn get_register(&self, reg: RegNum) -> Word;
-    fn set_register(&mut self, reg: RegNum, word: Word);
+    fn get_register(&self, reg: Reg) -> Word;
+    fn set_register(&mut self, reg: Reg, word: Word);
 }
 
-impl From<RegNum> for usize {
-    fn from(reg_num: RegNum) -> usize {
-        use RegNum::*;
-        match reg_num {
-            R0 => 0,
-            R1 => 1,
-            R2 => 2,
-            R3 => 3,
-            R4 => 4,
-            R5 => 5,
-            R6 => 6,
-            R7 => 7,
+impl<'a, M: Memory, P: Peripherals<'a>> Index<Reg> for Simulator<'a, M, P> {
+    type Output = Word;
+
+    fn index(&self, reg: Reg) -> &Word {
+        &self.regs[TryInto::<usize>::try_into(Into::<u8>::into(reg)).unwrap()]
+    }
+}
+
+impl<'a, M: Memory, P: Peripherals<'a>> IndexMut<Reg> for Simulator<'a, M, P> {
+    fn index_mut(&mut self, reg: Reg) -> &mut Word {
+        &mut self.regs[TryInto::<usize>::try_into(Into::<u8>::into(reg)).unwrap()]
+    }
+}
+
+impl<'a, M: Memory, P: Peripherals<'a>> Simulator<'a, M, P> {
+    fn set_cc(&mut self, word: Word) {
+        // n is the high bit:
+        let n: bool = (word >> ((core::mem::size_of::<Word>() * 8) - 1)) != 0;
+
+        // z is easy enough to check for:
+        let z: bool = word == 0;
+
+        // if we're not negative or zero, we're positive:
+        let p: bool = !(n | z);
+
+        fn bit_to_word(bit: bool, left_shift: u32) -> u16 {
+            (if bit { 1 } else { 0 }) << left_shift
         }
+
+        let b = bit_to_word;
+
+        self.mem.write_word(
+            PSR,
+            (self.mem.read_word(PSR) & !(0x0007)) | b(n, 2) | b(z, 1) | b(p, 0),
+        );
+    }
+
+    fn get_cc(&self) -> (bool, bool, bool) {
+        let psr = self.mem.read_word(PSR);
+
+        (psr.bit(2), psr.bit(1), psr.bit(0))
     }
 }
 
-// Don't do this! impl `TryFrom` instead
-impl From<usize> for RegNum {
-    fn from(reg_num: usize) -> RegNum {
-        use RegNum::*;
-        match reg_num {
-            0 => R0,
-            1 => R1,
-            2 => R2,
-            3 => R3,
-            4 => R4,
-            5 => R5,
-            6 => R6,
-            7 => R7,
-            _ => unimplemented!(),
-        }
-    }
-}
-
-impl From<u8> for RegNum {
-    fn from(reg_num: u8) -> RegNum {
-        use RegNum::*;
-        RegNum::from(Into::<usize>::into(dr))
-    }
-}
-
-impl<'a, M: Memory, P: Peripherals<'a>> Interp for Interpreter<'a, M, P> {
+impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
     fn step(&mut self) {
-        use crate::isa::Instruction::*;
+        use Instruction::*;
 
-        // TODO: probably impl TryFrom instead so we don't just crash??
-        match self.mem.read_word(self.pc).into() {
-            AddReg { dr, sr1, sr2 } => {
-                self::set_register(self::get_register(sr1) + self::get_register(sr2), dr);
-                todo!("Need to deal with wraparound");
-                todo!("Need to set condition codes!");
-            },
-            AddImm { dr, sr1, imm5 } => {
-                self::set_register(self::get_register(sr1) + imm5, dr);
-            },
-            AndReg { dr, sr1, sr2} => {
+        self.set_pc(self.get_pc() + 1);
 
-            },
-            AndImm {dr, sr1, imm5} => {
+        match self.mem.read_word(self.pc).try_into() {
+            Ok(ins) => match ins {
+                AddReg { dr, sr1, sr2 } => {
+                    self[dr] = self[sr1].wrapping_add(self[sr2]);
+                    self.set_cc(self[dr]);
+                }
+                AddImm { dr, sr1, imm5 } => {
+                    self[dr] = self[sr1] + imm5 as u16;
+                    self.set_cc(self[dr]);
+                }
+                AndReg { dr, sr1, sr2 } => {}
+                AndImm { dr, sr1, imm5 } => {}
+                Br { n, z, p, offset9 } => {
+                    let (N, Z, P) = self.get_cc();
 
-            },
-            Br { n, z, p, offset9 } => {
+                    if n & N || z & Z || p & P {
+                        self.set_pc(self.get_pc().wrapping_add(offset9 as Word))
+                    }
+                }
+                Jmp { base } => {
+                    self.set_pc(self[base]);
+                }
+                Jsr { offset11 } => {
+                    self[Reg::R7] = self.get_pc();
+                    self.set_pc(self.get_pc().wrapping_add(offset11 as Word));
+                }
+                Jsrr { base } => {
+                    // TODO: add a test where base _is_ R7!!
+                    let (pc, new_pc) = (self.get_pc(), self[base]);
 
+                    self.set_pc(new_pc);
+                    self[Reg::R7] = pc;
+                }
+                Ld { dr, offset9 } => {}
+                Ldi { dr, offset9 } => {}
+                Ldr { dr, base, offset6 } => {}
+                Lea { dr, offset9 } => {}
+                Not { dr, sr } => {}
+                Ret => {
+                    self.set_pc(self[Reg::R7]);
+                }
+                Rti => {}
+                St { sr, offset9 } => {}
+                Sti { sr, offset9 } => {}
+                Str { sr, base, offset6 } => {}
+                Trap { trapvec } => {}
             },
-            Jmp { base } => {
-                self.set_pc(self.get_register(RegNum::from(base)));
-            },
-            Jsr { offset11 } => {
-                self.set_register(RegNum::R7, self.pc);
-                todo!("Need to change to wrapping add somehow.");
-                self.set_pc(self.get_pc() + offset11);
-            },
-            Jsrr { base } => {
-                self.set_register(RegNum::R7, self.pc);
-                self.set_pc(self.get_register(base));
-            },
-            Ld { dr, offset9 } => {
-
-            },
-            Ldi { dr, offset9} => {
-
-            },
-            Ldr { dr, base, offset6 } => {
-
-            },
-            Lea { dr, offset9 } => {
-
-            },
-            Not { dr, sr } => {
-
-            },
-            Ret => {
-                self.set_pc(self.get_register(RegNum::R7));
-            },
-            Rti => {
-
-            },
-            St { sr, offset9 } => {
-
-            },
-            Sti { sr, offset9} => {
-
-            },
-            Str { sr, base, offset6 } => {
-
-            },
-            Trap { trapvec } => {
-
-            }
-            _ => unimplemented!(),
+            Err(word) => todo!("exception!?"),
         }
     }
 
@@ -161,12 +158,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interp for Interpreter<'a, M, P> {
         self.mem.read_word(addr)
     }
 
-    fn get_register(&self, reg: RegNum) -> Word {
-        self.regs[Into::<usize>::into(reg)]
+    fn get_register(&self, reg: Reg) -> Word {
+        self[reg]
     }
 
-    fn set_register(&mut self, reg: RegNum, word: Word) {
-        self.regs[Into::<usize>::into(reg)] = word;
+    fn set_register(&mut self, reg: Reg, word: Word) {
+        self[reg] = word;
     }
 
     // fn get_state(&self) -> State {
@@ -189,7 +186,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interp for Interpreter<'a, M, P> {
 //        pc: Addr,
 //        memory_locations: Vec<(Addr, Word)>,
 //    ) {
-//        let mut interp = Interpreter::<M, P>::default();
+//        let mut interp = Simulator::<M, P>::default();
 //
 //        let mut addr = 0x3000;
 //        for insn in insns {
