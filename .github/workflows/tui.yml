@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        crate: [ tui ]
+        crate: [ lc3-tui ]
         os: [ ubuntu-latest ]
         rust: [ stable, nightly ]
 
