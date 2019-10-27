@@ -1,12 +1,12 @@
 [package]
-name = "lc3-peripheral-shims"
+name = "lc3-shims"
 version = "0.1.0"
 authors = ["UT UTP <ut.utp.group@gmail.com>"]
 edition = "2018"
 
 workspace = ".."
 
-description = "Example implementations of the LC-3 peripherals suitable for simulation."
+description = "Example implementations of the LC-3 peripherals and memory suitable for simulation."
 homepage = "https://ut-utp.github.io"
 repository = "http://github.com/ut-utp/prototype"
 
@@ -19,7 +19,7 @@ license = "MPL-2.0"
 
 
 [badges]
-github-actions = { repository = "ut-utp/prototype", workflow = "peripheral-shims" }
+github-actions = { repository = "ut-utp/prototype", workflow = "shims" }
 codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
 
 is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }

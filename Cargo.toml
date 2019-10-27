@@ -3,7 +3,7 @@
 members = [
     "isa",
     "traits",
-    "peripheral-shims",
+    "shims",
     "tui",
     "baseline-sim",
     "macros",

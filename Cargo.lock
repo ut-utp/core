@@ -54,7 +54,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "lc3-peripheral-shims"
+name = "lc3-shims"
 version = "0.1.0"
 dependencies = [
  "lc3-macros 0.1.0",
@@ -76,7 +76,7 @@ dependencies = [
  "lc3-baseline-sim 0.1.0",
  "lc3-isa 0.1.0",
  "lc3-macros 0.1.0",
- "lc3-peripheral-shims 0.1.0",
+ "lc3-shims 0.1.0",
  "lc3-traits 0.1.0",
  "tui 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
