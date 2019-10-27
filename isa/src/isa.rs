@@ -1,9 +1,8 @@
 use super::Word;
 use core::ops::Range;
 
-pub enum RegNum {
-    R0, R1, R2, R3, R4, R5, R6, R7
-}
+#[rustfmt::skip]
+pub enum RegNum { R0, R1, R2, R3, R4, R5, R6, R7 }
 
 // Alternative way is to use repr(C) with bitfields.
 
