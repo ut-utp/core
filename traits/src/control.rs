@@ -6,7 +6,7 @@
 //! the [interp module](crate::interp).
 
 use super::error::Error;
-use super::{Addr, Word};
+use lc3_isa::{Addr, Word};
 use core::future::Future;
 
 pub const MAX_BREAKPOINTS: usize = 10;

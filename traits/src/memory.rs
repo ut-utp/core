@@ -1,4 +1,4 @@
-use super::{Addr, Word};
+use lc3_isa::{Addr, Word};
 
 pub struct MemoryMiscError;
 

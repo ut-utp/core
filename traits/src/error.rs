@@ -2,7 +2,7 @@ use super::peripherals::gpio::{
     GpioMiscError, /* GpioInterruptRegisterError */
     GpioReadError, GpioReadErrors, GpioWriteError, GpioWriteErrors,
 };
-use super::Word;
+use lc3_isa::Word;
 
 // Lots of open questions here:
 //  - should this be implementation defined?
