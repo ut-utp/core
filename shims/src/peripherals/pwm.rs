@@ -1,10 +1,31 @@
-use lc3_traits::peripherals::pwm::Pwm;
+use lc3_traits::peripherals::pwm::{NUM_PWM_PINS, PwmState, PwmPinArr, Pwm};
 
 use std::thread;
 //use core::ops::{Index, IndexMut};
 use std::sync::{Arc, RwLock};
 
 pub enum PwmPin { P0, P1 }
+
+
+#[derive(Copy, Clone, Debug)]
+pub enum State { 
+    Enabled(bool),
+    Disabled,
+}
+
+
+
+impl From<State> for PwmState {
+    fn from(state: State) -> PwmState {
+        use PwmState::*;
+
+        match state {
+            State::Enabled(_) => Enabled, 
+            State::Disabled => Disabled,
+        }
+    }
+}
+
 
 
 pub struct PwmShim {
@@ -35,7 +56,7 @@ impl PwmShim {
 impl Pwm for PwmShim {
      fn set_state(&mut self, pin: u8, state: PwmState) -> Result<(), ()>{
         self.states[pin] = state;
-        ok(())
+        Ok(())
      }
 
      fn get_state(&self, pin: u8) -> Option<PwmState>{
@@ -48,7 +69,7 @@ impl Pwm for PwmShim {
            if let PwmState::Disabled = self.get_pin_state(pin) {
                return None;
            }
-           return some(self.get_pin_state(pin));
+           return Some(self.get_pin_state(pin));
        } else {
            return None;
        }
@@ -114,7 +135,7 @@ impl Pwm for PwmShim {
     fn disable(&mut self, pin: u8){
         // disable the period timer interrupt 
         if(pin < 2){
-            self.states[pin] = Disabled;
+            self.states[pin] = State::Disabled;
         }
         
 
