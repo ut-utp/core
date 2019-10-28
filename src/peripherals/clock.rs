@@ -10,5 +10,9 @@ pub trait Clock: Default {
     // fn disable(&mut self);
 
     fn get_milliseconds(&self) -> Word;
-    fn set_milliseconds(&mut self, ms: Word);
+    // isn't milliseconds too large?
+    // shouldn't it be more like nano, because PLL can generate
+    // frequencies between 3.12MHz to 80MHz - TExaS_Init sets at 80MHz from what I remember
+    fn set_milliseconds(&mut self, ns: Word); // want to be able to set to 80MHz, requiring 12.5 nano seconds 
+    
 }}

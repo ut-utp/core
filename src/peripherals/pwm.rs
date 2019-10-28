@@ -9,6 +9,8 @@ pub enum PwmState {
     Enabled,
     Disabled,
 }
+pub(crate) type PwmPinArr<T> = [T; NUM_PWM_PINS as usize];
+
 peripheral_trait! {pwm,
 pub trait Pwm: Default {
     // enable, disable, set duty cycle, enable hystersis. start
