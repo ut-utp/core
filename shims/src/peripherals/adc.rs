@@ -1,7 +1,94 @@
-use lc3_traits::peripherals::adc::Adc;
+use lc3_traits::peripherals::adc::{self, Adc, Pin, PinArr, ReadError, NUM_PINS, StateMismatch, Handler};
 
-pub struct AdcShim {}
+// TODO: consider using one array of struct(Option<u8>, State, &'a dyn FnMut(u8))?
+pub struct Shim<'a> {
+    states:   PinArr<State>,
+    handlers: PinArr<&'a Handler>,
+}
 
-// impl Adc for AdcShim {
+#[derive(Copy, Clone)]
+pub enum State {
+    Enabled  (u8),
+    Interrupt(u8),
+    Disabled,
+}
 
-// }
+impl From<State> for adc::State {
+    fn from(state: State) -> adc::State {
+        use adc::State::*;
+        match state {
+            State::Enabled  (_) => Enabled,
+            State::Interrupt(_) => Interrupt,
+            State::Disabled     => Disabled,
+        }
+    }
+}
+
+const INIT_VALUE: u8 = 0;
+const NO_OP: &Handler = &|_| {};
+
+impl Default for Shim<'_> {
+    fn default() -> Self {
+        Self {
+            states:   PinArr([State::Disabled; NUM_PINS as usize]),
+            handlers: PinArr([NO_OP;           NUM_PINS as usize]),
+        }
+    }
+}
+
+pub struct SetError(StateMismatch);
+
+impl Shim<'_> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    
+    pub fn set_value(&mut self, pin: Pin, value: u8) -> Result<(), SetError> {
+        use State::*;
+        
+        self.states[pin] = match self.states[pin] {
+            Enabled(_) => Enabled(value),
+            Interrupt(prev) => {
+                if prev != value {
+                    self.handlers[pin](value)
+                }
+                Interrupt(value)
+            }
+            _ => return Err(SetError((pin, self.get_state(pin))))
+        };
+        Ok(())        
+    }
+}
+
+impl<'a> Adc<'a> for Shim<'a> {
+    fn set_state(&mut self, pin: Pin, state: adc::State) -> Result<(), ()> {
+        use adc::State::*;
+        self.states[pin] = match state {
+            Enabled   => State::Enabled  (INIT_VALUE),
+            Interrupt => State::Interrupt(INIT_VALUE),
+            Disabled  => State::Disabled,
+        };
+        Ok(())
+    }
+
+    fn get_state(&self, pin: Pin) -> adc::State {
+        self.states[pin].into()
+    }
+
+    fn read(&self, pin: Pin) -> Result<u8, ReadError> {
+        use State::*;
+        match self.states[pin] {
+            Enabled(value) | Interrupt(value) => Ok(value),
+            valueless => Err(ReadError((pin, valueless.into()))),
+        }
+    }
+
+    fn register_interrupt(
+        &mut self,
+        pin: Pin,
+        handler: &'a Handler
+    ) -> Result<(), ()> {
+        self.handlers[pin] = handler;
+        Ok(())
+    }
+}

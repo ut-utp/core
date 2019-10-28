@@ -13,7 +13,6 @@ mod output;
 
 use lc3_traits::peripherals::{PeripheralSet, Peripherals};
 
-pub use adc::AdcShim;
 pub use clock::ClockShim;
 pub use gpio::GpioShim;
 pub use pwm::PwmShim;
@@ -23,7 +22,7 @@ pub use input::InputShim;
 pub use output::OutputShim;
 
 pub type PeripheralsShim<'s> =
-    PeripheralSet<'s, GpioShim<'s>, AdcShim, PwmShim, TimersShim<'s>, ClockShim, InputShim, OutputShim>;
+    PeripheralSet<'s, GpioShim<'s>, adc::Shim<'s>, PwmShim, TimersShim<'s>, ClockShim, InputShim, OutputShim>;
 
 // impl Peripherals for PeripheralsShim {
 //     fn init() -> Self {
