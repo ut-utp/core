@@ -139,9 +139,8 @@ impl GpioShim<'_> {
 impl<'a> Gpio<'a> for GpioShim<'a> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
         use GpioState::*;
-
-        self[pin] = match state {
-            Input => State::Input(false),
+       self[pin] = match state {
+            Input => State::Input(false), 
             Output => State::Output(false),
             Interrupt => State::Interrupt(false),
             Disabled => State::Disabled,
@@ -168,8 +167,7 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
         use State::*;
 
         if let Output(_) = self[pin] {
-            self[pin] = Output(bit);
-            Ok(())
+            self[pin] = Output(bit); 
         } else {
             Err(GpioWriteError((pin, self[pin].into())))
         }
