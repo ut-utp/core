@@ -23,7 +23,7 @@ pub use input::InputShim;
 pub use output::OutputShim;
 
 pub type PeripheralsShim<'s> =
-    PeripheralSet<'s, GpioShim<'s>, AdcShim, PwmShim, TimersShim, ClockShim, InputShim, OutputShim>;
+    PeripheralSet<'s, GpioShim<'s>, AdcShim, PwmShim, TimersShim<'s>, ClockShim, InputShim, OutputShim>;
 
 // impl Peripherals for PeripheralsShim {
 //     fn init() -> Self {

@@ -1,4 +1,4 @@
-use lc3_traits::peripherals::timers::{Timers, TimerArr, TimerState, NUM_TIMERS};
+use lc3_traits::peripherals::timers::{Timer, Timers, TimerArr, TimerState, NUM_TIMERS};
 
 // timing errors occuring during scan cycles (input and ouput errors)
 // errors handling overwriting handlers? Can timers have multiple handlers?
@@ -7,7 +7,6 @@ use core::ops::{Index, IndexMut};
 use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
-pub enum TimerEnum { T0, T1 }
 
 // #[derive(Copy, Clone, Debug)]
 // pub enum State {
@@ -42,15 +41,13 @@ pub enum TimerEnum { T0, T1 }
 // }
 
 // The term “Single Shot” signifies a single pulse output of some duration. 
-pub struct TimersShim {
+pub struct TimersShim<'a> {
      states: TimerArr<TimerState>,
-     times: TimerArr<Word>, 
-     handlers: TimerArr<&'a dyn Fn(TimerEnum)>, // handlers for timers
+     times: TimerArr<Option<Word>>, 
+     handlers: TimerArr<&'a (dyn FnMut(Timer) + Send)>, // handlers for timers
 }
 
-// always access timers with u8, so no necessary indexes
-const NO_OP: &dyn Fn(TimerEnum) = &|_| {};
-
+const NO_OP: &(dyn FnMut(Timer) + Send) = &|_| {};
 
 impl Default for TimersShim<'_> {
     fn default() -> Self {
@@ -62,17 +59,17 @@ impl Default for TimersShim<'_> {
     }
 }
 
-impl TimersShim<'a>{
+impl TimersShim<'_> {
      pub fn new() -> Self {
         Self::default()
     }
 }
 
 impl<'a> Timers<'a> for TimersShim<'a> {
-    fn set_state(&mut self, num: u8, state: TimerState) -> Result<(), ()>{
+    fn set_state(&mut self, timer: Timer, state: TimerState) -> Result<(), ()>{
         use TimerState::*;
     
-         self.states[num] = state; 
+         self.states[usize::from(timer)] = state; 
        
         // match state {
         //     Repeated => TimerState::Repeated(true), // true? 
@@ -81,13 +78,11 @@ impl<'a> Timers<'a> for TimersShim<'a> {
         // };
         Ok(())
     }
-    fn get_state(&mut self, num: u8) -> Option<TimerState>{ 
-        // why is self mutable? Just getting...
-        Some(self.states[num].into())
-
+    fn get_state(&self, timer: Timer) -> Option<TimerState> { 
+        Some(self.states[usize::from(timer)].into())
     }
 
-    // fn singleShotTimer(&mut self, num: u8) -> Thread{
+    // fn singleShotTimer(&mut self, timer: Timer) -> Thread{
     //         return thread::spawn(|| {
     //             thread::sleep(Duration::from_millis(self.times[num]));
     //             self.handlers[num](num);
@@ -96,7 +91,7 @@ impl<'a> Timers<'a> for TimersShim<'a> {
 
     // }
 
-    // fn repeatedTimer(&mut self, num: u8) -> Thread{
+    // fn repeatedTimer(&mut self, timer: Timer) -> Thread{
     //         let handle = thread::spawn(|| {
     //             loop {
     //                 thread::sleep(Duration::from_millis(self.times[num]));
@@ -108,14 +103,16 @@ impl<'a> Timers<'a> for TimersShim<'a> {
     // }
 
 
-  fn set_period(&mut self, num: u8, milliseconds: Word){ 
+    fn set_period(&mut self, timer: Timer, milliseconds: Word){ 
       // thread based
-        self.times[num] = milliseconds;
+        self.times[usize::from(timer)] = Some(milliseconds);
         let temp = thread::Builder::new(); 
-        match self.states[num] {
+        use TimerState::*;
+        match self.states[usize::from(timer)] {
             //Repeated => temp = self.repeatedTimer(num),
             //SingleShot => temp = self.singleShotTimer(num),
             Disabled => (),
+            _ => (), // TODO: remove when other arms re-added
         }
 
 
@@ -128,24 +125,21 @@ impl<'a> Timers<'a> for TimersShim<'a> {
         // start a thread, wait for period, and execute 
 
 
-  }
+    }
       
-    fn get_period(&mut self, num: u8) -> Option<Word>{
-            
-            if num < 2 {
-                return Some(self.times[num])
-            } else {
-                return None;
-            }
-
+    fn get_period(&self, timer: Timer) -> Option<Word> {
+        self.times[usize::from(timer)]
     }
 
-    
-    fn register_interrupt(&mut self, num: u8, func: &'a (dyn FnMut(u8) + Send)) -> Result<(), ()>{
-        self.handlers[Into::<usize>::into(num)] = func;
+    fn register_interrupt(
+        &mut self,
+        timer: Timer,
+        func: &'a (dyn FnMut(Timer) + Send)
+    ) -> Result<(), ()> {
+        self.handlers[usize::from(timer)] = func;
         Ok(())
     }
-    
+
     // fn start(&mut self, num: u8){} // starts timer - watchout for timing errors
 
     // if specified timer has set period and handler

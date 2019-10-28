@@ -20,7 +20,8 @@ use crate::peripheral_trait;
 #[derive(Copy, Clone)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
 pub const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
-pub const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
+pub type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
+pub const GPIO_PINS: GpioPinArr<GpioPin> = {
     use GpioPin::*;
     [G0, G1, G2, G3, G4, G5, G6, G7]
 }; // TODO: once we get the derive macro, get rid of this.
@@ -64,8 +65,6 @@ type GpioStateMismatch = (GpioPin, GpioState);
 pub struct GpioReadError(pub GpioStateMismatch);
 #[derive(Copy, Clone)]
 pub struct GpioWriteError(pub GpioStateMismatch);
-
-pub type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
 
 pub type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 

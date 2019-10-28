@@ -151,6 +151,7 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
 
         if let Output(_) = self[pin] {
             self[pin] = Output(bit); 
+            Ok(())
         } else {
             Err(GpioWriteError((pin, self[pin].into())))
         }

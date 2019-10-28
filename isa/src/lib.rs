@@ -50,6 +50,7 @@ pub type Addr = u16;
 
 /// Word type/size for the LC-3.
 pub type Word = u16;
+pub const WORD_MAX_VAL: u16 = Word::max_value();
 
 mod isa;
 
