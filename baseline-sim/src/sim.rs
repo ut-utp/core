@@ -29,6 +29,9 @@ pub const BSP: Addr = 0xFFFA; // TODO: when is this used!!!
 pub const PSR: Addr = 0xFFFC;
 pub const MCR: Addr = 0xFFFE;
 
+// TODO: Try to implement the control trait for the simulator!
+// TODO: Need to handle LC-3 exceptions and additional exceptions!
+
 pub trait Sim {
     fn step(&mut self);
 
@@ -99,14 +102,19 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                     self.set_cc(self[dr]);
                 }
                 AddImm { dr, sr1, imm5 } => {
-                    self[dr] = self[sr1] + imm5 as u16;
+                    self[dr] = self[sr1] + imm5 as Word;
                     self.set_cc(self[dr]);
                 }
-                AndReg { dr, sr1, sr2 } => {}
-                AndImm { dr, sr1, imm5 } => {}
+                AndReg { dr, sr1, sr2 } => {
+                    self[dr] = self[sr1] & self[sr2];
+                    self.set_cc(self[dr]);
+                }
+                AndImm { dr, sr1, imm5 } => {
+                    self[dr] = self[sr1] & imm5 as Word;
+                    self.set_cc(self[dr]);
+                }
                 Br { n, z, p, offset9 } => {
                     let (N, Z, P) = self.get_cc();
-
                     if n & N || z & Z || p & P {
                         self.set_pc(self.get_pc().wrapping_add(offset9 as Word))
                     }
@@ -121,23 +129,61 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                 Jsrr { base } => {
                     // TODO: add a test where base _is_ R7!!
                     let (pc, new_pc) = (self.get_pc(), self[base]);
-
                     self.set_pc(new_pc);
                     self[Reg::R7] = pc;
                 }
-                Ld { dr, offset9 } => {}
-                Ldi { dr, offset9 } => {}
-                Ldr { dr, base, offset6 } => {}
-                Lea { dr, offset9 } => {}
-                Not { dr, sr } => {}
+                Ld { dr, offset9 } => {
+                    todo!("Need to check if address is KBSR or KBDR.");
+                    self[dr] = self.get_word(self.get_pc().wrapping_add(offset9 as Word));
+                    self.set_cc(self[dr]);
+                }
+                Ldi { dr, offset9 } => {
+                    let indir: u16 = self.get_word(self.get_pc().wrapping_add(offset9 as Word));
+                    self[dr] = self.get_word(indir);
+                    self.set_cc(self[dr]);
+                }
+                Ldr { dr, base, offset6 } => {
+                    self[dr] = self[base].wrapping_add(offset6 as Word);
+                    self.set_cc(self[dr]);
+                }
+                Lea { dr, offset9 } => {
+                    self[dr] = self.get_pc().wrapping_add(offset9 as Word);
+                    self.set_cc(self[dr]);
+                }
+                Not { dr, sr } => {
+                    self[dr] = !self[sr];
+                    self.set_cc(self[dr]);
+                }
                 Ret => {
                     self.set_pc(self[Reg::R7]);
                 }
-                Rti => {}
-                St { sr, offset9 } => {}
-                Sti { sr, offset9 } => {}
-                Str { sr, base, offset6 } => {}
-                Trap { trapvec } => {}
+                Rti => {
+                    let psr = self.get_word(PSR);
+                    if (psr.bit(15)) == false {     // TODO: probably don't hard-code 15
+                        self.set_pc(self.get_word(self[Reg::R6]));
+                        self[Reg::R6] += 1;
+                        let temp = self.get_word(self[Reg::R6]);
+                        self[Reg::R6] += 1;
+                        self.set_word(PSR, temp);
+                        todo!("the privilege mode and condition codes of the interrupted process are restored");
+                    } else {
+                        todo!("Initiate a privilege mode exception");
+                    }
+                }
+                St { sr, offset9 } => {
+                    self.set_word(self.get_pc().wrapping_add(offset9 as Word), self[sr]);
+                }
+                Sti { sr, offset9 } => {
+                    let indir: u16 = self.get_word(self.get_pc().wrapping_add(offset9 as Word));
+                    self.set_word(indir, self[sr]);
+                }
+                Str { sr, base, offset6 } => {
+                    self.set_word(self[base].wrapping_add(offset6 as Word), self[sr]);
+                }
+                Trap { trapvec } => {
+                    self[Reg::R7] = self.get_pc();
+                    self.set_pc(self.get_word(trapvec as u16));
+                }
             },
             Err(word) => todo!("exception!?"),
         }

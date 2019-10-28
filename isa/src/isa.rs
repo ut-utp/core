@@ -68,14 +68,14 @@ pub enum Instruction {
     Jsrr { base: Reg },                             // B
     Ld { dr: Reg, offset9: i16 },                   // R9
     Ldi { dr: Reg, offset9: i16 },                  // R9
-    Ldr { dr: Reg, base: Reg, offset6: i8 },        // RR6
+    Ldr { dr: Reg, base: Reg, offset6: i16 },        // RR6
     Lea { dr: Reg, offset9: i16 },                  // R9
     Not { dr: Reg, sr: Reg },                       // RR
     Ret,                                            //
     Rti,                                            //
     St { sr: Reg, offset9: i16 },                   // R9
     Sti { sr: Reg, offset9: i16 },                  // R9
-    Str { sr: Reg, base: Reg, offset6: i8 },        // RR6
+    Str { sr: Reg, base: Reg, offset6: i16 },        // RR6
     Trap { trapvec: u8 },                           // 8
 }
 
@@ -180,8 +180,8 @@ impl TryFrom<Word> for Instruction {
                 false => AndReg { dr: w.reg(9), sr1: w.reg(6), sr2: w.reg(0) },
                 true => AndImm {  dr: w.reg(9), sr1: w.reg(6), imm5: w.i16(0..4) },
             },
-            0b0110 => Ldr { dr: w.reg(9), base: w.reg(6), offset6: w.i8(0..5) },
-            0b0111 => Str { sr: w.reg(9), base: w.reg(6), offset6: w.i8(0..5) },
+            0b0110 => Ldr { dr: w.reg(9), base: w.reg(6), offset6: w.i16(0..5) },
+            0b0111 => Str { sr: w.reg(9), base: w.reg(6), offset6: w.i16(0..5) },
             0b1000 => Rti,
             0b1001 => Not { dr: w.reg(9), sr: w.reg(6) },
             0b1010 => Ldi { dr: w.reg(9), offset9: w.i16(0..8) },
@@ -214,7 +214,7 @@ impl From<Instruction> for Word {
         fn O9(offset9: i16) -> Word { (offset9 as u16) & 0b111111111 }
         fn O11(offset11: i16) -> Word { (1 << 11) | ((offset11 as u16) & 0x7FF) }
         fn Base(base: Reg) -> Word { Sr1(base) }
-        fn O6(offset6: i8) -> Word { (offset6 as u16) & 0b111111 }
+        fn O6(offset6: i16) -> Word { (offset6 as u16) & 0b111111 }
         fn Sr(sr: Reg) -> Word { Sr1(sr) | 0b111111 }
         fn Trapvec(trapvec: u8) -> Word { (trapvec as u16) & 0xFF }
 
