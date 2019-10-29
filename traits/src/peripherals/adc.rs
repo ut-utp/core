@@ -6,13 +6,13 @@ use core::ops::{ Index, IndexMut };
 // TODO: Add Errors
 
 #[rustfmt::skip]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Pin { A0, A1, A2, A3 }
 
 pub const NUM_PINS: u8 = 4;
 pub struct PinArr<T>(pub [T; NUM_PINS as usize]);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State {
     Enabled,
     Disabled,
@@ -61,5 +61,7 @@ pub trait Adc<'a>: Default {
 }}
 
 pub type StateMismatch = (Pin, State);
+
+#[derive(Debug, PartialEq)]
 pub struct ReadError(pub StateMismatch);
 
