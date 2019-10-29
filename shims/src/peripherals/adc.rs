@@ -92,3 +92,25 @@ impl<'a> Adc<'a> for Shim<'a> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lc3_traits::peripherals::adc::{self, Adc, Pin::*,};
+
+    #[test]
+    fn get_state_initial() {
+        let shim = Shim::new();
+        assert_eq!(shim.get_state(A0), adc::State::Disabled)
+    }
+    
+    #[test]
+    fn read_initial() {
+        let mut shim = Shim::new();
+        let res = shim.set_state(A0, adc::State::Enabled);
+        assert_eq!(res, Ok(()));
+        let val = shim.read(A0);
+        assert_eq!(val, Ok(INIT_VALUE));
+    }
+}
+
