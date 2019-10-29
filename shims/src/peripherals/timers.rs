@@ -6,6 +6,7 @@ use lc3_isa::Word;
 use core::ops::{Index, IndexMut};
 use std::sync::{Arc, RwLock};
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::Duration;
 
 // #[derive(Copy, Clone, Debug)]
@@ -44,7 +45,7 @@ use std::time::Duration;
 pub struct TimersShim<'a> {
      states: TimerArr<TimerState>,
      times: TimerArr<Option<Word>>, 
-     handlers: TimerArr<&'a (dyn FnMut(Timer) + Send)>, // handlers for timers
+     handlers: TimerArr<&'a (dyn FnMut(Timer))>, // handlers for timers
 }
 
 const NO_OP: &(dyn FnMut(Timer) + Send) = &|_| {};
@@ -63,6 +64,32 @@ impl TimersShim<'_> {
      pub fn new() -> Self {
         Self::default()
     }
+     fn singleShotTimer(&mut self, timer: Timer){
+         // single thread wait and execute handler
+          
+          thread::scoped(move || {
+        
+                thread::sleep(Duration::from_millis(self.times[usize::from(timer)].unwrap() as u64));
+           
+              self.handlers[usize::from(timer)](timer);
+          
+            });
+        
+
+    }
+
+    fn repeatedTimer(&mut self, timer: Timer){
+        // loop through timer continuously 
+            let handle = thread::scoped(move || {
+                loop {
+                    thread::sleep(Duration::from_millis(self.times[usize::from(timer)].unwrap() as u64));
+                    self.handlers[usize::from(timer)](timer);
+                }
+            });
+
+      //  return handle;
+    }
+
 }
 
 impl<'a> Timers<'a> for TimersShim<'a> {
@@ -82,35 +109,16 @@ impl<'a> Timers<'a> for TimersShim<'a> {
         Some(self.states[usize::from(timer)].into())
     }
 
-    // fn singleShotTimer(&mut self, timer: Timer) -> Thread{
-    //         return thread::spawn(|| {
-    //             thread::sleep(Duration::from_millis(self.times[num]));
-    //             self.handlers[num](num);
-    //         });
-
-
-    // }
-
-    // fn repeatedTimer(&mut self, timer: Timer) -> Thread{
-    //         let handle = thread::spawn(|| {
-    //             loop {
-    //                 thread::sleep(Duration::from_millis(self.times[num]));
-    //                 self.handlers[num](num);
-    //             }
-    //         });
-
-    //     return handle;
-    // }
-
+   
 
     fn set_period(&mut self, timer: Timer, milliseconds: Word){ 
       // thread based
         self.times[usize::from(timer)] = Some(milliseconds);
-        let temp = thread::Builder::new(); 
+       // let temp = thread::Builder::new(); 
         use TimerState::*;
         match self.states[usize::from(timer)] {
-            //Repeated => temp = self.repeatedTimer(num),
-            //SingleShot => temp = self.singleShotTimer(num),
+            Repeated => self.repeatedTimer(timer),
+            SingleShot => self.singleShotTimer(timer),
             Disabled => (),
             _ => (), // TODO: remove when other arms re-added
         }

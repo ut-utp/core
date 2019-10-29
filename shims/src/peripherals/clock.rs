@@ -1,8 +1,9 @@
 use lc3_traits::peripherals::clock::Clock;
 use lc3_isa::{Word, Addr, WORD_MAX_VAL};
 use core::convert::TryInto;
+use std::ops::Add;
 
-use std::time::{Instant, SystemTime};
+use std::time::{Instant, SystemTime, Duration};
 pub struct ClockShim {
     start_time: Instant
 }
@@ -22,9 +23,12 @@ impl Clock for ClockShim {
             .try_into()
             .unwrap()
     }
-
-    fn set_milliseconds(&mut self, ms: Word) {
-        
+        // they set milliseconds - adding to the current time,
+        // next time that they call get_milliseconds(), 
+        // they will get the input milliseconds
+        fn set_milliseconds(&mut self, ms: Word){
+        self.start_time = self.start_time.add(Duration::from_millis(ms as u64));
+     
     }
 
 }

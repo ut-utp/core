@@ -1,6 +1,7 @@
 use lc3_traits::peripherals::pwm::{NUM_PWM_PINS, PwmState, PwmPinArr, Pwm, PwmPin};
 
 use std::thread;
+use std::time::Duration;
 //use core::ops::{Index, IndexMut};
 use std::sync::{Arc, RwLock};
 
@@ -43,7 +44,29 @@ impl PwmShim {
     pub fn get_pin_state(&self, pin: PwmPin) -> PwmState {
         self.states[usize::from(pin)].into()
     }
+
+    fn pwmStart(&mut self, pin: PwmPin){
+        use State::*;
+        let bit_high = Enabled(true);
+        let wait = self.duty_cycle;
+        let handle = thread::spawn(move || {
+            loop{
+                thread::sleep(Duration::from_millis(wait as u64)); 
+            // because we don't know the clock cycle rate
+            //I guess set duty cycle will just be assumed to be the period for now
+                self.states[usize::from(pin)] = bit_high;
+
+
+            
+            }
+        
+        });    
+        
+
+        }
 }
+
+
 
 
 impl Pwm for PwmShim {
@@ -57,11 +80,6 @@ impl Pwm for PwmShim {
     }
 
     fn get_state(&self, pin: PwmPin) -> Option<PwmState> {
-        //  if pin < 2 { 
-        //      return Some(self.states[pin]);
-        //  } else {
-        //      return None;
-        //  }
         if let PwmState::Disabled = self.get_pin_state(pin) {
             None
         } else {
@@ -82,7 +100,18 @@ impl Pwm for PwmShim {
 
     // }
 
+    
+
     fn start(&mut self, pin: PwmPin) {
+ 
+
+       match self.states[usize::from(pin)] {
+            State::Enabled(false) => self.pwmStart(pin),
+            State::Disabled => (),
+        };
+        
+        
+        
         // fn set_high(){}
         // timer.register_interrupt(free pin, set_high);
         // timer.set_period(free pin, duty);
