@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn add_reg_test() {
         interp_test_runner::<MemoryShim, _>(
-            vec![Instruction::,
+            vec![Instruction::
                 AddImm { dr: R1, sr1: R1, imm5: 1 },
                 AddReg { dr: 2, sr1: 1, sr2: 0 }],
             Some(1),
@@ -303,5 +303,4 @@ mod tests {
             vec![]
         )
     }
-}
 }
