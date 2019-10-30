@@ -239,54 +239,69 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
     // fn get_state(&self) -> State {
     //     self.state
     // }
-}
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use crate::isa::Instruction;
-//
-//    // Test that the instructions work
-//    // Test that the unimplemented instructions do <something>
-//
-//    fn interp_test_runner<'a, M: Memory, P: Peripherals<'a>>(
-//        insns: Vec<Instruction>,
-//        num_steps: Option<usize>,
-//        regs: [Option<Word>; 8],
-//        pc: Addr,
-//        memory_locations: Vec<(Addr, Word)>,
-//    ) {
-//        let mut interp = Simulator::<M, P>::default();
-//
-//        let mut addr = 0x3000;
-//        for insn in insns {
-//            interp.set_word(addr, insn.into());
-//            addr += 2;
-//        }
-//
-//        if let Some(num_steps) = num_steps {
-//            for _ in 0..num_steps {
-//                interp.step();
-//            }
-//        } else {
-//            // TODO! (run until halted)
-//        }
-//
-//        for (idx, r) in regs.iter().enumerate() {
-//            if let Some(reg_word) = r {
-//                assert_eq!(interp.get_register(idx.into()), *reg_word);
-//            }
-//        }
-//    }
-//
-//    #[test]
-//    fn nop() {
-//        interp_test_runner<MemoryShim, _>(
-//            vec![Instruction::Br { n: true, z: true, p: true, offset11: -1 }],
-//            1,
-//            [None, None, None, None, None, None, None, None],
-//            0x3000,
-//            vec![]
-//        )
-//    }
-//}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::isa::Instruction;
+
+    // Test that the instructions work
+    // Test that the unimplemented instructions do <something>
+
+    fn interp_test_runner<'a, M: Memory, P: Peripherals<'a>>(
+        insns: Vec<Instruction>,
+        num_steps: Option<usize>,
+        regs: [Option<Word>; 8],
+        pc: Addr,
+        memory_locations: Vec<(Addr, Word)>,
+    ) {
+        let mut interp = Simulator::<M, P>::default();
+
+        let mut addr = 0x3000;
+        for insn in insns {
+            interp.set_word(addr, insn.into());
+            addr += 2;
+        }
+
+        if let Some(num_steps) = num_steps {
+            for _ in 0..num_steps {
+                interp.step();
+            }
+        } else {
+            // TODO! (run until halted)
+        }
+
+        for (idx, r) in regs.iter().enumerate() {
+            if let Some(reg_word) = r {
+                assert_eq!(interp.get_register(idx.into()), *reg_word);
+            }
+        }
+    }
+
+    #[test]
+    //NO-OP do nothing run a cycle test
+    fn nop() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Br { n: true, z: true, p: true, offset11: -1 }],
+            Same(1),
+            [None, None, None, None, None, None, None, None],
+            0x3000,
+            vec![]
+        )
+    }
+    //0+1=1 Basic Add
+    #[test]
+    fn add_reg_test() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::,
+                AddImm { dr: R1, sr1: R1, imm5: 1 },
+                AddReg { dr: 2, sr1: 1, sr2: 0 }],
+            Some(1),
+            [Some(0), Some(1), Some(1), None, None, None, None, None],
+            0x3001,
+            vec![]
+        )
+    }
+}
+}
