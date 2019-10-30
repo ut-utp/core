@@ -303,4 +303,42 @@ mod tests {
             vec![]
         )
     }
+    //AddImm Test with R0(0) + !
+    #[test]
+    fn AddImmTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 }],
+            Some(1),
+            [1, None, None, None, None, None, None, None],
+            0x3001,
+            vec![]
+        )
+    }
+    //AndReg Test with R0(1) and R1(2) to R0(expected 3)
+    #[test]
+    fn AndRegTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 },
+            AddImm { dr: R1, sr1: R1, imm5: 2 },
+            AndReg { dr: R0, sr1: R0, sr2: R1 },
+            ],
+            Some(3),
+            [3, 2, None, None, None, None, None, None],
+            0x3003,
+            vec![]
+        )
+    }
+    //AndImm Test with R1 (1) and 0
+    #[test]
+    fn AndImmTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::AddImm { dr: R1, sr1: R1, imm5: 1 },
+            AndImm { dr: R1, sr1: R1, imm5: 0 },
+            ],
+            Some(2),
+            [0, None, None, None, None, None, None, None],
+            0x3002,
+            vec![]
+        )
+    }
 }
