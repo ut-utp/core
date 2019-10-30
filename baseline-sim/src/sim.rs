@@ -25,7 +25,7 @@ pub const KBSR: Addr = 0xFE00;
 pub const KBDR: Addr = 0xFE02;
 pub const DSR: Addr = 0xFE04;
 pub const DDR: Addr = 0xFE06;
-pub const BSP: Addr = 0xFFFA; // TODO: when is this used!!!
+pub const BSP: Addr = 0xFFFA; // TODO: need to initialize this as 0x2FFE
 pub const PSR: Addr = 0xFFFC;
 pub const MCR: Addr = 0xFFFE;
 
@@ -87,11 +87,34 @@ impl<'a, M: Memory, P: Peripherals<'a>> Simulator<'a, M, P> {
 
         (psr.bit(2), psr.bit(1), psr.bit(0))
     }
+
+    fn handle_exception(&mut self, ex_vec: u8) {
+        let psr = self.mem.read_word(PSR);
+        if psr.bit(15) {
+            self.mem.write_word(PSR, psr | 0x8000);
+        } else {
+            // I'm assuming if PSR[15] is in supervisor mode, R6 is already the supervisor stack
+            // pointer and BSR has the user stack pointer.
+            self[Reg::R6] = self.mem.read_word(BSP);
+        }
+        self[Reg::R6] -= 1;
+        self.mem.write_word(self[Reg::R6], self.pc);
+        self[Reg::R6] -= 1;
+        self.mem.write_word(self[Reg::R6], psr);
+        self.pc = 0x0100 | (ex_vec as u16);
+    }
+
+    fn set_acv(&self, addr: Word) {
+        let psr = self.mem.read_word(PSR);
+        let acv = (addr < 0x3000) | (addr > 0xFE00) & psr.bit(15);
+    }
 }
 
 impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
     fn step(&mut self) {
         use Instruction::*;
+
+        todo!("Need to check if MCR[15] has been cleared. If so, stop execution.");
 
         self.set_pc(self.get_pc() + 1);
 
@@ -148,7 +171,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                 }
                 Lea { dr, offset9 } => {
                     self[dr] = self.get_pc().wrapping_add(offset9 as Word);
-                    self.set_cc(self[dr]);
+//                    self.set_cc(self[dr]);        // LEA no longer changes condition codes
                 }
                 Not { dr, sr } => {
                     self[dr] = !self[sr];
@@ -159,15 +182,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                 }
                 Rti => {
                     let psr = self.get_word(PSR);
-                    if (psr.bit(15)) == false {     // TODO: probably don't hard-code 15
+                    if (psr.bit(15)) == false {
                         self.set_pc(self.get_word(self[Reg::R6]));
                         self[Reg::R6] += 1;
                         let temp = self.get_word(self[Reg::R6]);
                         self[Reg::R6] += 1;
                         self.set_word(PSR, temp);
-                        todo!("the privilege mode and condition codes of the interrupted process are restored");
                     } else {
-                        todo!("Initiate a privilege mode exception");
+                        self.handle_exception(0x00);
                     }
                 }
                 St { sr, offset9 } => {
@@ -185,7 +207,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                     self.set_pc(self.get_word(trapvec as u16));
                 }
             },
-            Err(word) => todo!("exception!?"),
+            Err(word) => {
+                self.handle_exception(0x01);
+            },
         }
     }
 
