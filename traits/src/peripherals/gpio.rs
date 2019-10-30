@@ -17,7 +17,7 @@ use crate::peripheral_trait;
 // described in `control.rs`.
 
 #[rustfmt::skip]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
 pub const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
 pub type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
@@ -43,7 +43,7 @@ impl From<GpioPin> for usize {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum GpioState {
     Input,
     Output,
@@ -56,21 +56,22 @@ pub enum GpioState {
     // 11 -> Interrupt (Rising Edge)
     Disabled,
 }
-
+#[derive(Debug, PartialEq)]
 pub struct GpioMiscError;
+
 
 type GpioStateMismatch = (GpioPin, GpioState);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioReadError(pub GpioStateMismatch);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteError(pub GpioStateMismatch);
 
 pub type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioReadErrors(pub GpioStateMismatches);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
 
 // #[derive(Copy, Clone)]

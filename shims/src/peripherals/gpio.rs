@@ -168,6 +168,80 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    use lc3_traits::peripherals::gpio::{self, Gpio, GpioPin::*,};
+
+
+    #[test]
+    fn get_state_disabled() {
+        let shim = GpioShim::new();
+        assert_eq!(shim.get_state(G0), gpio::GpioState::Disabled)
+    }
+    
+    #[test]
+    fn read_input() {
+        let mut shim = GpioShim::new();
+        let res = shim.set_state(G0, gpio::GpioState::Input);
+        assert_eq!(res, Ok(()));
+        let val = shim.read(G0);
+        assert_eq!(val, Ok(false));
+    }
+
+    #[test]
+    fn read_interrupt() {
+        let mut shim = GpioShim::new();
+        let res = shim.set_state(G0, gpio::GpioState::Interrupt);
+        assert_eq!(res, Ok(()));
+        let val = shim.read(G0);
+        assert_eq!(val, Ok(false));
+    }
+     #[test]
+    fn read_disabled() {
+        let mut shim = GpioShim::new();
+        let val = shim.read(G0);
+        assert_eq!(val, Err(GpioReadError((G0, gpio::GpioState::Disabled))));
+    }
+
+    //   #[test]
+    // fn register_interrupt_test() {
+    //     let mut shim = GpioShim::new();
+    //     let res = shim.set_state(G0, gpio::GpioState::Interrupt);
+    //     assert_eq!(res, Ok(()));
+    //     res = shim.register_interrupt(G0, &interrupt_test(G0));
+    //     let val = shim.read(G0);
+    //     assert_eq!(val, Ok(false));
+    // }
+
+    // covers read for output 
+    #[test]
+    fn write_Output() {
+        let mut shim = GpioShim::new();
+        let res = shim.set_state(G0, gpio::GpioState::Output);
+        assert_eq!(res, Ok(()));
+        let result = shim.write(G0, true);
+        let val = shim.read(G0);
+        assert_eq!(val, Err(GpioReadError((G0, gpio::GpioState::Output))));
+    }
+ // covers read for output 
+    #[test]
+    fn write_Else() {
+        let mut shim = GpioShim::new();
+        let res = shim.set_state(G0, gpio::GpioState::Input);
+        assert_eq!(res, Ok(()));
+        let result = shim.write(G0, true);
+        assert_eq!(result, Err(GpioWriteError((G0, gpio::GpioState::Input))));
+    }
+
+
+
+}
+
+
+
+
 // TODO: Either newtype this or make this a blanket impl and move it to `lc3-traits` behind a feature gate (that this crate then requires).
 // impl<'a> Gpio<'a> for Arc<RwLock<GpioShim<'a>>> {
 //     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
