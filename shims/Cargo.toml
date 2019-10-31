@@ -31,3 +31,5 @@ maintenance = { status = "actively-developed" }
 lc3-isa = { path = "../isa", version = "0.1.0" }
 lc3-macros = { path = "../macros", version = "0.1.0" }
 lc3-traits = { path = "../traits", version = "0.1.0" }
+
+byteorder = "1.3.2"
