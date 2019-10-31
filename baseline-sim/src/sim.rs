@@ -489,4 +489,18 @@ mod tests {
             vec![]
         )
     }
+    //jsr test, jumps back to queue location from r7
+    #[test]
+    fn JsrTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R0, offset9: 5 },
+            St { sr: R0, offset6: 2 },
+            Jsr { offset11: 1 },
+            ],
+            Some(3),
+            [3000, None, None, None, None, None, None, 3001],
+            0x3000,
+            vec![]
+        )
+    }
 }
