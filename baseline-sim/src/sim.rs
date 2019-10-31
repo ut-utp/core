@@ -373,7 +373,7 @@ mod tests {
         interp_test_runner::<MemoryShim, _>(
             vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 },
                 St {sr: R0, offset9: 0 },
-                Ldr { dr: R1, offset9: -1 }
+                Ldr { dr: R1, offset9: -1 },
             ],
             Some(3),
             [1, 3001, None, None, None, None, None, None],
@@ -417,6 +417,21 @@ mod tests {
             [1, 0, None, None, None, None, None, None],
             0x3002,
             vec![]
+        )
+    }
+    //ldi Test using location 3000 and loading value of memory into register, using 3002 and 3001 holding 3000 as reference
+    #[test]
+    fn LdiTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R0, offset9: 0 },
+                St {sr: R0, offset9: 0 },
+                St {sr: R0, offset9: -2 },
+                Ldi { dr: R2, offset9: -1 },
+            ],
+            Some(4),
+            [1, None, 3000, None, None, None, None, None],
+            0x3004,
+            vec![(x3001, 3000), (x3000,3000)]
         )
     }
 }
