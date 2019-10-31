@@ -434,4 +434,17 @@ mod tests {
             vec![(x3001, 3000), (x3000,3000)]
         )
     }
+    //jumps to R7 register, loaded with memory address 3005
+    #[test]
+    fn RetTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R7, offset9: 5 },
+            Ret,
+            ],
+            Some(2),
+            [None, None, None, None, None, None, None, 3005],
+            0x3005,
+            vec![]
+        )
+    }
 }
