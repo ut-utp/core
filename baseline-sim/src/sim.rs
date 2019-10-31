@@ -239,7 +239,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
     // fn get_state(&self) -> State {
     //     self.state
     // }
-
+}
 
 #[cfg(test)]
 mod tests {
