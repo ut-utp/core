@@ -1,7 +1,7 @@
 use lc3_traits::peripherals::output::Output;
 
-pub struct OutputShim {}
+pub struct Shim {}
 
-// impl Output for OutputShim {
+// impl Output for Shim {
 
 // }

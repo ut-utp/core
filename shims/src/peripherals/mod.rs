@@ -18,11 +18,8 @@ pub use gpio::GpioShim;
 pub use pwm::PwmShim;
 pub use timers::TimersShim;
 
-pub use input::InputShim;
-pub use output::OutputShim;
-
 pub type PeripheralsShim<'s> =
-    PeripheralSet<'s, GpioShim<'s>, adc::Shim<'s>, pwm::PwmShim, TimersShim<'s>, ClockShim, InputShim, OutputShim>;
+    PeripheralSet<'s, GpioShim<'s>, adc::Shim<'s>, pwm::PwmShim, TimersShim<'s>, ClockShim, input::Shim, output::Shim>;
 
 // impl Peripherals for PeripheralsShim {
 //     fn init() -> Self {
