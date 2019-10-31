@@ -364,7 +364,21 @@ mod tests {
             Some(3),
             [3001, None, None, None, None, None, None, None],
             0x3003,
-            vec![]
+            vec![0x3001, 1]
+        )
+    }
+    //LDR Test with R0 and memory
+    #[test]
+    fn LdrTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 },
+                St {sr: R0, offset9: 0 },
+                Ldr { dr: R1, offset9: -1 }
+            ],
+            Some(3),
+            [1, 3001, None, None, None, None, None, None],
+            0x3003,
+            vec![0x3001, 1]
         )
     }
 }
