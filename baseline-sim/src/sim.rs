@@ -342,6 +342,7 @@ mod tests {
         )
     }
     //ST Test which stores 1 into x3001
+    #[test]
     fn StTest() {
         interp_test_runner::<MemoryShim, _>(
             vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 },
@@ -460,6 +461,19 @@ mod tests {
             [3000, None, None, 1, None, None, None, None],
             0x3004,
             vec![(x3003,3000),(x3000,1)]
+        )
+    }
+    //Jump Test, switch PC to value in register
+    #[test]
+    fn JmpTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R0, offset9: 0 },
+            Jmp { base: R0},
+            ],
+            Some(2),
+            [3000, None, None, None, None, None, None, None],
+            0x3000,
+            vec![]
         )
     }
 }
