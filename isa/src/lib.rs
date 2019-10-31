@@ -45,12 +45,23 @@
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
+use core::mem::size_of;
+
 /// Address type/size for the LC-3.
 pub type Addr = u16;
 
+/// Maximum possible address value.
+pub const ADDR_MAX_VAL: Addr = Addr::max_value();
+
 /// Word type/size for the LC-3.
 pub type Word = u16;
-pub const WORD_MAX_VAL: u16 = Word::max_value();
+
+/// Maximum possible word value.
+pub const WORD_MAX_VAL: Word = Word::max_value();
+
+/// Size of the LC-3 A
+pub const ADDR_SPACE_SIZE_IN_WORDS: usize = (ADDR_MAX_VAL as usize) + 1;
+pub const ADDR_SPACE_SIZE_IN_BYTES: usize = ADDR_SPACE_SIZE_IN_WORDS * size_of::<Word>();
 
 mod isa;
 
