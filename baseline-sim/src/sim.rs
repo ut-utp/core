@@ -381,4 +381,15 @@ mod tests {
             vec![0x3001, 1]
         )
     }
+    //Load x3000 into R1
+    #[test]
+    fn LeaTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R0, offset9: 0 }],
+            Some(1),
+            [3000, None, None, None, None, None, None, None],
+            0x3001,
+            vec![]
+        )
+    }
 }
