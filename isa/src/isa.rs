@@ -79,6 +79,34 @@ pub enum Instruction {
     Trap { trapvec: u8 },                           // 8
 }
 
+impl Instruction {
+    pub fn sets_condition_codes(&self) -> bool {
+        use Instruction::*;
+
+        match self {
+            AddReg { .. }
+            | AddImm { .. }
+            | AndReg { .. }
+            | AndImm { .. }
+            | Ld { .. }
+            | Ldi { .. }
+            | Ldr { .. }
+            | Not { .. } => true,
+            Br { .. }
+            | Jmp { .. }
+            | Jsr { .. }
+            | Jsrr { .. }
+            | Lea { .. }
+            | Ret
+            | Rti
+            | St { .. }
+            | Sti { .. }
+            | Str { .. }
+            | Trap { .. } => false,
+        }
+    }
+}
+
 pub trait Bits: Sized + Copy {
     fn bit(self, bit: u32) -> bool;
 
