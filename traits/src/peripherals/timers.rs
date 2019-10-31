@@ -6,6 +6,9 @@ use lc3_isa::Word;
 // TODO: Add Errors
 // Timer periods: [0, core::u16::MAX)
 
+
+
+
 #[derive(Copy, Clone)]
 pub enum Timer { T0, T1 }
 pub const NUM_TIMERS: u8 = 2;
@@ -22,12 +25,17 @@ impl From<Timer> for usize {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TimerState {
     Repeated,
     SingleShot,
     Disabled,
 }
+
+#[derive(Debug, PartialEq)]
+pub struct TimerMiscError;
+
+pub type TimerStateMismatch = (Timer, TimerState);
 
 peripheral_trait! {timers,
 pub trait Timers<'a>: Default {
@@ -37,5 +45,5 @@ pub trait Timers<'a>: Default {
     fn set_period(&mut self, timer: Timer, milliseconds: Word);
     fn get_period(&self, timer: Timer) -> Option<Word>;
 
-    fn register_interrupt(&mut self, timer: Timer, func: &'a (dyn FnMut(Timer) + Send)) -> Result<(), ()>;
+    fn register_interrupt(&mut self, timer: Timer, func: &'static (dyn FnMut(Timer) + Send)) -> Result<(), ()>;
 }}
