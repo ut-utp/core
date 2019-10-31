@@ -104,10 +104,10 @@ impl Pwm for PwmShim {
             let _disable = tx.send(State::Disabled);
         }
         let state = Mutex::new(Cell::new(self.states[usize::from(pin)]));
-        // period can only be 0 if the signal should be disabled
+       
        
         let _handle = thread::spawn(move || {
-            // probably not correct, but now the compiler errors are gone
+          
             loop{
                 
                 match rx.recv() {
@@ -119,7 +119,7 @@ impl Pwm for PwmShim {
 
                     }
                 }
-                // shared state can only be accessed when the lock is held
+               
                 let mut state_data = state.lock().unwrap(); 
         
                 *state_data.get_mut() = State::Enabled(true); // self.states[usize::from(pin)] = Enabled(true);
@@ -161,9 +161,7 @@ mod tests {
         let res = shim.set_state(P0, pwm::PwmState::Enabled((NonZeroU8::new(MAX)).unwrap()));
         assert_eq!(res, Ok(()));
         let val = shim.get_state(P0);
-        // as long as it says enabled, it should pass this test... 
-        // we don't actually reset the value of the period within enabled...
-        assert_eq!(val.unwrap(), pwm::PwmState::Enabled((NonZeroU8::new(MAX)).unwrap()));
+         assert_eq!(val.unwrap(), pwm::PwmState::Enabled((NonZeroU8::new(MAX)).unwrap()));
     }
 
 
@@ -178,10 +176,6 @@ mod tests {
         shim.set_duty_cycle(P0, MAX/2);
         thread::sleep(Duration::from_millis(MAX as u64)); // run twice then disable 
         shim.set_state(P0, pwm::PwmState::Disabled);
-        //let val = shim.get_state(P0);
-
-       // assert_eq!(val.unwrap(), pwm::PwmState::Enabled((NonZeroU8::new(MAX/2)).unwrap()));
-
-        // how tf do I test this guy...?
+        
     }
 }
