@@ -36,6 +36,7 @@ impl Default for Shim<'_> {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub struct SetError(StateMismatch);
 
 impl Shim<'_> {
@@ -111,6 +112,25 @@ mod tests {
         assert_eq!(res, Ok(()));
         let val = shim.read(A0);
         assert_eq!(val, Ok(INIT_VALUE));
+    }
+    
+    #[test]
+    fn set_value() {
+        let new_val: u8 = 1;
+        assert_ne!(INIT_VALUE, new_val, "TEST FAULTY: new_val must not equal INIT_VALUE");
+        let mut shim = Shim::new();
+        shim.set_state(A0, adc::State::Enabled);
+        let res = shim.set_value(A0, new_val);
+        assert_eq!(res, Ok(()));
+        let val = shim.read(A0);
+        assert_eq!(val, Ok(new_val));
+    }
+    
+    #[test]
+    fn read_disabled() {
+        let mut shim = Shim::new();
+        let val = shim.read(A0);
+        assert_eq!(val, Err(ReadError((A0, adc::State::Disabled))))
     }
 }
 
