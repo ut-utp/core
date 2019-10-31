@@ -341,4 +341,15 @@ mod tests {
             vec![]
         )
     }
+    //LD Test with R0 and memory
+    #[test]
+    fn LdTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Ld { dr: R0, offset9: 0 }],
+            Some(1),
+            [3000, None, None, None, None, None, None, None],
+            0x3001,
+            vec![]
+        )
+    }
 }
