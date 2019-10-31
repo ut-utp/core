@@ -476,4 +476,17 @@ mod tests {
             vec![]
         )
     }
+    //jsrr test, jumps to location 3005 and stores 3001 in r7
+    #[test]
+    fn JsrrTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R0, offset9: 5 },
+            Jsrr { base: R0 },
+            ],
+            Some(2),
+            [3000, None, None, None, None, None, None, 3001],
+            0x3005,
+            vec![]
+        )
+    }
 }
