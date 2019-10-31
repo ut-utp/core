@@ -341,14 +341,29 @@ mod tests {
             vec![]
         )
     }
+    //ST Test which stores 1 into x3001
+    fn StTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 },
+            St {sr: R0, offset9: 0 },
+            ],
+            Some(2),
+            [1, None, None, None, None, None, None, None],
+            0x3002,
+            vec![0x3001, 1]
+        )
+    }
     //LD Test with R0 and memory
     #[test]
     fn LdTest() {
         interp_test_runner::<MemoryShim, _>(
-            vec![Instruction::Ld { dr: R0, offset9: 0 }],
-            Some(1),
-            [3000, None, None, None, None, None, None, None],
-            0x3001,
+            vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 },
+                St {sr: R0, offset9: 1 },
+                Ld { dr: R0, offset9: 0 }
+            ],
+            Some(3),
+            [3001, None, None, None, None, None, None, None],
+            0x3003,
             vec![]
         )
     }
