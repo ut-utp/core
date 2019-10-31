@@ -1,7 +1,11 @@
 use lc3_traits::peripherals::pwm::{NUM_PWM_PINS, PwmState, PwmPinArr, Pwm, PwmPin};
-
+use std::u8::MAX;
 use std::thread;
 use std::time::Duration;
+use std::cell::Cell;
+use std::sync::Mutex;
+use std::sync::mpsc;
+use core::num::NonZeroU8;
 //use core::ops::{Index, IndexMut};
 use std::sync::{Arc, RwLock};
 
@@ -14,9 +18,8 @@ pub enum State {
 impl From<State> for PwmState {
     fn from(state: State) -> PwmState {
         use PwmState::*;
-
         match state {
-            State::Enabled(_) => Enabled, 
+            State::Enabled(_) => Enabled(NonZeroU8::new(1).unwrap()), // when decalring enabled, let 1 denote the default val
             State::Disabled => Disabled,
         }
     }
@@ -24,15 +27,18 @@ impl From<State> for PwmState {
 
 pub struct PwmShim {
     states: PwmPinArr<State>,
-    duty_cycle: u16,
+    period: PwmPinArr<u8>,
+    duty_cycle: PwmPinArr<u8>, 
+    //is_disabled: bool, // in order to kill the signal 
 }
 
 impl Default for PwmShim {
     fn default() -> Self {
         Self {
             states: [State::Disabled; NUM_PWM_PINS as usize],
-            //cycles: [0; NUM_PWM_PINS as usize], <- remove because duty cycle doesn't care about particular pins 
-            duty_cycle: 0,  // start with duty_cycle low
+            period: [0; NUM_PWM_PINS as usize],      //cycles: [0; NUM_PWM_PINS as usize], <- remove because duty cycle doesn't care about particular pins 
+            duty_cycle: [0; NUM_PWM_PINS as usize],  // start with duty_cycle low
+            //is_disabled: true, 
         }
     }
 }
@@ -45,25 +51,6 @@ impl PwmShim {
         self.states[usize::from(pin)].into()
     }
 
-    fn pwmStart(&mut self, pin: PwmPin){
-        use State::*;
-        let bit_high = Enabled(true);
-        let wait = self.duty_cycle;
-        let handle = thread::spawn(move || {
-            loop{
-                thread::sleep(Duration::from_millis(wait as u64)); 
-            // because we don't know the clock cycle rate
-            //I guess set duty cycle will just be assumed to be the period for now
-                self.states[usize::from(pin)] = bit_high;
-
-
-            
-            }
-        
-        });    
-        
-
-        }
 }
 
 
@@ -73,9 +60,19 @@ impl Pwm for PwmShim {
     fn set_state(&mut self, pin: PwmPin, state: PwmState) -> Result<(), ()>{
         use PwmState::*;
         self.states[usize::from(pin)] = match state {
-            Enabled => State::Enabled(false),
-            Disabled => State::Disabled,
+            Enabled(time) => {
+                self.period[usize::from(pin)] = time.get();
+                //self.is_disabled = false;
+                State::Enabled(false)
+            }, 
+            Disabled => {
+                self.period[usize::from(pin)] = 0;
+                //self.is_disabled = false;
+                self.set_duty_cycle(pin, 0); // arbitrary - will disable duty cycle anyway
+                State::Disabled
+                },
         };
+
         Ok(())
     }
 
@@ -87,75 +84,53 @@ impl Pwm for PwmShim {
         }
     }
 
-    fn set_duty_cycle(&mut self, duty: u16) { 
-        // not mutable - should set duty cycle just start here? TODO: made mutable, review
-        // doesn't give ability to set duty cycles for each pin?
 
-        // won't work bc not mutable
-        self.duty_cycle = duty; // duty cycle is a percentage of u16 - u16_max_value() is 100% duty
+// consider this code to be the work of a child or someone you really don't trust
+    fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8){
+       //use State::*;
+        self.duty_cycle[usize::from(pin)] = duty;
+        
+        let (tx, rx) = mpsc::channel::<State>();
+
+        // get on period and off period by percentage duty cycle 
+        // try to hold on to significant digits through division... will inaccuracy become a problem??
+        let on_period = (((self.duty_cycle[usize::from(pin)] as f64)/(MAX as f64)) as u8) * self.period[usize::from(pin)]; // get the on period 
+        let off_period = self.period[usize::from(pin)] - on_period; // get the off period
+
+        
+        let state = Mutex::new(Cell::new(self.states[usize::from(pin)]));
+        // period can only be 0 if the signal should be disabled
+        if self.period[usize::from(pin)] == 0 { 
+            let _disable = tx.send(State::Disabled);
+        }
+
+        let _handle = thread::spawn(move || {
+            // probably not correct, but now the compiler errors are gone
+            loop{
+                
+                match rx.recv() {
+                    Ok(State::Disabled) => {break;}
+                    Ok(State::Enabled(_)) => {}
+                    Err(_) => {}
+                }
+                // shared state can only be accessed when the lock is held
+                let mut state_data = state.lock().unwrap(); 
+
+                *state_data.get_mut() = State::Enabled(true); // self.states[usize::from(pin)] = Enabled(true);
+                thread::sleep(Duration::from_millis(on_period as u64));
+
+               *state_data.get_mut() = State::Enabled(false); // self.states[usize::from(pin)] = Enabled(false);
+                thread::sleep(Duration::from_millis(off_period as u64));
+            
+                
+            }
+        });
+
+       
+
+        
     }
-    
-    // fn set_high(&mut self, pin: u8){
-    //         // set what to  high..?
-
-    // }
-
-    
-
-    fn start(&mut self, pin: PwmPin) {
- 
-
-       match self.states[usize::from(pin)] {
-            State::Enabled(false) => self.pwmStart(pin),
-            State::Disabled => (),
-        };
-        
-        
-        
-        // fn set_high(){}
-        // timer.register_interrupt(free pin, set_high);
-        // timer.set_period(free pin, duty);
-        //   use crate::peripherals::clock;
-
-
-
-        // whatever state your implementing this on, have a bank of 4 booleans on 
-
-
-        //timer.register_interrupt(0, self.set_high(0); // pretend like this sets bit high
-        //timer.set_period(0, self.duty_cycle*clock::get_nanosecond();
-
-
-        // when interrupt occurs 
-
-        // timer.register_interrupt(0, self.set_low(0));
-        // timer.set_period(0, clock::get_nanoseconds() - self.duty_cycle*clock::get_nanosecond());
-
-
-        // fn set_low(){}
-        // timer.register_interrupt(free pin, set_low);
-        // timer.set_period(free pin, clock::get_nanoseconds() - duty);
-
-
-
-
-        // set interrupt for system period - % on = % off
-        // start interrupt
-        // interrupt occurs
-        // set high for duty cycle % of period
-        // set low for % off  
-
-        // better way to do this? Would this even work? Would we not want to invoke timers - needed for other purposes? 
-        // basically, we can just set a timer to the off period (total period - total period * (% duty cycle))
-        // and handler = set bit high and change timer period to the on period (% duty cycle of total period)
-        // then set handler = set bit low and change timer back to off period
-
-    } //Start the periodic timer interrupt
-    
-    fn disable(&mut self, pin: PwmPin){
-        // disable the period timer interrupt 
-        self.states[usize::from(pin)] = State::Disabled;
-    }
+   
 
 }
 
