@@ -406,4 +406,17 @@ mod tests {
             vec![(x3004, 3000)]
         )
     }
+    //not test
+    #[test]
+    fn NotTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::AddImm { dr: R0, sr1: R0, imm5: 1 },
+                Not { dr: R1, sr: R0 },
+            ],
+            Some(2),
+            [1, 0, None, None, None, None, None, None],
+            0x3002,
+            vec![]
+        )
+    }
 }
