@@ -92,7 +92,8 @@ impl Pwm for PwmShim {
         
         let (tx, rx) = mpsc::channel::<State>();
 
-        let on_period = (self.duty_cycle[usize::from(pin)]/MAX) * self.period[usize::from(pin)]; // get the on period 
+        // try to hold on to significant digits through division... will inaccuracy become a problem??
+        let on_period = (((self.duty_cycle[usize::from(pin)] as f64)/(MAX as f64)) as u8) * self.period[usize::from(pin)]; // get the on period 
         let off_period = self.period[usize::from(pin)] - on_period; // get the off period
 
         
