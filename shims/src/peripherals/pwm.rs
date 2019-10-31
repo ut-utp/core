@@ -29,7 +29,7 @@ pub struct PwmShim {
     states: PwmPinArr<State>,
     period: PwmPinArr<u8>,
     duty_cycle: PwmPinArr<u8>, 
-    is_disabled: bool, // in order to kill the signal 
+    //is_disabled: bool, // in order to kill the signal 
 }
 
 impl Default for PwmShim {
@@ -38,7 +38,7 @@ impl Default for PwmShim {
             states: [State::Disabled; NUM_PWM_PINS as usize],
             period: [0; NUM_PWM_PINS as usize],      //cycles: [0; NUM_PWM_PINS as usize], <- remove because duty cycle doesn't care about particular pins 
             duty_cycle: [0; NUM_PWM_PINS as usize],  // start with duty_cycle low
-            is_disabled: true, 
+            //is_disabled: true, 
         }
     }
 }
@@ -62,12 +62,12 @@ impl Pwm for PwmShim {
         self.states[usize::from(pin)] = match state {
             Enabled(time) => {
                 self.period[usize::from(pin)] = time.get();
-                self.is_disabled = false;
+                //self.is_disabled = false;
                 State::Enabled(false)
             }, 
             Disabled => {
                 self.period[usize::from(pin)] = 0;
-                self.is_disabled = false;
+                //self.is_disabled = false;
                 self.set_duty_cycle(pin, 0); // arbitrary - will disable duty cycle anyway
                 State::Disabled
                 },
@@ -92,14 +92,15 @@ impl Pwm for PwmShim {
         
         let (tx, rx) = mpsc::channel::<State>();
 
+        // get on period and off period by percentage duty cycle 
         // try to hold on to significant digits through division... will inaccuracy become a problem??
         let on_period = (((self.duty_cycle[usize::from(pin)] as f64)/(MAX as f64)) as u8) * self.period[usize::from(pin)]; // get the on period 
         let off_period = self.period[usize::from(pin)] - on_period; // get the off period
 
         
         let state = Mutex::new(Cell::new(self.states[usize::from(pin)]));
-
-        if self.is_disabled {
+        // period can only be 0 if the signal should be disabled
+        if self.period[usize::from(pin)] == 0 { 
             let _disable = tx.send(State::Disabled);
         }
 
