@@ -350,7 +350,7 @@ mod tests {
             Some(2),
             [1, None, None, None, None, None, None, None],
             0x3002,
-            vec![0x3001, 1]
+            vec![(0x3001, 1)]
         )
     }
     //LD Test with R0 and memory
@@ -364,7 +364,7 @@ mod tests {
             Some(3),
             [3001, None, None, None, None, None, None, None],
             0x3003,
-            vec![0x3001, 1]
+            vec![(0x3001, 1)]
         )
     }
     //LDR Test with R0 and memory
@@ -378,7 +378,7 @@ mod tests {
             Some(3),
             [1, 3001, None, None, None, None, None, None],
             0x3003,
-            vec![0x3001, 1]
+            vec![(0x3001, 1)]
         )
     }
     //Load x3000 into R1
@@ -390,6 +390,20 @@ mod tests {
             [3000, None, None, None, None, None, None, None],
             0x3001,
             vec![]
+        )
+    }
+    // STR test with offset store into lea using 3000
+    #[test]
+    fn StrTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R1, offset9: 0 },
+                Lea { dr: R2, offset9: 1 },
+                Str { sr: R2, base: R1, offset6: 1 },
+            ],
+            Some(3),
+            [None, None, None, None, None, None, None, None],
+            0x3003,
+            vec![(x3004, 3000)]
         )
     }
 }
