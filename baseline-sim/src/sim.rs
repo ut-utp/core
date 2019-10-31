@@ -447,4 +447,19 @@ mod tests {
             vec![]
         )
     }
+    //STI test, stores 3000 in register 1 and sets that to the memory at x3002 so sti writes to memory location 3000
+    #[test]
+    fn StiTest() {
+        interp_test_runner::<MemoryShim, _>(
+            vec![Instruction::Lea { dr: R0, offset9: 0 },
+                St { sr: R0, offset6: 2 },
+                AddImm { dr: R3, sr1: R3, imm5: 1 },
+                Sti {sr: R3, offset9: 0 },
+                ],
+            Some(4),
+            [3000, None, None, 1, None, None, None, None],
+            0x3004,
+            vec![(x3003,3000),(x3000,1)]
+        )
+    }
 }
