@@ -107,6 +107,8 @@ pub struct GpioReadErrors(pub GpioStateMismatches);
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
 
+pub type GpioHandler<'a> = &'a (dyn Fn(GpioPin) + Sync);
+
 // #[derive(Copy, Clone)]
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
 
@@ -258,7 +260,7 @@ pub trait Gpio<'a>: Default {
         pin: GpioPin,
         // handler: impl FnMut(GpioPin)
         // handler: &mut dyn FnMut(GpioPin)
-        handler: &'a (dyn Fn(GpioPin) + Send)
+        handler: GpioHandler<'a>
     ) -> Result<(), GpioMiscError>;
 }}
 
@@ -341,7 +343,7 @@ using_std! {
         fn register_interrupt(
             &mut self,
             pin: GpioPin,
-            handler: &'a (dyn Fn(GpioPin) + Send),
+            handler: GpioHandler<'a>,
         ) -> Result<(), GpioMiscError> {
             RwLock::write(self)
                 .unwrap()
