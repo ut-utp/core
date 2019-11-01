@@ -34,8 +34,8 @@ impl FileBackedMemoryShim {
         }
     }
 
-    fn from_existing_file<P: AsRef<Path>>(path: P) -> Result<Self, MemoryShimError> {
-        let mut memory: [Word; ADDR_SPACE_SIZE_IN_WORDS];
+    fn from_existing_file<P: AsRef<Path>>(path: &P) -> Result<Self, MemoryShimError> {
+        let mut memory: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
         read_from_file(path, &mut memory)?;
 
         Ok(Self::with_initialized_memory(path, memory))
@@ -46,7 +46,7 @@ impl FileBackedMemoryShim {
     }
 
     fn flush(&mut self) -> Result<(), MemoryShimError> {
-        write_to_file(self.path, &self.memory)
+        write_to_file(&self.path, &self.memory)
     }
 }
 
@@ -65,7 +65,7 @@ impl Memory for FileBackedMemoryShim {
 }
 
 pub(super) fn read_from_file<P: AsRef<Path>>(path: P, mem: &mut [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Result<(), MemoryShimError> {
-        let file = File::open(path)?;
+        let mut file = File::open(path)?;
 
         let length = file.metadata()?.len();
         if length != ADDR_SPACE_SIZE_IN_BYTES.try_into().unwrap() {
@@ -78,7 +78,7 @@ pub(super) fn read_from_file<P: AsRef<Path>>(path: P, mem: &mut [Word; ADDR_SPAC
     }
 
 pub(super) fn write_to_file<P: AsRef<Path>>(path: P, mem: &[Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Result<(), MemoryShimError> {
-    let file = File::create(path)?;
+    let mut file = File::create(path)?;
 
     for word in mem.iter() {
         file.write_u16::<LittleEndian>(*word)?

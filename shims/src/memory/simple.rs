@@ -36,7 +36,7 @@ impl MemoryShim {
     }
 
     fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, MemoryShimError> {
-        let mut buf: [Word; ADDR_SPACE_SIZE_IN_WORDS];
+        let mut buf: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
         read_from_file(path, &mut buf);
 
         Ok(Self::new(buf))
