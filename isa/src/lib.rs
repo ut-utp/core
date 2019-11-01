@@ -52,5 +52,6 @@ pub type Addr = u16;
 pub type Word = u16;
 
 mod isa;
+mod fmt;
 
 pub use isa::*;
