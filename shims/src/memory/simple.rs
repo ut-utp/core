@@ -11,6 +11,7 @@ use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS, ADDR_SPACE_SIZE_IN_BYTES};
 use lc3_traits::memory::{Memory, MemoryMiscError};
 
 use super::error::MemoryShimError;
+use super::file_backed::{read_from_file, write_to_file};
 
 /// Naive [`Memory` trait](lc3_traits::memory::Memory) implementation.
 ///
@@ -33,33 +34,20 @@ impl Default for MemoryShim {
 impl MemoryShim {
     fn new(memory: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
         Self {
-            persistent: memory,
+            persistent: [0u16; ADDR_SPACE_SIZE_IN_WORDS],
             staging: memory,
         }
     }
 
-    fn from_file<S: AsRef<Path>>(file: S) -> Result<Self, MemoryShimError> {
-        let file = File::open(file)?;
-
-        let length = file.metadata()?.len();
-        if length != ADDR_SPACE_SIZE_IN_BYTES.try_into().unwrap() {
-            return Err(MemoryShimError::IncorrectlySizedFile(length))
-        }
-
+    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, MemoryShimError> {
         let mut buf: [Word; ADDR_SPACE_SIZE_IN_WORDS];
-        file.read_u16_into::<LittleEndian>(&mut buf)?;
+        read_from_file(path, &mut buf);
 
         Ok(Self::new(buf))
     }
 
-    fn dump_to_file<S: AsRef<Path>>(&self, file: S) -> Result<(), MemoryShimError> {
-        let file = File::create(file)?;
-
-        for word in self.persistent.iter() {
-            file.write_u16::<LittleEndian>(*word)?
-        }
-
-        Ok(())
+    fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), MemoryShimError> {
+        write_to_file(path, &self.persistent)
     }
 }
 
