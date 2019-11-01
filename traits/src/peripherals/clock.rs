@@ -4,15 +4,32 @@ use crate::peripheral_trait;
 use lc3_isa::Word;
 
 // Just 1 Clock! (millisecond units)
+//
+// TODO: we've just limited ourselves to only being able to count ~65 and a
+// half seconds with our fancy clock (2 ^ 16 milliseconds).
+//
+// We can either have our clock have two words, have two clocks, or switch to
+// centiseconds or something (i.e. lower our precision).
+//
+// We probably want to introduce another word for the number of seconds or
+// something. We'll revisit this (TODO).
 peripheral_trait! {clock,
 pub trait Clock: Default {
-    // fn enable(&mut self);   // Probably ditch (TODO).
-    // fn disable(&mut self);
-
     fn get_milliseconds(&self) -> Word;
-    // isn't milliseconds too large?
-    // shouldn't it be more like nano, because PLL can generate
-    // frequencies between 3.12MHz to 80MHz - TExaS_Init sets at 80MHz from what I remember
-    fn set_milliseconds(&mut self, ns: Word); // want to be able to set to 80MHz, requiring 12.5 nano seconds 
-    
+
+    fn set_milliseconds(&mut self, ms: Word);
 }}
+
+// TODO: roll this into the macro
+using_std! {
+    use std::sync::{Arc, RwLock};
+    impl<C: Clock> Clock for Arc<RwLock<C>> {
+        fn get_milliseconds(&self) -> Word {
+            RwLock::read(self).unwrap().get_milliseconds()
+        }
+
+        fn set_milliseconds(&mut self, ms: Word) {
+            RwLock::write(self).unwrap().set_milliseconds(ms)
+        }
+    }
+}
