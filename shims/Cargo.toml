@@ -13,7 +13,7 @@ repository = "http://github.com/ut-utp/prototype"
 readme = "README.md"
 
 keywords = ["lc-3", "shims", "peripherals", "utp"]
-categories = ["no-std", "simulation"]
+categories = ["simulation"]
 
 license = "MPL-2.0"
 
@@ -30,4 +30,6 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 lc3-isa = { path = "../isa", version = "0.1.0" }
 lc3-macros = { path = "../macros", version = "0.1.0" }
-lc3-traits = { path = "../traits", version = "0.1.0" }
+lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
+
+byteorder = "1.3.2"

@@ -1,6 +1,7 @@
 //! [`Gpio` trait](Gpio) and friends.
 
 use core::convert::TryFrom;
+use core::ops::{Deref, Index, IndexMut};
 
 use crate::peripheral_trait;
 
@@ -17,14 +18,19 @@ use crate::peripheral_trait;
 // described in `control.rs`.
 
 #[rustfmt::skip]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
-pub const NUM_GPIO_PINS: u8 = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
-pub const GPIO_PINS: [GpioPin; NUM_GPIO_PINS as usize] = {
+
+impl GpioPin {
+    pub const NUM_PINS: usize = 8; // G0 - G7; TODO: derive macro (also get it to impl Display)
+}
+
+pub const GPIO_PINS: GpioPinArr<GpioPin> = {
     use GpioPin::*;
-    [G0, G1, G2, G3, G4, G5, G6, G7]
+    GpioPinArr([G0, G1, G2, G3, G4, G5, G6, G7])
 }; // TODO: once we get the derive macro, get rid of this.
 
+// TODO: macro!!
 impl From<GpioPin> for usize {
     fn from(pin: GpioPin) -> usize {
         use GpioPin::*;
@@ -42,7 +48,7 @@ impl From<GpioPin> for usize {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum GpioState {
     Input,
     Output,
@@ -56,23 +62,58 @@ pub enum GpioState {
     Disabled,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct GpioPinArr<T>(pub [T; GpioPin::NUM_PINS]);
+
+// Once const fn is more stable:
+// impl<T: Copy> GpioPinArr<T> {
+//     const fn new(val: T) -> Self {
+//         Self([val; GpioPin::NUM_PINS])
+//     }
+// }
+
+impl<T> Deref for GpioPinArr<T> {
+    type Target = [T; GpioPin::NUM_PINS];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> Index<GpioPin> for GpioPinArr<T> {
+    type Output = T;
+
+    fn index(&self, pin: GpioPin) -> &Self::Output {
+        &self.0[usize::from(pin)]
+    }
+}
+
+impl<T> IndexMut<GpioPin> for GpioPinArr<T> {
+    fn index_mut(&mut self, pin: GpioPin) -> &mut Self::Output {
+        &mut self.0[usize::from(pin)]
+    }
+}
+
+// pub type GpioPinArr<T> = [T; GpioPin::NUM_PINS];
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioMiscError;
 
 type GpioStateMismatch = (GpioPin, GpioState);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioReadError(pub GpioStateMismatch);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteError(pub GpioStateMismatch);
-
-pub type GpioPinArr<T> = [T; NUM_GPIO_PINS as usize];
 
 pub type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioReadErrors(pub GpioStateMismatches);
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
+
+pub type GpioHandler<'a> = &'a (dyn Fn(GpioPin) + Sync);
 
 // #[derive(Copy, Clone)]
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
@@ -157,19 +198,17 @@ peripheral_trait! {gpio,
 /// ### Tests
 /// There are [tests for this trait](crate::tests::gpio) in the [tests
 /// module](crate::tests) to help ensure that your implementation of this trait follows
-/// the rules above.
+/// the rules above. (TODO: this isn't true anymore?)
 pub trait Gpio<'a>: Default {
 
-    /// Yo
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError>; // should probably be infallible
     fn get_state(&self, pin: GpioPin) -> GpioState;
     fn get_states(&self) -> GpioPinArr<GpioState> {
-        let mut states = [GpioState::Disabled; NUM_GPIO_PINS as usize]; // TODO (again)
+        let mut states = GpioPinArr([GpioState::Disabled; GpioPin::NUM_PINS]); // TODO (again)
 
         GPIO_PINS
             .iter()
-            .enumerate()
-            .for_each(|(idx, g)| states[idx] = self.get_state(*g));
+            .for_each(|g| states[*g] = self.get_state(*g));
 
         states
     }
@@ -181,12 +220,11 @@ pub trait Gpio<'a>: Default {
         // meaning that we don't want to do the latter which is all or nothing (i.e. if some of the
         // reads worked, give us their values! We'll use them!).
 
-        let mut readings = [Ok(false); NUM_GPIO_PINS as usize]; // TODO: it's weird and gross that we have to use a default value here (derive macro save us pls!!)
+        let mut readings = GpioPinArr([Ok(false); GpioPin::NUM_PINS]); // TODO: it's weird and gross that we have to use a default value here (derive macro save us pls!!)
 
         GPIO_PINS
             .iter()
-            .enumerate()
-            .for_each(|(idx, g)| readings[idx] = self.read(*g));
+            .for_each(|g| readings[*g] = self.read(*g));
 
         readings
     }
@@ -198,14 +236,13 @@ pub trait Gpio<'a>: Default {
         // we even communicate errors to the LC-3 program. But the debugger can communicate this kind
         // of stuff so let's not throw the information away.
 
-        let mut errors = [Ok(()); NUM_GPIO_PINS as usize];
+        let mut errors = GpioPinArr([Ok(()); GpioPin::NUM_PINS]);
 
         GPIO_PINS
             .iter()
             .zip(bits.iter())
-            .enumerate()
-            .for_each(|(idx, (pin, bit))| {
-                errors[idx] = self.write(*pin, *bit);
+            .for_each(|(pin, bit)| {
+                errors[*pin] = self.write(*pin, *bit);
             });
 
         errors
@@ -229,7 +266,7 @@ pub trait Gpio<'a>: Default {
         pin: GpioPin,
         // handler: impl FnMut(GpioPin)
         // handler: &mut dyn FnMut(GpioPin)
-        handler: &'a (dyn Fn(GpioPin) + Send)
+        handler: GpioHandler<'a>
     ) -> Result<(), GpioMiscError>;
 }}
 
@@ -242,7 +279,7 @@ impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
         if read_errors.iter().all(|r| r.is_ok()) {
             Err(()) // No error!
         } else {
-            let mut errors: GpioStateMismatches = [None; NUM_GPIO_PINS as usize];
+            let mut errors: GpioStateMismatches = GpioPinArr([None; GpioPin::NUM_PINS]);
 
             read_errors
                 .iter()
@@ -251,7 +288,7 @@ impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
                     res.map_err(|gpio_read_error| (idx, gpio_read_error)).err()
                 })
                 .for_each(|(idx, gpio_read_error)| {
-                    errors[idx] = Some(gpio_read_error.0);
+                    errors.0[idx] = Some(gpio_read_error.0);
                 });
 
             Ok(GpioReadErrors(errors))
@@ -269,7 +306,7 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
             // None
             Err(())
         } else {
-            let mut errors: GpioStateMismatches = [None; NUM_GPIO_PINS as usize];
+            let mut errors: GpioStateMismatches = GpioPinArr([None; GpioPin::NUM_PINS]);
 
             write_errors
                 .iter()
@@ -279,11 +316,44 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
                         .err()
                 })
                 .for_each(|(idx, gpio_write_error)| {
-                    errors[idx] = Some(gpio_write_error.0);
+                    errors.0[idx] = Some(gpio_write_error.0);
                 });
 
             // Some(GpioWriteErrors(errors))
             Ok(GpioWriteErrors(errors))
+        }
+    }
+}
+
+// TODO: roll this into the macro
+using_std! {
+    use std::sync::{Arc, RwLock};
+
+    impl<'a, G: Gpio<'a>> Gpio<'a> for Arc<RwLock<G>> {
+        fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
+            RwLock::write(self).unwrap().set_state(pin, state)
+        }
+
+        fn get_state(&self, pin: GpioPin) -> GpioState {
+            RwLock::read(self).unwrap().get_state(pin)
+        }
+
+        fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError> {
+            RwLock::read(self).unwrap().read(pin)
+        }
+
+        fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
+            RwLock::write(self).unwrap().write(pin, bit)
+        }
+
+        fn register_interrupt(
+            &mut self,
+            pin: GpioPin,
+            handler: GpioHandler<'a>,
+        ) -> Result<(), GpioMiscError> {
+            RwLock::write(self)
+                .unwrap()
+                .register_interrupt(pin, handler)
         }
     }
 }
