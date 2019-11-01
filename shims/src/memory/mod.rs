@@ -3,9 +3,8 @@
 
 pub mod error;
 
-mod simple;
 mod file_backed;
+mod simple;
 
-pub use simple::MemoryShim;
 pub use file_backed::FileBackedMemoryShim;
-
+pub use simple::MemoryShim;
