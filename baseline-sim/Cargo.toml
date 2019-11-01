@@ -30,9 +30,9 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 lc3-isa = { path = "../isa", version = "0.1.0" }
 lc3-macros = { path = "../macros", version = "0.1.0" }
-lc3-traits = { path = "../traits", version = "0.1.0" }
+lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
 
 
 [features]
 default = ["no_std"]
-no_std = []
+no_std = ["lc3-traits/no_std"]
