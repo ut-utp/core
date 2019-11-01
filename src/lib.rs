@@ -60,7 +60,7 @@ pub mod error;
 pub mod control;
 pub mod memory;
 pub mod peripherals;
-pub mod Communicationchannel_Experimental;
+//pub mod Communicationchannel_Experimental;
 
 pub mod interp;
 pub mod isa;

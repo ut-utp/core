@@ -2,7 +2,7 @@ extern crate futures; // 0.1.23
 extern crate rand;
 use futures::{sync::mpsc, Async, Sink, Stream};
 //use std::sync::mpsc;
-use std::thread;
+use std::{thread, time};
 use prost::Message;
 use bytes::{BytesMut, BufMut, BigEndian};
 use futures::future::{ ok};
@@ -16,8 +16,8 @@ use rand::distributions::{Range, IndependentSample};
 
 #[derive(Serialize, Deserialize, Debug)]
 enum signal{
-  GET_PC,
-  SET_PC,
+  GET_PC ,
+  SET_PC (u16),
   WRITE_WORD,
   READ_WORD,
   PAUSE,
@@ -143,7 +143,7 @@ struct get_state{
 struct run_until_event{
     message: signal,
 }
-
+ use std::sync::mpsc::{Sender, Receiver};
 
 
 
@@ -178,143 +178,147 @@ struct run_until_event{
     // fn get_state(&self) -> State;
 
 
-        fn get_pc(){
-        let point = get_pc { message: signal::GET_PC};
+        fn get_pc(tx:(Sender<std::string::String>)){
+        let point = signal::GET_PC;
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: get_pc = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: get_pc = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+       // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+         tx.send(serialized).unwrap();
+        // println!("got message: {}", receiver.recv().unwrap());
         }
 
-         fn set_pc(){
-        let point = set_pc { message: signal::SET_PC, addr: 2000 };
-        let serialized = serde_json::to_string(&point).unwrap();
-        println!("serialized = {}", serialized);
-        let deserialized: set_pc = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+         fn set_pc(tx:(Sender<std::string::String>)){
+        let point = signal::SET_PC(2000);
+         let serialized = serde_json::to_string(&point).unwrap();
+         println!("serialized = {}", serialized);
+        // println!("serialized = {}", serialized);
+        // let deserialized: set_pc = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+         tx.send(serialized).unwrap();
+        // println!("got message: {}", receiver.recv().unwrap());
         }
 
-        fn step(){
+        fn step(tx:(Sender<std::string::String>)){
         let point = step { message: signal::STEP};
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: set_pc = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: set_pc = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+      //  println!("got message: {}", receiver.recv().unwrap());
         }
 
-        fn pause(){
+        fn pause(tx:(Sender<std::string::String>)){
         let point = pause { message: signal::PAUSE };
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: pause = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: pause = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+        //println!("got message: {}", receiver.recv().unwrap());
         }
 
-        fn set_memory_watch(){
+        fn set_memory_watch(tx:(Sender<std::string::String>)){
         let point = set_memory_watch { message: signal::SET_MEMORY_WATCH, addr: 2000 };
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: set_memory_watch = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: set_memory_watch = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+       // println!("got message: {}", receiver.recv().unwrap());
         }
 
-                fn set_breakpoint(){
+                fn set_breakpoint(tx:(Sender<std::string::String>)){
         let point = set_breakpoint { message: signal::SET_BREAKPOINT, addr: 2000 };
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: set_breakpoint = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: set_breakpoint = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+       // println!("got message: {}", receiver.recv().unwrap());
         }
 
 
-        fn unset_breakpoint(){
+        fn unset_breakpoint(tx:(Sender<std::string::String>)){
         let point = unset_breakpoint { message: signal::UNSET_BREAKPOINT, idx: 5 };
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: unset_breakpoint = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: unset_breakpoint = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+       // println!("got message: {}", receiver.recv().unwrap());
         }
 
 
-             fn read_word(){
+             fn read_word(tx:(Sender<std::string::String>)){
         let point = read_word { message: signal::READ_WORD, addr: 2000};
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: read_word = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: read_word = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+        //println!("got message: {}", receiver.recv().unwrap());
         }
 
 
-                fn unset_memory_watch(){
+                fn unset_memory_watch(tx:(Sender<std::string::String>)){
         let point = unset_memory_watch { message: signal::UNSET_MEMORY_WATCH, idx: 2000 };
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: unset_memory_watch = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: unset_memory_watch = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+        //println!("got message: {}", receiver.recv().unwrap());
         }
 
 
 
-                fn write_word(){
+                fn write_word(tx:(Sender<std::string::String>)){
         let point = write_word { message: signal::WRITE_WORD, addr: 2000, word: 1000 };
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
-        let deserialized: write_word = serde_json::from_str(&serialized).unwrap();
-        println!("deserialized = {:?}", deserialized);
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message: {}", receiver.recv().unwrap());
+        // let deserialized: write_word = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+        tx.send(serialized).unwrap();
+        //println!("got message: {}", receiver.recv().unwrap());
         }
 
 
-        fn run_until_event( ){
-        let point = run_until_event { message: signal::RUN_UNTIL_EVENT };
+        fn run_until_event( tx:(Sender<std::string::String>)){
+        let point = signal::RUN_UNTIL_EVENT;
         let serialized = serde_json::to_string(&point).unwrap();
         println!("serialized = {}", serialized);
 
-        let mut buf = BytesMut::with_capacity(1024);
-        let (sender, receiver) = std::sync::mpsc::channel();
-        sender.send(serialized).unwrap();
-        println!("got message:");
-        let deserialized: run_until_event = serde_json::from_str(&receiver.recv().unwrap()).unwrap();
-        println!("deserialized = {:?}", deserialized);
+        // let mut buf = BytesMut::with_capacity(1024);
+        // let (sender, receiver) = std::sync::mpsc::channel();
+         //println!("serialized = {:?}", serialized);
+         tx.send(serialized).unwrap();
+         let mut my_future = (Device_Signal::default());
+         println!("Issued run until event: {:?}", run(my_future));
+        // println!("got message:");
+       // let deserialized: run_until_event = serde_json::from_str(&receiver.recv().unwrap()).unwrap();
+        
          
 
         }
@@ -423,6 +427,8 @@ struct Context<'a> {
     waker: &'a Waker,
 }
 
+// const GLOBAL_STATE: Mutex<RefCell<bool>> = Mutex::nes
+
 impl<'a> Context<'a> {
     fn from_waker(waker: &'a Waker) -> Self {
         Context { waker }
@@ -511,6 +517,7 @@ where
             let ctx = Context::from_waker(&Waker);
             if let Poll::Ready(val) = f.poll(&ctx) {
                 return val;
+
             }
         }
     })
@@ -532,43 +539,90 @@ fn main() {
     // Channels have two endpoints: the `Sender<T>` and the `Receiver<T>`,
     // where `T` is the type of the message to be transferred
     // (type annotation is superfluous)
-    use std::sync::mpsc::{Sender, Receiver};
-    let (tx, rx): (Sender<usize>, Receiver<usize>) = std::sync::mpsc::channel();
-    let (tx2, rx2): (Sender<usize>, Receiver<usize>) = std::sync::mpsc::channel();
+   
+    let (tx, rx): (Sender<std::string::String>, Receiver<std::string::String>) = std::sync::mpsc::channel();
+    let (tx2, rx2): (Sender<device_status>, Receiver<device_status>) = std::sync::mpsc::channel();
    // let mut ids2 = Vec::with_capacity(NTHREADS);
 
         // The sender endpoint can be copied
         let thread_tx = tx.clone();
     //let mut my_future = Arc::new((Device_Signal::default()));
-    let mut my_future = std::sync::Arc::new(std::sync::Mutex::new(Device_Signal::default()));
+    
    // let mutex = std::sync::Mutex::new(foo);
 //let arc = std::sync::Arc::new(mutex);
 
    // my_future.count = 8;
         // Each thread will send its id via the channel
+
         thread::spawn(move || {
             // The thread takes ownership over `thread_tx`
             // Each thread queues a message in the channel
            // thread_tx.send(3).unwrap();
          //  Arc::downgrade(&my_future);
           // (my_future).count=4;
-          let mut guard = my_future.lock().unwrap();
-          guard.count = 4;
-            rx2.recv();
-             tx.send(1);
+          //let mut guard = my_future.lock().unwrap();
+          //guard.count = 4;
+           
+             //tx.send(1.to_string());
+             //let mut rx_set = Vec::new();
+            // println!("Output: {:?}", rx.recv().wait().unwrap());
+             loop{
+            // let deserialized = serde_json::from_str(&serialized).unwrap();
+        // println!("deserialized = {:?}", deserialized);
+            let deserialized: signal = serde_json::from_str(&rx.recv().unwrap()).unwrap();
+             println!("Received deserialized: {:?}", deserialized);
+             match deserialized{
+                signal::RUN_UNTIL_EVENT => {println!("Issued and invoking Run until event");
+                                            tx2.send(device_status::RUN_COMPLETED);
+
+                                            },
+                signal::SET_PC(addr)          => println!("Set PC to {:?}", (addr)),
+                signal::WRITE_WORD      =>   println!("Wrote word"),
+                signal::PAUSE        =>  println!("Paused program"),
+                signal::SET_BREAKPOINT => println!("Set breakpoint"),
+                signal:: UNSET_BREAKPOINT => println!("Unset breakpoint"),
+                signal:: GET_BREAKPOINTS => println!("Obtain breakpoints"),
+                signal:: GET_MAX_BREAKPOINTS => println!("Max breakpoints"),
+                signal:: SET_MEMORY_WATCH   => println!("Set memory watches" ),
+                signal:: UNSET_MEMORY_WATCH => println!("Unset memory watch" ),
+                signal:: GET_MAX_BREAKPOINTS => println!("Get max break points"),
+                signal:: GET_MAX_MEMORY_WATCHES => println!("Get max breakpoints"),
+                signal:: STEP                    => println!("Issue step"),
+                signal::GET_PC                 => println!("Get PC"),
+                signal::READ_WORD            => println!("Read word"),
+                signal::GET_MEMORY_WATCHES    => println!("Get memory watches"),
+             };
+             let one_sec = time::Duration::from_millis(1000);
+             thread::sleep(one_sec);
+         }
+             
             // Sending is a non-blocking operation, the thread will continue
             // immediately after sending its message
            // println!("thread {} finished", id);
             //ids2.push(rx2.recv());
         });
         // thread::spawn(move ||{
-
+    
         
         // } );
     //ISSUE: How is run_future now dereferenced
    // println!("Output: {:?}", run(my_future));
-    tx2.send(2);
-    (rx.recv());
+
+    thread::spawn(move|| {
+            loop {
+    let tx = tx.clone();
+        run_until_event(tx);
+
+        let one_sec = time::Duration::from_millis(1000);
+        thread::sleep(one_sec);
+        
+    }
+    });
+
+    println!("Output: {:?}", rx2.recv().unwrap());
+
+    
+    
         
     
 
