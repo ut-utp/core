@@ -1,7 +1,7 @@
 //! [`Gpio` trait](Gpio) and friends.
 
-use core::ops::{Deref, Index, IndexMut};
 use core::convert::TryFrom;
+use core::ops::{Deref, Index, IndexMut};
 
 use crate::peripheral_trait;
 
@@ -89,8 +89,7 @@ impl<T> IndexMut<GpioPin> for GpioPinArr<T> {
 
 // pub type GpioPinArr<T> = [T; GpioPin::NUM_PINS];
 
-
-#[derive(Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioMiscError;
 
 type GpioStateMismatch = (GpioPin, GpioState);

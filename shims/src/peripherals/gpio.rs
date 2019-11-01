@@ -123,7 +123,7 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
         use GpioState::*;
        self[pin] = match state {
-            Input => State::Input(false), 
+            Input => State::Input(false),
             Output => State::Output(false),
             Interrupt => State::Interrupt(false),
             Disabled => State::Disabled,
@@ -150,7 +150,7 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
         use State::*;
 
         if let Output(_) = self[pin] {
-            self[pin] = Output(bit); 
+            self[pin] = Output(bit);
             Ok(())
         } else {
             Err(GpioWriteError((pin, self[pin].into())))
@@ -171,7 +171,7 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     use lc3_traits::peripherals::gpio::{self, Gpio, GpioPin::*,};
 
 
@@ -180,7 +180,7 @@ mod tests {
         let shim = GpioShim::new();
         assert_eq!(shim.get_state(G0), gpio::GpioState::Disabled)
     }
-    
+
     #[test]
     fn read_input() {
         let mut shim = GpioShim::new();
@@ -215,7 +215,7 @@ mod tests {
     //     assert_eq!(val, Ok(false));
     // }
 
-    // covers read for output 
+    // covers read for output
     #[test]
     fn write_Output() {
         let mut shim = GpioShim::new();
@@ -225,7 +225,7 @@ mod tests {
         let val = shim.read(G0);
         assert_eq!(val, Err(GpioReadError((G0, gpio::GpioState::Output))));
     }
- // covers read for output 
+ // covers read for output
     #[test]
     fn write_Else() {
         let mut shim = GpioShim::new();

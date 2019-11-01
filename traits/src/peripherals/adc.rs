@@ -107,7 +107,6 @@ pub type AdcStateMismatch = (AdcPin, AdcState);
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct AdcReadError(pub AdcStateMismatch);
 
-
 // TODO: Into Error stuff (see Gpio)
 
 // TODO: roll this into the macro
