@@ -121,7 +121,7 @@ pub trait Timers<'a>: Default {
 using_std! {
     use std::sync::{Arc, RwLock};
     impl<'a, T: Timers<'a>> Timers<'a> for Arc<RwLock<T>> {
-        fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> {
+        fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> { // TODO: Infallible?
             RwLock::write(self).unwrap().set_state(timer, state)
         }
 
@@ -129,7 +129,7 @@ using_std! {
             RwLock::read(self).unwrap().get_state(timer)
         }
 
-        fn set_period(&mut self, timer: TimerId, ms: Word) -> Result<(), TimerMiscError> {
+        fn set_period(&mut self, timer: TimerId, ms: Word) -> Result<(), TimerMiscError> { // TODO: Infallible?
             RwLock::write(self).unwrap().set_period(timer, ms)
         }
 
