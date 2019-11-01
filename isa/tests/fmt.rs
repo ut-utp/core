@@ -18,3 +18,20 @@ fn registers() {
     check(R7, "R7");
 }
 
+#[test]
+fn br_display() {
+    use Instruction::*;
+
+    fn check(n: bool, z: bool, p: bool, offset9: i16, text: &str) {
+        assert_eq!(format!("{}", Br { n, z, p, offset9 }), text);
+    }
+
+    const T: bool = true;
+    const F: bool = false;
+
+    check(F, F, F, -5, "BR    #-5"); // TODO: unrepresentable?
+    check(T, F, F, -5, "BRn   #-5");
+    check(F, F, T, -5, "BRp   #-5");
+    check(T, F, T, -5, "BRnp  #-5");
+    check(T, T, T, -5, "BRnzp #-5");
+}
