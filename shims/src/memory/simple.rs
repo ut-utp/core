@@ -2,12 +2,8 @@
 //! implementation called [`MemoryShim`](memory::MemoryShim).
 
 use std::path::Path;
-use std::fs::File;
-use std::convert::TryInto;
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-
-use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS, ADDR_SPACE_SIZE_IN_BYTES};
+use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS};
 use lc3_traits::memory::{Memory, MemoryMiscError};
 
 use super::error::MemoryShimError;
