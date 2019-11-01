@@ -2,17 +2,18 @@
 
 use crate::peripheral_trait;
 use core::num::NonZeroU8;
+use core::ops::{Deref, Index, IndexMut};
+
 // TODO: Switch to enum for pins
 // TODO: Add Errors
 #[rustfmt::skip]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PwmPin { P0, P1 }
-pub const NUM_PWM_PINS: u8 = 2; // P0 - P1
-pub enum PwmState {
-    Enabled(NonZeroU8),
-    Disabled,
+
+// TODO: remove once the derive macro happens...
+impl PwmPin {
+    pub const NUM_PINS: usize = 2; // P0 - P1
 }
-pub type PwmPinArr<T> = [T; NUM_PWM_PINS as usize];
 
 impl From<PwmPin> for usize {
     fn from(pin: PwmPin) -> usize {
@@ -24,15 +25,96 @@ impl From<PwmPin> for usize {
     }
 }
 
+pub const PWM_PINS: PwmPinArr<PwmPin> = {
+    use PwmPin::*;
+    PwmPinArr([P0, P1])
+}; // TODO: save us, derive macro
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum PwmState {
+    Enabled(NonZeroU8),
+    Disabled,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PwmPinArr<T>(pub [T; PwmPin::NUM_PINS]);
+
+impl<T> Deref for PwmPinArr<T> {
+    type Target = [T; PwmPin::NUM_PINS];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> Index<PwmPin> for PwmPinArr<T> {
+    type Output = T;
+
+    fn index(&self, pin: PwmPin) -> &Self::Output {
+        &self.0[usize::from(pin)]
+    }
+}
+
+impl<T> IndexMut<PwmPin> for PwmPinArr<T> {
+    fn index_mut(&mut self, pin: PwmPin) -> &mut Self::Output {
+        &mut self.0[usize::from(pin)]
+    }
+}
+
+// I have no idea why these operations wouldn't be infallible, tbh:
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PwmSetPeriodError(pub PwmPin); // TODO: review
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PwmSetDutyError(pub PwmPin); // TODO: review
+
 peripheral_trait! {pwm,
 pub trait Pwm: Default {
-    // enable, disable, set duty cycle, enable hystersis. start
-    fn set_state(&mut self, pin: PwmPin, state: PwmState) -> Result<(), ()>;
-    fn get_state(&self, pin: PwmPin) -> Option<PwmState>;
-    // fn get_states() // TODO
-   // fn set_period(&mut self, pin:PwmPin); 
-    fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8); // TODO: made mutable, review
-   
-    //fn start(&mut self, pin: PwmPin); // Start the periodic timer interrupt
-    //fn disable(&mut self, pin: PwmPin);
+    fn set_state(&mut self, pin: PwmPin, state: PwmState) -> Result<(), PwmSetPeriodError>;
+    fn get_state(&self, pin: PwmPin) -> PwmState;
+    fn get_states(&self) -> PwmPinArr<PwmState> {
+        let mut states = PwmPinArr([PwmState::Disabled; PwmPin::NUM_PINS]);
+
+        PWM_PINS
+            .iter()
+            .for_each(|p| states[*p] = self.get_state(*p));
+
+        states
+    }
+
+    fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError>;
+    fn get_duty_cycle(&self, pin: PwmPin) -> u8; // This is u8 because u16 fractions seem excessive.
+    fn get_duty_cycles(&self) -> PwmPinArr<u8> {
+        let mut duty_cycles = PwmPinArr([0u8; PwmPin::NUM_PINS]);
+
+        PWM_PINS
+            .iter()
+            .for_each(|p| duty_cycles[*p] = self.get_duty_cycle(*p));
+
+        duty_cycles
+    }
 }}
+
+// TODO: Into Error stuff (see Gpio)
+
+// TODO: roll this into the macro
+using_std! {
+    use std::sync::{Arc, RwLock};
+    impl<P: Pwm> Pwm for Arc<RwLock<P>> {
+        fn set_state(&mut self, pin: PwmPin, state: PwmState) -> Result<(), PwmSetPeriodError> {
+            RwLock::write(self).unwrap().set_state(pin, state)
+        }
+
+        fn get_state(&self, pin: PwmPin) -> PwmState {
+            RwLock::read(self).unwrap().get_state(pin)
+        }
+
+        fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError> {
+            RwLock::write(self).unwrap().set_duty_cycle(pin, duty)
+        }
+
+        fn get_duty_cycle(&self, pin: PwmPin) -> u8 {
+            RwLock::read(self).unwrap().get_duty_cycle(pin)
+        }
+    }
+}
