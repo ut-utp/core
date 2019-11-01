@@ -21,7 +21,7 @@ use input::Input;
 use output::Output;
 
 pub trait Peripherals<'p>: Gpio<'p> + Adc<'p> + Pwm + Timers<'p> + Clock + Input + Output {
-    fn init() -> Self;
+    fn init(&mut self);
 }
 
 pub struct PeripheralSet<'p, G, A, P, T, C, I, O>
@@ -241,15 +241,15 @@ macro_rules! func_sig {
     ($nom:ident, ) => {};
 }
 
-// impl<G, A, P, T, C, I, O> Peripherals for PeripheralSet<G, A, P, T, C, I, O>
-// where
-//     G: Gpio,
-//     A: Adc,
-//     P: Pwm,
-//     T: Timers,
-//     C: Clock,
-//     I: Input,
-//     O: Output,
-// {
-//     // fn init() ->
-// }
+impl<'p, G, A, P, T, C, I, O> Peripherals<'p> for PeripheralSet<'p, G, A, P, T, C, I, O>
+where
+    G: 'p + Gpio<'p>,
+    A: 'p + Adc<'p>,
+    P: 'p + Pwm,
+    T: 'p + Timers<'p>,
+    C: 'p + Clock,
+    I: 'p + Input,
+    O: 'p + Output,
+{
+    fn init(&mut self) {}
+}
