@@ -36,6 +36,13 @@ pub const TIMERS: TimerArr<TimerId> = {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct TimerArr<T>(pub [T; TimerId::NUM_TIMERS]);
 
+// Once const fn is more stable:
+// impl<T: Copy> TimerArr<T> {
+//     const fn new(val: T) -> Self {
+//         Self([val; TimerId::NUM_TIMERS])
+//     }
+// }
+
 impl<T> Deref for TimerArr<T> {
     type Target = [T; TimerId::NUM_TIMERS];
 

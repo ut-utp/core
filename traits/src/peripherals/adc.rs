@@ -40,6 +40,13 @@ impl From<AdcPin> for usize {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct AdcPinArr<T>(pub [T; AdcPin::NUM_PINS]);
 
+// Once const fn is more stable:
+// impl<T: Copy> AdcPinArr<T> {
+//     const fn new(val: T) -> Self {
+//         Self([val; AdcPin::NUM_PINS])
+//     }
+// }
+
 impl<T> Deref for AdcPinArr<T> {
     type Target = [T; AdcPin::NUM_PINS];
 

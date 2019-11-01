@@ -39,6 +39,13 @@ pub enum PwmState {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct PwmPinArr<T>(pub [T; PwmPin::NUM_PINS]);
 
+// Once const fn is more stable:
+// impl<T: Copy> PwmPinArr<T> {
+//     const fn new(val: T) -> Self {
+//         Self([val; PwmPin::NUM_PINS])
+//     }
+// }
+
 impl<T> Deref for PwmPinArr<T> {
     type Target = [T; PwmPin::NUM_PINS];
 

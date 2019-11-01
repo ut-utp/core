@@ -65,6 +65,13 @@ pub enum GpioState {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioPinArr<T>(pub [T; GpioPin::NUM_PINS]);
 
+// Once const fn is more stable:
+// impl<T: Copy> GpioPinArr<T> {
+//     const fn new(val: T) -> Self {
+//         Self([val; GpioPin::NUM_PINS])
+//     }
+// }
+
 impl<T> Deref for GpioPinArr<T> {
     type Target = [T; GpioPin::NUM_PINS];
 
