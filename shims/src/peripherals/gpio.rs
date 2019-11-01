@@ -1,11 +1,10 @@
 use core::ops::{Index, IndexMut};
 use lc3_traits::peripherals::gpio::{
-    Gpio, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
-    NUM_GPIO_PINS,
+    Gpio, GpioHandler, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
 };
 use std::sync::{Arc, RwLock};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State {
     Input(bool),
     Output(bool),
@@ -40,32 +39,32 @@ impl From<State> for GpioState {
 ///     retrieved at any time.
 pub struct GpioShim<'a> {
     states: GpioPinArr<State>,
-    handlers: GpioPinArr<&'a dyn Fn(GpioPin)>,
+    handlers: GpioPinArr<GpioHandler<'a>>,
 }
 
 impl Index<GpioPin> for GpioShim<'_> {
     type Output = State;
 
     fn index(&self, pin: GpioPin) -> &State {
-        &self.states[Into::<usize>::into(pin)]
+        &self.states[pin]
     }
 }
 
 impl IndexMut<GpioPin> for GpioShim<'_> {
     fn index_mut(&mut self, pin: GpioPin) -> &mut State {
-        &mut self.states[Into::<usize>::into(pin)]
+        &mut self.states[pin]
     }
 }
 
-const NO_OP: &dyn Fn(GpioPin) = &|_| {};
+const NO_OP: GpioHandler<'static> = &|_| {};
 
 impl Default for GpioShim<'_> {
     fn default() -> Self {
         Self {
-            states: [State::Disabled; NUM_GPIO_PINS as usize],
+            states: GpioPinArr([State::Disabled; GpioPin::NUM_PINS]),
             // handlers: [Box::new(&|_| {}); NUM_GPIO_PINS as usize],
             // handlers: [no_op; NUM_GPIO_PINS as usize],
-            handlers: [NO_OP; NUM_GPIO_PINS as usize],
+            handlers: GpioPinArr([NO_OP; GpioPin::NUM_PINS]),
         }
     }
 }
@@ -90,7 +89,7 @@ impl GpioShim<'_> {
             Interrupt(prev) => {
                 // Rising edge!
                 if bit && !prev {
-                    self.handlers[Into::<usize>::into(pin)](pin)
+                    self.handlers[pin](pin)
                 }
 
                 Interrupt(bit)
@@ -122,7 +121,7 @@ impl GpioShim<'_> {
 impl<'a> Gpio<'a> for GpioShim<'a> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
         use GpioState::*;
-       self[pin] = match state {
+        self[pin] = match state {
             Input => State::Input(false),
             Output => State::Output(false),
             Interrupt => State::Interrupt(false),
@@ -160,9 +159,9 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
     fn register_interrupt(
         &mut self,
         pin: GpioPin,
-        handler: &'a (dyn Fn(GpioPin) + Send),
+        handler: GpioHandler<'a>,
     ) -> Result<(), GpioMiscError> {
-        self.handlers[Into::<usize>::into(pin)] = handler;
+        self.handlers[pin] = handler;
 
         Ok(())
     }
@@ -172,8 +171,7 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
 mod tests {
     use super::*;
 
-    use lc3_traits::peripherals::gpio::{self, Gpio, GpioPin::*,};
-
+    use lc3_traits::peripherals::gpio::{self, Gpio, GpioPin::*};
 
     #[test]
     fn get_state_disabled() {
@@ -198,9 +196,10 @@ mod tests {
         let val = shim.read(G0);
         assert_eq!(val, Ok(false));
     }
-     #[test]
+
+    #[test]
     fn read_disabled() {
-        let mut shim = GpioShim::new();
+        let shim = GpioShim::new();
         let val = shim.read(G0);
         assert_eq!(val, Err(GpioReadError((G0, gpio::GpioState::Disabled))));
     }
@@ -217,56 +216,22 @@ mod tests {
 
     // covers read for output
     #[test]
-    fn write_Output() {
+    fn write_output() {
         let mut shim = GpioShim::new();
         let res = shim.set_state(G0, gpio::GpioState::Output);
         assert_eq!(res, Ok(()));
-        let result = shim.write(G0, true);
+        shim.write(G0, true).unwrap();
         let val = shim.read(G0);
         assert_eq!(val, Err(GpioReadError((G0, gpio::GpioState::Output))));
     }
- // covers read for output
+
+    // covers read for output
     #[test]
-    fn write_Else() {
+    fn write_else() {
         let mut shim = GpioShim::new();
         let res = shim.set_state(G0, gpio::GpioState::Input);
         assert_eq!(res, Ok(()));
         let result = shim.write(G0, true);
         assert_eq!(result, Err(GpioWriteError((G0, gpio::GpioState::Input))));
     }
-
-
-
 }
-
-
-
-
-// TODO: Either newtype this or make this a blanket impl and move it to `lc3-traits` behind a feature gate (that this crate then requires).
-// impl<'a> Gpio<'a> for Arc<RwLock<GpioShim<'a>>> {
-//     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
-//         RwLock::write(self).unwrap().set_state(pin, state)
-//     }
-
-//     fn get_state(&self, pin: GpioPin) -> GpioState {
-//         RwLock::read(self).unwrap().get_state(pin)
-//     }
-
-//     fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError> {
-//         RwLock::read(self).unwrap().read(pin)
-//     }
-
-//     fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
-//         RwLock::write(self).unwrap().write(pin, bit)
-//     }
-
-//     fn register_interrupt(
-//         &mut self,
-//         pin: GpioPin,
-//         handler: &'a (dyn Fn(GpioPin) + Send),
-//     ) -> Result<(), GpioMiscError> {
-//         RwLock::write(self)
-//             .unwrap()
-//             .register_interrupt(pin, handler)
-//     }
-// }
