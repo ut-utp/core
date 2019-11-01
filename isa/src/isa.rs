@@ -4,13 +4,19 @@ use core::convert::{TryFrom, TryInto};
 use core::ops::Range;
 
 #[rustfmt::skip]
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Reg { R0, R1, R2, R3, R4, R5, R6, R7 }
 
 // TODO: ditch these next three things once we write the macro...
 impl Reg {
-    const SIZE: usize = 8;
+    pub const NUM_REGS: usize = 8;
+
+    pub const REGS: [Reg; Reg::NUM_REGS] = {
+        use Reg::*;
+        [R0, R1, R2, R3, R4, R5, R6, R7]
+    };
 }
+
 
 impl TryFrom<u8> for Reg {
     type Error = ();
@@ -18,7 +24,7 @@ impl TryFrom<u8> for Reg {
     fn try_from(num: u8) -> Result<Reg, ()> {
         use Reg::*;
 
-        if Into::<usize>::into(num) < Self::SIZE {
+        if Into::<usize>::into(num) < Self::NUM_REGS {
             Ok(match num {
                 0 => R0,
                 1 => R1,
@@ -56,7 +62,7 @@ impl From<Reg> for u8 {
 // Alternative way is to use repr(C) with bitfields.
 
 #[rustfmt::skip]
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Instruction {
     AddReg { dr: Reg, sr1: Reg, sr2: Reg },         // RRR
     AddImm { dr: Reg, sr1: Reg, imm5: i16 },        // RR5

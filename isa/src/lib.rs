@@ -51,6 +51,9 @@ pub type Addr = u16;
 /// Word type/size for the LC-3.
 pub type Word = u16;
 
+pub const PSR: Addr = 0xFFFC;
+pub const MCR: Addr = 0xFFFE;
+
 mod isa;
 
 pub use isa::*;
