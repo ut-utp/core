@@ -220,8 +220,7 @@ impl Instruction {
     /// println!("{:?}", Instruction::new_add_reg(R0, R1, R2));
     /// ```
     pub const fn new_add_reg(dr: Reg, sr1: Reg, sr2: Reg) -> Self {
-        use Instruction::*;
-        AddReg { dr, sr1, sr2 }
+        Instruction::AddReg { dr, sr1, sr2 }
     }
 
     /// Creates a new `ADD` instruction ([`Instruction::AddImm`]) with a
@@ -247,8 +246,6 @@ impl Instruction {
     /// println!("{:?}", Instruction::new_add_imm(R0, R1, -17));
     /// ```
     pub const fn new_add_imm(dr: Reg, sr1: Reg, imm5: SignedWord) -> Self {
-        use Instruction::*;
-
         // Once const-fn is stable (specifically once RFC #2342 is implemented):
         // let foo = true;
         // if !check_signed_imm(imm5, 5) { panic!("Invalid immediate value for ADD."); }
@@ -259,7 +256,7 @@ impl Instruction {
         let canary: [(); 1] = [()];
         canary[(!check_signed_imm(imm5, 5)) as usize];
 
-        AddImm { dr, sr1, imm5 }
+        Instruction::AddImm { dr, sr1, imm5 }
     }
 
     /// Creates a new `AND` instruction ([`Instruction::AndReg`]) with two
@@ -271,8 +268,7 @@ impl Instruction {
     /// println!("{:?}", Instruction::new_and_reg(R0, R1, R2));
     /// ```
     pub const fn new_and_reg(dr: Reg, sr1: Reg, sr2: Reg) -> Self {
-        use Instruction::*;
-        AndReg { dr, sr1, sr2 }
+        Instruction::AndReg { dr, sr1, sr2 }
     }
 
     /// Creates a new `AND` instruction ([`Instruction::AndImm`]) with a
@@ -298,8 +294,6 @@ impl Instruction {
     /// println!("{:?}", Instruction::new_and_imm(R0, R1, -17));
     /// ```
     pub const fn new_and_imm(dr: Reg, sr1: Reg, imm5: SignedWord) -> Self {
-        use Instruction::*;
-
         // Once const-fn is stable (specifically once RFC #2342 is implemented):
         // if !check_signed_imm(imm5, 5) { panic!("Invalid immediate value for AND."); }
 
@@ -307,7 +301,7 @@ impl Instruction {
         let canary: [(); 1] = [()];
         canary[(!check_signed_imm(imm5, 5)) as usize];
 
-        AndImm { dr, sr1, imm5 }
+        Instruction::AndImm { dr, sr1, imm5 }
     }
 
     /// Creates a new `BR` instruction ([`Instruction::Br`]) with the condition
@@ -333,17 +327,21 @@ impl Instruction {
     /// # use lc3_isa::Instruction;
     /// println!("{:?}", Instruction::new_br(true, true, true, -257));
     /// ```
+    /// ```rust,should_panic
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_br(false, false, false, -1));
+    /// ```
     pub const fn new_br(n: bool, z: bool, p: bool, offset9: SignedWord) -> Self {
-        use Instruction::*;
-
         // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !n && !z && !p { panic!("Must branch on at least one condition code."); }
         // if !check_signed_imm(offset9, 9) { panic!("Invalid offset value for BR."); }
 
         // Until then, this awful hack:
         let canary: [(); 1] = [()];
+        canary[(!(n | z | p)) as usize];
         canary[(!check_signed_imm(offset9, 9)) as usize];
 
-        Br { n, z, p, offset9 }
+        Instruction::Br { n, z, p, offset9 }
     }
 
     /// Creates a new 'JMP' instruction ([`Instruction::JMP`]) with the provided
@@ -355,12 +353,11 @@ impl Instruction {
     /// println!("{:?}", Instruction::new_jmp(R7));
     /// ```
     pub const fn new_jmp(base: Reg) -> Self {
-        use Instruction::*;
-
         // Potentially:
+        // use Instruction::*;
         // if let Reg::R7 = base { Ret } else { Jmp { base } }
 
-        Jmp { base }
+        Instruction::Jmp { base }
     }
 
     /// Creates a new `JSR` instruction ([`Instruction::JSR`]) with the provided
@@ -382,16 +379,137 @@ impl Instruction {
     /// println!("{:?}", Instruction::new_jsr(-1025));
     /// ```
     pub const fn new_jsr(offset11: SignedWord) -> Self {
-        use Instruction::*;
-
-        // Once const-fn is stable (specificially once RFC #2342 is implemented):
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
         // if !check_signed_imm(offset11, 11) { panic!("Invalid offset value for JSR."); }
 
         // Until then, this awful hack:
         let canary: [(); 1] = [()];
         canary[(!check_signed_imm(offset11, 11)) as usize];
 
-        Jsr { offset11 }
+        Instruction::Jsr { offset11 }
+    }
+
+    /// Creates a new 'JSRR' instruction ([`Instruction::JSRR`]) with the
+    /// provided base register.
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_jsrr(R6));
+    /// ```
+    pub const fn new_jsrr(base: Reg) -> Self {
+        Instruction::Jsrr { base }
+    }
+
+    pub const fn new_ld(dr: Reg, offset9: SignedWord) -> Self {
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset9, 9) { panic!("Invalid offset value for LD."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset9, 9)) as usize];
+
+        Instruction::Ld { dr, offset9 }
+
+    }
+
+    pub const fn new_ldi(dr: Reg, offset9: SignedWord) -> Self {
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset9, 9) { panic!("Invalid offset value for LDI."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset9, 9)) as usize];
+
+        Instruction::Ldi { dr, offset9 }
+    }
+
+    pub const fn new_ldr(dr: Reg, base: Reg, offset6: SignedWord) -> Self {
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset6, 6) { panic!("Invalid offset value for LDR."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset6, 6)) as usize];
+
+        Instruction::Ldr { dr, base, offset6 }
+
+    }
+
+    pub const fn new_lea(dr: Reg, offset9: SignedWord) -> Self {
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset9, 9) { panic!("Invalid offset value for LEA."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset9, 9)) as usize];
+
+        Instruction::Lea { dr, offset9 }
+    }
+
+    pub const fn new_not(dr: Reg, sr: Reg) -> Self {
+        Instruction::Not { dr, sr }
+    }
+
+    /// Creates a new `RET` instruction ([`Instruction::RET`]) (equivalent to a
+    /// [`JMP`](Instruction::JMP) [`R7`](Reg::R7)).
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_ret());
+    /// ```
+    pub const fn new_ret() -> Self {
+        Instruction::Ret
+    }
+
+    /// Creates a new `RTI` instruction ([`Instruction::RTI`]).
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_rti());
+    /// ```
+    pub const fn new_rti() -> Self {
+        Instruction::Rti
+    }
+
+    pub const fn new_st(sr: Reg, offset9: SignedWord) -> Self {
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset9, 9) { panic!("Invalid offset value for ST."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset9, 9)) as usize];
+
+        Instruction::St { sr, offset9 }
+    }
+
+    pub const fn new_sti(sr: Reg, offset9: SignedWord) -> Self {
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset9, 9) { panic!("Invalid offset value for STI."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset9, 9)) as usize];
+
+        Instruction::Sti { sr, offset9 }
+    }
+
+    pub const fn new_str(sr: Reg, base: Reg, offset6: SignedWord) -> Self {
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset6, 6) { panic!("Invalid offset value for STR."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset6, 6)) as usize];
+
+        Instruction::Str { sr, base, offset6 }
+    }
+
+    pub const fn new_trap(trapvec: u8) -> Self {
+        // trapvec, an 8 bit value represented by a u8, can't be out of bounds.
+        Instruction::Trap { trapvec }
     }
 }
 
@@ -593,6 +711,7 @@ impl From<Instruction> for Word {
 
 // TODO: tests for Instruction
 // TODO: basic macro
+// TODO: functions to get Instruction documentation? (not derive display though)
 // TODO: add a strict feature
 
 #[cfg(test)]

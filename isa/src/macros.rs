@@ -5,9 +5,6 @@
 // Note: talk about how this is only meant for writing const assembly (at compile time)
 // as in, things like: `for reg in REGS { insn!{ADD reg, reg, R7 } }` won't work.
 //
-// Also warn about how this will (unfortunately) happily make unrepresentable instructions
-// (i.e. we use an i16 to represent imm5s but this has no issue making an AddImm with an
-// imm5 that won't fit in 5 bits).
 #[macro_export]
 macro_rules! insn {
     (ADD $dr:ident, $sr1:ident, $sr2:ident $(=> $($extra:tt)*)?) => {
