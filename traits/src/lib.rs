@@ -39,7 +39,7 @@
     unused_results,
     rust_2018_idioms
 )]
-#![doc(test(attr(deny(rust_2018_idioms, warnings))))]
+#![doc(test(attr(deny(warnings))))]
 #![doc(html_logo_url = "")] // TODO!
 
 // Mark the crate as no_std if the `no_std` feature is enabled.
