@@ -145,7 +145,7 @@ impl From<&Reg> for u8 {
 type Sw = SignedWord;
 
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug)]
 // TODO: docs!
 // Give the full name of the instruction, the pseudo code, whether it sets
 // condition codes, the bit format, and some examples.
@@ -171,6 +171,16 @@ pub enum Instruction {
     Str { sr: Reg, base: Reg, offset6: Sw },        // RR6
     Trap { trapvec: u8 },                           // 8
 }
+
+/// We use the bit representation of [`Instruction`] for equality specifically
+/// so that `Jmp { base: R7 } == RE`
+impl PartialEq<Instruction> for Instruction {
+    fn eq(&self, rhs: &Instruction) -> bool {
+        Into::<Word>::into(*self).eq(&Into::<Word>::into(*rhs))
+    }
+}
+
+impl Eq for Instruction {}
 
 const fn pow_of_two(power: u32) -> SignedWord {
     // SignedWord::checked_shl(1, power).unwrap()
@@ -346,6 +356,9 @@ impl Instruction {
     /// ```
     pub const fn new_jmp(base: Reg) -> Self {
         use Instruction::*;
+
+        // Potentially:
+        // if let Reg::R7 = base { Ret } else { Jmp { base } }
 
         Jmp { base }
     }
@@ -725,5 +738,17 @@ mod compile_time_fns {
         assert!(check_signed_imm(-16, 5));
         assert!(!check_signed_imm(-33, 5));
         assert!(!check_signed_imm(32, 5));
+    }
+}
+
+// TODO: test the `Bits` impls
+
+#[cfg(test)]
+mod instruction_tests {
+    use super::{Instruction::*, Reg::*};
+
+    #[test]
+    fn ret_jmp_r7_eq() {
+        assert_eq!(Jmp { base: R7 }, Ret);
     }
 }
