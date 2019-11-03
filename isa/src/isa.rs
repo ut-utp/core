@@ -1,13 +1,90 @@
 use super::Word;
 
+use core::cmp::Ordering;
 use core::convert::{TryFrom, TryInto};
 use core::ops::Range;
 
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum PriorityLevel { PL0, PL1, PL2, PL3, PL4, PL5, PL6, PL7 }
+
+// TODO: ditch the next four things once the macro is written:
+impl PriorityLevel {
+    pub const NUM_LEVELS: usize = 8;
+
+    pub const LEVELS: [PriorityLevel; PriorityLevel::NUM_LEVELS] = {
+        use PriorityLevel::*;
+        [PL0, PL1, PL2, PL3, PL4, PL5, PL6, PL7]
+    };
+}
+
+impl TryFrom<u8> for PriorityLevel {
+    type Error = ();
+
+    fn try_from(num: u8) -> Result<Self, ()> {
+        use PriorityLevel::*;
+
+        if Into::<usize>::into(num) < Self::NUM_LEVELS {
+            Ok(match num {
+                0 => PL0,
+                1 => PL1,
+                2 => PL2,
+                3 => PL3,
+                4 => PL4,
+                5 => PL5,
+                6 => PL6,
+                7 => PL7,
+                _ => unreachable!(),
+            })
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl From<PriorityLevel> for u8 {
+    fn from(pl: PriorityLevel) -> u8 {
+        use PriorityLevel::*;
+
+        match pl {
+            PL0  => 0,
+            PL1  => 1,
+            PL2  => 2,
+            PL3  => 3,
+            PL4  => 4,
+            PL5  => 5,
+            PL6  => 6,
+            PL7  => 7,
+       }
+    }
+}
+
+impl From<&PriorityLevel> for u8 {
+    fn from(pl: &PriorityLevel) -> u8 {
+        pl.into()
+    }
+}
+
+impl PartialOrd<PriorityLevel> for PriorityLevel {
+    fn partial_cmp(&self, other: &PriorityLevel) -> Option<Ordering> {
+        // Higher priorities have 'greater' precedence and are 'more important'.
+        Into::<u8>::into(self).partial_cmp(&Into::<u8>::into(other))
+    }
+}
+
+impl Ord for PriorityLevel {
+    fn cmp(&self, other: &PriorityLevel) -> Ordering {
+        // Higher priorities have 'greater' precedence and are 'more important'.
+        Into::<u8>::into(self).cmp(&Into::<u8>::into(other))
+    }
+}
+
+
+#[rustfmt::skip]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Reg { R0, R1, R2, R3, R4, R5, R6, R7 }
 
-// TODO: ditch these next three things once we write the macro...
+// TODO: ditch these next four things once we write the macro...
 impl Reg {
     pub const NUM_REGS: usize = 8;
 
@@ -276,7 +353,8 @@ impl From<Instruction> for Word {
     }
 }
 
-// TODO: tests
-// TODO: TryFrom, not From
+// TODO: tests for Reg
+// TODO: tests for PriorityLevel
+// TODO: tests for Instruction
 // TODO: basic macro
 // TODO: add a strict feature
