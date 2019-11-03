@@ -94,11 +94,10 @@ impl Reg {
     };
 }
 
-
 impl TryFrom<u8> for Reg {
     type Error = ();
 
-    fn try_from(num: u8) -> Result<Reg, ()> {
+    fn try_from(num: u8) -> Result<Self, ()> {
         use Reg::*;
 
         if Into::<usize>::into(num) < Self::NUM_REGS {
@@ -133,6 +132,12 @@ impl From<Reg> for u8 {
             R6 => 6,
             R7 => 7,
         }
+    }
+}
+
+impl From<&Reg> for u8 {
+    fn from(reg: &Reg) -> u8 {
+        reg.into()
     }
 }
 
@@ -217,6 +222,10 @@ pub trait Bits: Sized + Copy {
     fn u16(self, range: Range<u32>) -> u16 {
         assert!(range.end - range.start <= 16);
         self.bits(range) as u16
+    }
+
+    fn word(self, range: Range<u32>) -> Word {
+        self.u16(range)
     }
 
     fn i16(self, range: Range<u32>) -> i16 {
