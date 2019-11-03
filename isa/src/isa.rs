@@ -168,6 +168,34 @@ pub enum Instruction {
     Trap { trapvec: u8 },                           // 8
 }
 
+const fn pow_of_two(power: u32) -> SignedWord {
+    // SignedWord::checked_shl(1, power).unwrap()
+    // `SignedWord::checked_shl` is not yet a const fn so we do this instead:
+    static_assertions::const_assert!(core::mem::size_of::<u32>() <= core::mem::size_of::<usize>());
+
+    // Once const-fn is stable:
+    // assert!((power as usize) < (core::mem::size_of::<SignedWord>() * 8));
+
+    1 << power
+}
+
+const fn check_signed_imm(imm: SignedWord, num_bits: u32) -> bool {
+    // A 2's comp number of N bits must be in [-(2 ** (N - 1))¸ ((2 ** (N - 1)) - 1)).
+    // sa::const_assert!()
+
+    // Once const-fn is stable:
+    // assert!(num_bits > 0);
+
+    // Once const-fn is stable (specifically once RFC #2342 is implemented):
+    // imm >= (-pow_of_two(num_bits - 1)) &&
+    // imm < (pow_of_two(num_bits - 1) - 1)
+
+    // Until then:
+    let l = (imm >= (-pow_of_two(num_bits - 1))) as u8;
+    let u = (imm <= (pow_of_two(num_bits - 1) - 1)) as u8;
+    (l + u) == 2
+}
+
 impl Instruction {
     pub fn sets_condition_codes(&self) -> bool {
         use Instruction::*;
