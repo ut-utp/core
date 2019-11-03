@@ -117,6 +117,294 @@ macro_rules! word {
     }
 }
 
+// #[macro_export]
+// macro_rules! lc3_prog {
+//     (.ORIG #$orig:expr; $($($word_parts:tt)*;)* ) => {
+//         [_lc3_prog_inner!(($orig), $($($word_parts)*;)*)]
+//         println!();
+//     };
+// }
+
+
+// macro_rules! _lc3_prog_inner {
+//     (($addr:expr), $($word_parts:tt)*; $($rest:tt)*) => {
+//         (($addr), (word!($($word_parts)*))),
+//         _lc3_prog_inner!($addr + 1, $($rest)*)
+//     };
+//     (($addr:expr),) => {
+
+//     };
+// }
+
+// #[macro_export]
+// macro_rules! lc3_prog {
+//     (.ORIG #$orig:expr; $($($word_parts:tt)*;)* ) => {
+//         {
+//             const SIZE: usize = (_count!(($orig), $($($word_parts)*;)*)) - ($orig);
+//             let program: [($crate::Addr, $crate::Word); SIZE] = [(0, 0); SIZE];
+//             let mut i = 0;
+
+//             $(
+//                 program[i] = word!($($word_parts)*); i += 1;
+//             )*
+
+//             program
+//         }
+
+//         // [_lc3_prog_inner!(($orig), $($($word_parts)*;)*)]
+//         // println!();
+//     };
+// }
+
+
+// macro_rules! _count {
+//     (($addr:expr), $($word_parts:tt)*; $($rest:tt)*) => {
+//         _count!(($addr + 1), $($rest)*)
+//     };
+//     (($addr:expr),) => { $addr }
+// }
+
+
+#[macro_export]
+macro_rules! lc3_prog {
+    // (.ORIG #$orig:expr; $($($word_parts:tt)*;)* ) => {
+    (.ORIG #$orig:expr; $($rest:tt)* ) => {
+        {
+            const SIZE: usize = (_count!(($orig), $($rest)*) - ($orig));
+            let mut program: [($crate::Addr, $crate::Word); SIZE] = [(0, 0); SIZE];
+            let mut addr: $crate::Addr = $orig;
+            let mut i: usize = 0;
+
+            _word_alt!((program, i, addr) | $($rest)*);
+
+            // $(
+            //     program[i] = word!($($word_parts)*); i += 1;
+            // )*
+
+            program
+        }
+
+        // [_lc3_prog_inner!(($orig), $($($word_parts)*;)*)]
+        // println!();
+    };
+}
+
+macro_rules! _count {
+    (($addr:expr), $op:ident $($regs:ident),* $(#$num:expr)?; $($rest:tt)*) => {
+        _count!(($addr + 1), $($rest)*)
+    };
+    (($addr:expr),) => { $addr }
+}
+
+macro_rules! _word_alt {
+    (($array:ident, $idx:expr, $addr:expr) |) => {};
+    (($array:ident, $idx:expr, $addr:expr) | ADD $dr:ident, $sr1:ident, $sr2:ident ; $($rest:tt)*) => {
+        $array[$idx] = (($addr), Into::<$crate::Word>::into($crate::Instruction::new_add_reg(reg!($dr), reg!($sr1), reg!($sr2))));
+        $idx += 1; $addr += 1;
+        _word_alt!(($array, $idx, $addr) | $($rest)*);
+    };
+    // (($addr:expr) | ADD $dr:ident, $sr1:ident, #$imm5:expr $(=> $($extra:tt)*)?; $($rest:tt)*) => {
+    //     $crate::Instruction::new_add_imm(reg!($dr), reg!($sr1), $imm5)
+    // };
+
+    // (($addr:expr) | AND $dr:ident, $sr1:ident, $sr2:ident $(=> $(extra:tt)*)?; $($rest:tt)*) => {
+    //     $crate::Instruction::new_and_reg(reg!($dr), reg!($sr1), reg!($sr1))
+    // };
+    // (($addr:expr) | AND $dr:ident, $sr1:ident, #$imm5:expr $(=> $(extra:tt)*)?; $($rest:tt)*) => {
+    //     $crate::Instruction::new_and_imm(reg!($dr), reg!($sr1), $imm5)
+    // };
+
+    // (BR #$offset9:expr $(=> $(extra:tt)*)?; ) => { insn!(BRnzp #$offset9) };
+    // (BRn #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_br(true, false, false, $offset9)
+    // };
+    // (BRz #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_br(false, true, false, $offset9)
+    // };
+    // (BRp #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_br(false, false, true, $offset9)
+    // };
+    // (BRnz #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_br(true, true, false, $offset9)
+    // };
+    // (BRnp #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_br(true, false, true, $offset9)
+    // };
+    // (BRzp #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_br(false, true, true, $offset9)
+    // };
+    // (BRnzp #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_br(true, true, true, $offset9)
+    // };
+
+    // (JMP $base:ident $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_jmp(reg!($base))
+    // };
+
+    // (JSR #$offset11:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_jsr($offset11)
+    // };
+
+    // (JSRR $base:ident $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_jsrr(reg!($base))
+    // };
+
+    // (LD $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_ld(reg!($dr), $offset9)
+    // };
+
+    // (LDI $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_lid(reg!($dr), $offset9)
+    // };
+
+    // (LDR $dr:ident, $base:ident, #$offset6:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_ldr(reg!($dr), reg!($base), $offset6)
+    // };
+
+    // (LEA $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_lea(dr!($dr), $offset9)
+    // };
+
+    // (NOT $dr:ident, $sr:ident $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_not(dr!($dr), dr!($sr))
+    // };
+
+    // (RET $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_ret()
+    // };
+
+    // (RTI $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_rti()
+    // };
+
+    // (ST $sr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_st(reg!($sr), $offset9)
+    // };
+
+    // (STI $sr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_sti(reg!($sr), $offset9)
+    // };
+
+    // (STR $sr:ident, $base:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_str(reg!($sr), reg!($base), $offset9)
+    // };
+
+    // (TRAP #$trapvec:expr $(=> $(extra:tt)*)?) => {
+    //     $crate::Instruction::new_trap($trapvec)
+    // }
+}
+
+// #[macro_export]
+// macro_rules! lc3_prog {
+//     (.ORIG #$orig:expr; $($rest:tt)* ) => {
+//         {
+//             [
+//                 _word_alt!(($orig) | $($rest)*)
+//             ]
+//         }
+
+//         // [_lc3_prog_inner!(($orig), $($($word_parts)*;)*)]
+//         // println!();
+//     };
+// }
+
+// macro_rules! _word_alt {
+//     () => {};
+//     (($addr:expr) | ADD $dr:ident, $sr1:ident, $sr2:ident $(=> $($extra:tt)*)?; $($rest:tt)*) => {
+//         (($addr), Into::<$crate::Word>::into($crate::Instruction::new_add_reg(reg!($dr), reg!($sr1), reg!($sr2)))),
+//         _word_alt!((($addr) + 1) | $($rest)*)
+//     };
+//     // (($addr:expr) | ADD $dr:ident, $sr1:ident, #$imm5:expr $(=> $($extra:tt)*)?; $($rest:tt)*) => {
+//     //     $crate::Instruction::new_add_imm(reg!($dr), reg!($sr1), $imm5)
+//     // };
+
+//     // (($addr:expr) | AND $dr:ident, $sr1:ident, $sr2:ident $(=> $(extra:tt)*)?; $($rest:tt)*) => {
+//     //     $crate::Instruction::new_and_reg(reg!($dr), reg!($sr1), reg!($sr1))
+//     // };
+//     // (($addr:expr) | AND $dr:ident, $sr1:ident, #$imm5:expr $(=> $(extra:tt)*)?; $($rest:tt)*) => {
+//     //     $crate::Instruction::new_and_imm(reg!($dr), reg!($sr1), $imm5)
+//     // };
+
+//     // (BR #$offset9:expr $(=> $(extra:tt)*)?; ) => { insn!(BRnzp #$offset9) };
+//     // (BRn #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_br(true, false, false, $offset9)
+//     // };
+//     // (BRz #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_br(false, true, false, $offset9)
+//     // };
+//     // (BRp #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_br(false, false, true, $offset9)
+//     // };
+//     // (BRnz #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_br(true, true, false, $offset9)
+//     // };
+//     // (BRnp #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_br(true, false, true, $offset9)
+//     // };
+//     // (BRzp #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_br(false, true, true, $offset9)
+//     // };
+//     // (BRnzp #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_br(true, true, true, $offset9)
+//     // };
+
+//     // (JMP $base:ident $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_jmp(reg!($base))
+//     // };
+
+//     // (JSR #$offset11:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_jsr($offset11)
+//     // };
+
+//     // (JSRR $base:ident $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_jsrr(reg!($base))
+//     // };
+
+//     // (LD $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_ld(reg!($dr), $offset9)
+//     // };
+
+//     // (LDI $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_lid(reg!($dr), $offset9)
+//     // };
+
+//     // (LDR $dr:ident, $base:ident, #$offset6:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_ldr(reg!($dr), reg!($base), $offset6)
+//     // };
+
+//     // (LEA $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_lea(dr!($dr), $offset9)
+//     // };
+
+//     // (NOT $dr:ident, $sr:ident $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_not(dr!($dr), dr!($sr))
+//     // };
+
+//     // (RET $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_ret()
+//     // };
+
+//     // (RTI $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_rti()
+//     // };
+
+//     // (ST $sr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_st(reg!($sr), $offset9)
+//     // };
+
+//     // (STI $sr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_sti(reg!($sr), $offset9)
+//     // };
+
+//     // (STR $sr:ident, $base:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_str(reg!($sr), reg!($base), $offset9)
+//     // };
+
+//     // (TRAP #$trapvec:expr $(=> $(extra:tt)*)?) => {
+//     //     $crate::Instruction::new_trap($trapvec)
+//     // }
+// }
+
 /// (TODO!)
 ///
 /// ```rust,compile_fail
@@ -194,5 +482,30 @@ mod tests {
     fn word() {
         assert_eq!(word!(ADD R0, R1, R2), AddReg { dr: R0, sr1: R1, sr2: R2 }.into());
         word!(); // Empty words are fine.
+    }
+
+    #[test]
+    fn program_empty() {
+        trace_macros!(true);
+
+        let prog = lc3_prog! {
+            .ORIG #0x3000;
+        };
+
+        assert_eq!(prog, []);
+    }
+
+    #[test]
+    fn program_simple() {
+        trace_macros!(true);
+
+        let prog = lc3_prog! {
+            .ORIG #0x3000;
+            ADD R0, R0, R1;
+            // BR #0;
+            // BR #0;
+        };
+
+        assert_eq!(prog, [(0x3000, AddReg { dr: R0, sr1: R0, sr2: R1 }.into())]);
     }
 }
