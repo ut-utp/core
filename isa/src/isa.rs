@@ -47,15 +47,15 @@ impl From<PriorityLevel> for u8 {
         use PriorityLevel::*;
 
         match pl {
-            PL0  => 0,
-            PL1  => 1,
-            PL2  => 2,
-            PL3  => 3,
-            PL4  => 4,
-            PL5  => 5,
-            PL6  => 6,
-            PL7  => 7,
-       }
+            PL0 => 0,
+            PL1 => 1,
+            PL2 => 2,
+            PL3 => 3,
+            PL4 => 4,
+            PL5 => 5,
+            PL6 => 6,
+            PL7 => 7,
+        }
     }
 }
 
@@ -78,7 +78,6 @@ impl Ord for PriorityLevel {
         Into::<u8>::into(self).cmp(&Into::<u8>::into(other))
     }
 }
-
 
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -362,7 +361,6 @@ impl From<Instruction> for Word {
     }
 }
 
-// TODO: tests for PriorityLevel
 // TODO: tests for Instruction
 // TODO: basic macro
 // TODO: add a strict feature
@@ -414,3 +412,80 @@ mod reg_tests {
     }
 }
 
+#[cfg(test)]
+mod priority_level_tests {
+    use super::PriorityLevel::{self, *};
+    use core::convert::TryInto;
+
+    #[test]
+    fn eq() {
+        assert_eq!(PL0, PL0);
+        assert_eq!(PL1, PL1);
+        assert_eq!(PL7, PL7);
+
+        assert_ne!(PL0, PL7);
+    }
+
+    #[test]
+    fn into() {
+        let eq = |reg, num| assert_eq!(Into::<u8>::into(reg), num);
+
+        eq(PL0, 0);
+        eq(PL1, 1);
+        eq(PL2, 2);
+        eq(PL4, 4);
+        eq(PL5, 5);
+        eq(PL5, 5);
+        eq(PL6, 6);
+        eq(PL7, 7);
+    }
+
+    #[test]
+    fn from() {
+        let into = |num: u8, reg| assert_eq!(num.try_into(), Ok(reg));
+        let err = |num: u8| assert_eq!(TryInto::<PriorityLevel>::try_into(num), Err(()));
+
+        into(0, PL0);
+        into(1, PL1);
+        into(2, PL2);
+        into(3, PL3);
+        into(4, PL4);
+        into(5, PL5);
+        into(6, PL6);
+        into(7, PL7);
+
+        err(8);
+        err(9);
+    }
+
+    #[test]
+    fn ord() {
+        assert_eq!(PL0, PL0);
+
+        // PL0 is less than PL1, PL2, ...
+        // PL1 is less than PL2, PL3, ...
+        // ...
+        // PL7 is less than ()
+        for n in 0..(PriorityLevel::NUM_LEVELS - 1) {
+            let mut iter = PriorityLevel::LEVELS.iter().skip(n);
+            let lower = iter.next().unwrap();
+
+            for higher in iter {
+                assert!(higher > lower);
+            }
+        }
+
+        // PL7 is greater than PL6, PL5, ...
+        // PL6 is greater than PL5, PL4, ...
+        // ...
+        // PL0 is greater than ()
+        for n in 0..(PriorityLevel::NUM_LEVELS - 1) {
+            let mut iter = PriorityLevel::LEVELS.iter().rev().skip(n);
+            let higher = iter.next().unwrap();
+
+            for lower in iter {
+                assert!(higher > lower);
+            }
+        }
+    }
+}
