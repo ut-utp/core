@@ -173,7 +173,7 @@ pub enum Instruction {
 }
 
 /// We use the bit representation of [`Instruction`] for equality specifically
-/// so that `Jmp { base: R7 } == RE`
+/// so that `Jmp { base: R7 } == RET`. However, note that `BR != BRnzp`.
 impl PartialEq<Instruction> for Instruction {
     fn eq(&self, rhs: &Instruction) -> bool {
         Into::<Word>::into(*self).eq(&Into::<Word>::into(*rhs))
