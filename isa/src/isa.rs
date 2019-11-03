@@ -144,7 +144,7 @@ impl From<&Reg> for u8 {
 // Alternative way is to use repr(C) with bitfields.
 
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Instruction {
     AddReg { dr: Reg, sr1: Reg, sr2: Reg },         // RRR
     AddImm { dr: Reg, sr1: Reg, imm5: i16 },        // RR5
@@ -362,8 +362,55 @@ impl From<Instruction> for Word {
     }
 }
 
-// TODO: tests for Reg
 // TODO: tests for PriorityLevel
 // TODO: tests for Instruction
 // TODO: basic macro
 // TODO: add a strict feature
+
+#[cfg(test)]
+mod reg_tests {
+    use super::Reg::{self, *};
+    use core::convert::TryInto;
+
+    #[test]
+    fn eq() {
+        assert_eq!(R0, R0);
+        assert_eq!(R1, R1);
+        assert_eq!(R7, R7);
+
+        assert_ne!(R0, R7);
+    }
+
+    #[test]
+    fn into() {
+        let eq = |reg, num| assert_eq!(Into::<u8>::into(reg), num);
+
+        eq(R0, 0);
+        eq(R1, 1);
+        eq(R2, 2);
+        eq(R4, 4);
+        eq(R5, 5);
+        eq(R5, 5);
+        eq(R6, 6);
+        eq(R7, 7);
+    }
+
+    #[test]
+    fn from() {
+        let into = |num: u8, reg| assert_eq!(num.try_into(), Ok(reg));
+        let err = |num: u8| assert_eq!(TryInto::<Reg>::try_into(num), Err(()));
+
+        into(0, R0);
+        into(1, R1);
+        into(2, R2);
+        into(3, R3);
+        into(4, R4);
+        into(5, R5);
+        into(6, R6);
+        into(7, R7);
+
+        err(8);
+        err(9);
+    }
+}
+
