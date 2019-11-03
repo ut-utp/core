@@ -61,7 +61,7 @@ impl From<PriorityLevel> for u8 {
 
 impl From<&PriorityLevel> for u8 {
     fn from(pl: &PriorityLevel) -> u8 {
-        pl.into()
+        <PriorityLevel as Into<u8>>::into(*pl)
     }
 }
 
@@ -137,7 +137,7 @@ impl From<Reg> for u8 {
 
 impl From<&Reg> for u8 {
     fn from(reg: &Reg) -> u8 {
-        reg.into()
+        <Reg as Into<u8>>::into(*reg)
     }
 }
 
