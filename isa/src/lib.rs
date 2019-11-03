@@ -39,7 +39,7 @@
     unused_results,
     rust_2018_idioms
 )]
-#![doc(test(attr(deny(rust_2018_idioms, warnings))))]
+#![doc(test(attr(deny(warnings))))]
 #![doc(html_logo_url = "")] // TODO!
 
 // Mark the crate as no_std if the `no_std` feature is enabled.
@@ -61,10 +61,13 @@ pub type Word = u16;
 pub type SignedWord = i16;
 
 // Make sure our `Word` and `SignedWord` types are counterparts:
-sa::const_assert!(size_of::<Word> == size_of::<SignedWord>);
+sa::const_assert!(size_of::<Word>() == size_of::<SignedWord>());
 
 // And that `SignedWord` truly is signed:
-sa::const_assert!((-1 as SignedWord).is_negative());
+sa::const_assert!({
+    #[allow(trivial_numeric_casts)]
+    ((-1) as SignedWord).is_negative()
+});
 
 pub const PSR: Addr = 0xFFFC;
 pub const MCR: Addr = 0xFFFE;
