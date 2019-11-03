@@ -1,7 +1,7 @@
 //! Constants. (TODO)
 
 use core::ops::Deref;
-use lc3_isa::{Addr, Bits, Word, WORD_MAX_VAL, MCR as MCR_ADDRESS, PSR as PSR_ADDRESS};
+use lc3_isa::{Addr, Bits, SignedWord, Word, WORD_MAX_VAL, MCR as MCR_ADDRESS, PSR as PSR_ADDRESS};
 
 use crate::interp::{InstructionInterpreter, WriteAttempt};
 
@@ -152,9 +152,10 @@ impl PSR {
     pub fn get_cc(&self) -> (bool, bool, bool) { (self.n(), self.z(), self.p()) }
 
     pub fn set_cc<I: InstructionInterpreter>(&self, word: Word, interp: &mut I) {
-        // `Word` is an unsigned type so we'll just assume 2's comp and check the
-        // signed bit instead of using `.is_negative()`:
-        let n: bool = (word >> ((core::mem::size_of::<Word>() * 8) - 1)) != 0;
+        let word = word as SignedWord;
+
+        // checking for n is easy once we've got a `SignedWord`.
+        let n: bool = word.is_negative();
 
         // z is easy enough to check for:
         let z: bool = word == 0;

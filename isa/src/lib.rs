@@ -45,6 +45,7 @@
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
+extern crate static_assertions as sa;
 use core::mem::size_of;
 
 /// Address type/size for the LC-3.
@@ -55,6 +56,15 @@ pub const ADDR_MAX_VAL: Addr = Addr::max_value();
 
 /// Word type/size for the LC-3.
 pub type Word = u16;
+
+/// Signed counterpart of the [`Word`] type.
+pub type SignedWord = i16;
+
+// Make sure our `Word` and `SignedWord` types are counterparts:
+sa::const_assert!(size_of::<Word> == size_of::<SignedWord>);
+
+// And that `SignedWord` truly is signed:
+sa::const_assert!((-1 as SignedWord).is_negative());
 
 pub const PSR: Addr = 0xFFFC;
 pub const MCR: Addr = 0xFFFE;
