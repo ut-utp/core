@@ -1,4 +1,4 @@
-use super::Word;
+use super::{Word, SignedWord};
 
 use core::cmp::Ordering;
 use core::convert::{TryFrom, TryInto};
@@ -142,27 +142,29 @@ impl From<&Reg> for u8 {
 
 // Alternative way is to use repr(C) with bitfields.
 
+type Sw = SignedWord;
+
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Instruction {
     AddReg { dr: Reg, sr1: Reg, sr2: Reg },         // RRR
-    AddImm { dr: Reg, sr1: Reg, imm5: i16 },        // RR5
+    AddImm { dr: Reg, sr1: Reg, imm5: Sw },         // RR5
     AndReg { dr: Reg, sr1: Reg, sr2: Reg },         // RRR
-    AndImm { dr: Reg, sr1: Reg, imm5: i16 },        // RR5
-    Br { n: bool, z: bool, p: bool, offset9: i16 }, // nzp9
+    AndImm { dr: Reg, sr1: Reg, imm5: Sw },         // RR5
+    Br { n: bool, z: bool, p: bool, offset9: Sw },  // nzp9
     Jmp { base: Reg },                              // B
-    Jsr { offset11: i16 },                          // a
+    Jsr { offset11: Sw },                           // a
     Jsrr { base: Reg },                             // B
-    Ld { dr: Reg, offset9: i16 },                   // R9
-    Ldi { dr: Reg, offset9: i16 },                  // R9
-    Ldr { dr: Reg, base: Reg, offset6: i16 },        // RR6
-    Lea { dr: Reg, offset9: i16 },                  // R9
+    Ld { dr: Reg, offset9: Sw },                    // R9
+    Ldi { dr: Reg, offset9: Sw },                   // R9
+    Ldr { dr: Reg, base: Reg, offset6: Sw },        // RR6
+    Lea { dr: Reg, offset9: Sw },                   // R9
     Not { dr: Reg, sr: Reg },                       // RR
     Ret,                                            //
     Rti,                                            //
-    St { sr: Reg, offset9: i16 },                   // R9
-    Sti { sr: Reg, offset9: i16 },                  // R9
-    Str { sr: Reg, base: Reg, offset6: i16 },        // RR6
+    St { sr: Reg, offset9: Sw },                    // R9
+    Sti { sr: Reg, offset9: Sw },                   // R9
+    Str { sr: Reg, base: Reg, offset6: Sw },        // RR6
     Trap { trapvec: u8 },                           // 8
 }
 
