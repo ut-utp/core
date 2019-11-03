@@ -10,17 +10,106 @@
 // imm5 that won't fit in 5 bits).
 #[macro_export]
 macro_rules! insn {
-    (ADD $dr:ident, $sr1:ident, $sr2:ident $(; $($extra:tt)*)?) => {
-        $crate::Instruction::AddReg { dr: reg!($dr), sr1: reg!($sr1), sr2: reg!($sr2) }
+    (ADD $dr:ident, $sr1:ident, $sr2:ident $(=> $($extra:tt)*)?) => {
+        $crate::Instruction::new_add_reg(reg!($dr), reg!($sr1), reg!($sr2))
     };
-    (ADD $dr:ident, $sr1:ident, #$sr2:ident $(; $($extra:tt)*)?) => {
-        $crate::Instruction::AddReg { dr: reg!($dr), sr1: reg!($sr1), sr2: reg!($sr2) }
+    (ADD $dr:ident, $sr1:ident, #$imm5:expr $(=> $($extra:tt)*)?) => {
+        $crate::Instruction::new_add_imm(reg!($dr), reg!($sr1), $imm5)
     };
+    // (ADD $dr:ident, $sr1:ident, x$imm5:tt $(=> $($extra:tt)*)?) => {
+    //     $crate::Instruction::new_add_imm(reg!($dr), reg!($sr1), compile_fail!("Hex not yet supported; sorry."))
+    // };
+
+    (AND $dr:ident, $sr1:ident, $sr2:ident $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_and_reg(reg!($dr), reg!($sr1), reg!($sr1))
+    };
+    (AND $dr:ident, $sr1:ident, #$imm5:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_and_imm(reg!($dr), reg!($sr1), $imm5)
+    };
+
+    (BR #$offset9:expr $(=> $(extra:tt)*)?) => { insn!(BRnzp #$offset9) };
+    (BRn #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_br(true, false, false, $offset9)
+    };
+    (BRz #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_br(false, true, false, $offset9)
+    };
+    (BRp #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_br(false, false, true, $offset9)
+    };
+    (BRnz #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_br(true, true, false, $offset9)
+    };
+    (BRnp #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_br(true, false, true, $offset9)
+    };
+    (BRzp #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_br(false, true, true, $offset9)
+    };
+    (BRnzp #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_br(true, true, true, $offset9)
+    };
+
+    (JMP $base:ident $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_jmp(reg!($base))
+    };
+
+    (JSR #$offset11:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_jsr($offset11)
+    };
+
+    (JSRR $base:ident $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_jsrr(reg!($base))
+    };
+
+    (LD $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_ld(reg!($dr), $offset9)
+    };
+
+    (LDI $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_lid(reg!($dr), $offset9)
+    };
+
+    (LDR $dr:ident, $base:ident, #$offset6:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_ldr(reg!($dr), reg!($base), $offset6)
+    };
+
+    (LEA $dr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_lea(dr!($dr), $offset9)
+    };
+
+    (NOT $dr:ident, $sr:ident $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_not(dr!($dr), dr!($sr))
+    };
+
+    (RET $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_ret()
+    };
+
+    (RTI $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_rti()
+    };
+
+    (ST $sr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_st(reg!($sr), $offset9)
+    };
+
+    (STI $sr:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_sti(reg!($sr), $offset9)
+    };
+
+    (STR $sr:ident, $base:ident, #$offset9:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_str(reg!($sr), reg!($base), $offset9)
+    };
+
+    (TRAP #$trapvec:expr $(=> $(extra:tt)*)?) => {
+        $crate::Instruction::new_trap($trapvec)
+    }
 }
 
 /// (TODO!)
 ///
-/// ```compile_fail
+/// ```rust,compile_fail
 /// reg!(R8);
 /// ```
 macro_rules! reg {
@@ -32,12 +121,13 @@ macro_rules! reg {
     (R5) => { $crate::Reg::R5 };
     (R6) => { $crate::Reg::R6 };
     (R7) => { $crate::Reg::R7 };
+    ($($other:tt)*) => { $($other)* };
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::{Instruction::{self, *}, Reg::{self, *}};
+    use core::convert::TryInto;
 
     #[test]
     fn test_regs() {
