@@ -146,6 +146,10 @@ type Sw = SignedWord;
 
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+// TODO: docs!
+// Give the full name of the instruction, the pseudo code, whether it sets
+// condition codes, the bit format, and some examples.
+// Essentially, be a proper replacement for Appendix A.
 pub enum Instruction {
     AddReg { dr: Reg, sr1: Reg, sr2: Reg },         // RRR
     AddImm { dr: Reg, sr1: Reg, imm5: Sw },         // RR5
@@ -180,7 +184,7 @@ const fn pow_of_two(power: u32) -> SignedWord {
 }
 
 const fn check_signed_imm(imm: SignedWord, num_bits: u32) -> bool {
-    // A 2's comp number of N bits must be in [-(2 ** (N - 1))¸ ((2 ** (N - 1)) - 1)).
+    // A 2's comp number of N bits must be in [-(2 ** (N - 1))¸ (2 ** (N - 1))).
     // sa::const_assert!()
 
     // Once const-fn is stable:
@@ -188,7 +192,7 @@ const fn check_signed_imm(imm: SignedWord, num_bits: u32) -> bool {
 
     // Once const-fn is stable (specifically once RFC #2342 is implemented):
     // imm >= (-pow_of_two(num_bits - 1)) &&
-    // imm < (pow_of_two(num_bits - 1) - 1)
+    // imm <= (pow_of_two(num_bits - 1))
 
     // Until then:
     let l = (imm >= (-pow_of_two(num_bits - 1))) as u8;
@@ -197,6 +201,8 @@ const fn check_signed_imm(imm: SignedWord, num_bits: u32) -> bool {
 }
 
 impl Instruction {
+    /// Creates a new `ADD` instruction ([`Instruction::AddReg`]) with two
+    /// register sources.
     /// TODO!
     ///
     /// ```rust
@@ -208,6 +214,12 @@ impl Instruction {
         AddReg { dr, sr1, sr2 }
     }
 
+    /// Creates a new `ADD` instruction ([`Instruction::AddImm`]) with a
+    /// register source and a 5 bit signed immediate source (`[-16, 16)`).
+    ///
+    /// This function will panic at compile time if it is invoked with an
+    /// immediate value that isn't in bounds (and if the invocation is in a
+    /// const context and the resulting value is used).
     /// TODO!
     ///
     /// ```rust
@@ -240,6 +252,8 @@ impl Instruction {
         AddImm { dr, sr1, imm5 }
     }
 
+    /// Creates a new `AND` instruction ([`Instruction::AndReg`]) with two
+    /// register sources.
     /// TODO!
     ///
     /// ```rust
@@ -251,6 +265,12 @@ impl Instruction {
         AndReg { dr, sr1, sr2 }
     }
 
+    /// Creates a new `AND` instruction ([`Instruction::AndImm`]) with a
+    /// register source and a 5 bit signed immediate source (`[-16, 16)`).
+    ///
+    /// This function will panic at compile time if it is invoked with an
+    /// immediate value that isn't in bounds (and if the invocation is in a
+    /// const context and the resulting value is used).
     /// TODO!
     ///
     /// ```rust
@@ -280,6 +300,13 @@ impl Instruction {
         AndImm { dr, sr1, imm5 }
     }
 
+    /// Creates a new `BR` instruction ([`Instruction::Br`]) with the condition
+    /// codes to branch on and a 9 bit signed PC-relative offset
+    /// (`[-256, 256)`).
+    ///
+    /// This function will panic at compile time if it is invoked with an offset
+    /// value that isn't in bounds (and if the invocation is in a const context
+    /// and the resulting value is used).
     /// TODO!
     ///
     /// ```rust
@@ -309,6 +336,8 @@ impl Instruction {
         Br { n, z, p, offset9 }
     }
 
+    /// Creates a new 'JMP' instruction ([`Instruction::JMP`]) with the provided
+    /// base register.
     /// TODO!
     ///
     /// ```rust
@@ -321,6 +350,8 @@ impl Instruction {
         Jmp { base }
     }
 
+    /// Creates a new `JSR` instruction ([`Instruction::JSR`]) with the provided
+    /// 11 bit signed PC-relative offset (`[-1024, 1024)`).
     /// TODO!
     ///
     /// ```rust
@@ -501,6 +532,7 @@ impl TryFrom<Word> for Instruction {
     }
 }
 
+// TODO: bit format in the docs?
 impl From<Instruction> for Word {
     #[rustfmt::skip]
     fn from(ins: Instruction) -> u16 {
