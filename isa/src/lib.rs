@@ -79,5 +79,6 @@ pub const ADDR_SPACE_SIZE_IN_WORDS: usize = (ADDR_MAX_VAL as usize) + 1;
 pub const ADDR_SPACE_SIZE_IN_BYTES: usize = ADDR_SPACE_SIZE_IN_WORDS * size_of::<Word>();
 
 mod isa;
+mod macros;
 
 pub use isa::*;
