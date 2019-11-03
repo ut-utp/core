@@ -159,7 +159,12 @@ macro_rules! reg {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Addr, Word, Instruction::*, Reg::{self, *}};
+    use crate::{
+        Addr,
+        Instruction::*,
+        Reg::{self, *},
+        Word,
+    };
     use core::convert::TryInto;
 
     #[test]
@@ -179,9 +184,16 @@ mod tests {
     #[test]
     fn comments() {
         assert_eq!(insn!(ADD R0, R0, R0), insn!(ADD R0, R0, R0 => yo));
-        assert_eq!(insn!(ADD R0, R0, R0 => One simple instruction ), insn!(ADD R0, R0, R0 => <- Another simple instruction));
-        assert_eq!(insn!(ADD R0, R0, R0 => /* One simple instruction */ ), insn!(ADD R0, R0, R0 =>  <- /*! Another simple instruction */));
-        assert_eq!(insn!(ADD R0, R0, R0 => multiple
+        assert_eq!(
+            insn!(ADD R0, R0, R0 => One simple instruction ),
+            insn!(ADD R0, R0, R0 => <- Another simple instruction)
+        );
+        assert_eq!(
+            insn!(ADD R0, R0, R0 => /* One simple instruction */ ),
+            insn!(ADD R0, R0, R0 =>  <- /*! Another simple instruction */)
+        );
+        assert_eq!(
+            insn!(ADD R0, R0, R0 => multiple
                 lines
                 are
                 just
@@ -193,20 +205,32 @@ mod tests {
 
     #[test]
     fn misc() {
-        // trace_macros!(true);
-        let insn = insn!(AND R0, R0, R0, => Unfortunately we'll take trailing commas, but don't do this!);
+        let insn =
+            insn!(AND R0, R0, R0, => Unfortunately we'll take trailing commas, but don't do this!);
 
-        assert_eq!(insn,
-            insn!(AND R0, R0, R0)
-        );
+        assert_eq!(insn, insn!(AND R0, R0, R0));
 
         word!(.FILL #0x3000 as Word);
     }
 
     #[test]
     fn add_reg() {
-        assert_eq!(insn!(ADD R0, R1, R2), AddReg { dr: R0, sr1: R1, sr2: R2 });
-        assert_eq!(insn!(ADD R3, R0, R7), AddReg { dr: R3, sr1: R0, sr2: R7 });
+        assert_eq!(
+            insn!(ADD R0, R1, R2),
+            AddReg {
+                dr: R0,
+                sr1: R1,
+                sr2: R2
+            }
+        );
+        assert_eq!(
+            insn!(ADD R3, R0, R7),
+            AddReg {
+                dr: R3,
+                sr1: R0,
+                sr2: R7
+            }
+        );
 
         assert_eq!(insn!(ADD R3, R4, R5), insn!(ADD R3, R4, R5));
         assert_ne!(insn!(ADD R3, R4, R5), insn!(ADD R3, R4, R4));
@@ -214,9 +238,30 @@ mod tests {
 
     #[test]
     fn add_imm() {
-        assert_eq!(insn!(ADD R6, R7, #15), AddImm { dr: R6, sr1: R7, imm5: 15 });
-        assert_eq!(insn!(ADD R6, R7, #-16), AddImm { dr: R6, sr1: R7, imm5: -16 });
-        assert_eq!(insn!(ADD R6, R0, #0xF), AddImm { dr: R6, sr1: R0, imm5: 15 });
+        assert_eq!(
+            insn!(ADD R6, R7, #15),
+            AddImm {
+                dr: R6,
+                sr1: R7,
+                imm5: 15
+            }
+        );
+        assert_eq!(
+            insn!(ADD R6, R7, #-16),
+            AddImm {
+                dr: R6,
+                sr1: R7,
+                imm5: -16
+            }
+        );
+        assert_eq!(
+            insn!(ADD R6, R0, #0xF),
+            AddImm {
+                dr: R6,
+                sr1: R0,
+                imm5: 15
+            }
+        );
     }
 
     #[should_panic]
@@ -227,7 +272,15 @@ mod tests {
 
     #[test]
     fn word() {
-        assert_eq!(word!(ADD R0, R1, R2), AddReg { dr: R0, sr1: R1, sr2: R2 }.into());
+        assert_eq!(
+            word!(ADD R0, R1, R2),
+            AddReg {
+                dr: R0,
+                sr1: R1,
+                sr2: R2
+            }
+            .into()
+        );
         word!(); // Empty words are fine.
     }
 
@@ -241,9 +294,8 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
     fn program_full() {
-        // trace_macros!(true);
-
         let prog = lc3_prog! {
             .ORIG #0x3000  => is the program start;
             ADD R0, R0, R1 => you can use comments like this;

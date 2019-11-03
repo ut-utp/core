@@ -410,7 +410,6 @@ impl Instruction {
         canary[(!check_signed_imm(offset9, 9)) as usize];
 
         Instruction::Ld { dr, offset9 }
-
     }
 
     pub const fn new_ldi(dr: Reg, offset9: SignedWord) -> Self {
@@ -433,7 +432,6 @@ impl Instruction {
         canary[(!check_signed_imm(offset6, 6)) as usize];
 
         Instruction::Ldr { dr, base, offset6 }
-
     }
 
     pub const fn new_lea(dr: Reg, offset9: SignedWord) -> Self {
