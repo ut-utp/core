@@ -2,6 +2,8 @@
 //!
 //! TODO!
 
+#![feature(try_trait)]
+
 // TODO: forbid
 #![warn(
     bad_style,
