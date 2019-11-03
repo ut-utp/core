@@ -1,4 +1,4 @@
-use super::{Word, SignedWord};
+use super::{SignedWord, Word};
 
 use core::cmp::Ordering;
 use core::convert::{TryFrom, TryInto};
@@ -194,6 +194,161 @@ const fn check_signed_imm(imm: SignedWord, num_bits: u32) -> bool {
     let l = (imm >= (-pow_of_two(num_bits - 1))) as u8;
     let u = (imm <= (pow_of_two(num_bits - 1) - 1)) as u8;
     (l + u) == 2
+}
+
+impl Instruction {
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_add_reg(R0, R1, R2));
+    /// ```
+    pub const fn new_add_reg(dr: Reg, sr1: Reg, sr2: Reg) -> Self {
+        use Instruction::*;
+        AddReg { dr, sr1, sr2 }
+    }
+
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_add_imm(R0, R1, -16));
+    /// println!("{:?}", Instruction::new_add_imm(R0, R1, 15));
+    /// ```
+    ///
+    /// ```rust,should_panic
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_add_imm(R0, R1, 16));
+    /// ```
+    /// ```rust,should_panic
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_add_imm(R0, R1, -17));
+    /// ```
+    pub const fn new_add_imm(dr: Reg, sr1: Reg, imm5: SignedWord) -> Self {
+        use Instruction::*;
+
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // let foo = true;
+        // if !check_signed_imm(imm5, 5) { panic!("Invalid immediate value for ADD."); }
+
+        // if 8 > 8 {}
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(imm5, 5)) as usize];
+
+        AddImm { dr, sr1, imm5 }
+    }
+
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_and_reg(R0, R1, R2));
+    /// ```
+    pub const fn new_and_reg(dr: Reg, sr1: Reg, sr2: Reg) -> Self {
+        use Instruction::*;
+        AndReg { dr, sr1, sr2 }
+    }
+
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_and_imm(R0, R1, -16));
+    /// println!("{:?}", Instruction::new_and_imm(R0, R1, 15));
+    /// ```
+    ///
+    /// ```rust,should_panic
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_and_imm(R0, R1, 16));
+    /// ```
+    /// ```rust,should_panic
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_and_imm(R0, R1, -17));
+    /// ```
+    pub const fn new_and_imm(dr: Reg, sr1: Reg, imm5: SignedWord) -> Self {
+        use Instruction::*;
+
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(imm5, 5) { panic!("Invalid immediate value for AND."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(imm5, 5)) as usize];
+
+        AndImm { dr, sr1, imm5 }
+    }
+
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_br(true, true, true, 255));
+    /// println!("{:?}", Instruction::new_br(true, true, true, -256));
+    /// ```
+    ///
+    /// ```rust,should_panic
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_br(true, true, true, 256));
+    /// ```
+    /// ```rust,should_panic
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_br(true, true, true, -257));
+    /// ```
+    pub const fn new_br(n: bool, z: bool, p: bool, offset9: SignedWord) -> Self {
+        use Instruction::*;
+
+        // Once const-fn is stable (specifically once RFC #2342 is implemented):
+        // if !check_signed_imm(offset9, 9) { panic!("Invalid offset value for BR."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset9, 9)) as usize];
+
+        Br { n, z, p, offset9 }
+    }
+
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::{Instruction, Reg::*};
+    /// println!("{:?}", Instruction::new_jmp(R7));
+    /// ```
+    pub const fn new_jmp(base: Reg) -> Self {
+        use Instruction::*;
+
+        Jmp { base }
+    }
+
+    /// TODO!
+    ///
+    /// ```rust
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_jsr(1023));
+    /// println!("{:?}", Instruction::new_jsr(-1024));
+    /// ```
+    ///
+    /// ```rust,should_panic
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_jsr(1024));
+    /// ```
+    /// ```rust,should_panic
+    /// # use lc3_isa::Instruction;
+    /// println!("{:?}", Instruction::new_jsr(-1025));
+    /// ```
+    pub const fn new_jsr(offset11: SignedWord) -> Self {
+        use Instruction::*;
+
+        // Once const-fn is stable (specificially once RFC #2342 is implemented):
+        // if !check_signed_imm(offset11, 11) { panic!("Invalid offset value for JSR."); }
+
+        // Until then, this awful hack:
+        let canary: [(); 1] = [()];
+        canary[(!check_signed_imm(offset11, 11)) as usize];
+
+        Jsr { offset11 }
+    }
 }
 
 impl Instruction {
