@@ -104,6 +104,19 @@ macro_rules! insn {
     }
 }
 
+#[macro_export]
+macro_rules! word {
+    () => { 0 };
+    // (.END) => {};
+    (.FILL #$word:ident) => {
+        Into::<$crate::Word>::into($word)
+    };
+
+    ($($other:tt)*) => {
+        Into::<$crate::Word>::into(insn!($($other)*))
+    }
+}
+
 /// (TODO!)
 ///
 /// ```rust,compile_fail
@@ -177,5 +190,9 @@ mod tests {
         let _ = insn!(ADD R0, R5, #16);
     }
 
+    #[test]
+    fn word() {
+        assert_eq!(word!(ADD R0, R1, R2), AddReg { dr: R0, sr1: R1, sr2: R2 }.into());
+        word!(); // Empty words are fine.
     }
 }
