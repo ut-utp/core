@@ -519,3 +519,24 @@ mod priority_level_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod compile_time_fns {
+    use super::*;
+
+    #[test]
+    fn pow_of_two_tests() {
+        assert_eq!(pow_of_two(0), 1);
+        assert_eq!(pow_of_two(1), 2);
+        assert_eq!(pow_of_two(5), 32);
+        assert_eq!(pow_of_two(9), 512);
+    }
+
+    #[test]
+    fn check_signed_imm_tests() {
+        assert!(check_signed_imm(15, 5));
+        assert!(check_signed_imm(-16, 5));
+        assert!(!check_signed_imm(-33, 5));
+        assert!(!check_signed_imm(32, 5));
+    }
+}
