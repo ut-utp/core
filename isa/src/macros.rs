@@ -139,21 +139,46 @@ mod tests {
         assert_eq!(R5, reg!(R5));
         assert_eq!(R6, reg!(R6));
         assert_eq!(R7, reg!(R7));
+
+        assert_eq!(reg!(TryInto::<Reg>::try_into(7).unwrap()), R7);
     }
 
     #[test]
     fn comments() {
-        assert_eq!(insn!(ADD R0, R0, R0), insn!(ADD R0, R0, R0 ;));
-        assert_eq!(insn!(ADD R0, R0, R0; One simple instruction ), insn!(ADD R0, R0, R0 ; <- Another simple instruction));
-        assert_eq!(insn!(ADD R0, R0, R0; /* One simple instruction */ ), insn!(ADD R0, R0, R0 ; <- /*! Another simple instruction */));
+        assert_eq!(insn!(ADD R0, R0, R0), insn!(ADD R0, R0, R0 => yo));
+        assert_eq!(insn!(ADD R0, R0, R0 => One simple instruction ), insn!(ADD R0, R0, R0 => <- Another simple instruction));
+        assert_eq!(insn!(ADD R0, R0, R0 => /* One simple instruction */ ), insn!(ADD R0, R0, R0 =>  <- /*! Another simple instruction */));
+        assert_eq!(insn!(ADD R0, R0, R0 => multiple
+                lines
+                are
+                just
+                fine
+            ),
+            insn!(ADD R0, R0, R0 =>  <- /*! Another simple instruction */)
+        );
     }
 
     #[test]
     fn add_reg() {
-        assert_eq!(insn!(ADD R0, R1, R2), AddReg {dr: R0, sr1: R1, sr2: R2});
-        assert_eq!(insn!(ADD R3, R0, R7), AddReg {dr: R3, sr1: R0, sr2: R7});
+        assert_eq!(insn!(ADD R0, R1, R2), AddReg { dr: R0, sr1: R1, sr2: R2 });
+        assert_eq!(insn!(ADD R3, R0, R7), AddReg { dr: R3, sr1: R0, sr2: R7 });
 
         assert_eq!(insn!(ADD R3, R4, R5), insn!(ADD R3, R4, R5));
-        assert_ne!(insn!(ADD R3, R4, R5), insn!(ADD R3, R4, R5));
+        assert_ne!(insn!(ADD R3, R4, R5), insn!(ADD R3, R4, R4));
+    }
+
+    #[test]
+    fn add_imm() {
+        assert_eq!(insn!(ADD R6, R7, #15), AddImm { dr: R6, sr1: R7, imm5: 15 });
+        assert_eq!(insn!(ADD R6, R7, #-16), AddImm { dr: R6, sr1: R7, imm5: -16 });
+        assert_eq!(insn!(ADD R6, R0, #0xF), AddImm { dr: R6, sr1: R0, imm5: 15 });
+    }
+
+    #[should_panic]
+    #[test]
+    fn add_imm_out_of_range() {
+        let _ = insn!(ADD R0, R5, #16);
+    }
+
     }
 }
