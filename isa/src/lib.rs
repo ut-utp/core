@@ -83,5 +83,6 @@ pub const ADDR_SPACE_SIZE_IN_BYTES: usize = ADDR_SPACE_SIZE_IN_WORDS * size_of::
 
 mod isa;
 mod macros;
+pub mod misc;
 
 pub use isa::*;
