@@ -205,5 +205,92 @@
 ///    nice too though) and, for example, CJK codepoints require 3 bytes in
 ///    UTF-8. So:
 ///
-/// 3) What if we went further?
+/// 3) What if we went further? If backwards compatibility weren't a concern _at
+///    all_, what might we do?
+///
+///    UCS-4 or UTF-16 characters. We could do UTF-8 but dealing with characters
+///    spliced across word boundaries seems extremely messy and not worth the
+///    space savings.
+///
+///    Length prefixed strings, Java style. The first word of a string has the
+///    number of *words* (N) that the string occupies *not including that
+///    starting word*. The following N words contain the strings characters, in
+///    order. Note: If we were to go with UCS-4 this would be sufficient to
+///    determine the number of characters in the string; with UTF-16 it is not.
+///
+///    KBDR and DDR are now 2 words each. Writes to the low (least significant)
+///    word cause the display peripheral to actually process the data in the low
+///    and high words. If the high word was not set since the words were last
+///    processed, a single word UTF-16 character is assumed. The keyboard
+///    peripheral will grow a bit in the status register indicating whether the
+///    current character is one or two UTF-16 words. Note: If we were to go with
+///    UCS-4 the DDR would read both bytes always and there would be no extra
+///    bit in the KBSR.
+///
+///    The single character TRAPs now take pointers:
+///      - GETC: Pointer to an existing string in R0.
+///        + Conveniently, mem\[R0\] == 0 is interpreted as an existing string
+///          that is empty.
+///        + This TRAP will now append the character that's read in onto the end
+///          of the string.
+///        + R0 remains as is, R1 will contain the address of the appended
+///          character.
+///        + Sidenote: I think it makes sense for this TRAP to now take a
+///          pointer to a string instead of a pointer of a memory location to
+///          place a character so that the callee doesn't have to figure out how
+///          many words the appended character occupies (in the case of UTF-16).
+///          * It's also just nicer.
+///      - OUT: Pointer to the starting word of a character in R0.
+///        + Starting word assumes UTF-16; if UCS-4 then just the top word.
+///        + In the case of UTF-16, this TRAP would figure out if the char is
+///          one or two words.
+///      - PUTS: Pointer to an existing string in R0.
+///        + R1 will contain the number of characters printed out.
+///      - IN: Pointer to an existing string in R0.
+///        + Same behavior as `GETC` when passed in 0.
+///        + R1 will contain the number of characters appended to the string.
+///      - PUTSP: Gone.
+///        + There isn't a more packed representation with UTF-16 or UCS-4.
+///
+///    The preprocessor string directives get simpler:
+///      - .FILL: Encodes a character into either one or two words (if UTF-16).
+///        + Actually this is a little more complicated than before.
+///      - .STRINGZ: Encodes a string into the representation detailed above.
+///        + Okay, this is more also more complicated, but no NULL termination
+///          or anything.
+///      - <packed string directive>: As with PUTSP, gone!
+///
+///    And I think that covers it!
+///
+///    The upside is full Unicode compatibility! And a more sane string type.
+///    And nicer TRAPs.
+///
+///    The downsides, of course, are many:
+///      - Absolutely no backwards compatibility.
+///      - Would *absolutely* break existing code.
+///        + the TRAPs are entirely different not to mention strings now occupy
+///          a different amount of space (possible) since there is no packed
+///          representation
+///      - It's not zero cost.
+///        + This a downside of UTF-16 and UCS-4; if all I care about is ASCII
+///          I'm still paying a size penalty.
+///        + There's also a performance penalty (more checks, though less so for
+///          UCS-4)! We don't really care about this though.
+///      - This is potentially more complexity than we'd want to expose on a
+///        pedagogic system. We routinely choose to hide messy real world
+///        complexities so that things are easier to teach and understand and
+///        Unicode probably qualifies as something we should hide.
+///        + I actually disagree with this:
+///          * I think the above model isn't all that complicated.
+///          * I think you only need a very surface level understanding of
+///            Unicode to use the above.
+///          * More importantly, I think basic Unicode is essentially *required*
+///            today; perpetuating the idea that you can do with ASCII in the
+///            real world probably borders on irresponsible.
+///        + That said, not being backwards compatible with ASCII *is* a deal
+///          breaker for something in this category (an educational tool).
+///
+/// Fwiw, [this LC-3 assembler crate](https://github.com/cr0sh/lc3asm) seems to
+/// have support for UTF-8 string literals iiuc; I'm not sure how (if at all)
+/// they deal with UTF-8 strings/characters in the userspace.
 pub fn __() -> () {}
