@@ -8,11 +8,12 @@
 use super::error::Error;
 use super::{Addr, Word};
 use core::future::Future;
-
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
 #[derive(Copy, Clone)]
+
+
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
@@ -95,15 +96,15 @@ pub trait Control {
 
     // I/O Access:
     // TODO!! Does the state/reading separation make sense?
-    fn get_gpio_states();
-    fn get_gpio_reading();
-    fn get_adc_states();
-    fn get_adc_reading();
-    fn get_timer_states();
-    fn get_timer_config();
-    fn get_pwm_states();
-    fn get_pwm_config();
-    fn get_clock();
+   // fn get_gpio_states();
+   // fn get_gpio_reading();
+   // fn get_adc_states();
+   // fn get_adc_reading();
+   // fn get_timer_states();
+   // fn get_timer_config();
+   // fn get_pwm_states();
+   // fn get_pwm_config();
+   // fn get_clock();
 
     // So with some of these functions that are basically straight wrappers over their Memory/Peripheral trait counterparts,
     // we have a bit of a choice. We can make Control a super trait of those traits so that we can have default impls of said
