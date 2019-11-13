@@ -140,7 +140,74 @@ impl From<&Reg> for u8 {
     }
 }
 
-// Alternative way is to use repr(C) with bitfields.
+impl Reg {
+    // This is an awful hack that only exists because const fn isn't where we
+    // want it to be yet. Once we've got a way to impl a const version (or impl
+    // of) Into<u16> and a way to match in const functions, this should perish.
+    #[doc(hidden)]
+    pub const fn to_word(self) -> Word {
+        // All of this seems clever but doesn't work because == calls eq which
+        // brings us right back to the trait problem. If core::mem::discriminant
+        // was const fn we'd be able to get somewhere, but alas: it is not.
+        /*
+        use Reg::*;
+        use super::WORD_MAX_VAL;
+
+        const VARIANTS: [(Reg, u16); Reg::NUM_REGS] = [
+            (R0, 0),
+            (R1, 1),
+            (R2, 2),
+            (R3, 3),
+            (R4, 4),
+            (R5, 5),
+            (R6, 6),
+            (R7, 7),
+        ];
+
+        // TODO: remove, redundant
+        // // An attempt to win back some compile time safeties:
+        // // (this will explode if we ever add more registers without adding them
+        // // to our array above)
+        // VARIANTS[Reg::NUM_REGS - 1];
+
+        let mut word: Word = 0;
+
+        macro_rules! single {
+            ($word:ident, $idx:literal) => {
+                let b: bool = self == VARIANTS[$idx].0;
+
+                // Assumes false => 0, true => 1.
+                let mask: Word = [0, WORD_MAX_VAL][b as usize];
+
+                $word += (VARIANTS[$idx].1) & mask;
+            };
+        }
+
+        macro_rules! list {
+            ($word:ident, $idx:literal, $($rest:literal),*) => {
+                single!($word, $idx);
+                list!($word, $($rest),*);
+            };
+
+            ($word:ident, $idx:literal) => {
+                single!($word, $idx);
+            }
+        }
+
+        list!(word, 0, 1, 2, 3, 4, 5, 6, 7);
+
+        word
+        */
+
+        // So instead we'll do this which seems hacky and gross but works.
+        // (this isn't as unsafe/crazy as it seems: enums that have variants
+        // that have associated data are considered non-primitive; if you try
+        // to `as` one of those into an integer like we do below, you'll get
+        // an error)
+
+        self as Word
+    }
+}
 
 type Sw = SignedWord;
 
@@ -707,6 +774,17 @@ impl From<Instruction> for Word {
     }
 }
 
+impl Instruction {
+
+    // // This is an awful hack that only exists because const fn isn't where we
+    // // want it to be yet. Once we've got a way to impl a const version (or impl
+    // // of) Into<u16> and a way to match in const functions, this should perish.
+    // #[doc(hidden)]
+    // pub const fn to_word(&self) -> Word {
+
+    // }
+}
+
 // TODO: tests for Instruction
 // TODO: basic macro
 // TODO: functions to get Instruction documentation? (not derive display though)
@@ -738,6 +816,21 @@ mod reg_tests {
         eq(R5, 5);
         eq(R6, 6);
         eq(R7, 7);
+
+        Reg::REGS.iter().enumerate().for_each(|(idx, reg)| {
+            assert_eq!(Into::<u8>::into(reg), idx as u8);
+        });
+    }
+
+    const REG_R1_VAL: crate::Word = R1.to_word();
+
+    #[test]
+    fn stopgap_const_fn_into() {
+        assert_eq!(REG_R1_VAL, 1);
+
+        Reg::REGS.iter().for_each(|reg| {
+            assert_eq!(Into::<u8>::into(reg) as crate::Word, reg.to_word());
+        });
     }
 
     #[test]
