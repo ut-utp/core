@@ -8,20 +8,20 @@
 #[macro_export]
 macro_rules! insn {
     (ADD $dr:ident, $sr1:ident, $sr2:ident $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_add_reg(reg!($dr), reg!($sr1), reg!($sr2))
+        $crate::Instruction::new_add_reg($crate::reg!($dr), $crate::reg!($sr1), $crate::reg!($sr2))
     };
     (ADD $dr:ident, $sr1:ident, #$imm5:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_add_imm(reg!($dr), reg!($sr1), $imm5)
+        $crate::Instruction::new_add_imm($crate::reg!($dr), $crate::reg!($sr1), $imm5)
     };
 
     (AND $dr:ident, $sr1:ident, $sr2:ident $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_and_reg(reg!($dr), reg!($sr1), reg!($sr2))
+        $crate::Instruction::new_and_reg($crate::reg!($dr), $crate::reg!($sr1), $crate::reg!($sr2))
     };
     (AND $dr:ident, $sr1:ident, #$imm5:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_and_imm(reg!($dr), reg!($sr1), $imm5)
+        $crate::Instruction::new_and_imm($crate::reg!($dr), $crate::reg!($sr1), $imm5)
     };
 
-    (BR #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => { insn!(BRnzp #$offset9) };
+    (BR #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => { $crate::insn!(BRnzp #$offset9) };
     (BRn #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => {
         $crate::Instruction::new_br(true, false, false, $offset9)
     };
@@ -45,7 +45,7 @@ macro_rules! insn {
     };
 
     (JMP $base:ident $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_jmp(reg!($base))
+        $crate::Instruction::new_jmp($crate::reg!($base))
     };
 
     (JSR #$offset11:expr $(,)? $(=> $($extra:tt)*)?) => {
@@ -53,27 +53,27 @@ macro_rules! insn {
     };
 
     (JSRR $base:ident $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_jsrr(reg!($base))
+        $crate::Instruction::new_jsrr($crate::reg!($base))
     };
 
     (LD $dr:ident, #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_ld(reg!($dr), $offset9)
+        $crate::Instruction::new_ld($crate::reg!($dr), $offset9)
     };
 
     (LDI $dr:ident, #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_ldi(reg!($dr), $offset9)
+        $crate::Instruction::new_ldi($crate::reg!($dr), $offset9)
     };
 
     (LDR $dr:ident, $base:ident, #$offset6:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_ldr(reg!($dr), reg!($base), $offset6)
+        $crate::Instruction::new_ldr($crate::reg!($dr), $crate::reg!($base), $offset6)
     };
 
     (LEA $dr:ident, #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_lea(reg!($dr), $offset9)
+        $crate::Instruction::new_lea($crate::reg!($dr), $offset9)
     };
 
     (NOT $dr:ident, $sr:ident $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_not(reg!($dr), reg!($sr))
+        $crate::Instruction::new_not($crate::reg!($dr), $crate::reg!($sr))
     };
 
     (RET $(=> $($extra:tt)*)?) => {
@@ -85,15 +85,15 @@ macro_rules! insn {
     };
 
     (ST $sr:ident, #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_st(reg!($sr), $offset9)
+        $crate::Instruction::new_st($crate::reg!($sr), $offset9)
     };
 
     (STI $sr:ident, #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_sti(reg!($sr), $offset9)
+        $crate::Instruction::new_sti($crate::reg!($sr), $offset9)
     };
 
     (STR $sr:ident, $base:ident, #$offset9:expr $(,)? $(=> $($extra:tt)*)?) => {
-        $crate::Instruction::new_str(reg!($sr), reg!($base), $offset9)
+        $crate::Instruction::new_str($crate::reg!($sr), $crate::reg!($base), $offset9)
     };
 
     (TRAP #$trapvec:expr $(,)? $(=> $($extra:tt)*)?) => {
@@ -113,16 +113,16 @@ macro_rules! word {
         panic!("Sorry! .BLKW isn't supported. Try `lc3_isa::string!()`?");
     };
 
-    (GETC $(=> $($extra:tt)*)?) => { word!(TRAP #0x20) };
-    (OUT $(=> $($extra:tt)*)?) => { word!(TRAP #0x21) };
-    (PUTS $(=> $($extra:tt)*)?) => { word!(TRAP #0x22) };
-    (IN $(=> $($extra:tt)*)?) => { word!(TRAP #0x23) };
-    (HALT $(=> $($extra:tt)*)?) => { word!(TRAP #0x25) };
+    (GETC $(=> $($extra:tt)*)?) => { $crate::word!(TRAP #0x20) };
+    (OUT $(=> $($extra:tt)*)?) => { $crate::word!(TRAP #0x21) };
+    (PUTS $(=> $($extra:tt)*)?) => { $crate::word!(TRAP #0x22) };
+    (IN $(=> $($extra:tt)*)?) => { $crate::word!(TRAP #0x23) };
+    (HALT $(=> $($extra:tt)*)?) => { $crate::word!(TRAP #0x25) };
 
-    (NOP $(=> $($extra:tt)*)?) => { word!(BR #0) };
+    (NOP $(=> $($extra:tt)*)?) => { $crate::word!(BR #0) };
 
     ($($other:tt)*) => {
-        Into::<$crate::Word>::into(insn!($($other)*))
+        Into::<$crate::Word>::into($crate::insn!($($other)*))
     }
 }
 
@@ -131,10 +131,11 @@ macro_rules! lc3_prog {
     // Note: `$(=> $($_a:ident$($_b:literal)?)*)?` is a bad approximation of comments, but c'est la vie
     (.ORIG #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($(.)? $op:ident $($regs:ident),* $(,)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?;)*) => {
         {
-            let mut addr: $crate::Addr = $orig;
+            #[allow(mutable)]
+            let mut _addr: $crate::Addr = $orig;
 
             [$(
-                ({addr += 1; addr - 1}, word!($op $($regs,)* $(#$num)*)),
+                ({_addr += 1; _addr - 1}, $crate::word!($op $($regs,)* $(#$num)*)),
             )*]
 
         }
