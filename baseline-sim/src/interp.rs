@@ -1,4 +1,4 @@
-use core::ops::Try;
+// use core::ops::Try;
 use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
@@ -31,7 +31,7 @@ pub trait InstructionInterpreter:
     fn get_machine_state(&self) -> MachineState;
     fn reset(&mut self);
 
-    fn get_device_reg<M: MemMapped>(&self) -> Result<M, ()> {
+    fn get_device_reg<M: MemMapped>(&self) -> Result<M, Acv> {
         M::from(self)
     }
 
@@ -44,7 +44,14 @@ pub trait InstructionInterpreter:
     }
 }
 
+// TODO: Swap for Result<Word, Acv>
+
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Acv;
+
+pub type ReadAttempt = Result<Word, Acv>;
+
+/*#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ReadAttempt {
     Success(Word),
     Acv,
@@ -65,30 +72,41 @@ impl Try for ReadAttempt {
     fn from_error(_: Self::Error) -> Self { Self::Acv }
 
     fn from_ok(word: Self::Ok) -> Self { Self::Success(word) }
-}
+}*/
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum WriteAttempt {
-    Success,
-    Acv,
-}
 
-impl Try for WriteAttempt {
-    type Ok = ();
-    type Error = ();
+// TODO: Swap for Result<(), Acv>
 
-    fn into_result(self) -> Result<Self::Ok, Self::Error> {
-        use WriteAttempt::*;
-        match self {
-            Success => Ok(()),
-            Acv => Err(()),
-        }
-    }
+pub type WriteAttempt = Result<(), Acv>;
 
-    fn from_error(_: Self::Error) -> Self { Self::Acv }
+// #[derive(Copy, Clone, Debug, PartialEq)]
+// pub enum WriteAttempt {
+//     Success,
+//     Acv,
+// }
 
-    fn from_ok(_: Self::Ok) -> Self { Self::Success }
-}
+// impl Try for WriteAttempt {
+//     type Ok = ();
+//     type Error = ();
+
+//     fn into_result(self) -> Result<Self::Ok, Self::Error> {
+//         use WriteAttempt::*;
+//         match self {
+//             Success => Ok(()),
+//             Acv => Err(()),
+//         }
+//     }
+
+//     fn from_error(_: Self::Error) -> Self { Self::Acv }
+
+//     fn from_ok(_: Self::Ok) -> Self { Self::Success }
+// }
+
+// impl WriteAttempt {
+//     pub fn ok(self) {
+//         self.into_result().unwrap()
+//     }
+// }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MachineState {
