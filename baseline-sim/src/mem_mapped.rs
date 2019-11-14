@@ -3,14 +3,14 @@
 use core::ops::Deref;
 use lc3_isa::{Addr, Bits, SignedWord, Word, WORD_MAX_VAL, MCR as MCR_ADDRESS, PSR as PSR_ADDRESS};
 
-use crate::interp::{InstructionInterpreter, WriteAttempt};
+use crate::interp::{Acv, InstructionInterpreter, WriteAttempt};
 
 pub trait MemMapped: Deref<Target = Word> + Sized {
     const ADDR: Addr;
 
     fn with_value(value: Word) -> Self;
 
-    fn from<I: InstructionInterpreter>(interp: &I) -> Result<Self, ()> {
+    fn from<I: InstructionInterpreter>(interp: &I) -> Result<Self, Acv> {
         // Checked access by default:
         Ok(Self::with_value(interp.get_word(Self::ADDR)?))
     }
@@ -27,6 +27,22 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
     #[doc(hidden)]
     fn write_current_value<I: InstructionInterpreter>(&self, interp: &mut I) -> WriteAttempt {
         Self::set(interp, **self)
+    }
+}
+
+// Don't implement this manually; you could mess up. (only implement this if
+// you've overriden the default impls for from and set in the trait above).
+//
+// Use the macro below instead.
+pub trait MemMappedSpecial: MemMapped {
+    // Infallible.
+    fn from_special<I: InstructionInterpreter>(interp: &I) -> Self {
+        Self::from(interp).unwrap()
+    }
+
+    // Also infallible.
+    fn set_special<I: InstructionInterpreter>(interp: &mut I, value: Word) {
+        Self::set(interp, value).unwrap()
     }
 }
 
@@ -58,6 +74,8 @@ macro_rules! mem_mapped {
         #[doc=$comment]
         #[doc="\nDoes not produce access control violations (ACVs) when accessed!"]
         mem_mapped!(+; $name, $address, $comment);
+
+        impl MemMappedSpecial for $name { }
     };
 
     ($special:tt; $name:ident, $address:expr, $comment:literal) => {
@@ -86,7 +104,7 @@ macro_rules! mem_mapped {
 
 macro_rules! _mem_mapped_special_access {
     (+) => {
-        fn from<I: InstructionInterpreter>(interp: &I) -> Result<Self, ()> {
+        fn from<I: InstructionInterpreter>(interp: &I) -> Result<Self, Acv> {
             // Special unchecked access!
             Ok(Self::with_value(interp.get_word_unchecked(Self::ADDR)))
         }
@@ -94,7 +112,7 @@ macro_rules! _mem_mapped_special_access {
         fn set<I: InstructionInterpreter>(interp: &mut I, value: Word) -> WriteAttempt {
             // Special unchecked access!
             interp.set_word_unchecked(Self::ADDR, value);
-            WriteAttempt::Success
+            Ok(())
         }
     };
     (-) => {};
@@ -121,9 +139,9 @@ macro_rules! _mem_mapped_special_access {
 mem_mapped!(KBSR, 0xFE00, "Keyboard Status Register.");
 mem_mapped!(KBDR, 0xFE02, "Keyboard Data Register.");
 
-impl KBSR {
-    pub fn
-}
+// impl KBSR {
+//     pub fn
+// }
 
 mem_mapped!(DSR, 0xFE04, "Display Status Register.");
 mem_mapped!(DDR, 0xFE06, "Display Data Register.");
@@ -146,12 +164,30 @@ impl PSR {
         self.write_current_value(interp);
     }
 
+    pub fn in_user_mode(&self) -> bool { self.bit(15) }
+    pub fn in_privileged_mode(&self) -> bool { !self.in_user_mode() }
+
+    fn set_mode<I: InstructionInterpreter>(&mut self, interp: &mut I, user_mode: bool) {
+        self.0 = self.0.u16(0..14) | (Into::<Word>::into(user_mode) << 15);
+
+        // Don't return a `WriteAttempt` since PSR accesses are infallible.
+        self.write_current_value(interp).unwrap()
+    }
+
+    pub fn to_user_mode<I: InstructionInterpreter>(&mut self, interp: &mut I) {
+        self.set_mode(interp, true)
+    }
+
+    pub fn to_privileged_mode<I: InstructionInterpreter>(&mut self, interp: &mut I) {
+        self.set_mode(interp, false)
+    }
+
     pub fn n(&self) -> bool { self.bit(2) }
     pub fn z(&self) -> bool { self.bit(1) }
     pub fn p(&self) -> bool { self.bit(0) }
     pub fn get_cc(&self) -> (bool, bool, bool) { (self.n(), self.z(), self.p()) }
 
-    pub fn set_cc<I: InstructionInterpreter>(&self, word: Word, interp: &mut I) {
+    pub fn set_cc<I: InstructionInterpreter>(&mut self, interp: &mut I, word: Word) {
         let word = word as SignedWord;
 
         // checking for n is easy once we've got a `SignedWord`.
@@ -172,7 +208,7 @@ impl PSR {
         self.0 = (self.0 & !(WORD_MAX_VAL.word(0..2))) | b(n, 2) | b(z, 1) | b(p, 0);
 
         // Don't return a `WriteAttempt` since PSR accesses are infallible.
-        self.write_current_value(interp);
+        self.write_current_value(interp).unwrap();
     }
 }
 
