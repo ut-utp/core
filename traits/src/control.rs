@@ -7,7 +7,7 @@
 
 use super::error::Error;
 use core::future::Future;
-use lc3_isa::{Addr, Word, Reg, PSR};
+use lc3_isa::{Addr, Reg, Word, PSR};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;

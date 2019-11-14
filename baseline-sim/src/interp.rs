@@ -3,15 +3,17 @@ use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
 
-use lc3_isa::{Addr, Reg::{self, *}, Word};
+use lc3_isa::{
+    Addr,
+    Reg::{self, *},
+    Word,
+};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 
-use super::mem_mapped::{MemMapped, MemMappedSpecial, PSR, BSP};
+use super::mem_mapped::{MemMapped, MemMappedSpecial, BSP, PSR};
 
 pub trait InstructionInterpreter:
-    Index<Reg, Output = Word>
-    + IndexMut<Reg, Output = Word>
-    + Sized
+    Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
 {
     fn step(&mut self) -> MachineState;
 
@@ -25,8 +27,12 @@ pub trait InstructionInterpreter:
     fn set_word_unchecked(&mut self, addr: Addr, word: Word);
     fn get_word_unchecked(&self, addr: Addr) -> Word;
 
-    fn get_register(&self, reg: Reg) -> Word { self[reg] }
-    fn set_register(&mut self, reg: Reg, word: Word) { self[reg] = word; }
+    fn get_register(&self, reg: Reg) -> Word {
+        self[reg]
+    }
+    fn set_register(&mut self, reg: Reg, word: Word) {
+        self[reg] = word;
+    }
 
     fn get_machine_state(&self) -> MachineState;
     fn reset(&mut self);
@@ -43,9 +49,15 @@ pub trait InstructionInterpreter:
         M::update(self, func)
     }
 
-    fn get_special_reg<M: MemMappedSpecial>(&self) -> M { M::from_special(self) }
-    fn set_special_reg<M: MemMappedSpecial>(&mut self, value: Word) { M::set_special(self, value) }
-    fn update_special_reg<M: MemMappedSpecial>(&mut self, func: impl FnOnce(M) -> Word) { M::update(self, func).unwrap() }
+    fn get_special_reg<M: MemMappedSpecial>(&self) -> M {
+        M::from_special(self)
+    }
+    fn set_special_reg<M: MemMappedSpecial>(&mut self, value: Word) {
+        M::set_special(self, value)
+    }
+    fn update_special_reg<M: MemMappedSpecial>(&mut self, func: impl FnOnce(M) -> Word) {
+        M::update(self, func).unwrap()
+    }
 }
 
 // TODO: Swap for Result<Word, Acv>
@@ -77,7 +89,6 @@ impl Try for ReadAttempt {
 
     fn from_ok(word: Self::Ok) -> Self { Self::Success(word) }
 }*/
-
 
 // TODO: Swap for Result<(), Acv>
 
@@ -188,7 +199,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn restore_state(&mut self) -> Result<(), Acv> {
         // Restore the PC and then the PSR.
 
-        self.pop().map(|w| self.set_pc(w))
+        self.pop()
+            .map(|w| self.set_pc(w))
             .and_then(|()| self.pop().map(|w| self.set_special_reg::<PSR>(w)))
     }
 
@@ -228,7 +240,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
         // Go to the exception vector:
         // (this should also not panic)
-        self.pc = self.get_word(0x0100 | (Into::<Word>::into(ex_vec))).unwrap();
+        self.pc = self
+            .get_word(0x0100 | (Into::<Word>::into(ex_vec)))
+            .unwrap();
     }
 
     fn handle_interrupt(&mut self, int_vec: u8, priority: u8) -> bool {
@@ -244,7 +258,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
         // Go to the interrupt vector:
         // (this should also not panic)
-        self.pc = self.get_word(0x0100 | (Into::<Word>::into(int_vec))).unwrap();
+        self.pc = self
+            .get_word(0x0100 | (Into::<Word>::into(int_vec)))
+            .unwrap();
         self.get_special_reg::<PSR>().set_priority(self, priority);
 
         true
@@ -316,7 +332,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         unimplemented!();
     }
 }
-
 
 // struct Interpter<'a, M: Memory, P: Periperals<'a>> {
 //     memory: M,

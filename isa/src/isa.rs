@@ -775,7 +775,6 @@ impl From<Instruction> for Word {
 }
 
 impl Instruction {
-
     // // This is an awful hack that only exists because const fn isn't where we
     // // want it to be yet. Once we've got a way to impl a const version (or impl
     // // of) Into<u16> and a way to match in const functions, this should perish.

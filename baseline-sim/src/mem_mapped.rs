@@ -1,7 +1,7 @@
 //! Constants. (TODO)
 
 use core::ops::Deref;
-use lc3_isa::{Addr, Bits, SignedWord, Word, WORD_MAX_VAL, MCR as MCR_ADDRESS, PSR as PSR_ADDRESS};
+use lc3_isa::{Addr, Bits, SignedWord, Word, MCR as MCR_ADDRESS, PSR as PSR_ADDRESS, WORD_MAX_VAL};
 
 use crate::interp::{Acv, InstructionInterpreter, WriteAttempt};
 
@@ -20,7 +20,10 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
         interp.set_word(Self::ADDR, value)
     }
 
-    fn update<I: InstructionInterpreter>(interp: &mut I, func: impl FnOnce(Self) -> Word) -> WriteAttempt {
+    fn update<I: InstructionInterpreter>(
+        interp: &mut I,
+        func: impl FnOnce(Self) -> Word,
+    ) -> WriteAttempt {
         Self::set(interp, func(Self::from(interp)?))
     }
 
@@ -148,8 +151,6 @@ mem_mapped!(DDR, 0xFE06, "Display Data Register.");
 
 mem_mapped!(special: BSP, 0xFFFA, "Backup Stack Pointer.");
 
-
-
 mem_mapped!(special: PSR, PSR_ADDRESS, "Program Status Register.");
 
 impl PSR {
@@ -164,8 +165,12 @@ impl PSR {
         self.write_current_value(interp);
     }
 
-    pub fn in_user_mode(&self) -> bool { self.bit(15) }
-    pub fn in_privileged_mode(&self) -> bool { !self.in_user_mode() }
+    pub fn in_user_mode(&self) -> bool {
+        self.bit(15)
+    }
+    pub fn in_privileged_mode(&self) -> bool {
+        !self.in_user_mode()
+    }
 
     fn set_mode<I: InstructionInterpreter>(&mut self, interp: &mut I, user_mode: bool) {
         self.0 = self.0.u16(0..14) | (Into::<Word>::into(user_mode) << 15);
@@ -182,10 +187,18 @@ impl PSR {
         self.set_mode(interp, false)
     }
 
-    pub fn n(&self) -> bool { self.bit(2) }
-    pub fn z(&self) -> bool { self.bit(1) }
-    pub fn p(&self) -> bool { self.bit(0) }
-    pub fn get_cc(&self) -> (bool, bool, bool) { (self.n(), self.z(), self.p()) }
+    pub fn n(&self) -> bool {
+        self.bit(2)
+    }
+    pub fn z(&self) -> bool {
+        self.bit(1)
+    }
+    pub fn p(&self) -> bool {
+        self.bit(0)
+    }
+    pub fn get_cc(&self) -> (bool, bool, bool) {
+        (self.n(), self.z(), self.p())
+    }
 
     pub fn set_cc<I: InstructionInterpreter>(&mut self, interp: &mut I, word: Word) {
         let word = word as SignedWord;
@@ -213,8 +226,6 @@ impl PSR {
 }
 
 mem_mapped!(special: MCR, MCR_ADDRESS, "Machine Control Register.");
-
-
 
 // pub const KBDR: Addr = 0xFE02;
 
