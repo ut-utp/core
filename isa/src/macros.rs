@@ -106,6 +106,7 @@ macro_rules! word {
     () => { 0 };
     // (.END) => {};
     ($(.)? FILL #$word:expr $(=> $($extra:tt)*)?) => {
+        // Once const-fn arrives:
         Into::<$crate::Word>::into($word)
     };
 
@@ -126,9 +127,46 @@ macro_rules! word {
     }
 }
 
+/// TODO!
+///
+/// Supports one or two byte UTF-8 characters only.
+// TODO: maybe don't panic?
+// Ideally we'd do all the checks at compile time but const functions are pretty
+// far away from being able to do that so maybe we should go turn this into a
+// proc macro once we've got some more time.
+// proc macro it is! (TODO!) We can spit out a proper array (like loadable!)
+// instead of a macro.
 #[macro_export]
-macro_rules! lc3_prog {
+macro_rules! string {
+    ($addr:expr, $string:literal) => {
+        {
+            ($string).chars().map(|c|) {
+                match c.len_utf8() {
+                    3..=4 => panic!("Can't represent `{}` in <= 2 bytes!", c);
+                    2 => {
+                        let mut buf: [u8; 2] = [0, 0];
+                        c.encode_utf8(&mut buf);
+                    }
+                }
+            }
+
+            let mut arr = [];
+            let mut addr = ($addr);
+
+            for c in $string.chars() {
+
+                addr += 1;
+            }
+
+            arr
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! loadable {
     // Note: `$(=> $($_a:ident$($_b:literal)?)*)?` is a bad approximation of comments, but c'est la vie
+    // Note: this permits dots before instructions and allows dots to be omitted before directives (i.e. both `.ADD` and `FILL` are allowed), but w/e
     (.ORIG #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($(.)? $op:ident $($regs:ident),* $(,)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?;)*) => {
         {
             #[allow(mutable)]
@@ -141,6 +179,53 @@ macro_rules! lc3_prog {
         }
     };
 }
+
+#[macro_export]
+// Note: Supports multiple `.ORIG`s.
+// Note: Same bad approximation of comments. It's fine.
+// Note: The thing that translates from this to loadables doesn't work in
+//       const contexts yet.
+macro_rules! program {
+    (.ORIG #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($rest:tt)*) => {
+        {
+            // On no_std, since we can't use Vec and other heap backed types to
+            // make a dynamically sized thing, we'll just make something as big
+            // as the entire address space and use that to generate the (addr,
+            // word) pairs.
+            //
+            // This is a little silly since this almost certainly will actually
+            // run at compile time on the host (not subject to no_std
+            // restrictions) but:
+            //   - vec::push is not yet a const function (vec::new is on 1.39+
+            //     but, iiuc that's because it doesn't actually allocate heap
+            //     space).
+            #[allow(mutable)]
+            let mut _addr: $crate::Addr;
+
+            #[allow(mutable)]
+            let mut _mem: [($crate::Word, bool); $crate::ADDR_SPACE_SIZE_IN_WORDS] = [(0, false); $crate::ADDR_SPACE_SIZE_IN_WORDS];
+
+            $crate::program!(%%contd, _addr, _mem | .ORIG #$orig; $($rest)*);
+        }
+    };
+
+    (%%contd, $addr:ident, $mem:ident | .ORIG #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($rest:tt)*) => {
+        $addr = $orig;
+
+        $crate::program!(%%contd, $addr, $mem | $($rest)*);
+    };
+
+    (%%contd, $addr:ident, $mem:ident | $name:ident #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($rest:tt)*) => {
+        println!("foo");
+    };
+
+    // The end!
+    (%%contd, $addr:ident, $mem:ident |) => {
+
+    };
+}
+
+#[macro_export]
 /// (TODO!)
 ///
 /// ```rust,compile_fail
