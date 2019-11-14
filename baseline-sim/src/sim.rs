@@ -1,6 +1,7 @@
 use lc3_isa::{Addr, Bits, Instruction, Reg, Word};
 use lc3_traits::control::Control;
 use lc3_traits::memory::Memory;
+use lc3_traits::peripherals::input::Input;
 use lc3_traits::peripherals::{PeripheralSet, Peripherals};
 
 use core::convert::TryInto;
@@ -10,7 +11,7 @@ use core::ops::{Index, IndexMut};
 use core::cell::Cell;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-enum SimulatorState {
+pub enum SimulatorState {
     Running,
     Halted,
 }
@@ -27,7 +28,6 @@ struct Simulator<'a, M: Memory, P: Peripherals<'a>> {
     state: SimulatorState,
     peripheral_state: PeripheralState,
     _p: PhantomData<&'a ()>,
-
 }
 
 impl<'a, M: Memory, P: Peripherals<'a>> Default for Simulator<'a, M, P> {
@@ -56,7 +56,7 @@ pub trait Sim {
     fn get_pc(&self) -> Addr;
 
     fn set_word(&mut self, addr: Addr, word: Word) -> WriteAttempt;
-    fn get_word(&self, addr: Addr) -> ReadAttempt;
+    fn get_word(&mut self, addr: Addr) -> ReadAttempt;
 
     fn get_register(&self, reg: Reg) -> Word;
     fn set_register(&mut self, reg: Reg, word: Word);
@@ -156,7 +156,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Simulator<'a, M, P> {
             // Gotta wait
             false
         }
-
     }
 
     fn is_acv(&self, addr: Word) -> bool {
@@ -165,12 +164,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> Simulator<'a, M, P> {
     }
 }
 
-enum ReadAttempt {
+pub enum ReadAttempt {
     Success(Word),
     Acv,
 }
 
-enum WriteAttempt {
+pub enum WriteAttempt {
     Success,
     Acv,
 }
@@ -222,6 +221,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                             self.set_pc(self.get_pc().wrapping_add(offset9 as Word))
                         }
                     }
+                    Jmp { base: Reg::R7 } | Ret => {
+                        self.set_pc(self[Reg::R7]);
+                    }
                     Jmp { base } => {
                         self.set_pc(self[base]);
                     }
@@ -238,7 +240,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                     Ld { dr, offset9 } => {
                         // TODO: Need to check if address is KBSR or KBDR.
                         match self.get_word(self.get_pc().wrapping_add(offset9 as Word)) {
-                            ReadAttempt::Success(word) => { self[dr] = word; self.set_cc(self[dr]); }
+                            ReadAttempt::Success(word) => {
+                                self[dr] = word;
+                                self.set_cc(self[dr]);
+                            }
                             ReadAttempt::Acv => {}
                         }
                     }
@@ -250,7 +255,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                                     self.set_cc(self[dr]);
                                 }
                                 ReadAttempt::Acv => {}
-                            }
+                            },
                             ReadAttempt::Acv => {}
                         }
                     }
@@ -270,18 +275,17 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                         self[dr] = !self[sr];
                         self.set_cc(self[dr]);
                     }
-                    Ret => {
-                        self.set_pc(self[Reg::R7]);
-                    }
                     Rti => {
                         let psr = self.mem.read_word(PSR);
-                        if (psr.bit(15)) == false { // In supervisor mode
+                        if (psr.bit(15)) == false {
+                            // In supervisor mode
                             self.set_pc(self.mem.read_word(self[Reg::R6])); // TODO: make this an unwrap
                             self[Reg::R6] += 1;
                             self.mem.write_word(PSR, self.mem.read_word(self[Reg::R6])); // TODO: make this an unwrap
                             self[Reg::R6] += 1;
 
-                            if self.mem.read_word(PSR).bit(15) { // If we're going back to user mode, swap the stack pointers
+                            if self.mem.read_word(PSR).bit(15) {
+                                // If we're going back to user mode, swap the stack pointers
                                 let (usp, ssp) = (self.mem.read_word(BSP), self[Reg::R6]);
                                 self.mem.write_word(BSP, ssp);
                                 self[Reg::R6] = usp;
@@ -298,27 +302,28 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                     }
                     Sti { sr, offset9 } => {
                         match self.get_word(self.get_pc().wrapping_add(offset9 as Word)) {
-                            ReadAttempt::Success(indir) => {
-                                match self.set_word(indir, self[sr]) {
-                                    WriteAttempt::Success => {}
-                                    WriteAttempt::Acv => {}                                }
-                            }
+                            ReadAttempt::Success(indir) => match self.set_word(indir, self[sr]) {
+                                WriteAttempt::Success => {}
+                                WriteAttempt::Acv => {}
+                            },
                             ReadAttempt::Acv => {}
                         }
                     }
                     Str { sr, base, offset6 } => {
                         match self.set_word(self[base].wrapping_add(offset6 as Word), self[sr]) {
-                            WriteAttempt::Success => {},
-                            WriteAttempt::Acv => {},
+                            WriteAttempt::Success => {}
+                            WriteAttempt::Acv => {}
                         }
                     }
                     Trap { trapvec } => {
-                        if self.mem.read_word(PSR).bit(15) { // User mode going into supervisor mode
+                        if self.mem.read_word(PSR).bit(15) {
+                            // User mode going into supervisor mode
                             let (usp, ssp) = (self[Reg::R6], self.mem.read_word(BSP));
                             self.mem.write_word(BSP, usp);
                             self[Reg::R6] = ssp;
 
-                            self.mem.write_word(PSR, self.mem.read_word(PSR) & !(0x8000));
+                            self.mem
+                                .write_word(PSR, self.mem.read_word(PSR) & !(0x8000));
                         }
 
                         self[Reg::R6] -= 1;
@@ -353,7 +358,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
         }
 
         match addr {
-            KBDR => {},
+            KBDR => {}
             MCR => {
                 if !word.bit(15) {
                     // Halt!
@@ -361,22 +366,21 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                 }
                 self.mem.write_word(addr, word)
             }
-            _ => self.mem.write_word(addr, word)
-
+            _ => self.mem.write_word(addr, word),
         }
 
         WriteAttempt::Success
     }
 
-    fn get_word(&self, addr: Addr) -> ReadAttempt {
+    fn get_word(&mut self, addr: Addr) -> ReadAttempt {
         if self.is_acv(addr) {
             self.handle_exception(0x02);
             return ReadAttempt::Acv;
         }
 
         ReadAttempt::Success(match addr {
-            KBDR
-            _ => self.mem.read_word(addr)
+            KBDR => <P as Input>::read(&mut self.peripherals).unwrap() as Word,
+            _ => self.mem.read_word(addr),
         })
     }
 
@@ -392,6 +396,47 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
     //     self.state
     // }
 }
+
+// impl<'a, M: Memory, P: Peripherals<'a>> Control for Simulator<'a, M, P> {
+//     fn get_pc(&self) -> Addr {
+//         self.pc
+//     }
+
+//     fn set_pc(&mut self, addr: Addr) {
+//         self.pc = addr;
+//     }
+
+//     fn get_register(&self, reg: Reg) -> Word {
+//         self[reg]
+//     }
+
+//     fn set_register(&mut self, reg: Reg, data: Word) {
+//         self[reg] = data;
+//     }
+
+//     fn write_word(&mut self, addr: Addr, word: Word) {
+//         self.mem.write_word(addr, word)
+//     }
+
+//     fn read_word(&self, addr: Addr) -> Word {
+//         self.read_word(addr)
+//     }
+
+//     fn commit_memory(&self) -> Result<(), ()> {
+//         self.mem.commit().map_err(|_| ())
+//     }
+
+//     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+//         unimplemented!()
+//     }
+
+//     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
+//         unimplemented!()
+//     }
+
+//     fn get_breakpoint(&self) -> [Option<Addr>; ]
+
+// }
 
 // #[cfg(test)]
 // mod tests {
