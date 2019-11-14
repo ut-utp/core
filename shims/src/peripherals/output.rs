@@ -1,35 +1,83 @@
 use lc3_traits::peripherals::output::{Output, OutputError};
 use std::io::{stdout, Error as IoError, Write};
 
-use std::rc::Rc;
+use std::convert::AsMut;
+use std::marker::PhantomData;
+use std::ops::Deref;
+use std::ops::DerefMut;
+use std::sync::Arc;
+
+enum OwnedOrRef<'a, R: ?Sized> {
+    Owned(Box<R>),
+    Ref(&'a mut R),
+}
+
+impl<'a, R: ?Sized> Deref for OwnedOrRef<'a, R> {
+    type Target = R;
+
+    fn deref(&self) -> &R {
+        use OwnedOrRef::*;
+
+        match self {
+            Owned(r) => r,
+            Ref(r) => r,
+        }
+    }
+}
+
+impl<'a, R: ?Sized> DerefMut for OwnedOrRef<'a, R> {
+    fn deref_mut(&mut self) -> &mut R {
+        use OwnedOrRef::*;
+
+        match self {
+            Owned(r) => r,
+            Ref(r) => r,
+        }
+    }
+}
 
 pub struct OutputShim<'a> {
-    sink: &'a mut dyn Write,
+    // pub struct OutputShim {
+    // sink: &'a mut dyn Write,
+    // sink: Box<dyn Write>,
+    sink: OwnedOrRef<'a, dyn Write + 'a>,
+    // _marker: PhantomData<&'a ()>,
+    // sink: &'a mut dyn AsRef<dyn Write>,
 }
 
 impl Default for OutputShim<'_> {
+    // impl Default for OutputShim {
     fn default() -> Self {
-        let out = Box::new(stdout());
-
         Self {
-            sink: std::boxed::Box::<std::io::Stdout>::leak(out), // TODO: DO NOT DO THIS!!!
+            // sink: std::boxed::Box::<std::io::Stdout>::leak(out), // TODO: DO NOT DO THIS!!!
+            sink: OwnedOrRef::Owned(Box::new(stdout())),
         }
     }
 }
 
 impl<'a> OutputShim<'a> {
-    fn new() -> Self {
+    // impl OutputShim {
+    pub fn new() -> Self {
         Self::default()
     }
 
-    fn using(sink: &'a mut dyn Write) -> Self {
-        Self { sink }
+    pub fn using(sink: Box<dyn Write>) -> Self {
+        Self {
+            sink: OwnedOrRef::Owned(sink),
+        }
+    }
+
+    pub fn with_ref(sink: &'a mut dyn Write) -> Self {
+        Self {
+            sink: OwnedOrRef::<'a, dyn Write>::Ref(sink),
+        }
     }
 }
 
 impl Output for OutputShim<'_> {
+    // impl Output for OutputShim {
     fn write(&mut self, c: u8) -> Result<(), OutputError> {
-        self.sink.write(&[c]).map_err(|_| OutputError)?;
+        let _ = self.sink.write(&[c]).map_err(|_| OutputError)?;
         self.sink.flush().map_err(|_| OutputError)?;
 
         Ok(())
@@ -43,9 +91,11 @@ mod tests {
     #[test]
     fn write_one() {
         let mut sink = Vec::new();
-        let mut shim = OutputShim::using(&mut sink);
+        let mut shim = OutputShim::with_ref(&mut sink);
+        // let mut shim = OutputShim { sink: OwnedOrRef::Ref(&mut sink) };
         let ch0 = 'A' as u8;
         let res = shim.write(ch0);
+        drop(shim);
         assert_eq!(res, Ok(()));
         assert_eq!(sink[0], ch0);
     }
@@ -53,7 +103,7 @@ mod tests {
     #[test]
     fn write_multiple() {
         let mut sink = Vec::new();
-        let mut shim = OutputShim::using(&mut sink);
+        let mut shim = OutputShim::with_ref(&mut sink);
         let ch0 = 'L' as u8;
         let ch1 = 'C' as u8;
         let ch2 = '-' as u8;
@@ -62,6 +112,7 @@ mod tests {
         shim.write(ch1).unwrap();
         shim.write(ch2).unwrap();
         shim.write(ch3).unwrap();
+        drop(shim);
         assert_eq!(sink[0], ch0);
         assert_eq!(sink[1], ch1);
         assert_eq!(sink[2], ch2);
@@ -74,11 +125,11 @@ mod tests {
     fn write_too_much() {
         let mut buf: [u8; 1] = [0];
         let sink = &mut buf.as_mut();
-        let mut shim = OutputShim::using(sink);
+        let mut shim = OutputShim::with_ref(sink);
         let ch0 = 'Y' as u8;
         let ch1 = 'P' as u8;
         shim.write(ch0).unwrap();
         let res = shim.write(ch1);
-        // assert_eq!(res, Err(OutputError));
+        assert_eq!(res, Err(OutputError));
     }
 }
