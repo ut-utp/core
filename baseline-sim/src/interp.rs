@@ -301,7 +301,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
                         self.set_cc(self[dr]);
                     }
                     AddImm { dr, sr1, imm5 } => {
-                        self[dr] = self[sr1] + imm5 as Word;
+                        self[dr] = self[sr1].wrapping_add(imm5 as Word);
                         self.set_cc(self[dr]);
                     }
                     AndReg { dr, sr1, sr2 } => {
