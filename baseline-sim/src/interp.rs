@@ -9,8 +9,10 @@ use lc3_isa::{
     Word,
 };
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
+use lc3_isa::Instruction;
 
 use super::mem_mapped::{MemMapped, MemMappedSpecial, BSP, PSR};
+use std::thread::current;
 
 pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
@@ -279,7 +281,136 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     fn step(&mut self) -> MachineState {
-        unimplemented!()
+        use Instruction::*;
+
+        if let MachineState::Halted = self.get_machine_state() {
+            return self.get_machine_state();
+        }
+
+        // Increment PC (state 18):
+        let current_pc = self.get_pc();
+        self.set_pc(current_pc.wrapping_add(1)); // TODO: ???
+
+        // TODO: Peripheral interrupt stuff
+
+        match self.get_word(current_pc) {
+            Ok(word) => match word.try_into() {
+                Ok(ins) => match ins {
+                    AddReg { dr, sr1, sr2 } => {
+                        self[dr] = self[sr1].wrapping_add(self[sr2]);
+                        self.set_cc(self[dr]);
+                    }
+                    AddImm { dr, sr1, imm5 } => {
+                        self[dr] = self[sr1] + imm5 as Word;
+                        self.set_cc(self[dr]);
+                    }
+                    AndReg { dr, sr1, sr2 } => {
+                        self[dr] = self[sr1] & self[sr2];
+                        self.set_cc(self[dr]);
+                    }
+                    AndImm { dr, sr1, imm5 } => {
+                        self[dr] = self[sr1] & imm5 as Word;
+                        self.set_cc(self[dr]);
+                    }
+                    Br { n, z, p, offset9 } => {
+                        let (N, Z, P) = self.get_cc();
+                        if n & N || z & Z || p & P {
+                            self.set_pc(self.get_pc().wrapping_add(offset9 as Word));
+                        }
+                    }
+                    Jmp { base: Reg::R7 } | Ret => {
+                        self.set_pc(self[Reg::R7]);
+                    }
+                    Jmp { base } => {
+                        self.set_pc(self[base]);
+                    }
+                    Jsr { offset11 } => {
+                        self[Reg::R7] = self.get_pc();
+                        self.set_pc(self.get_pc().wrapping_add(offset11 as Word));
+                    }
+                    Jsrr { base } => {
+                        // TODO: add a test where base _is_ R7!!
+                        let (pc, new_pc) = (self.get_pc(), self[base]);
+                        self.set_pc(new_pc);
+                        self[Reg::R7] = pc;
+                    }
+                    Ld { dr, offset9 } => {
+                        // TODO: Need to check if address is KBSR or KBDR.
+                        match self.get_word(self.get_pc().wrapping_add(offset9 as Word)) {
+                            Ok(word) => {
+                                self[dr] = word;
+                                self.set_cc(self[dr]);
+                            }
+                            Err(acv) => {}
+                        }
+                    }
+                    Ldi { dr, offset9 } => {
+                        match self.get_word(self.get_pc().wrapping_add(offset9 as Word)) {
+                            Ok(indir) => match self.get_word(indir) {
+                                Ok(word) => {
+                                    self[dr] = word;
+                                    self.set_cc(self[dr]);
+                                }
+                                Err(acv) => {}
+                            },
+                            Err(acv) => {}
+                        }
+                    }
+                    Ldr { dr, base, offset6 } => {
+                        match self.get_word(self[base].wrapping_add(offset6 as Word)) {
+                            Ok(word) => {
+                                self[dr] = word;
+                                self.set_cc(self[dr]);
+                            }
+                            Err(acv) => {}
+                        }
+                    }
+                    Lea { dr, offset9 } => {
+                        self[dr] = self.get_pc().wrapping_add(offset9 as Word);
+                    }
+                    Not { dr, sr } => {
+                        self[dr] = !self[sr];
+                        self.set_cc(self[dr]);
+                    }
+                    Rti => {
+                        unimplemented!();
+                    }
+                    St { sr, offset9 } => {
+                        match self.set_word(self.get_pc().wrapping_add(offset9 as Word), self[sr]) {
+                            Ok(()) => {}
+                            Err(acv) => {}
+                        }
+                    }
+                    Sti { sr, offset9 } => {
+                        match self.get_word(self.get_pc().wrapping_add(offset9 as Word)) {
+                            Ok(indir) => match self.set_word(indir, self[sr]) {
+                                Ok(()) => {}
+                                Err(acv) => {}
+                            },
+                            Err(acv) => {}
+                        }
+                    }
+                    Str { sr, base, offset6 } => {
+                        match self.set_word(self[base].wrapping_add(offset6 as Word), self[sr]) {
+                            Ok(()) => {}
+                            Err(acv) => {}
+                        }
+                    }
+                    Trap { trapvec } => {
+                        unimplemented!();
+                    }
+                }
+                Err(_) => {
+                    self.handle_exception(0x01);
+                }
+            }
+            Err(acv) => {
+                // TODO: what do
+                panic!();
+            }
+        }
+
+        self.get_machine_state()
     }
 
     fn set_pc(&mut self, addr: Addr) {
