@@ -11,6 +11,11 @@ use lc3_isa::{
     Instruction,
     MEM_MAPPED_START_ADDR,
     USER_PROGRAM_START_ADDR,
+    TRAP_VECTOR_TABLE_START_ADDR,
+    INTERRUPT_VECTOR_TABLE_START_ADDR,
+    PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR,
+    ILLEGAL_OPCODE_EXCEPTION_VECTOR,
+    ACCESS_CONTROL_VIOLATION_EXCEPTION_VECTOR
 };
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
@@ -184,6 +189,16 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         self.push_state().unwrap();
     }
 
+    fn handle_trap(&mut self, trap_vec: u8) {
+        self.prep_for_execution_event();
+
+        // Go to the trap vector:
+        // (this should also not panic)
+        self.pc = self
+            .get_word(TRAP_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(trap_vec)))
+            .unwrap();
+    }
+
     // TODO: find a word that generalizes exception and trap...
     // since that's what this handles
     fn handle_exception(&mut self, ex_vec: u8) {
@@ -192,7 +207,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // Go to the exception vector:
         // (this should also not panic)
         self.pc = self
-            .get_word(0x0100 | (Into::<Word>::into(ex_vec)))
+            .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(ex_vec)))
             .unwrap();
     }
 
@@ -210,7 +225,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // Go to the interrupt vector:
         // (this should also not panic)
         self.pc = self
-            .get_word(0x0100 | (Into::<Word>::into(int_vec)))
+            .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(int_vec)))
             .unwrap();
         self.get_special_reg::<PSR>().set_priority(self, priority);
 
