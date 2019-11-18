@@ -401,25 +401,20 @@ where
             Lea { dr, offset9 } => I!(dr <- PC + offset9),
             Not { dr, sr } => I!(dr <- !R[sr]),
             Rti => {
-                unimplemented!();
-            }
-            St { sr, offset9 } => {
-                i!(mem[self.get_pc().wrapping_add(offset9 as Word)] <- self[sr]);
+                if self.get_special_reg::<PSR>().in_privileged_mode() {
+                    // This should never panic:
+                    self.restore_state().unwrap();
 
-                I!(mem[PC + offset9] <- R[sr])
-            }
-            Sti { sr, offset9 } => {
-                i!(mem[self.get_word(self.get_pc().wrapping_add(offset9 as Word))?] <- self[sr]);
-
-                // I!(mem[mem[PC + offset9]] <- R[sr])
-            }
-            Str { sr, base, offset6 } => {
-                i!(mem[self[base].wrapping_add(offset6 as Word)] <- self[sr]);
-
-                // I!(mem[R[base] + offset6] <- R[sr])
-            }
-            Trap { trapvec } => {
-                unimplemented!();
+                    // If we've gone back to user mode..
+                    if self.get_special_reg::<PSR>().in_user_mode() {
+                        // ..swap the stack pointers.
+                        self.swap_stacks();
+                    }
+                } else {
+                    // If RTI is called from user mode, raise the privilege mode
+                    // exception:
+                    self.handle_exception(PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR)
+                }
             }
             St { sr, offset9 } => I!(mem[PC + offset9] <- R[sr]),
             Sti { sr, offset9 } => I!(mem[mem[PC + offset9]] <- R[sr]),
