@@ -157,6 +157,103 @@ mem_mapped!(KBDR, 0xFE02, "Keyboard Data Register.");
 mem_mapped!(DSR, 0xFE04, "Display Status Register.");
 mem_mapped!(DDR, 0xFE06, "Display Data Register.");
 
+macro_rules! gpio_mem_mapped {
+    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+        #[doc=$pin_name]
+        #[doc="GPIO Pin Control Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $cr(Word);
+
+        impl Deref for $cr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $cr {
+            const ADDR: Addr = $addr;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let state = Gpio::get_state(interp.get_peripherals(), $pin);
+
+                use lc3_traits::peripherals::gpio::GpioState::*;
+                let word: Word = match state {
+                    Disabled => 0,
+                    Output => 1,
+                    Input => 2,
+                    Interrupt => 3,
+                };
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                use lc3_traits::peripherals::gpio::GpioState::*;
+                let state = match value.bits(0..2) {
+                    0 => Disabled,
+                    1 => Output,
+                    2 => Input,
+                    3 => Interrupt,
+                    _ => unreachable!()
+                };
+
+                Gpio::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
+
+                Ok(())
+            }
+        }
+
+        #[doc=$pin_name]
+        #[doc="GPIO Pin Data Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $dr(Word);
+
+        impl Deref for $dr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $dr {
+            const ADDR: Addr = $addr + 1;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let word = Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(2); // TODO: document and/or change the 'error' value
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let bit: bool = value.bit(0);
+                Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
+
+                Ok(())
+            }
+        }
+    };
+}
+
+
+use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*};
+
+gpio_mem_mapped!(G0, "G0", G0CR, G0DR, 0xFE07);
+gpio_mem_mapped!(G1, "G1", G1CR, G1DR, 0xFE09);
+gpio_mem_mapped!(G2, "G2", G2CR, G2DR, 0xFE0B);
+gpio_mem_mapped!(G3, "G3", G3CR, G3DR, 0xFE0D);
+gpio_mem_mapped!(G4, "G4", G4CR, G4DR, 0xFE0F);
+gpio_mem_mapped!(G5, "G5", G5CR, G5DR, 0xFE11);
+gpio_mem_mapped!(G6, "G6", G6CR, G6DR, 0xFE13);
+gpio_mem_mapped!(G7, "G7", G7CR, G7DR, 0xFE15);
+
+
 mem_mapped!(special: BSP, 0xFFFA, "Backup Stack Pointer.");
 
 mem_mapped!(special: PSR, PSR_ADDRESS, "Program Status Register.");
