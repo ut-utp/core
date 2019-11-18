@@ -249,6 +249,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             (PC <- $expr:expr) => {
                 self.set_pc($expr);
             };
+            (mem[$addr:expr] <- $expr:expr) => {
+                self.set_word($addr, $expr)?;
+            };
             ($dr:ident <- $expr:expr) => {
                 self[$dr] = $expr;
                 if insn.sets_condition_codes() { self.set_cc(self[$dr]); }
@@ -256,51 +259,54 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         }
 
         macro_rules! I {
-            (PC <- $expr:expr) => {
+            (PC <- $($rest:tt)*) => {{
                 _insn_inner_gen!($);
+                #[allow(unused_mut)]
                 let mut pc: Addr;
 
-                _insn_inner!(pc | $expr);
+                _insn_inner!(pc | $($rest)*);
+                i!(PC <- pc);
+            }};
 
-                self.set_pc(pc);
-            };
-            (mem[$addr:expr] = $word:expr) => {
+            (mem[$($addr:tt)*] <- $($word:tt)*) => {{
                 _insn_inner_gen!($);
+                #[allow(unused_mut)]
                 let mut addr: Addr;
+                #[allow(unused_mut)]
                 let mut word: Word;
 
-                _insn_inner(addr | $addr);
-                _insn_inner(word | $word);
+                _insn_inner!(addr | $($addr)*);
+                _insn_inner!(word | $($word)*);
 
-                self.set_word(addr) = word;
-            };
+                self.set_word(addr, word)?
+            }};
 
-            ($dr:ident <- $($rest:tt)*) => {
+            ($dr:ident <- $($rest:tt)*) => {{
                 // trace_macros!(true);
                 _insn_inner_gen!($);
+                #[allow(unused_mut)]
                 let mut word: Word;
 
                 // _insn_inner!(word | R[sr1]);
                 _insn_inner!(word | $($rest)*);
 
-                self[$dr] = word;
-                if insn.sets_condition_codes() { self.set_cc(self[$dr]); }
-            };
+                i!($dr <- word);
+            }};
         }
 
         macro_rules! _insn_inner_gen {
             ($d:tt) => {
                 macro_rules! _insn_inner {
-                    ($d nom:ident | R[$d reg:ident] $d ($d rest:tt)*) => { $d nom = self[$d reg]; _insn_inner!($d nom | $d ($d rest)*) };
-                    // ($d nom:ident | sr1 $d ($d rest:tt)*) => { $d nom = self[sr1]; _insn_inner!($d nom | $d ($d rest)*) };
-                    // ($d nom:ident | sr2 $d ($d rest:tt)*) => { $d nom = self[sr2]; _insn_inner!($d nom | $d ($d rest)*) };
-                    ($d nom:ident | PC $d ($d rest:tt)*) => { $d nom = self.get_pc(); _insn_inner!($d ($d rest)*) };
-                    ($d nom:ident | mem[$d addr:expr] $d ($d rest:tt)*) => {
+                    ($d nom:ident | R[$d reg:expr] $d ($d rest:tt)*) => { $d nom = self[$d reg]; _insn_inner!($d nom | $d ($d rest)*) };
+                    ($d nom:ident | PC $d ($d rest:tt)*) => { $d nom = self.get_pc(); _insn_inner!($d nom | $d ($d rest)*) };
+                    ($d nom:ident | mem[$d ($d addr:tt)*] $d ($d rest:tt)*) => {
                         $d nom = self.get_word({
                             let mut _addr_mem: Addr;
-                            _insn_inner!(_addr_mem | $d ($d rest)*);
+                            _insn_inner!(_addr_mem | $d ($d addr)*);
                             _addr_mem
-                        } as Word);
+                        }/* as Word*/)?;
+
+                        _insn_inner!($d nom | $d ($d rest)*)
                     };
                     ($d nom:ident | + $d ($d rest:tt)*) => {
                         $d nom = $d nom.wrapping_add(
@@ -313,9 +319,16 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                     ($d nom:ident | & $d ($d rest:tt)*) => {
                         $d nom = $d nom & {
                             let mut _rhs_and;
-                            insn_inner!(_rhs_and | $d ($d rest)*);
+                            _insn_inner!(_rhs_and | $d ($d rest)*);
                             _rhs_and
                         } as Word;
+                    };
+                    ($d nom:ident | ! $d ($d rest:tt)*) => {
+                        $d nom = ! {
+                            let mut _rhs_not: Word;
+                            _insn_inner!(_rhs_not | $d ($d rest)*);
+                            _rhs_not
+                        } /*as Word*/;
                     };
                     ($d nom:ident | $d ident:ident $d ($d rest:tt)*) => {
                         $d nom = $d ident; _insn_inner!($d nom | $d ($d rest)*)
