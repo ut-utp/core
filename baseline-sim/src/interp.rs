@@ -65,78 +65,18 @@ pub trait InstructionInterpreter:
     }
 }
 
-// TODO: Swap for Result<Word, Acv>
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Acv;
 
 pub type ReadAttempt = Result<Word, Acv>;
 
-/*#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ReadAttempt {
-    Success(Word),
-    Acv,
-}
-
-impl Try for ReadAttempt {
-    type Ok = Word;
-    type Error = ();
-
-    fn into_result(self) -> Result<Self::Ok, Self::Error> {
-        use ReadAttempt::*;
-        match self {
-            Success(w) => Ok(w),
-            Acv => Err(()),
-        }
-    }
-
-    fn from_error(_: Self::Error) -> Self { Self::Acv }
-
-    fn from_ok(word: Self::Ok) -> Self { Self::Success(word) }
-}*/
-
-// TODO: Swap for Result<(), Acv>
-
 pub type WriteAttempt = Result<(), Acv>;
-
-// #[derive(Copy, Clone, Debug, PartialEq)]
-// pub enum WriteAttempt {
-//     Success,
-//     Acv,
-// }
-
-// impl Try for WriteAttempt {
-//     type Ok = ();
-//     type Error = ();
-
-//     fn into_result(self) -> Result<Self::Ok, Self::Error> {
-//         use WriteAttempt::*;
-//         match self {
-//             Success => Ok(()),
-//             Acv => Err(()),
-//         }
-//     }
-
-//     fn from_error(_: Self::Error) -> Self { Self::Acv }
-
-//     fn from_ok(_: Self::Ok) -> Self { Self::Success }
-// }
-
-// impl WriteAttempt {
-//     pub fn ok(self) {
-//         self.into_result().unwrap()
-//     }
-// }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MachineState {
     Running,
     Halted,
 }
-
-// struct PeripheralState {
-//     input_character_ready: Cell<bool>
-// }
 
 #[derive(Debug)]
 struct PeripheralInterruptFlags {
@@ -174,14 +114,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> IndexMut<Reg> for Interpreter<'a, M, P> 
         &mut self.regs[TryInto::<usize>::try_into(Into::<u8>::into(reg)).unwrap()]
     }
 }
-
-// impl<'a, M: Memory, P: Peripherals<'a>> Index<Addr> for Interpreter<'a, M, P> {
-//     type Output = ReadAttempt;
-
-//     fn index(&self, addr: Addr) -> &Self::Output {
-//         &self.get_word(addr)
-//     }
-// }
 
 impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn set_cc(&mut self, word: Word) {
@@ -340,24 +272,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                 if insn.sets_condition_codes() { self.set_cc(self[$dr]); }
             };
         }
-
-        // macro_rules! _insn_inner_gen {
-        //     ($d:tt) => { macro_rules! _insn_inner {
-        //         (sr1 $d($d rest:tt)*) => { self[sr1] _insn_inner!($d($d rest)*) };
-        //         (sr $d($d rest:tt)*) => { self[sr] _insn_inner!($d($d rest)*) };
-        //         (sr2 $d($d rest:tt)*) => { self[sr2] _insn_inner!($d($d rest)*) };
-        //         (mem[$d addr:expr] $d($d rest:tt)*) => {
-        //             self.get_word(_insn_inner!($d addr)) _insn_inner!($d($d rest)*)
-        //         };
-        //         (PC $d ($d rest:tt)*) => { self.get_pc() _insn_inner!($d($d rest)*) };
-        //         (+ $d($d rest:tt)*) => {
-        //             .wrapping_add(_insn_inner!($d($d rest)*) as Word)
-        //         };
-        //         (& $d($d rest:tt)*) => { & _insn_inner!($d($d rest)*) };
-        //         ($ident:ident $d($d rest:tt)*) => { $d ident _insn_inner!($d($d rest)*) };
-        //         () => {};
-        //     } }
-        // }
 
         macro_rules! _insn_inner_gen {
             ($d:tt) => {
