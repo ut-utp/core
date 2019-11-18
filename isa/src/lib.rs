@@ -72,6 +72,9 @@ sa::const_assert!({
 pub const PSR: Addr = 0xFFFC;
 pub const MCR: Addr = 0xFFFE;
 
+pub const MEM_MAPPED_START_ADDR: Addr = 0xFE00;
+pub const USER_PROGRAM_START_ADDR: Addr = 0x3000;
+
 /// Maximum possible word value.
 pub const WORD_MAX_VAL: Word = Word::max_value();
 

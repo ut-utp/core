@@ -7,6 +7,9 @@ use lc3_isa::{
     Addr,
     Reg::{self, *},
     Word,
+    Instruction,
+    MEM_MAPPED_START_ADDR,
+    USER_PROGRAM_START_ADDR,
 };
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_isa::Instruction;
@@ -272,7 +275,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // TODO: is `PSR::from_special(self).in_user_mode()` clearer?
 
         if self.get_special_reg::<PSR>().in_user_mode() {
-            (addr < 0x3000) | (addr > 0xFE00)
+            (addr < USER_PROGRAM_START_ADDR) | (addr >= MEM_MAPPED_START_ADDR)
         } else {
             false
         }
@@ -437,8 +440,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
     }
 
+    // Unchecked access:
     fn set_word_unchecked(&mut self, addr: Addr, word: Word) {
-        if addr >= 0xFE00 {
+        if addr >= MEM_MAPPED_START_ADDR {
             // TODO: mem mapped peripherals!
             unimplemented!();
         } else {
@@ -447,7 +451,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     fn get_word_unchecked(&self, addr: Addr) -> Word {
-        if addr >= 0xFE00 {
+        if addr >= MEM_MAPPED_START_ADDR {
             // TODO: mem mapped peripherals!
             unimplemented!();
         } else {
