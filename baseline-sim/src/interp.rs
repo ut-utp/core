@@ -426,7 +426,15 @@ where
     }
 }
 
-impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
+use super::mem_mapped::{BSP, DDR, DSR, KBDR, KBSR, PSR};
+use super::mem_mapped::{
+    G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+};
+
+impl<'a, M: Memory, P> InstructionInterpreter for Interpreter<'a, M, P>
+where
+    for<'b> P: Peripherals<'b>,
+{
     fn step(&mut self) -> MachineState {
         if let state @ MachineState::Halted = self.get_machine_state() {
             return state;
@@ -479,19 +487,51 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     // Unchecked access:
+    #[forbid(unreachable_patterns)]
     fn set_word_unchecked(&mut self, addr: Addr, word: Word) {
         if addr >= MEM_MAPPED_START_ADDR {
-            // TODO: mem mapped peripherals!
-            unimplemented!();
+            macro_rules! devices {
+                ($($dev:ty),*) => {
+                    match addr {
+                        $(<$dev as MemMapped>::ADDR => self.set_device_reg::<$dev>(word).unwrap(),)*
+                        _ => unimplemented!() // TODO: make a sane handler?
+                    }
+                };
+            }
+
+            devices!(
+                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
+                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR
+            )
         } else {
             self.memory.write_word(addr, word)
         }
     }
 
+    #[forbid(unreachable_patterns)]
     fn get_word_unchecked(&self, addr: Addr) -> Word {
         if addr >= MEM_MAPPED_START_ADDR {
             // TODO: mem mapped peripherals!
-            unimplemented!();
+            macro_rules! devices {
+                ($($dev:ty),*) => {
+                    match addr {
+                        $(<$dev as MemMapped>::ADDR => *self.get_device_reg::<$dev>().unwrap(),)*
+                        _ => unimplemented!() // TODO: make a sane handler?
+                    }
+                };
+            }
+
+            devices!(
+                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
+                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR
+            )
+
+        // match addr {
+        //     <KBSR as MemMapped>::ADDR => *self.get_device_reg::<KBSR>().unwrap(),
+        //     _ => unimplemented!(),
+        // }
+
+        // unimplemented!();
         } else {
             self.memory.read_word(addr)
         }
