@@ -330,26 +330,26 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
                         self.set_cc(self[dr]);
                     }
                     Br { n, z, p, offset9 } => {
-                        let (N, Z, P) = self.get_cc();
-                        if n & N || z & Z || p & P {
+                        let (cc_n, cc_z, cc_p) = self.get_cc();
+                        if n & cc_n || z & cc_z || p & cc_p {
                             self.set_pc(self.get_pc().wrapping_add(offset9 as Word));
                         }
                     }
-                    Jmp { base: Reg::R7 } | Ret => {
-                        self.set_pc(self[Reg::R7]);
+                    Jmp { base: R7 } | Ret => {
+                        self.set_pc(self[R7]);
                     }
                     Jmp { base } => {
                         self.set_pc(self[base]);
                     }
                     Jsr { offset11 } => {
-                        self[Reg::R7] = self.get_pc();
+                        self[R7] = self.get_pc();
                         self.set_pc(self.get_pc().wrapping_add(offset11 as Word));
                     }
                     Jsrr { base } => {
                         // TODO: add a test where base _is_ R7!!
                         let (pc, new_pc) = (self.get_pc(), self[base]);
                         self.set_pc(new_pc);
-                        self[Reg::R7] = pc;
+                        self[R7] = pc;
                     }
                     Ld { dr, offset9 } => {
                         // TODO: Need to check if address is KBSR or KBDR.
@@ -430,12 +430,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.get_machine_state()
     }
 
-    fn set_pc(&mut self, addr: Addr) {
-        self.pc = addr;
-    }
-    fn get_pc(&self) -> Addr {
-        self.pc
-    }
+    fn set_pc(&mut self, addr: Addr) { self.pc = addr; }
+    fn get_pc(&self) -> Addr { self.pc }
 
     // Checked access:
     fn set_word(&mut self, addr: Addr, word: Word) -> WriteAttempt {
@@ -473,11 +469,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
     }
 
-    fn get_machine_state(&self) -> MachineState {
-        self.state
-    }
+    fn get_machine_state(&self) -> MachineState { self.state }
 
     fn reset(&mut self) {
+        // TODO!
         unimplemented!();
     }
 }
