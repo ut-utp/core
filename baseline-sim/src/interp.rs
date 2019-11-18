@@ -2,6 +2,7 @@
 use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
+use core::sync::atomic::AtomicBool;
 
 use lc3_isa::{
     Addr,
@@ -12,10 +13,9 @@ use lc3_isa::{
     USER_PROGRAM_START_ADDR,
 };
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
-use lc3_isa::Instruction;
+use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 
 use super::mem_mapped::{MemMapped, MemMappedSpecial, BSP, PSR};
-use std::thread::current;
 
 pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
@@ -138,10 +138,24 @@ pub enum MachineState {
 //     input_character_ready: Cell<bool>
 // }
 
+#[derive(Debug)]
+struct PeripheralInterruptFlags {
+    gpio: GpioPinArr<AtomicBool>, // No payload; just tell us if a rising edge has happened
+    // adc: AdcPinArr<bool>, // We're not going to have Adc Interrupts
+    // pwm: PwmPinArr<bool>, // No Pwm Interrupts
+    timers: TimerArr<AtomicBool>, // No payload; timers don't actually expose counts anyways
+    // clock: bool, // No Clock Interrupt
+    input: AtomicBool, // No payload; check KBDR for the current character
+    output: AtomicBool, // Technically this has an interrupt, but I have no idea why; UPDATE: it interrupts when it's ready to accept more data
+    // display: bool, // Unless we're exposing vsync/hsync or something, this doesn't need an interrupt
+}
+
+#[derive(Debug)]
 pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     memory: M,
     peripherals: P,
-    regs: [Word; 8],
+    flags: PeripheralInterruptFlags,
+    regs: [Word; Reg::NUM_REGS],
     pc: Word,
     state: MachineState,
     _p: PhantomData<&'a ()>,
