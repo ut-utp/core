@@ -9,20 +9,15 @@ use core::ops::{Deref, DerefMut};
 use lc3_isa::{
     Addr, Instruction,
     Reg::{self, *},
-    Word,
-    Instruction,
-    MEM_MAPPED_START_ADDR,
+    Word, ACCESS_CONTROL_VIOLATION_EXCEPTION_VECTOR, ILLEGAL_OPCODE_EXCEPTION_VECTOR,
+    INTERRUPT_VECTOR_TABLE_START_ADDR, MEM_MAPPED_START_ADDR,
+    PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR, TRAP_VECTOR_TABLE_START_ADDR,
     USER_PROGRAM_START_ADDR,
-    TRAP_VECTOR_TABLE_START_ADDR,
-    INTERRUPT_VECTOR_TABLE_START_ADDR,
-    PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR,
-    ILLEGAL_OPCODE_EXCEPTION_VECTOR,
-    ACCESS_CONTROL_VIOLATION_EXCEPTION_VECTOR
 };
-use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
+use lc3_traits::{memory::Memory, peripherals::Peripherals};
 
-use super::mem_mapped::{MemMapped, MemMappedSpecial, BSP, PSR};
+use super::mem_mapped::{MemMapped, MemMappedSpecial /*, BSP, PSR*/};
 
 // TODO: name?
 pub trait InstructionInterpreterPeripheralAccess:
@@ -231,7 +226,7 @@ where
     fn handle_trap(&mut self, trap_vec: u8) {
         self.prep_for_execution_event();
 
-        // Go to the trap vector:
+        // Go to the trap routine:
         // (this should also not panic)
         self.pc = self
             .get_word(TRAP_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(trap_vec)))
@@ -243,7 +238,7 @@ where
     fn handle_exception(&mut self, ex_vec: u8) {
         self.prep_for_execution_event();
 
-        // Go to the exception vector:
+        // Go to the exception routine:
         // (this should also not panic)
         self.pc = self
             .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(ex_vec)))
@@ -261,7 +256,7 @@ where
 
         self.prep_for_execution_event();
 
-        // Go to the interrupt vector:
+        // Go to the interrupt routine:
         // (this should also not panic)
         self.pc = self
             .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(int_vec)))
@@ -293,7 +288,9 @@ where
             };
             ($dr:ident <- $expr:expr) => {
                 self[$dr] = $expr;
-                if insn.sets_condition_codes() { self.set_cc(self[$dr]); }
+                if insn.sets_condition_codes() {
+                    self.set_cc(self[$dr]);
+                }
             };
         }
 
@@ -321,12 +318,10 @@ where
             }};
 
             ($dr:ident <- $($rest:tt)*) => {{
-                // trace_macros!(true);
                 _insn_inner_gen!($);
                 #[allow(unused_mut)]
                 let mut word: Word;
 
-                // _insn_inner!(word | R[sr1]);
                 _insn_inner!(word | $($rest)*);
 
                 i!($dr <- word);
@@ -378,86 +373,33 @@ where
         }
 
         match insn {
-            AddReg { dr, sr1, sr2 } => {
-                i!(dr <- self[sr1].wrapping_add(self[sr2]));
-                // I!(dr <- R[sr1] + R[sr2])
-            }
-            AddImm { dr, sr1, imm5 } => {
-                i!(dr <- self[sr1].wrapping_add(imm5 as Word));
-                // I!(dr <- R[sr1] + imm5)
-            }
-            AndReg { dr, sr1, sr2 } => {
-                i!(dr <- self[sr1] & self[sr2]);
-                // I!(dr <- R[sr1] & R[sr2])
-            }
-            AndImm { dr, sr1, imm5 } => {
-                i!(dr <- self[sr1] & (imm5 as Word));
-                // I!(dr <- R[sr1] & imm5)
-            }
+            AddReg { dr, sr1, sr2 } => I!(dr <- R[sr1] + R[sr2]),
+            AddImm { dr, sr1, imm5 } => I!(dr <- R[sr1] + imm5),
+            AndReg { dr, sr1, sr2 } => I!(dr <- R[sr1] & R[sr2]),
+            AndImm { dr, sr1, imm5 } => I!(dr <- R[sr1] & imm5),
             Br { n, z, p, offset9 } => {
                 let (cc_n, cc_z, cc_p) = self.get_cc();
                 if n & cc_n || z & cc_z || p & cc_p {
-                    i!(PC <- self.get_pc().wrapping_add(offset9 as Word));
-
-                    // I!(PC <- PC + offset9)
+                    I!(PC <- PC + offset9)
                 }
             }
-            Jmp { base: R7 } | Ret => {
-                i!(PC <- self[R7]);
-                // I!(PC <- R[R7])
-            }
-            Jmp { base } => {
-                i!(PC <- self[base]);
-                // I!(PC <- R[base])
-            }
+            Jmp { base: R7 } | Ret => I!(PC <- R[R7]),
+            Jmp { base } => I!(PC <- R[base]),
             Jsr { offset11 } => {
-                self[R7] = self.get_pc();
-                i!(PC <- self.get_pc().wrapping_add(offset11 as Word));
-
-                // I!(R7 <- PC);
-                // I!(PC <- PC + offset11)
+                I!(R7 <- PC);
+                I!(PC <- PC + offset11)
             }
             Jsrr { base } => {
                 // TODO: add a test where base _is_ R7!!
                 let (pc, new_pc) = (self.get_pc(), self[base]);
-                i!(PC <- new_pc);
-                i!(R7 <- pc);
-
-                // I!(PC <- new_pc);
-                // I!(R7 <- pc)
+                I!(PC <- new_pc);
+                I!(R7 <- pc)
             }
-            Ld { dr, offset9 } => {
-                let addr = self.get_pc().wrapping_add(offset9 as Word);
-                i!(dr <- self.get_word(addr)?);
-
-                // I!(dr <- mem[PC + offset9])
-            }
-            Ldi { dr, offset9 } => {
-                // mem[mem[pc + offset]]
-                let addr = self.get_pc().wrapping_add(offset9 as Word);
-                let addr = self.get_word(addr)?;
-
-                i!(dr <- self.get_word(addr)?);
-
-                // I!(dr <- mem[mem[PC + offset9]])
-            }
-            Ldr { dr, base, offset6 } => {
-                // mem[base + offset6]
-                let addr = self[base].wrapping_add(offset6 as Word);
-                i!(dr <- self.get_word(addr)?);
-
-                // I!(dr <- mem[R[base] + offset6])
-            }
-            Lea { dr, offset9 } => {
-                i!(dr <- self.get_pc().wrapping_add(offset9 as Word));
-
-                // I!(dr <- PC + offset9)
-            }
-            Not { dr, sr } => {
-                i!(dr <- !self[sr]);
-
-                // I!(dr <- !R[sr])
-            }
+            Ld { dr, offset9 } => I!(dr <- mem[PC + offset9]),
+            Ldi { dr, offset9 } => I!(dr <- mem[mem[PC + offset9]]),
+            Ldr { dr, base, offset6 } => I!(dr <- mem[R[base] + offset6]),
+            Lea { dr, offset9 } => I!(dr <- PC + offset9),
+            Not { dr, sr } => I!(dr <- !R[sr]),
             Rti => {
                 unimplemented!();
             }
@@ -479,6 +421,10 @@ where
             Trap { trapvec } => {
                 unimplemented!();
             }
+            St { sr, offset9 } => I!(mem[PC + offset9] <- R[sr]),
+            Sti { sr, offset9 } => I!(mem[mem[PC + offset9]] <- R[sr]),
+            Str { sr, base, offset6 } => I!(mem[R[base] + offset6] <- R[sr]),
+            Trap { trapvec } => self.handle_trap(trapvec),
         }
 
         Ok(())
@@ -497,28 +443,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
         // TODO: Peripheral interrupt stuff
 
-        // match match self.get_word(current_pc) {
-        //     Ok(word) => match word.try_into() {
-        //         Ok(insn) => self.instruction_step_inner(insn),
-        //         Err(_) => { self.handle_exception(ILLEGAL_OPCODE_EXCEPTION_VECTOR); Ok(()) }
-        //     }
-        //     Err(Acv) => {
-        //         // TODO: what do
-        //         // panic!();
-        //         Err(Acv)
-        //     }
-        // } {
-        //     Ok(_) => {}
-        //     Err(Acv) => { self.handle_exception(ACCESS_CONTROL_VIOLATION_EXCEPTION_VECTOR); }
-        // }
-
-        match self.get_word(current_pc).and_then(|w| {
-            match w.try_into() {
-                Ok(insn) => self.instruction_step_inner(insn),
-                Err(_) => { self.handle_exception(ILLEGAL_OPCODE_EXCEPTION_VECTOR); Ok(()) }
+        match self.get_word(current_pc).and_then(|w| match w.try_into() {
+            Ok(insn) => self.instruction_step_inner(insn),
+            Err(_) => {
+                self.handle_exception(ILLEGAL_OPCODE_EXCEPTION_VECTOR);
+                Ok(())
             }
         }) {
-            Ok(()) => {},
+            Ok(()) => {}
             // Access control violation: triggered when getting the current instruction or when executing it
             Err(Acv) => self.handle_exception(ACCESS_CONTROL_VIOLATION_EXCEPTION_VECTOR),
         }
@@ -526,8 +458,13 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.get_machine_state()
     }
 
-    fn set_pc(&mut self, addr: Addr) { self.pc = addr; }
-    fn get_pc(&self) -> Addr { self.pc }
+    fn set_pc(&mut self, addr: Addr) {
+        self.pc = addr;
+    }
+
+    fn get_pc(&self) -> Addr {
+        self.pc
+    }
 
     // Checked access:
     fn set_word(&mut self, addr: Addr, word: Word) -> WriteAttempt {
@@ -565,7 +502,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
     }
 
-    fn get_machine_state(&self) -> MachineState { self.state }
+    fn get_machine_state(&self) -> MachineState {
+        self.state
+    }
 
     fn reset(&mut self) {
         // TODO!
