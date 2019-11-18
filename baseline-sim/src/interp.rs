@@ -294,6 +294,349 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             false
         }
     }
+
+    fn instruction_step_inner(&mut self, insn: Instruction) -> Result<(), Acv> {
+        use Instruction::*;
+
+        macro_rules! i {
+            (PC <- $expr:expr) => {
+                self.set_pc($expr);
+            };
+            ($dr:ident <- $expr:expr) => {
+                self[$dr] = $expr;
+                if insn.sets_condition_codes() { self.set_cc(self[$dr]); }
+            };
+        }
+
+        macro_rules! I {
+            (PC <- $expr:expr) => {
+                _insn_inner_gen!($);
+                let mut pc: Addr;
+
+                _insn_inner!(pc | $expr);
+
+                self.set_pc(pc);
+            };
+            (mem[$addr:expr] = $word:expr) => {
+                _insn_inner_gen!($);
+                let mut addr: Addr;
+                let mut word: Word;
+
+                _insn_inner(addr | $addr);
+                _insn_inner(word | $word);
+
+                self.set_word(addr) = word;
+            };
+
+            ($dr:ident <- $($rest:tt)*) => {
+                // trace_macros!(true);
+                _insn_inner_gen!($);
+                let mut word: Word;
+
+                // _insn_inner!(word | R[sr1]);
+                _insn_inner!(word | $($rest)*);
+
+                self[$dr] = word;
+                if insn.sets_condition_codes() { self.set_cc(self[$dr]); }
+            };
+        }
+
+        // macro_rules! _insn_inner_gen {
+        //     ($d:tt) => { macro_rules! _insn_inner {
+        //         (sr1 $d($d rest:tt)*) => { self[sr1] _insn_inner!($d($d rest)*) };
+        //         (sr $d($d rest:tt)*) => { self[sr] _insn_inner!($d($d rest)*) };
+        //         (sr2 $d($d rest:tt)*) => { self[sr2] _insn_inner!($d($d rest)*) };
+        //         (mem[$d addr:expr] $d($d rest:tt)*) => {
+        //             self.get_word(_insn_inner!($d addr)) _insn_inner!($d($d rest)*)
+        //         };
+        //         (PC $d ($d rest:tt)*) => { self.get_pc() _insn_inner!($d($d rest)*) };
+        //         (+ $d($d rest:tt)*) => {
+        //             .wrapping_add(_insn_inner!($d($d rest)*) as Word)
+        //         };
+        //         (& $d($d rest:tt)*) => { & _insn_inner!($d($d rest)*) };
+        //         ($ident:ident $d($d rest:tt)*) => { $d ident _insn_inner!($d($d rest)*) };
+        //         () => {};
+        //     } }
+        // }
+
+        macro_rules! _insn_inner_gen {
+            ($d:tt) => {
+                macro_rules! _insn_inner {
+                    ($d nom:ident | R[$d reg:ident] $d ($d rest:tt)*) => { $d nom = self[$d reg]; _insn_inner!($d nom | $d ($d rest)*) };
+                    // ($d nom:ident | sr1 $d ($d rest:tt)*) => { $d nom = self[sr1]; _insn_inner!($d nom | $d ($d rest)*) };
+                    // ($d nom:ident | sr2 $d ($d rest:tt)*) => { $d nom = self[sr2]; _insn_inner!($d nom | $d ($d rest)*) };
+                    ($d nom:ident | PC $d ($d rest:tt)*) => { $d nom = self.get_pc(); _insn_inner!($d ($d rest)*) };
+                    ($d nom:ident | mem[$d addr:expr] $d ($d rest:tt)*) => {
+                        $d nom = self.get_word({
+                            let mut _addr_mem: Addr;
+                            _insn_inner!(_addr_mem | $d ($d rest)*);
+                            _addr_mem
+                        } as Word);
+                    };
+                    ($d nom:ident | + $d ($d rest:tt)*) => {
+                        $d nom = $d nom.wrapping_add(
+                        {
+                            let mut _rhs_add;
+                            _insn_inner!(_rhs_add | $d ($d rest)*);
+                            _rhs_add
+                        } as Word);
+                    };
+                    ($d nom:ident | & $d ($d rest:tt)*) => {
+                        $d nom = $d nom & {
+                            let mut _rhs_and;
+                            insn_inner!(_rhs_and | $d ($d rest)*);
+                            _rhs_and
+                        } as Word;
+                    };
+                    ($d nom:ident | $d ident:ident $d ($d rest:tt)*) => {
+                        $d nom = $d ident; _insn_inner!($d nom | $d ($d rest)*)
+                    };
+                    ($d nom:ident | ) => {};
+                }
+            }
+        }
+
+
+        // macro_rules! _insn_inner_simple {
+        //     (sr $($rest:tt)*) => { self[sr] _insn_inner!($($rest)*) };
+        //     (sr1 $($rest:tt)*) => { self[sr1]; _insn_inner!($($rest)*) };
+        //     (sr2 $($rest:tt)*) => { self[sr2] _insn_inner!($($rest)*) };
+        //     // (mem[$addr:expr] = $word:expr) => {
+        //     //     self.set_word(_insn_inner!($addr)) = _insn_inner!($word)
+        //     // };
+        //     (mem[$addr:expr] $($rest:tt)*) => {
+        //         self.get_word(_insn_inner!($addr)) _insn_inner!($($rest)*)
+        //     };
+        //     (PC $($rest:tt)*) => { self.get_pc() _insn_inner!($($rest)*) };
+        //     // (+ $expr:expr $($rest:tt)*) => {
+        //     //     .wrapping_add(_insn_inner!($expr) as Word) _insn_inner!($($rest)*)
+        //     // };
+        //     (+ $($rest:tt)*) => {
+        //         .wrapping_add(_insn_inner!($($rest)*) as Word)
+        //     };
+        //     (& $($rest:tt)*) => { & _insn_inner!($($rest)*) };
+        //     ($ident:ident $($rest:tt)*) => { $ident _insn_inner!($($rest)*) };
+        //     () => {};
+        // }
+
+        // macro_rules! _insn_inner {
+        //     ($nom:ident | sr $($rest:tt)*) => { let $nom = self[sr]; _insn_inner!($nom | $($rest)*) };
+        //     ($nom:ident | sr1 $($rest:tt)*) => { let $nom = self[sr1]; _insn_inner!($nom | $($rest)*) };
+        //     ($nom:ident | sr2 $($rest:tt)*) => { let $nom = self[sr2]; _insn_inner!($nom | $($rest)*) };
+        //     // (mem[$addr:expr] = $word:expr) => {
+        //     //     self.set_word(_insn_inner!($addr)) = _insn_inner!($word)
+        //     // };
+        //     ($nom:ident | mem[$addr:expr] $($rest:tt)*) => {
+        //         let $nom = self.get_word({ _insn_inner!($nom | $addr) } as Word); _insn_inner!($nom | $($rest)*)
+        //     };
+        //     ($nom:ident | PC $($rest:tt)*) => { self.get_pc() _insn_inner!($($rest)*) };
+        //     // (+ $expr:expr $($rest:tt)*) => {
+        //     //     .wrapping_add(_insn_inner!($expr) as Word) _insn_inner!($($rest)*)
+        //     // };
+        //     ($nom:ident | + $($rest:tt)*) => {
+        //         let $nom = $nom.wrapping_add({ _insn_inner!($nom | $($rest)*)} as Word);
+        //     };
+        //     ($nom:ident | & $($rest:tt)*) => {
+        //         let $nom = $nom & ({ _insn_inner!($nom | $($rest)*) } as Word);
+        //     };
+        //     ($nom:ident | $ident:ident $($rest:tt)*) => {
+        //         let $nom = $ident; _insn_inner!($nom | $($rest)*)
+        //     };
+        //     ($nom:ident | ) => { $nom };
+        // }
+
+
+        // trace_macros!(true);
+
+        match insn {
+            AddReg { dr, sr1, sr2 } => {
+                i!(dr <- self[sr1].wrapping_add(self[sr2]));
+                // I!(dr <- sr1 + sr2);
+                // macro_rules! _insn_inner {
+                //     (sr $($rest:tt)*) => { self[sr] _insn_inner!($($rest)*) };
+                //     (sr1 $($rest:tt)*) => { self[sr1] _insn_inner!($($rest)*) };
+                //     (sr2 $($rest:tt)*) => { self[sr2] _insn_inner!($($rest)*) };
+                //     // (mem[$addr:expr] = $word:expr) => {
+                //     //     self.set_word(_insn_inner!($addr)) = _insn_inner!($word)
+                //     // };
+                //     (mem[$addr:expr] $($rest:tt)*) => {
+                //         self.get_word(_insn_inner!($addr)) _insn_inner!($($rest)*)
+                //     };
+                //     (PC $($rest:tt)*) => { self.get_pc() _insn_inner!($($rest)*) };
+                //     // (+ $expr:expr $($rest:tt)*) => {
+                //     //     .wrapping_add(_insn_inner!($expr) as Word) _insn_inner!($($rest)*)
+                //     // };
+                //     (+ $($rest:tt)*) => {
+                //         .wrapping_add(_insn_inner!($($rest)*) as Word)
+                //     };
+                //     (& $($rest:tt)*) => { & _insn_inner!($($rest)*) };
+                //     ($ident:ident $($rest:tt)*) => { $ident _insn_inner!($($rest)*) };
+                //     () => {};
+                // }
+
+                // macro_rules! _insn_inner {
+                //     ($nom:ident | sr $($rest:tt)*) => { $nom = self[sr]; _insn_inner!($nom | $($rest)*) };
+                //     ($nom:ident | sr1 $($rest:tt)*) => { $nom = self[sr1]; _insn_inner!($nom | $($rest)*) };
+                //     ($nom:ident | sr2 $($rest:tt)*) => { $nom = self[sr2]; _insn_inner!($nom | $($rest)*) };
+                //     ($nom:ident | PC $($rest:tt)*) => { $nom = self.get_pc(); _insn_inner!($($rest)*) };
+                //     ($nom:ident | mem[$addr:expr] $($rest:tt)*) => {
+                //         $nom = self.get_word({
+                //             let mut _addr_mem: Addr;
+                //             _insn_inner!(_addr_mem | $($rest)*);
+                //             _addr_mem
+                //         } as Word);
+                //     };
+                //     ($nom:ident | + $($rest:tt)*) => {
+                //         $nom = $nom.wrapping_add(
+                //         {
+                //             let mut _rhs_add;
+                //             _insn_inner!(_rhs_add | $($rest)*);
+                //             _rhs_add
+                //         } as Word);
+                //     };
+                //     ($nom:ident | & $($rest:tt)*) => {
+                //         $nom = $nom & {
+                //             let mut _rhs_and;
+                //             insn_inner!(_rhs_and | $($rest)*);
+                //             _rhs_and
+                //         } as Word;
+                //     };
+                //     ($nom:ident | $ident:ident $($rest:tt)*) => {
+                //         $nom = $ident; _insn_inner!($nom | $($rest)*)
+                //     };
+                //     ($nom:ident | ) => {};
+                // }
+
+                // let mut _r;
+                // _insn_inner!(_r | mem[sr1] + sr1 + sr2);
+                // I!(dr <- R[sr1]);
+                I!(dr <- R[sr1] + R[sr2]);
+                // trace_macros!(false);
+                // self[dr] = self[sr1].wrapping_add(self[sr2]);
+                // self.set_cc(self[dr]);
+            }
+            AddImm { dr, sr1, imm5 } => {
+                i!(dr <- self[sr1].wrapping_add(imm5 as Word));
+                // I!(dr <- R[sr1] + imm5);
+                // self[dr] = self[sr1].wrapping_add(imm5 as Word);
+                // self.set_cc(self[dr]);
+            }
+            AndReg { dr, sr1, sr2 } => {
+                i!(dr <- self[sr1] & self[sr2]);
+                // self[dr] = self[sr1] & self[sr2];
+                // self.set_cc(self[dr]);
+            }
+            AndImm { dr, sr1, imm5 } => {
+                i!(dr <- self[sr1] & (imm5 as Word));
+                // self[dr] = self[sr1] & imm5 as Word;
+                // self.set_cc(self[dr]);
+            }
+            Br { n, z, p, offset9 } => {
+                let (cc_n, cc_z, cc_p) = self.get_cc();
+                if n & cc_n || z & cc_z || p & cc_p {
+                    i!(PC <- self.get_pc().wrapping_add(offset9 as Word));
+                }
+            }
+            Jmp { base: R7 } | Ret => {
+                i!(PC <- self[R7]);
+                // self.set_pc(self[R7]);
+            }
+            Jmp { base } => {
+                i!(PC <- self[base]);
+                // self.set_pc(self[base]);
+            }
+            Jsr { offset11 } => {
+                self[R7] = self.get_pc();
+                i!(PC <- self.get_pc().wrapping_add(offset11 as Word));
+                // self.set_pc(self.get_pc().wrapping_add(offset11 as Word));
+            }
+            Jsrr { base } => {
+                // TODO: add a test where base _is_ R7!!
+                let (pc, new_pc) = (self.get_pc(), self[base]);
+                i!(PC <- new_pc);
+                i!(R7 <- pc);
+                // self.set_pc(new_pc);
+                // self[R7] = pc;
+            }
+            Ld { dr, offset9 } => {
+                let addr = self.get_pc().wrapping_add(offset9 as Word);
+
+                i!(dr <- self.get_word(addr)?);
+                // let word = self.get_word(addr)?;
+                // self[dr] = word;
+                // self.set_cc(self[dr]);
+            }
+            Ldi { dr, offset9 } => {
+                // mem[mem[pc + offset]]
+                let addr = self.get_pc().wrapping_add(offset9 as Word);
+                let addr = self.get_word(addr)?;
+
+                i!(dr <- self.get_word(addr)?);
+
+                // match self.get_word(self.get_pc().wrapping_add(offset9 as Word)) {
+                //     Ok(indir) => match self.get_word(indir) {
+                //         Ok(word) => {
+                //             self[dr] = word;
+                //             self.set_cc(self[dr]);
+                //         }
+                //         Err(acv) => {}
+                //     },
+                //     Err(acv) => {}
+                // }
+            }
+            Ldr { dr, base, offset6 } => {
+                // mem[base + offset6]
+                let addr = self[base].wrapping_add(offset6 as Word);
+                i!(dr <- self.get_word(addr)?);
+
+                // match self.get_word(self[base].wrapping_add(offset6 as Word)) {
+                //     Ok(word) => {
+                //         self[dr] = word;
+                //         self.set_cc(self[dr]);
+                //     }
+                //     Err(acv) => {}
+                // }
+            }
+            Lea { dr, offset9 } => {
+                i!(dr <- self.get_pc().wrapping_add(offset9 as Word));
+                // self[dr] = self.get_pc().wrapping_add(offset9 as Word);
+            }
+            Not { dr, sr } => {
+                i!(dr <- !self[sr]);
+                // self[dr] = !self[sr];
+                // self.set_cc(self[dr]);
+            }
+            Rti => {
+                unimplemented!();
+            }
+            St { sr, offset9 } => {
+                match self.set_word(self.get_pc().wrapping_add(offset9 as Word), self[sr]) {
+                    Ok(()) => {}
+                    Err(acv) => {}
+                }
+            }
+            Sti { sr, offset9 } => {
+                match self.get_word(self.get_pc().wrapping_add(offset9 as Word)) {
+                    Ok(indir) => match self.set_word(indir, self[sr]) {
+                        Ok(()) => {}
+                        Err(acv) => {}
+                    },
+                    Err(acv) => {}
+                }
+            }
+            Str { sr, base, offset6 } => {
+                match self.set_word(self[base].wrapping_add(offset6 as Word), self[sr]) {
+                    Ok(()) => {}
+                    Err(acv) => {}
+                }
+            }
+            Trap { trapvec } => {
+                unimplemented!();
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
