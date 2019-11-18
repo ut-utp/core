@@ -4,8 +4,10 @@ use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
 use core::sync::atomic::AtomicBool;
 
+use core::ops::{Deref, DerefMut};
+
 use lc3_isa::{
-    Addr,
+    Addr, Instruction,
     Reg::{self, *},
     Word,
     Instruction,
@@ -21,6 +23,43 @@ use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 
 use super::mem_mapped::{MemMapped, MemMappedSpecial, BSP, PSR};
+
+// TODO: name?
+pub trait InstructionInterpreterPeripheralAccess:
+    InstructionInterpreter + Deref + DerefMut
+where
+    for<'a> <Self as Deref>::Target: Peripherals<'a>,
+{
+    fn get_peripherals(&self) -> &<Self as std::ops::Deref>::Target {
+        self.deref()
+    }
+
+    fn get_peripherals_mut(&mut self) -> &mut <Self as std::ops::Deref>::Target {
+        self.deref_mut()
+    }
+
+    fn get_device_reg<M: MemMapped>(&self) -> Result<M, Acv> {
+        M::from(self)
+    }
+
+    fn set_device_reg<M: MemMapped>(&mut self, value: Word) -> WriteAttempt {
+        M::set(self, value)
+    }
+
+    fn update_device_reg<M: MemMapped>(&mut self, func: impl FnOnce(M) -> Word) -> WriteAttempt {
+        M::update(self, func)
+    }
+
+    fn get_special_reg<M: MemMappedSpecial>(&self) -> M {
+        M::from_special(self)
+    }
+    fn set_special_reg<M: MemMappedSpecial>(&mut self, value: Word) {
+        M::set_special(self, value)
+    }
+    fn update_special_reg<M: MemMappedSpecial>(&mut self, func: impl FnOnce(M) -> Word) {
+        M::update(self, func).unwrap()
+    }
+}
 
 pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
@@ -46,28 +85,6 @@ pub trait InstructionInterpreter:
 
     fn get_machine_state(&self) -> MachineState;
     fn reset(&mut self);
-
-    fn get_device_reg<M: MemMapped>(&self) -> Result<M, Acv> {
-        M::from(self)
-    }
-
-    fn set_device_reg<M: MemMapped>(&mut self, value: Word) -> WriteAttempt {
-        M::set(self, value)
-    }
-
-    fn update_device_reg<M: MemMapped>(&mut self, func: impl FnOnce(M) -> Word) -> WriteAttempt {
-        M::update(self, func)
-    }
-
-    fn get_special_reg<M: MemMappedSpecial>(&self) -> M {
-        M::from_special(self)
-    }
-    fn set_special_reg<M: MemMappedSpecial>(&mut self, value: Word) {
-        M::set_special(self, value)
-    }
-    fn update_special_reg<M: MemMappedSpecial>(&mut self, func: impl FnOnce(M) -> Word) {
-        M::update(self, func).unwrap()
-    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -120,7 +137,29 @@ impl<'a, M: Memory, P: Peripherals<'a>> IndexMut<Reg> for Interpreter<'a, M, P> 
     }
 }
 
-impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
+impl<'a, M: Memory, P: Peripherals<'a>> Deref for Interpreter<'a, M, P> {
+    type Target = P;
+
+    fn deref(&self) -> &Self::Target {
+        &self.peripherals
+    }
+}
+
+impl<'a, M: Memory, P: Peripherals<'a>> DerefMut for Interpreter<'a, M, P> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.peripherals
+    }
+}
+
+impl<'a, M: Memory, P> InstructionInterpreterPeripheralAccess for Interpreter<'a, M, P> where
+    for<'b> P: Peripherals<'b>
+{
+}
+
+impl<'a, M: Memory, P> Interpreter<'a, M, P>
+where
+    for<'b> P: Peripherals<'b>,
+{
     fn set_cc(&mut self, word: Word) {
         <PSR as MemMapped>::from(self).unwrap().set_cc(self, word)
     }
