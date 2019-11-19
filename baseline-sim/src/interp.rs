@@ -95,8 +95,20 @@ pub enum MachineState {
     Halted,
 }
 
+impl MachineState {
+    const fn new() -> Self {
+        MachineState::Halted
+    }
+}
+
+impl Default for MachineState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
-struct PeripheralInterruptFlags {
+pub struct PeripheralInterruptFlags {
     gpio: GpioPinArr<AtomicBool>, // No payload; just tell us if a rising edge has happened
     // adc: AdcPinArr<bool>, // We're not going to have Adc Interrupts
     // pwm: PwmPinArr<bool>, // No Pwm Interrupts
@@ -104,18 +116,313 @@ struct PeripheralInterruptFlags {
     // clock: bool, // No Clock Interrupt
     input: AtomicBool, // No payload; check KBDR for the current character
     output: AtomicBool, // Technically this has an interrupt, but I have no idea why; UPDATE: it interrupts when it's ready to accept more data
-    // display: bool, // Unless we're exposing vsync/hsync or something, this doesn't need an interrupt
+                        // display: bool, // Unless we're exposing vsync/hsync or something, this doesn't need an interrupt
 }
 
-#[derive(Debug)]
+impl PeripheralInterruptFlags {
+    const fn new() -> Self {
+        macro_rules! b {
+            () => {
+                AtomicBool::new(false)
+            };
+        }
+
+        // TODO: make this less gross..
+        Self {
+            gpio: GpioPinArr([b!(), b!(), b!(), b!(), b!(), b!(), b!(), b!()]),
+            timers: TimerArr([b!(), b!()]),
+            input: AtomicBool::new(false),
+            output: AtomicBool::new(false),
+        }
+    }
+}
+
+impl Default for PeripheralInterruptFlags {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// TODO: Either find a `core` replacement for this or pull it out into a `util`
+// mod or something.
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum OwnedOrRef<'a, T> {
+    Owned(T),
+    Ref(&'a T)
+}
+
+impl<T: Default> Default for OwnedOrRef<'_, T> {
+    fn default() -> Self {
+        Self::Owned(Default::default())
+    }
+}
+
+impl<T> Deref for OwnedOrRef<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        use OwnedOrRef::*;
+
+        match self {
+            Owned(inner) => inner,
+            Ref(inner) => inner,
+        }
+    }
+}
+
+// impl<T> DerefMut for OwnedOrRef<'_, T> {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         use OwnedOrRef::*;
+
+//         match self {
+//             Owned(inner) => inner,
+//             Ref(inner) => inner,
+//         }
+//     }
+// }
+
+#[derive(Debug, Default)]
 pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     memory: M,
     peripherals: P,
-    flags: PeripheralInterruptFlags,
+    flags: OwnedOrRef<'a, PeripheralInterruptFlags>,
     regs: [Word; Reg::NUM_REGS],
-    pc: Word,
+    pc: Word, //TODO: what should the default for this be
     state: MachineState,
-    _p: PhantomData<&'a ()>,
+}
+
+// impl<'a, M: Memory, P> Default for Interpreter<'a, M, P>
+// where for <'p> P: Peripherals<'p> {
+//     fn default() -> Self {
+//         Self {
+//             memory: Default::default(),
+//             peripherals: P
+//         }
+//     }
+// }
+
+#[derive(Debug)]
+pub struct Set;
+#[derive(Debug)]
+pub struct NotSet;
+
+#[derive(Debug)]
+struct InterpreterBuilderData<'a, M: Memory, P>
+where for<'p> P: Peripherals<'p> {
+    memory: Option<M>,
+    peripherals: Option<P>,
+    flags: Option<OwnedOrRef<'a, PeripheralInterruptFlags>>,
+    regs: Option<[Word; Reg::NUM_REGS]>,
+    pc: Option<Word>,
+    state: Option<MachineState>,
+}
+
+
+#[derive(Debug)]
+pub struct InterpreterBuilder<'a, M: Memory, P, Mem = NotSet, Perip = NotSet, Flags = NotSet, Regs = NotSet, Pc = NotSet, State = NotSet>
+where for<'p> P: Peripherals<'p> {
+    data: InterpreterBuilderData<'a, M, P>,
+    _mem: PhantomData<&'a Mem>,
+    _perip: PhantomData<&'a Perip>,
+    _flags: PhantomData<&'a Flags>,
+    _regs: PhantomData<&'a Regs>,
+    _pc: PhantomData<&'a Pc>,
+    _state: PhantomData<&'a State>,
+}
+
+impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    fn with_data(data: InterpreterBuilderData<'a, M, P>) -> Self {
+        Self {
+            data,
+            _mem: PhantomData,
+            _perip: PhantomData,
+            _flags: PhantomData,
+            _regs: PhantomData,
+            _pc: PhantomData,
+            _state: PhantomData,
+        }
+    }
+}
+
+impl<'a, M: Memory, P> InterpreterBuilder<'a, M, P, NotSet, NotSet, NotSet, NotSet, NotSet, NotSet>
+where for<'p> P: Peripherals<'p> {
+    pub fn new() -> Self {
+        Self {
+            data: InterpreterBuilderData {
+                memory: None,
+                peripherals: None,
+                flags: None,
+                regs: None,
+                pc: None,
+                state: None,
+            },
+            _mem: PhantomData,
+            _perip: PhantomData,
+            _flags: PhantomData,
+            _regs: PhantomData,
+            _pc: PhantomData,
+            _state: PhantomData
+        }
+    }
+}
+
+impl<'a, M: Memory + Default, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_defaults(self) -> InterpreterBuilder<'a, M, P, Set, Set, Set, Set, Set, Set> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                memory: Some(Default::default()),
+                peripherals: Some(Default::default()),
+                flags: Some(Default::default()),
+                regs: Some(Default::default()),
+                pc: Some(Default::default()),
+                state: Some(Default::default()),
+            }
+        )
+    }
+}
+
+// impl<'a, M: Memory, P, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, NotSet, Perip, Flags, Regs, Pc, State>
+impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_memory(self, memory: M) -> InterpreterBuilder<'a, M, P, Set, Perip, Flags, Regs, Pc, State> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                memory: Some(memory),
+                ..self.data
+            }
+        )
+    }
+}
+
+// impl<'a, M: Memory + Default, P, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, NotSet, Perip, Flags, Regs, Pc, State>
+impl<'a, M: Memory + Default, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_default_memory(self) -> InterpreterBuilder<'a, M, P, Set, Perip, Flags, Regs, Pc, State> {
+        self.with_memory(Default::default())
+    }
+}
+
+// impl<'a, M: Memory, P, Mem, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, NotSet, Flags, Regs, Pc, State>
+impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_peripherals(self, peripherals: P) -> InterpreterBuilder<'a, M, P, Mem, Set, Flags, Regs, Pc, State> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                peripherals: Some(peripherals),
+                ..self.data
+            }
+        )
+    }
+
+    pub fn with_default_peripherals(self) -> InterpreterBuilder<'a, M, P, Mem, Set, Flags, Regs, Pc, State> {
+        self.with_peripherals(Default::default())
+    }
+}
+
+// impl<'a, M: Memory, P, Mem, Perip, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, NotSet, Regs, Pc, State>
+impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_interrupt_flags_by_ref(self, flags: &'a PeripheralInterruptFlags) -> InterpreterBuilder<'a, M, P, Mem, Perip, Set, Regs, Pc, State> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                flags: Some(OwnedOrRef::Ref(&flags)),
+                ..self.data
+            }
+        )
+    }
+
+    pub fn with_owned_interrupt_flags(self, flags: PeripheralInterruptFlags) -> InterpreterBuilder<'a, M, P, Mem, Perip, Set, Regs, Pc, State> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                flags: Some(OwnedOrRef::Owned(flags)),
+                ..self.data
+            }
+        )
+    }
+
+    pub fn with_default_interrupt_flags(self) -> InterpreterBuilder<'a, M, P, Mem, Perip, Set, Regs, Pc, State> {
+        self.with_owned_interrupt_flags(Default::default())
+    }
+}
+
+// TODO: do we want to allow people to set the starting register values?
+// impl<'a, M: Memory, P, Mem, Perip, Flags, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, NotSet, Pc, State>
+impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_regs(self, regs: [Word; Reg::NUM_REGS]) -> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Set, Pc, State> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                regs: Some(regs),
+                ..self.data
+            }
+        )
+    }
+
+    pub fn with_default_regs(self) -> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Set, Pc, State> {
+        self.with_regs(Default::default())
+    }
+}
+
+// TODO: do we want to allow people to set the starting pc?
+// impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, NotSet, State>
+impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_pc(self, pc: Word) -> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Set, State> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                pc: Some(pc),
+                ..self.data
+            }
+        )
+    }
+
+    pub fn with_default_pc(self) -> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Set, State> {
+        self.with_pc(Default::default())
+    }
+}
+
+// TODO: do we want to allow people to set the starting machine state?
+// impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, NotSet>
+impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
+where for<'p> P: Peripherals<'p> {
+    pub fn with_state(self, state: MachineState) -> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, Set> {
+        InterpreterBuilder::with_data(
+            InterpreterBuilderData {
+                state: Some(state),
+                ..self.data
+            }
+        )
+    }
+
+    pub fn with_default_state(self) -> InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, Set> {
+        self.with_state(Default::default())
+    }
+}
+
+impl<'a, M: Memory, P> InterpreterBuilder<'a, M, P, Set, Set, Set, Set, Set, Set>
+where for<'p> P: Peripherals<'p> {
+    pub fn build(self) -> Interpreter<'a, M, P> {
+        Interpreter::new(
+            self.data.memory.unwrap(),
+            self.data.peripherals.unwrap(),
+            self.data.flags.unwrap(),
+            self.data.regs.unwrap(),
+            self.data.pc.unwrap(),
+            self.data.state.unwrap(),
+        )
+    }
+}
+
+impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P>{
+    pub fn new(memory: M, peripherals: P, flags: OwnedOrRef<'a, PeripheralInterruptFlags>, regs: [Word; Reg::NUM_REGS], pc: Word, state: MachineState) -> Self {
+        // TODO: propagate flags to the peripherals!
+
+        Self {
+            memory, peripherals, flags, regs, pc, state
+        }
+    }
 }
 
 impl<'a, M: Memory, P: Peripherals<'a>> Index<Reg> for Interpreter<'a, M, P> {
@@ -525,13 +832,6 @@ where
                 KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
                 G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR
             )
-
-        // match addr {
-        //     <KBSR as MemMapped>::ADDR => *self.get_device_reg::<KBSR>().unwrap(),
-        //     _ => unimplemented!(),
-        // }
-
-        // unimplemented!();
         } else {
             self.memory.read_word(addr)
         }
