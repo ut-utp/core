@@ -591,6 +591,7 @@ mod tests {
     };
 
     #[test]
+    #[rustfmt::skip]
     fn const_context() {
         assert_eq!(REG_R7, R7);
         assert_eq!(A_SIMPLE_INSN, insn!(ADD R0, R0, R0 => yo));

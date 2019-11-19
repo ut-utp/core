@@ -1,4 +1,4 @@
-//! An extremely naive, terrible [`Memory` trait](lc3_traits::memory::Memory)
+//! An extremely naïve, terrible [`Memory` trait](lc3_traits::memory::Memory)
 //! implementation called [`MemoryShim`](memory::MemoryShim).
 
 use std::convert::TryInto;
@@ -11,7 +11,7 @@ use lc3_traits::memory::{Memory, MemoryMiscError};
 use super::error::MemoryShimError;
 use super::file_backed::{read_from_file, write_to_file};
 
-/// Naive [`Memory` trait](lc3_traits::memory::Memory) implementation.
+/// Naïve [`Memory` trait](lc3_traits::memory::Memory) implementation.
 ///
 /// Only good for hosted platforms since we just go and use 256 KiB of stack
 /// space.

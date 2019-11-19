@@ -12,14 +12,14 @@ use lc3_isa::{Addr, Reg, Word, PSR};
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
     Interrupted, // If we get paused or stepped, this is returned.
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum State {
     Paused,
     RunningUntilEvent,
@@ -45,8 +45,8 @@ pub trait Control {
         (regs, self.read_word(PSR), self.get_pc())
     }
 
-    fn write_word(&mut self, addr: Addr, word: Word);
     fn read_word(&self, addr: Addr) -> Word;
+    fn write_word(&mut self, addr: Addr, word: Word);
     fn commit_memory(&self) -> Result<(), ()>;
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;

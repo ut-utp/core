@@ -1,9 +1,9 @@
 //! Constants. (TODO)
 
-use lc3_traits::peripherals::Peripherals;
 use crate::interp::InstructionInterpreterPeripheralAccess;
 use core::ops::Deref;
 use lc3_isa::{Addr, Bits, SignedWord, Word, MCR as MCR_ADDRESS, PSR as PSR_ADDRESS, WORD_MAX_VAL};
+use lc3_traits::peripherals::Peripherals;
 
 use crate::interp::{Acv, InstructionInterpreter, WriteAttempt};
 
@@ -12,14 +12,18 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
 
     fn with_value(value: Word) -> Self;
 
-    fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    fn from<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> Result<Self, Acv>
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         // Checked access by default:
         Ok(Self::with_value(interp.get_word(Self::ADDR)?))
     }
 
     fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         // Checked access by default:
         interp.set_word(Self::ADDR, value)
     }
@@ -28,13 +32,20 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
         interp: &mut I,
         func: impl FnOnce(Self) -> Word,
     ) -> WriteAttempt
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         Self::set(interp, func(Self::from(interp)?))
     }
 
     #[doc(hidden)]
-    fn write_current_value<I: InstructionInterpreterPeripheralAccess>(&self, interp: &mut I) -> WriteAttempt
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    fn write_current_value<I: InstructionInterpreterPeripheralAccess>(
+        &self,
+        interp: &mut I,
+    ) -> WriteAttempt
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         Self::set(interp, **self)
     }
 }
@@ -46,13 +57,17 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
 pub trait MemMappedSpecial: MemMapped {
     // Infallible.
     fn from_special<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> Self
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         Self::from(interp).unwrap()
     }
 
     // Also infallible.
     fn set_special<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word)
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         Self::set(interp, value).unwrap()
     }
 }
@@ -241,7 +256,6 @@ macro_rules! gpio_mem_mapped {
     };
 }
 
-
 use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*};
 
 gpio_mem_mapped!(G0, "G0", G0CR, G0DR, 0xFE07);
@@ -253,7 +267,6 @@ gpio_mem_mapped!(G5, "G5", G5CR, G5DR, 0xFE11);
 gpio_mem_mapped!(G6, "G6", G6CR, G6DR, 0xFE13);
 gpio_mem_mapped!(G7, "G7", G7CR, G7DR, 0xFE15);
 
-
 mem_mapped!(special: BSP, 0xFFFA, "Backup Stack Pointer.");
 
 mem_mapped!(special: PSR, PSR_ADDRESS, "Program Status Register.");
@@ -263,8 +276,13 @@ impl PSR {
         self.u8(8..10)
     }
 
-    pub fn set_priority<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I, priority: u8)
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    pub fn set_priority<I: InstructionInterpreterPeripheralAccess>(
+        &mut self,
+        interp: &mut I,
+        priority: u8,
+    ) where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         self.0 = (self.0 & (!WORD_MAX_VAL.word(8..10))) | (priority as Word);
 
         // Don't return a `WriteAttempt` since PSR accesses don't produce ACVs (and are hence infallible).
@@ -278,8 +296,13 @@ impl PSR {
         !self.in_user_mode()
     }
 
-    fn set_mode<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I, user_mode: bool)
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    fn set_mode<I: InstructionInterpreterPeripheralAccess>(
+        &mut self,
+        interp: &mut I,
+        user_mode: bool,
+    ) where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         self.0 = self.0.u16(0..14) | (Into::<Word>::into(user_mode) << 15);
 
         // Don't return a `WriteAttempt` since PSR accesses are infallible.
@@ -287,12 +310,16 @@ impl PSR {
     }
 
     pub fn to_user_mode<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I)
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         self.set_mode(interp, true)
     }
 
     pub fn to_privileged_mode<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I)
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         self.set_mode(interp, false)
     }
 
@@ -310,7 +337,9 @@ impl PSR {
     }
 
     pub fn set_cc<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I, word: Word)
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
         let word = word as SignedWord;
 
         // checking for n is easy once we've got a `SignedWord`.
