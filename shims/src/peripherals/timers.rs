@@ -56,7 +56,7 @@ impl TimersShim {
     }
 }
 
-impl Timers<'static> for TimersShim {
+impl<'a> Timers<'a> for TimersShim {
     fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> {
         self.states[timer] = state;
 
@@ -89,7 +89,7 @@ impl Timers<'static> for TimersShim {
     fn register_interrupt(
         &mut self,
         timer: TimerId,
-        func: TimerHandler<'static>,
+        func: TimerHandler<'a>,
     ) -> Result<(), TimerMiscError> {
         // self.handlers[timer] = func;
         // Ok(())
