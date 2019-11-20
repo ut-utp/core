@@ -176,7 +176,7 @@ macro_rules! _mem_mapped_special_access {
             <I as Deref>::Target: Peripherals<'a>,
         {
             // Special unchecked access!
-            Ok(Self::with_value(interp.get_word_unchecked(Self::ADDR)))
+            Ok(Self::with_value(interp.get_word_force_memory_backed(Self::ADDR)))
         }
 
         fn set<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &mut I, value: Word) -> WriteAttempt
@@ -184,7 +184,7 @@ macro_rules! _mem_mapped_special_access {
             <I as Deref>::Target: Peripherals<'a>,
         {
             // Special unchecked access!
-            interp.set_word_unchecked(Self::ADDR, value);
+            interp.set_word_force_memory_backed(Self::ADDR, value);
             Ok(())
         }
     };

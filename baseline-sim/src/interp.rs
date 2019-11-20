@@ -73,6 +73,9 @@ pub trait InstructionInterpreter:
     fn set_word_unchecked(&mut self, addr: Addr, word: Word);
     fn get_word_unchecked(&self, addr: Addr) -> Word;
 
+    fn set_word_force_memory_backed(&mut self, addr: Addr, word: Word);
+    fn get_word_force_memory_backed(&self, addr: Addr) -> Word;
+
     fn get_register(&self, reg: Reg) -> Word {
         self[reg]
     }
@@ -887,7 +890,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
                 G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR
             )
         } else {
-            self.memory.write_word(addr, word)
+            self.set_word_force_memory_backed(addr, word)
         }
     }
 
@@ -909,9 +912,18 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
                 G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR
             )
         } else {
-            self.memory.read_word(addr)
+            self.get_word_force_memory_backed(addr)
         }
     }
+
+    fn set_word_force_memory_backed(&mut self, addr: Addr, word: Word) {
+        self.memory.write_word(addr, word)
+    }
+
+    fn get_word_force_memory_backed(&self, addr: Addr) -> Word {
+        self.memory.read_word(addr)
+    }
+
 
     fn get_machine_state(&self) -> MachineState {
         self.state
