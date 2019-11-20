@@ -22,10 +22,10 @@ use super::mem_mapped::{MemMapped, MemMappedSpecial /*, BSP, PSR*/};
 // TODO: Break up this file!
 
 // TODO: name?
-pub trait InstructionInterpreterPeripheralAccess:
+pub trait InstructionInterpreterPeripheralAccess<'a>:
     InstructionInterpreter + Deref + DerefMut
 where
-    for<'a> <Self as Deref>::Target: Peripherals<'a>,
+    <Self as Deref>::Target: Peripherals<'a>,
 {
     fn get_peripherals(&self) -> &<Self as std::ops::Deref>::Target {
         self.deref()
@@ -211,7 +211,7 @@ pub struct NotSet;
 #[derive(Debug)]
 struct InterpreterBuilderData<'a, M: Memory, P>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     memory: Option<M>,
     peripherals: Option<P>,
@@ -233,7 +233,7 @@ pub struct InterpreterBuilder<
     Pc = NotSet,
     State = NotSet,
 > where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     data: InterpreterBuilderData<'a, M, P>,
     _mem: PhantomData<&'a Mem>,
@@ -247,7 +247,7 @@ pub struct InterpreterBuilder<
 impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     fn with_data(data: InterpreterBuilderData<'a, M, P>) -> Self {
         Self {
@@ -264,7 +264,7 @@ where
 
 impl<'a, M: Memory, P> InterpreterBuilder<'a, M, P, NotSet, NotSet, NotSet, NotSet, NotSet, NotSet>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn new() -> Self {
         Self {
@@ -289,7 +289,7 @@ where
 impl<'a, M: Memory + Default, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_defaults(self) -> InterpreterBuilder<'a, M, P, Set, Set, Set, Set, Set, Set> {
         InterpreterBuilder::with_data(InterpreterBuilderData {
@@ -307,7 +307,7 @@ where
 impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_memory(
         self,
@@ -324,7 +324,7 @@ where
 impl<'a, M: Memory + Default, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_default_memory(
         self,
@@ -337,7 +337,7 @@ where
 impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_peripherals(
         self,
@@ -360,7 +360,7 @@ where
 impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_interrupt_flags_by_ref(
         self,
@@ -394,7 +394,7 @@ where
 impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_regs(
         self,
@@ -418,7 +418,7 @@ where
 impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_pc(
         self,
@@ -442,7 +442,7 @@ where
 impl<'a, M: Memory, P, Mem, Perip, Flags, Regs, Pc, State>
     InterpreterBuilder<'a, M, P, Mem, Perip, Flags, Regs, Pc, State>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn with_state(
         self,
@@ -463,7 +463,7 @@ where
 
 impl<'a, M: Memory, P> InterpreterBuilder<'a, M, P, Set, Set, Set, Set, Set, Set>
 where
-    for<'p> P: Peripherals<'p>,
+    P: Peripherals<'a>,
 {
     pub fn build(self) -> Interpreter<'a, M, P> {
         Interpreter::new(
@@ -531,14 +531,11 @@ impl<'a, M: Memory, P: Peripherals<'a>> DerefMut for Interpreter<'a, M, P> {
     }
 }
 
-impl<'a, M: Memory, P> InstructionInterpreterPeripheralAccess for Interpreter<'a, M, P> where
-    for<'b> P: Peripherals<'b>
+impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'a> for Interpreter<'a, M, P>
 {
 }
 
-impl<'a, M: Memory, P> Interpreter<'a, M, P>
-where
-    for<'b> P: Peripherals<'b>,
+impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P>
 {
     fn set_cc(&mut self, word: Word) {
         <PSR as MemMapped>::from(self).unwrap().set_cc(self, word)
@@ -819,9 +816,7 @@ use super::mem_mapped::{
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
 };
 
-impl<'a, M: Memory, P> InstructionInterpreter for Interpreter<'a, M, P>
-where
-    for<'b> P: Peripherals<'b>,
+impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P>
 {
     fn step(&mut self) -> MachineState {
         if let state @ MachineState::Halted = self.get_machine_state() {

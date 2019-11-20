@@ -12,39 +12,43 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
 
     fn with_value(value: Word) -> Self;
 
-    fn from<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         // Checked access by default:
         Ok(Self::with_value(interp.get_word(Self::ADDR)?))
     }
 
-    fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+    fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         // Checked access by default:
         interp.set_word(Self::ADDR, value)
     }
 
-    fn update<I: InstructionInterpreterPeripheralAccess>(
+    fn update<'a, I>(
         interp: &mut I,
         func: impl FnOnce(Self) -> Word,
     ) -> WriteAttempt
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Self::set(interp, func(Self::from(interp)?))
     }
 
     #[doc(hidden)]
-    fn write_current_value<I: InstructionInterpreterPeripheralAccess>(
+    fn write_current_value<'a, I>(
         &self,
         interp: &mut I,
     ) -> WriteAttempt
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Self::set(interp, **self)
     }
@@ -56,17 +60,19 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
 // Use the macro below instead.
 pub trait MemMappedSpecial: MemMapped {
     // Infallible.
-    fn from_special<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> Self
+    fn from_special<'a, I>(interp: &I) -> Self
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Self::from(interp).unwrap()
     }
 
     // Also infallible.
-    fn set_special<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word)
+    fn set_special<'a, I>(interp: &mut I, value: Word)
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Self::set(interp, value).unwrap()
     }
@@ -79,9 +85,10 @@ pub trait Interrupt: MemMapped {
     /// Returns true if:
     ///   - this particular interrupt is enabled
     ///   - this particular interrupt is ready to fire (i.e. pending).
-    fn interrupt<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> bool
+    fn interrupt<'a, I>(interp: &I) -> bool
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Self::interrupt_ready(interp) && Self::interrupt_ready(interp)
     }
@@ -93,14 +100,17 @@ pub trait Interrupt: MemMapped {
 
     /// Returns true if the interrupt is ready to fire (i.e. pending) regardless
     /// of whether the interrupt is enabled.
-    fn interrupt_ready<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> bool
+    fn interrupt_ready<'a, I>(interp: &I) -> bool
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>;
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>;
 
     /// Returns true if the interrupt is enabled.
-    fn interrupt_enabled<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> bool
+    fn interrupt_enabled<'a, I>(interp: &I) -> bool
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>;
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>;
+
 }
 
 // struct KBSR(Word);
@@ -161,12 +171,18 @@ macro_rules! mem_mapped {
 
 macro_rules! _mem_mapped_special_access {
     (+) => {
-        fn from<I: InstructionInterpreter>(interp: &I) -> Result<Self, Acv> {
+        fn from<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &I) -> Result<Self, Acv>
+        where
+            <I as Deref>::Target: Peripherals<'a>,
+        {
             // Special unchecked access!
             Ok(Self::with_value(interp.get_word_unchecked(Self::ADDR)))
         }
 
-        fn set<I: InstructionInterpreter>(interp: &mut I, value: Word) -> WriteAttempt {
+        fn set<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &mut I, value: Word) -> WriteAttempt
+        where
+            <I as Deref>::Target: Peripherals<'a>,
+        {
             // Special unchecked access!
             interp.set_word_unchecked(Self::ADDR, value);
             Ok(())
@@ -221,8 +237,11 @@ macro_rules! gpio_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 let state = Gpio::get_state(interp.get_peripherals(), $pin);
 
                 use lc3_traits::peripherals::gpio::GpioState::*;
@@ -236,9 +255,11 @@ macro_rules! gpio_mem_mapped {
                 Ok(Self::with_value(word))
             }
 
-            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
-                use lc3_traits::peripherals::gpio::GpioState::*;
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {                use lc3_traits::peripherals::gpio::GpioState::*;
                 let state = match value.bits(0..2) {
                     0 => Disabled,
                     1 => Output,
@@ -269,16 +290,21 @@ macro_rules! gpio_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 let word = Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
 
                 Ok(Self::with_value(word))
             }
 
-            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
-                let bit: bool = value.bit(0);
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {                let bit: bool = value.bit(0);
                 Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
 
                 Ok(())
@@ -527,12 +553,13 @@ impl PSR {
         self.u8(8..10)
     }
 
-    pub fn set_priority<I: InstructionInterpreterPeripheralAccess>(
+    pub fn set_priority<'a, I>(
         &mut self,
         interp: &mut I,
         priority: u8,
     ) where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         self.0 = (self.0 & (!WORD_MAX_VAL.word(8..10))) | ((priority as Word).u16(0..2));
 
@@ -547,12 +574,13 @@ impl PSR {
         !self.in_user_mode()
     }
 
-    fn set_mode<I: InstructionInterpreterPeripheralAccess>(
+    fn set_mode<'a, I>(
         &mut self,
         interp: &mut I,
         user_mode: bool,
     ) where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         self.0 = self.0.u16(0..14) | (Into::<Word>::into(user_mode) << 15);
 
@@ -560,16 +588,18 @@ impl PSR {
         self.write_current_value(interp).unwrap()
     }
 
-    pub fn to_user_mode<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I)
+    pub fn to_user_mode<'a, I>(&mut self, interp: &mut I)
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         self.set_mode(interp, true)
     }
 
-    pub fn to_privileged_mode<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I)
+    pub fn to_privileged_mode<'a, I>(&mut self, interp: &mut I)
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         self.set_mode(interp, false)
     }
@@ -587,9 +617,10 @@ impl PSR {
         (self.n(), self.z(), self.p())
     }
 
-    pub fn set_cc<I: InstructionInterpreterPeripheralAccess>(&mut self, interp: &mut I, word: Word)
+    pub fn set_cc<'a, I>(&mut self, interp: &mut I, word: Word)
     where
-        for<'a> <I as Deref>::Target: Peripherals<'a>,
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         let word = word as SignedWord;
 
