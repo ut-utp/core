@@ -85,6 +85,7 @@ pub trait InstructionInterpreter:
 
     fn get_machine_state(&self) -> MachineState;
     fn reset(&mut self);
+    fn halt(&mut self); // TODO: have the MCR set this, etc.
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -933,7 +934,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.pc = 0;
 
         // TODO!
-        unimplemented!();
+        // unimplemented!();
+        self.state = MachineState::Running;
+    }
+
+    fn halt(&mut self) {
+        self.state = MachineState::Halted;
     }
 }
 
