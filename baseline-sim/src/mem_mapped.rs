@@ -72,6 +72,37 @@ pub trait MemMappedSpecial: MemMapped {
     }
 }
 
+pub trait Interrupt: MemMapped {
+    const INT_VEC: u8;
+    const PRIORITY: u8; // Must be a 3 bit number
+
+    /// Returns true if:
+    ///   - this particular interrupt is enabled
+    ///   - this particular interrupt is ready to fire (i.e. pending).
+    fn interrupt<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> bool
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>,
+    {
+        Self::interrupt_ready(interp) && Self::interrupt_ready(interp)
+    }
+
+    // TODO: eventually, const
+    fn priority() -> u8 {
+        (Self::PRIORITY as Word).u16(0..2) as u8
+    }
+
+    /// Returns true if the interrupt is ready to fire (i.e. pending) regardless
+    /// of whether the interrupt is enabled.
+    fn interrupt_ready<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> bool
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>;
+
+    /// Returns true if the interrupt is enabled.
+    fn interrupt_enabled<I: InstructionInterpreterPeripheralAccess>(interp: &I) -> bool
+    where
+        for<'a> <I as Deref>::Target: Peripherals<'a>;
+}
+
 // struct KBSR(Word);
 
 // impl Deref for KBSR {
@@ -503,7 +534,7 @@ impl PSR {
     ) where
         for<'a> <I as Deref>::Target: Peripherals<'a>,
     {
-        self.0 = (self.0 & (!WORD_MAX_VAL.word(8..10))) | (priority as Word);
+        self.0 = (self.0 & (!WORD_MAX_VAL.word(8..10))) | ((priority as Word).u16(0..2));
 
         // Don't return a `WriteAttempt` since PSR accesses don't produce ACVs (and are hence infallible).
         self.write_current_value(interp).unwrap();

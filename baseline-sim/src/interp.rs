@@ -19,6 +19,8 @@ use lc3_traits::{memory::Memory, peripherals::Peripherals};
 
 use super::mem_mapped::{MemMapped, MemMappedSpecial /*, BSP, PSR*/};
 
+// TODO: Break up this file!
+
 // TODO: name?
 pub trait InstructionInterpreterPeripheralAccess:
     InstructionInterpreter + Deref + DerefMut
@@ -486,14 +488,18 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     ) -> Self {
         // TODO: propagate flags to the peripherals!
 
-        Self {
+        let interp = Self {
             memory,
             peripherals,
             flags,
             regs,
             pc,
             state,
-        }
+        };
+
+        // interp.reset(); // TODO: should we? won't that negate setting the regs and pc and stuff?
+
+        interp
     }
 }
 
@@ -633,16 +639,19 @@ where
             return false;
         }
 
-        self.prep_for_execution_event();
-
-        // Go to the interrupt routine:
-        // (this should also not panic)
-        self.pc = self
-            .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(int_vec)))
-            .unwrap();
         self.get_special_reg::<PSR>().set_priority(self, priority);
+        self.handle_exception(int_vec);
 
         true
+        // self.prep_for_execution_event();
+
+        // // Go to the interrupt routine:
+        // // (this should also not panic)
+        // self.pc = self
+        //     .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(int_vec)))
+        //     .unwrap();
+
+        // true
     }
 
     fn is_acv(&self, addr: Word) -> bool {
@@ -914,6 +923,8 @@ where
     }
 
     fn reset(&mut self) {
+        self.pc = 0;
+
         // TODO!
         unimplemented!();
     }
