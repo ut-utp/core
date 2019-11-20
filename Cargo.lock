@@ -123,6 +123,7 @@ version = "0.1.0"
 dependencies = [
  "lc3-isa 0.1.0",
  "lc3-macros 0.1.0",
+ "lc3-shims 0.1.0",
  "lc3-traits 0.1.0",
 ]
 
