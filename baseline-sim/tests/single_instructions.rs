@@ -1,13 +1,12 @@
-
 use lc3_baseline_sim::*;
-use lc3_isa::{insn, Instruction, Reg, Addr, Word};
+use lc3_isa::{insn, Addr, Instruction, Reg, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;
 
-use lc3_baseline_sim::interp::{Interpreter, InstructionInterpreter, MachineState};
+use lc3_baseline_sim::interp::{InstructionInterpreter, Interpreter, MachineState};
 
-use lc3_shims::peripherals::PeripheralsShim;
 use lc3_shims::memory::MemoryShim;
+use lc3_shims::peripherals::PeripheralsShim;
 
 #[cfg(test)]
 mod tests {
@@ -57,7 +56,10 @@ mod tests {
         // Check registers:
         for (idx, r) in regs.iter().enumerate() {
             if let Some(reg_word) = r {
-                assert_eq!(interp.get_register((idx as u8).try_into().unwrap()), *reg_word);
+                assert_eq!(
+                    interp.get_register((idx as u8).try_into().unwrap()),
+                    *reg_word
+                );
             }
         }
 

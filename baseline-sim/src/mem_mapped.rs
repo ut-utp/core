@@ -30,10 +30,7 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
         interp.set_word(Self::ADDR, value)
     }
 
-    fn update<'a, I>(
-        interp: &mut I,
-        func: impl FnOnce(Self) -> Word,
-    ) -> WriteAttempt
+    fn update<'a, I>(interp: &mut I, func: impl FnOnce(Self) -> Word) -> WriteAttempt
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
@@ -42,10 +39,7 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
     }
 
     #[doc(hidden)]
-    fn write_current_value<'a, I>(
-        &self,
-        interp: &mut I,
-    ) -> WriteAttempt
+    fn write_current_value<'a, I>(&self, interp: &mut I) -> WriteAttempt
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
@@ -110,7 +104,6 @@ pub trait Interrupt: MemMapped {
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>;
-
 }
 
 // struct KBSR(Word);
@@ -176,10 +169,15 @@ macro_rules! _mem_mapped_special_access {
             <I as Deref>::Target: Peripherals<'a>,
         {
             // Special unchecked access!
-            Ok(Self::with_value(interp.get_word_force_memory_backed(Self::ADDR)))
+            Ok(Self::with_value(
+                interp.get_word_force_memory_backed(Self::ADDR),
+            ))
         }
 
-        fn set<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &mut I, value: Word) -> WriteAttempt
+        fn set<'a, I: InstructionInterpreterPeripheralAccess<'a>>(
+            interp: &mut I,
+            value: Word,
+        ) -> WriteAttempt
         where
             <I as Deref>::Target: Peripherals<'a>,
         {
@@ -442,26 +440,32 @@ adc_mem_mapped!(A1, "A1", A1CR, A1DR, 0xFE19);
 adc_mem_mapped!(A2, "A2", A2CR, A2DR, 0xFE1B);
 adc_mem_mapped!(A3, "A3", A3CR, A3DR, 0xFE1D);
 
-use lc3_traits::peripherals::clock::{Clock};
-#[doc="Clock Register"]
+use lc3_traits::peripherals::clock::Clock;
+#[doc = "Clock Register"]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct CLKR(Word);
 impl Deref for CLKR {
     type Target = Word;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 impl MemMapped for CLKR {
     const ADDR: Addr = 0xFE1F;
 
-    fn with_value(value: Word) -> Self { Self(value) }
+    fn with_value(value: Word) -> Self {
+        Self(value)
+    }
 
-    fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        Ok(Self::with_value(Clock::get_milliseconds(interp.get_peripherals())))
+        Ok(Self::with_value(Clock::get_milliseconds(
+            interp.get_peripherals(),
+        )))
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
@@ -471,7 +475,7 @@ impl MemMapped for CLKR {
     {
         Clock::set_milliseconds(interp.get_peripherals_mut(), value);
 
-        Ok(())      // TODO: Ignore writes to ADC data register?
+        Ok(()) // TODO: Ignore writes to ADC data register?
     }
 }
 
@@ -583,11 +587,8 @@ impl PSR {
         self.u8(8..10)
     }
 
-    pub fn set_priority<'a, I>(
-        &mut self,
-        interp: &mut I,
-        priority: u8,
-    ) where
+    pub fn set_priority<'a, I>(&mut self, interp: &mut I, priority: u8)
+    where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
@@ -604,11 +605,8 @@ impl PSR {
         !self.in_user_mode()
     }
 
-    fn set_mode<'a, I>(
-        &mut self,
-        interp: &mut I,
-        user_mode: bool,
-    ) where
+    fn set_mode<'a, I>(&mut self, interp: &mut I, user_mode: bool)
+    where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
