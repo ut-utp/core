@@ -931,7 +931,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     fn reset(&mut self) {
-        self.pc = 0;
+        self.pc = 0; // TODO?
+        self.set_cc(0);
 
         // TODO!
         // unimplemented!();
