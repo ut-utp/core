@@ -491,6 +491,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         state: MachineState,
     ) -> Self {
         // TODO: propagate flags to the peripherals!
+        // TODO: maybe eventually don't even hold flags; just pass it along
 
         let interp = Self {
             memory,
@@ -768,7 +769,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P>
             AndImm { dr, sr1, imm5 } => I!(dr <- R[sr1] & imm5),
             Br { n, z, p, offset9 } => {
                 let (cc_n, cc_z, cc_p) = self.get_cc();
-                if n & cc_n || z & cc_z || p & cc_p {
+                if n && cc_n || z && cc_z || p && cc_p {
                     I!(PC <- PC + offset9)
                 }
             }
@@ -830,6 +831,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         // Increment PC (state 18):
         let current_pc = self.get_pc();
         self.set_pc(current_pc.wrapping_add(1)); // TODO: ???
+
 
         // TODO: Peripheral interrupt stuff
 
