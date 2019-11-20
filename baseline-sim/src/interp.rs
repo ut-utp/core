@@ -536,12 +536,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> DerefMut for Interpreter<'a, M, P> {
     }
 }
 
-impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'a> for Interpreter<'a, M, P>
+impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'a>
+    for Interpreter<'a, M, P>
 {
 }
 
-impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P>
-{
+impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn set_cc(&mut self, word: Word) {
         <PSR as MemMapped>::from(self).unwrap().set_cc(self, word)
     }
@@ -821,8 +821,7 @@ use super::mem_mapped::{
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
 };
 
-impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P>
-{
+impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     fn step(&mut self) -> MachineState {
         if let state @ MachineState::Halted = self.get_machine_state() {
             return state;
@@ -831,7 +830,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         // Increment PC (state 18):
         let current_pc = self.get_pc();
         self.set_pc(current_pc.wrapping_add(1)); // TODO: ???
-
 
         // TODO: Peripheral interrupt stuff
 
@@ -926,7 +924,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     fn get_word_force_memory_backed(&self, addr: Addr) -> Word {
         self.memory.read_word(addr)
     }
-
 
     fn get_machine_state(&self) -> MachineState {
         self.state
