@@ -68,7 +68,8 @@ mod tests {
     }
 
     macro_rules! single {
-        ($name:ident, insn: {$($insn:tt)*} steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:literal: $v:literal),* }, memory: { $($addr:literal: $val:literal),* }) => {
+        ($(|$panics:literal|)? $name:ident, insn: {$($insn:tt)*} steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:literal: $v:literal),* }, memory: { $($addr:literal: $val:literal),* }) => {
+        $(#[doc = $panics] #[should_panic])?
         #[test]
         fn $name() {
 
@@ -127,8 +128,8 @@ mod tests {
     //     // )
     // }
 
-    #[should_panic]
     single! {
+        |"panics"|
         no_op_fail,
         insn: { BRnzp #2 }
         steps: Some(1),
