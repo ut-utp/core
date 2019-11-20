@@ -361,8 +361,11 @@ macro_rules! adc_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 let state = Adc::get_state(interp.get_peripherals(), $pin);
 
                 use lc3_traits::peripherals::adc::AdcState::*;
@@ -375,8 +378,11 @@ macro_rules! adc_mem_mapped {
                 Ok(Self::with_value(word))
             }
 
-            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 use lc3_traits::peripherals::adc::AdcState::*;
                 let state = match value.bits(0..2) {
                     0 => Disabled,
@@ -408,15 +414,21 @@ macro_rules! adc_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 let word = Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
 
                 Ok(Self::with_value(word))
             }
 
-            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 Ok(())      // TODO: Ignore writes to ADC data register?
             }
         }
@@ -444,13 +456,19 @@ impl MemMapped for CLKR {
 
     fn with_value(value: Word) -> Self { Self(value) }
 
-    fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
         Ok(Self::with_value(Clock::get_milliseconds(interp.get_peripherals())))
     }
 
-    fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+    fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
         Clock::set_milliseconds(interp.get_peripherals_mut(), value);
 
         Ok(())      // TODO: Ignore writes to ADC data register?
@@ -475,8 +493,11 @@ macro_rules! pwm_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 let state = Pwm::get_state(interp.get_peripherals(), $pin);
 
                 use lc3_traits::peripherals::pwm::PwmState::*;
@@ -488,8 +509,11 @@ macro_rules! pwm_mem_mapped {
                 Ok(Self::with_value(word))
             }
 
-            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 use lc3_traits::peripherals::pwm::PwmState::*;
                 use core::num::NonZeroU8;
 
@@ -521,15 +545,21 @@ macro_rules! pwm_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word;
 
                 Ok(Self::with_value(word))
             }
 
-            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
-            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
                 let duty_val: u8 = value as u8;
                 Pwm::set_duty_cycle(interp.get_peripherals_mut(), $pin, duty_val); // TODO: do something on failure
 
