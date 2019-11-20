@@ -240,7 +240,7 @@ macro_rules! gpio_mem_mapped {
 
             fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
             where for <'a> <I as Deref>::Target: Peripherals<'a> {
-                let word = Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(2); // TODO: document and/or change the 'error' value
+                let word = Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
 
                 Ok(Self::with_value(word))
             }
@@ -266,6 +266,139 @@ gpio_mem_mapped!(G4, "G4", G4CR, G4DR, 0xFE0F);
 gpio_mem_mapped!(G5, "G5", G5CR, G5DR, 0xFE11);
 gpio_mem_mapped!(G6, "G6", G6CR, G6DR, 0xFE13);
 gpio_mem_mapped!(G7, "G7", G7CR, G7DR, 0xFE15);
+
+// Idk how to coerce the state of all pins into a word
+//#[doc="GPIO Control Register, all pins"]
+//#[derive(Copy, Clone, Debug, PartialEq)]
+//pub struct GPIOCR(Word);
+//impl Deref for GPIOCR {
+//    type Target = Word;
+//    fn deref(&self) -> &Self::Target { &self.0 }
+//}
+//impl MemMapped for GPIOCR {
+//    const ADDR: Addr = 0xFE17;
+//
+//    fn with_value(value: Word) -> Self { Self(value) }
+//
+//    fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
+//    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+//
+//    }
+//}
+
+macro_rules! adc_mem_mapped {
+    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+        #[doc=$pin_name]
+        #[doc="ADC Pin Control Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $cr(Word);
+
+        impl Deref for $cr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $cr {
+            const ADDR: Addr = $addr;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let state = Adc::get_state(interp.get_peripherals(), $pin);
+
+                use lc3_traits::peripherals::adc::AdcState::*;
+                let word: Word = match state {
+                    Disabled => 0,
+                    Enabled => 1,
+                    Interrupt => 2,
+                };
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                use lc3_traits::peripherals::adc::AdcState::*;
+                let state = match value.bits(0..2) {
+                    0 => Disabled,
+                    1 => Enabled,
+                    2 => Interrupt,
+                    3 => Disabled,      // TODO: What to do with invalid state?
+                    _ => unreachable!()
+                };
+
+                Adc::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
+
+                Ok(())
+            }
+        }
+
+        #[doc=$pin_name]
+        #[doc="ADC Pin Data Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $dr(Word);
+
+        impl Deref for $dr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $dr {
+            const ADDR: Addr = $addr + 1;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let word = Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                Ok(())      // TODO: Ignore writes to ADC data register?
+            }
+        }
+    };
+}
+
+use lc3_traits::peripherals::adc::{Adc, AdcPin::*};
+
+adc_mem_mapped!(A0, "A0", A0CR, A0DR, 0xFE17);
+adc_mem_mapped!(A1, "A1", A1CR, A1DR, 0xFE19);
+adc_mem_mapped!(A2, "A2", A2CR, A2DR, 0xFE1B);
+adc_mem_mapped!(A3, "A3", A3CR, A3DR, 0xFE1D);
+
+use lc3_traits::peripherals::clock::{Clock};
+#[doc="Clock Register"]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct CLKR(Word);
+impl Deref for CLKR {
+    type Target = Word;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl MemMapped for CLKR {
+    const ADDR: Addr = 0xFE1F;
+
+    fn with_value(value: Word) -> Self { Self(value) }
+
+    fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
+    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+        Ok(Self::with_value(Clock::get_milliseconds(interp.get_peripherals())))
+    }
+
+    fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+    where for <'a> <I as Deref>::Target: Peripherals<'a> {
+        Clock::set_milliseconds(interp.get_peripherals_mut(), value);
+
+        Ok(())      // TODO: Ignore writes to ADC data register?
+    }
+}
 
 mem_mapped!(special: BSP, 0xFFFA, "Backup Stack Pointer.");
 
