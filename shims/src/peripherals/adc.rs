@@ -1,18 +1,15 @@
 use lc3_traits::peripherals::adc::{
-    Adc, AdcHandler as Handler, AdcMiscError, AdcPin as Pin, AdcPinArr as PinArr,
+    Adc, AdcMiscError, AdcPin as Pin, AdcPinArr as PinArr,
     AdcReadError as ReadError, AdcState, AdcStateMismatch as StateMismatch,
 };
 
-// TODO: consider using one array of struct(Option<u8>, State, &'a dyn FnMut(u8))?
-pub struct AdcShim<'a> {
+pub struct AdcShim {
     states: PinArr<State>,
-    handlers: PinArr<Handler<'a>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State {
     Enabled(u8),
-    Interrupt(u8),
     Disabled,
 }
 
@@ -21,20 +18,17 @@ impl From<State> for AdcState {
         use AdcState::*;
         match state {
             State::Enabled(_) => Enabled,
-            State::Interrupt(_) => Interrupt,
             State::Disabled => Disabled,
         }
     }
 }
 
 const INIT_VALUE: u8 = 0;
-const NO_OP: Handler<'static> = &|_, _| {};
 
-impl Default for AdcShim<'_> {
+impl Default for AdcShim {
     fn default() -> Self {
         Self {
             states: PinArr([State::Disabled; Pin::NUM_PINS]),
-            handlers: PinArr([NO_OP; Pin::NUM_PINS]),
         }
     }
 }
@@ -42,7 +36,7 @@ impl Default for AdcShim<'_> {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SetError(StateMismatch);
 
-impl AdcShim<'_> {
+impl AdcShim {
     pub fn new() -> Self {
         Self::default()
     }
@@ -51,24 +45,17 @@ impl AdcShim<'_> {
         use State::*;
         self.states[pin] = match self.states[pin] {
             Enabled(_) => Enabled(value),
-            Interrupt(prev) => {
-                if prev != value {
-                    self.handlers[pin](pin, value)
-                }
-                Interrupt(value)
-            }
-            _ => return Err(SetError((pin, self.get_state(pin)))),
+            Disabled => return Err(SetError((pin, self.get_state(pin)))),
         };
         Ok(())
     }
 }
 
-impl<'a> Adc<'a> for AdcShim<'a> {
+impl Adc for AdcShim {
     fn set_state(&mut self, pin: Pin, state: AdcState) -> Result<(), ()> {
         use AdcState::*;
         self.states[pin] = match state {
             Enabled => State::Enabled(INIT_VALUE),
-            Interrupt => State::Interrupt(INIT_VALUE),
             Disabled => State::Disabled,
         };
         Ok(())
@@ -81,14 +68,9 @@ impl<'a> Adc<'a> for AdcShim<'a> {
     fn read(&self, pin: Pin) -> Result<u8, ReadError> {
         use State::*;
         match self.states[pin] {
-            Enabled(value) | Interrupt(value) => Ok(value),
+            Enabled(value) => Ok(value),
             valueless => Err(ReadError((pin, valueless.into()))),
         }
-    }
-
-    fn register_interrupt(&mut self, pin: Pin, handler: Handler<'a>) -> Result<(), AdcMiscError> {
-        self.handlers[pin] = handler;
-        Ok(())
     }
 }
 

@@ -20,14 +20,14 @@ use timers::Timers;
 use input::Input;
 use output::Output;
 
-pub trait Peripherals<'p>: Gpio<'p> + Adc<'p> + Pwm + Timers<'p> + Clock + Input + Output {
+pub trait Peripherals<'p>: Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input + Output {
     fn init(&mut self);
 }
 
 pub struct PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: Gpio<'p>,
-    A: Adc<'p>,
+    A: Adc,
     P: Pwm,
     T: Timers<'p>,
     C: Clock,
@@ -50,7 +50,7 @@ where
 impl<'p, G, A, P, T, C, I, O> Default for PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: Gpio<'p>,
-    A: Adc<'p>,
+    A: Adc,
     P: Pwm,
     T: Timers<'p>,
     C: Clock,
@@ -74,7 +74,7 @@ where
 impl<'p, G, A, P, T, C, I, O> PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: Gpio<'p>,
-    A: Adc<'p>,
+    A: Adc,
     P: Pwm,
     T: Timers<'p>,
     C: Clock,
@@ -142,7 +142,7 @@ macro_rules! peripheral_set_impl {
         where
             $($lifetime: 'p,)?
             G: 'p + $crate::peripherals::gpio::Gpio<'p>,
-            A: 'p + $crate::peripherals::adc::Adc<'p>,
+            A: 'p + $crate::peripherals::adc::Adc,
             P: 'p + $crate::peripherals::pwm::Pwm,
             T: 'p + $crate::peripherals::timers::Timers<'p>,
             C: 'p + $crate::peripherals::clock::Clock,
@@ -244,7 +244,7 @@ macro_rules! func_sig {
 impl<'p, G, A, P, T, C, I, O> Peripherals<'p> for PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: 'p + Gpio<'p>,
-    A: 'p + Adc<'p>,
+    A: 'p + Adc,
     P: 'p + Pwm,
     T: 'p + Timers<'p>,
     C: 'p + Clock,
