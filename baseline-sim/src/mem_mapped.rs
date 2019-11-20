@@ -400,6 +400,93 @@ impl MemMapped for CLKR {
     }
 }
 
+macro_rules! pwm_mem_mapped {
+    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+        #[doc=$pin_name]
+        #[doc="PWM Pin Control Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $cr(Word);
+
+        impl Deref for $cr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $cr {
+            const ADDR: Addr = $addr;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv>
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let state = Pwm::get_state(interp.get_peripherals(), $pin);
+
+                use lc3_traits::peripherals::pwm::PwmState::*;
+                let word: Word = match state {
+                    Disabled => 0,
+                    Enabled(ref nzu8) => nzu8.get() as Word,
+                };
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                use lc3_traits::peripherals::pwm::PwmState::*;
+                use core::num::NonZeroU8;
+
+                let state_val: u8 = value as u8;
+                let state = match state_val {
+                    0 => Disabled,
+                    _ => Enabled(NonZeroU8::new(state_val).unwrap()),  // TODO: Will this fail?
+                };
+
+                Pwm::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
+
+                Ok(())
+            }
+        }
+
+        #[doc=$pin_name]
+        #[doc="PWM Pin Duty Cycle Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $dr(Word);
+
+        impl Deref for $dr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $dr {
+            const ADDR: Addr = $addr + 1;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<I: InstructionInterpreterPeripheralAccess> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word;
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<I: InstructionInterpreterPeripheralAccess>(interp: &mut I, value: Word) -> WriteAttempt
+            where for <'a> <I as Deref>::Target: Peripherals<'a> {
+                let duty_val: u8 = value as u8;
+                Pwm::set_duty_cycle(interp.get_peripherals_mut(), $pin, duty_val); // TODO: do something on failure
+
+                Ok(())
+            }
+        }
+    };
+}
+
+use lc3_traits::peripherals::pwm::{Pwm, PwmPin::*};
+
+pwm_mem_mapped!(P0, "P0", P0CR, P0DR, 0xFE20);
+pwm_mem_mapped!(P1, "P1", P1CR, P1DR, 0xFE22);
+
 mem_mapped!(special: BSP, 0xFFFA, "Backup Stack Pointer.");
 
 mem_mapped!(special: PSR, PSR_ADDRESS, "Program Status Register.");
