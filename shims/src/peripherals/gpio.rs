@@ -3,6 +3,7 @@ use lc3_traits::peripherals::gpio::{
     Gpio, GpioHandler, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
 };
 use std::sync::{Arc, RwLock};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State {
@@ -39,7 +40,7 @@ impl From<State> for GpioState {
 ///     retrieved at any time.
 pub struct GpioShim<'a> {
     states: GpioPinArr<State>,
-    handlers: GpioPinArr<GpioHandler<'a>>,
+    flags: GpioPinArr<Option<&'a AtomicBool>>
 }
 
 impl Index<GpioPin> for GpioShim<'_> {
@@ -56,15 +57,11 @@ impl IndexMut<GpioPin> for GpioShim<'_> {
     }
 }
 
-const NO_OP: GpioHandler<'static> = &|_| {};
-
 impl Default for GpioShim<'_> {
     fn default() -> Self {
         Self {
             states: GpioPinArr([State::Disabled; GpioPin::NUM_PINS]),
-            // handlers: [Box::new(&|_| {}); NUM_GPIO_PINS as usize],
-            // handlers: [no_op; NUM_GPIO_PINS as usize],
-            handlers: GpioPinArr([NO_OP; GpioPin::NUM_PINS]),
+            flags: GpioPinArr([None; GpioPin::NUM_PINS]),
         }
     }
 }
@@ -89,7 +86,7 @@ impl GpioShim<'_> {
             Interrupt(prev) => {
                 // Rising edge!
                 if bit && !prev {
-                    self.handlers[pin](pin)
+                    self.raise_interrupt(pin)
                 }
 
                 Interrupt(bit)
@@ -98,6 +95,13 @@ impl GpioShim<'_> {
         };
 
         Some(())
+    }
+    
+    fn raise_interrupt(&self, pin: GpioPin) {
+        match self.flags[pin] {
+            Some(flag) => flag.store(true, Ordering::SeqCst),
+            None => unreachable!()
+        }
     }
 
     /// Gets the value of a pin.
@@ -118,7 +122,7 @@ impl GpioShim<'_> {
     }
 }
 
-impl<'a> Gpio<'a> for GpioShim<'a> {
+impl Gpio<'_> for GpioShim<'_> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
         use GpioState::*;
         self[pin] = match state {
@@ -156,15 +160,6 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
         }
     }
 
-    fn register_interrupt(
-        &mut self,
-        pin: GpioPin,
-        handler: GpioHandler<'a>,
-    ) -> Result<(), GpioMiscError> {
-        self.handlers[pin] = handler;
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -203,16 +198,6 @@ mod tests {
         let val = shim.read(G0);
         assert_eq!(val, Err(GpioReadError((G0, gpio::GpioState::Disabled))));
     }
-
-    //   #[test]
-    // fn register_interrupt_test() {
-    //     let mut shim = GpioShim::new();
-    //     let res = shim.set_state(G0, gpio::GpioState::Interrupt);
-    //     assert_eq!(res, Ok(()));
-    //     res = shim.register_interrupt(G0, &interrupt_test(G0));
-    //     let val = shim.read(G0);
-    //     assert_eq!(val, Ok(false));
-    // }
 
     // covers read for output
     #[test]

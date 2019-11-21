@@ -248,26 +248,6 @@ pub trait Gpio<'a>: Default {
         errors
     }
 
-    // This error only make sense if you have to put the Gpio Pin in interrupt mode _before_ you set the interrupt handler.
-    // That doesn't really make any sense.
-    //
-    // This operation should probably be infallible. If we want to actually check that a handler has been registered, we could require that
-    // the handler be registered first and then when you call set_state, it can error if it's still using the default handler.
-    //
-    // But really, enabling interrupts and having them go to the default handler should be possible... (default handler should probably do nothing!)
-    //
-    // Another approach is to make adding interrupts an extra thing that you can do when you're in Input mode. I don't like this because
-    // it means we now need to provide a disable_interrupt function though...
-    // fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioInterruptRegisterError>;
-
-    // Gonna switch to MiscError for now then (TODO ^^^^^^):
-    fn register_interrupt(
-        &mut self,
-        pin: GpioPin,
-        // handler: impl FnMut(GpioPin)
-        // handler: &mut dyn FnMut(GpioPin)
-        handler: GpioHandler<'a>
-    ) -> Result<(), GpioMiscError>;
 }}
 
 impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
@@ -344,16 +324,6 @@ using_std! {
 
         fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
             RwLock::write(self).unwrap().write(pin, bit)
-        }
-
-        fn register_interrupt(
-            &mut self,
-            pin: GpioPin,
-            handler: GpioHandler<'a>,
-        ) -> Result<(), GpioMiscError> {
-            RwLock::write(self)
-                .unwrap()
-                .register_interrupt(pin, handler)
         }
     }
 }

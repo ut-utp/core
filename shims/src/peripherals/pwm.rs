@@ -77,10 +77,6 @@ impl PwmShim {
         self.guards[pin] = Some(guard);
     }
 
-
-
-
-
     fn start_timer(&mut self, pin: PwmPin, state: PwmState){
         use PwmState::*;
         match state {

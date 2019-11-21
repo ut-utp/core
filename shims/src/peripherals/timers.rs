@@ -1,5 +1,5 @@
 use lc3_traits::peripherals::timers::{
-    TimerArr, TimerHandler, TimerId, TimerMiscError, TimerState, TimerStateMismatch, Timers,
+    TimerArr, TimerId, TimerMiscError, TimerState, TimerStateMismatch, Timers,
 };
 
 // timing errors occuring during scan cycles (input and ouput errors)
@@ -9,27 +9,26 @@ use std::cell::Cell;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use core::sync::atomic::AtomicBool;
 
 // The term “Single Shot” signifies a single pulse output of some duration.
-pub struct TimersShim {
+pub struct TimersShim<'a> {
     states: TimerArr<TimerState>,
     times: TimerArr<Word>,
-    handlers: TimerArr<TimerHandler<'static>>, // handlers for timers
+    flags: TimerArr<Option<&'a AtomicBool>>,
 }
 
-const NO_OP: TimerHandler<'static> = &|_| {};
-
-impl Default for TimersShim {
+impl Default for TimersShim<'_> {
     fn default() -> Self {
         Self {
             states: TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]),
             times: TimerArr([0u16; TimerId::NUM_TIMERS]), // unlike gpio, interrupts occur on time - not on bit change
-            handlers: TimerArr([NO_OP; TimerId::NUM_TIMERS]),
+            flags: TimerArr([None; TimerId::NUM_TIMERS]),
         }
     }
 }
 
-impl TimersShim {
+impl TimersShim<'_> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -56,7 +55,7 @@ impl TimersShim {
     }
 }
 
-impl Timers<'static> for TimersShim {
+impl Timers<'_> for TimersShim<'_> {
     fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> {
         self.states[timer] = state;
 
@@ -86,15 +85,6 @@ impl Timers<'static> for TimersShim {
         self.times[timer]
     }
 
-    fn register_interrupt(
-        &mut self,
-        timer: TimerId,
-        func: TimerHandler<'static>,
-    ) -> Result<(), TimerMiscError> {
-        // self.handlers[timer] = func;
-        // Ok(())
-        unimplemented!()
-    }
 }
 
 // #[cfg(test)]

@@ -27,7 +27,7 @@ pub type PeripheralsShim<'s> = PeripheralSet<
     GpioShim<'s>,
     AdcShim,
     PwmShim,
-    TimersShim,
+    TimersShim<'s>,
     ClockShim,
     InputShim,
     OutputShim<'s>,

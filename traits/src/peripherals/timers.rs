@@ -75,8 +75,6 @@ pub enum TimerState {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct TimerMiscError;
 
-pub type TimerHandler<'a> = &'a (dyn Fn(TimerId) + Sync);
-
 pub type TimerStateMismatch = (TimerId, TimerState);
 
 peripheral_trait! {timers,
@@ -107,12 +105,6 @@ pub trait Timers<'a>: Default {
         periods
     }
 
-
-    fn register_interrupt(
-        &mut self,
-        timer: TimerId,
-        handler: TimerHandler<'a>
-    ) -> Result<(), TimerMiscError>; // Should this be infallible (TODO)
 }}
 
 // TODO: Into Error stuff (see Gpio)
@@ -137,9 +129,6 @@ using_std! {
             RwLock::read(self).unwrap().get_period(timer)
         }
 
-        fn register_interrupt(&mut self, timer: TimerId, handler: TimerHandler<'a>) -> Result<(), TimerMiscError> {
-            RwLock::write(self).unwrap().register_interrupt(timer, handler)
-        }
     }
 
 }
