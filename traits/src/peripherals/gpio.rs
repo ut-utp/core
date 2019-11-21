@@ -3,6 +3,8 @@
 use core::convert::TryFrom;
 use core::ops::{Deref, Index, IndexMut};
 
+use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use crate::peripheral_trait;
 
 // Switched to using enums to identify peripheral pin numbers; this way

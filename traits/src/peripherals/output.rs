@@ -1,6 +1,9 @@
 //! [`Output` device trait](Output) and friends.
 use crate::peripheral_trait;
 
+use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+
 peripheral_trait! {output,
 pub trait Output<'a>: Default {
     /// Write a single ASCII char.

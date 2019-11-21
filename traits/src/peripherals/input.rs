@@ -1,6 +1,8 @@
 //! [`Input` device trait](Input) and related things.
 use crate::peripheral_trait;
 
+use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 peripheral_trait! {input,
 pub trait Input<'a>: Default {
     /// Read a single ASCII character.

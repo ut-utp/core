@@ -3,6 +3,8 @@
 use crate::peripheral_trait;
 use core::ops::{Deref, Index, IndexMut};
 
+use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use lc3_isa::Word;
 
 // TODO: Add Errors
