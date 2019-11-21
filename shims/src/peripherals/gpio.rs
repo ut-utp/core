@@ -4,6 +4,7 @@ use lc3_traits::peripherals::gpio::{
 };
 use std::sync::{Arc, RwLock};
 use core::sync::atomic::{AtomicBool, Ordering};
+use lc3_traits::peripherals::gpio::GpioState::Interrupt;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State {
@@ -122,7 +123,7 @@ impl GpioShim<'_> {
     }
 }
 
-impl Gpio<'_> for GpioShim<'_> {
+impl<'a> Gpio<'a> for GpioShim<'a> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
         use GpioState::*;
         self[pin] = match state {
@@ -160,6 +161,36 @@ impl Gpio<'_> for GpioShim<'_> {
         }
     }
 
+    // TODO: decide functionality when no previous flag registered
+    fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool) {
+        self.flags[pin] = match self.flags[pin] {
+            None => Some(flag),
+            Some(_) => unreachable!(),
+        }
+    }
+
+    fn interrupt_occurred(&self, pin: GpioPin) -> bool {
+        match self.flags[pin] {
+            Some(flag) => {
+                let occurred = flag.load(Ordering::SeqCst);
+                self.interrupts_enabled(pin) && occurred
+            }
+            None => unreachable!(),
+        }
+    }
+
+    // TODO: decide functionality when no previous flag registered
+    fn reset_interrupt_flag(&mut self, pin: GpioPin) {
+        match self.flags[pin] {
+            Some(flag) => flag.store(false, Ordering::SeqCst),
+            None => unreachable!(),
+        }
+    }
+
+    // TODO: make this default implementation?
+    fn interrupts_enabled(&self, pin: GpioPin) -> bool {
+        self.get_state(pin) == Interrupt
+    }
 }
 
 #[cfg(test)]
