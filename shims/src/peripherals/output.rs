@@ -88,7 +88,12 @@ impl<'b> Output<'b> for OutputShim<'_, 'b> {
     fn write(&mut self, c: u8) -> Result<(), OutputError> {
         let _ = self.sink.write(&[c]).map_err(|_| OutputError)?;
         self.sink.flush().map_err(|_| OutputError)?;
-
+        if self.interrupts_enabled() {
+            match self.flag {
+                Some(f) => f.store(true, Ordering::SeqCst),
+                None => unreachable!(),
+            }
+        }
         Ok(())
     }
 
