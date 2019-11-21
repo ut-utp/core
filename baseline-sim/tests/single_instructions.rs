@@ -12,7 +12,7 @@ use lc3_shims::peripherals::PeripheralsShim;
 mod tests {
     use super::*;
 
-    // use Reg::*;
+    use Reg::*;
 
     use std::convert::TryInto;
 
@@ -51,7 +51,9 @@ mod tests {
         }
 
         // Check PC:
-        assert_eq!(pc, interp.get_pc());
+        let expected_pc = pc;
+        let actual_pc = interp.get_pc();
+        assert_eq!(pc, interp.get_pc(), "Expected PC = {:#04X}, got {:#04X}", expected_pc, actual_pc);
 
         // Check registers:
         for (idx, r) in regs.iter().enumerate() {
@@ -70,7 +72,7 @@ mod tests {
     }
 
     macro_rules! sequence {
-        ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:literal: $v:literal),* }, memory: { $($addr:literal: $val:literal),* }) => {
+        ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:tt: $v:expr),* }, memory: { $($addr:literal: $val:literal),* }) => {
         $(#[doc = $panics] #[should_panic])?
         #[test]
         fn $name() {
@@ -100,11 +102,20 @@ mod tests {
     // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).
 
     sequence! {
-        no_op,
+        branch_self,
         insns: [ { BRnzp #-1 } ],
         steps: Some(1),
         ending_pc: 0x3000,
-        regs: {},
+        regs: { },
+        memory: {}
+    }
+
+    sequence! {
+        no_op,
+        insns: [ { BRnzp #0 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { },
         memory: {}
     }
 
