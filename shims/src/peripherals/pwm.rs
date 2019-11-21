@@ -201,13 +201,28 @@ mod tests {
         let b = shim.get_pin(P0);
         assert_eq!(b, false); 
 
-        let res2 = shim.set_duty_cycle(P0, MAX); // should always be on
+//         let res2 = shim.set_duty_cycle(P0, MAX); // should always be on
+//         thread::sleep(Duration::from_millis(10));
+//         let b2 = shim.get_pin(P0);
+//         assert_eq!(b2, true);
+    }
+    
+     #[test]
+    fn get_pin_on() {
+        let mut shim = PwmShim::new();
+        let res = shim.set_state(P0, pwm::PwmState::Enabled(NonZeroU8::new(MAX).unwrap()));
+
+        //let b = shim.get_pin(P0);
+         //assert_eq!(b, false); 
+
+        let res = shim.set_duty_cycle(P0, MAX); // should always be on
         thread::sleep(Duration::from_millis(10));
-        let b2 = shim.get_pin(P0);
-        assert_eq!(b2, true);
+        let b = shim.get_pin(P0);
+        assert_eq!(b, true);
 
 
     }
+
 
     // #[test]
     // fn start_pwm() {
