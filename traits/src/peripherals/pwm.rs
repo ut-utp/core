@@ -88,7 +88,7 @@ pub trait Pwm: Default {
 
         states
     }
-
+    fn get_pin(&self, pin: PwmPin) -> bool;
     fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError>;
     fn get_duty_cycle(&self, pin: PwmPin) -> u8; // This is u8 because u16 fractions seem excessive.
     fn get_duty_cycles(&self) -> PwmPinArr<u8> {
@@ -114,6 +114,9 @@ using_std! {
 
         fn get_state(&self, pin: PwmPin) -> PwmState {
             RwLock::read(self).unwrap().get_state(pin)
+        }
+        fn get_pin(&self, pin: PwmPin) -> bool {
+            RwLock::read(self).unwrap().get_pin(pin)
         }
 
         fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError> {

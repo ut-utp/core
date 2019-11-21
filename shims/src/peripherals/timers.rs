@@ -1,5 +1,5 @@
 use lc3_traits::peripherals::timers::{
-    TimerArr, TimerHandler, TimerId, TimerMiscError, TimerState, TimerStateMismatch, Timers,
+    TimerArr, TimerId, TimerMiscError, TimerState, TimerStateMismatch, Timers,
 };
 
 // timing errors occuring during scan cycles (input and ouput errors)
@@ -9,27 +9,27 @@ use std::cell::Cell;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
+use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 // The term “Single Shot” signifies a single pulse output of some duration.
-pub struct TimersShim {
+pub struct TimersShim<'a> {
     states: TimerArr<TimerState>,
     times: TimerArr<Word>,
-    handlers: TimerArr<TimerHandler<'static>>, // handlers for timers
+    flags: TimerArr<Option<&'a AtomicBool>>,
 }
 
-const NO_OP: TimerHandler<'static> = &|_| {};
-
-impl Default for TimersShim {
+impl Default for TimersShim<'_> {
     fn default() -> Self {
         Self {
             states: TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]),
             times: TimerArr([0u16; TimerId::NUM_TIMERS]), // unlike gpio, interrupts occur on time - not on bit change
-            handlers: TimerArr([NO_OP; TimerId::NUM_TIMERS]),
+            flags: TimerArr([None; TimerId::NUM_TIMERS]),
         }
     }
 }
 
-impl TimersShim {
+impl TimersShim<'_> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -56,7 +56,7 @@ impl TimersShim {
     }
 }
 
-impl Timers<'static> for TimersShim {
+impl<'a> Timers<'a> for TimersShim<'a> {
     fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> {
         self.states[timer] = state;
 
@@ -86,14 +86,37 @@ impl Timers<'static> for TimersShim {
         self.times[timer]
     }
 
-    fn register_interrupt(
-        &mut self,
-        timer: TimerId,
-        func: TimerHandler<'static>,
-    ) -> Result<(), TimerMiscError> {
-        // self.handlers[timer] = func;
-        // Ok(())
-        unimplemented!()
+    fn register_interrupt_flag(&mut self, timer: TimerId, flag: &'a AtomicBool) {
+        self.flags[timer] = match self.flags[timer] {
+            None => Some(flag),
+            Some(_) => unreachable!(),
+        }
+    }
+
+    fn interrupt_occurred(&self, timer: TimerId) -> bool {
+        match self.flags[timer] {
+            Some(flag) => {
+                let occurred = flag.load(Ordering::SeqCst);
+                self.interrupts_enabled(timer) && occurred
+            }
+            None => unreachable!(),
+        }
+    }
+
+    fn reset_interrupt_flag(&mut self, timer: TimerId) {
+        match self.flags[timer] {
+            Some(flag) => flag.store(false, Ordering::SeqCst),
+            None => unreachable!(),
+        }
+    }
+
+    // TODO: review whether we want Interrupt state or interrupts_enabled bool state
+    fn interrupts_enabled(&self, timer: TimerId) -> bool {
+        match self.get_state(timer) {
+            SingleShot => true,
+            Repeating => true,
+            Disabled => false,
+        }
     }
 }
 

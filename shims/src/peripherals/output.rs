@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 enum OwnedOrRef<'a, R: ?Sized> {
     Owned(Box<R>),
@@ -36,26 +37,30 @@ impl<'a, R: ?Sized> DerefMut for OwnedOrRef<'a, R> {
     }
 }
 
-pub struct OutputShim<'a> {
+pub struct OutputShim<'a, 'b> {
     // pub struct OutputShim {
     // sink: &'a mut dyn Write,
     // sink: Box<dyn Write>,
     sink: OwnedOrRef<'a, dyn Write + 'a>,
     // _marker: PhantomData<&'a ()>,
     // sink: &'a mut dyn AsRef<dyn Write>,
+    flag: Option<&'b AtomicBool>,
+    interrupts_enabled: bool,
 }
 
-impl Default for OutputShim<'_> {
+impl Default for OutputShim<'_, '_> {
     // impl Default for OutputShim {
     fn default() -> Self {
         Self {
             // sink: std::boxed::Box::<std::io::Stdout>::leak(out), // TODO: DO NOT DO THIS!!!
             sink: OwnedOrRef::Owned(Box::new(stdout())),
+            flag: None,
+            interrupts_enabled: false,
         }
     }
 }
 
-impl<'a> OutputShim<'a> {
+impl<'a, 'b> OutputShim<'a, 'b> {
     // impl OutputShim {
     pub fn new() -> Self {
         Self::default()
@@ -64,23 +69,60 @@ impl<'a> OutputShim<'a> {
     pub fn using(sink: Box<dyn Write>) -> Self {
         Self {
             sink: OwnedOrRef::Owned(sink),
+            flag: None,
+            interrupts_enabled: false,
         }
     }
 
     pub fn with_ref(sink: &'a mut dyn Write) -> Self {
         Self {
             sink: OwnedOrRef::<'a, dyn Write>::Ref(sink),
+            flag: None,
+            interrupts_enabled: false,
         }
     }
 }
 
-impl Output for OutputShim<'_> {
+impl<'b> Output<'b> for OutputShim<'_, 'b> {
     // impl Output for OutputShim {
     fn write(&mut self, c: u8) -> Result<(), OutputError> {
         let _ = self.sink.write(&[c]).map_err(|_| OutputError)?;
         self.sink.flush().map_err(|_| OutputError)?;
-
+        if self.interrupts_enabled() {
+            match self.flag {
+                Some(f) => f.store(true, Ordering::SeqCst),
+                None => unreachable!(),
+            }
+        }
         Ok(())
+    }
+
+    fn register_interrupt_flag(&mut self, flag: &'b AtomicBool) {
+        self.flag = match self.flag {
+            None => Some(flag),
+            Some(_) => unreachable!(),
+        }
+    }
+    
+    fn interrupt_occurred(&self) -> bool {
+        match self.flag {
+            Some(f) => {
+                let occurred = f.load(Ordering::SeqCst);
+                self.interrupts_enabled() && occurred
+            }
+            None => unreachable!(),
+        }
+    }
+
+    fn reset_interrupt_flag(&mut self) {
+        match self.flag {
+            Some(f) => f.store(false, Ordering::SeqCst),
+            None => unreachable!(),
+        }
+    }
+    
+    fn interrupts_enabled(&self) -> bool {
+        self.interrupts_enabled
     }
 }
 
