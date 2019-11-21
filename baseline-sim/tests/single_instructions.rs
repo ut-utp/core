@@ -253,6 +253,28 @@ mod tests {
         memory: {}
     }
 
+    /////////
+    // JMP //
+    /////////
+    sequence! {
+        jmp_0,
+        insns: [ { JMP R0 } ],
+        steps: Some(1),
+        ending_pc: 0x0000,
+        regs: {},
+        memory: {}
+    }
+
+    sequence! {
+        jmp_1,
+        insns: [ { ADD R0, R0, #1 }, { JMP R0 } ],
+        steps: Some(2),
+        ending_pc: 0x0001,
+        regs: {},
+        memory: {}
+    }
+    
+    
     // #[test]
     // #[should_panic]
     // fn no_op_fail() {
@@ -276,92 +298,6 @@ mod tests {
     //     //     0x3000,
     //     //     vec![],
     //     // )
-    // }
-    // //0+1=1 Basic Add
-    // #[test]
-    // fn add_reg_test() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![
-    //             Instruction::AddImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 1,
-    //             },
-    //             AddReg {
-    //                 dr: 2,
-    //                 sr1: 1,
-    //                 sr2: 0,
-    //             },
-    //         ],
-    //         Some(1),
-    //         [Some(0), Some(1), Some(1), None, None, None, None, None],
-    //         0x3001,
-    //         vec![],
-    //     )
-    // }
-    // //AddImm Test with R0(0) + !
-    // #[test]
-    // fn AddImmTest() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![Instruction::AddImm {
-    //             dr: R0,
-    //             sr1: R0,
-    //             imm5: 1,
-    //         }],
-    //         Some(1),
-    //         [1, None, None, None, None, None, None, None],
-    //         0x3001,
-    //         vec![],
-    //     )
-    // }
-    // //AndReg Test with R0(1) and R1(2) to R0(expected 3)
-    // #[test]
-    // fn AndRegTest() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![
-    //             Instruction::AddImm {
-    //                 dr: R0,
-    //                 sr1: R0,
-    //                 imm5: 1,
-    //             },
-    //             AddImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 2,
-    //             },
-    //             AndReg {
-    //                 dr: R0,
-    //                 sr1: R0,
-    //                 sr2: R1,
-    //             },
-    //         ],
-    //         Some(3),
-    //         [3, 2, None, None, None, None, None, None],
-    //         0x3003,
-    //         vec![],
-    //     )
-    // }
-    // //AndImm Test with R1 (1) and 0
-    // #[test]
-    // fn AndImmTest() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![
-    //             Instruction::AddImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 1,
-    //             },
-    //             AndImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 0,
-    //             },
-    //         ],
-    //         Some(2),
-    //         [0, None, None, None, None, None, None, None],
-    //         0x3002,
-    //         vec![],
-    //     )
     // }
     // //ST Test which stores 1 into x3001
     // #[test]
