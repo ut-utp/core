@@ -545,85 +545,106 @@ mod tests {
 
     const A_SIMPLE_INSN: Instruction = insn!(ADD R0, R0, R0);
 
-    const COMPLEX_LOADABLE: [(Addr, Word); 28] = loadable! {
-        .ORIG #0x3000  => is the program start;
-        ADD R0, R0, R1 => you can use comments like this;
-        ADD R1, R1, #0 => careful though there are things you cannot stick in these weird comments;
-        AND R1, R2, R3 => like apostrophes and commas and leading numbers;
-        AND R4, R5, #-0xF => also expressions and parens and most tokens like
-                             periods and arrows;
-        BRnzp #-1; // Or you can always use good old Rust comments like this
-        JMP R6;
-        JSR #-1024;
-        JSRR R2;
+    // TODO: make this work in const contexts!
+    // const COMPLEX_LOADABLE: [(Addr, Word); 28] = loadable! {
+    //     .ORIG #0x3000  => is the program start;
+    //     ADD R0, R0, R1 => you can use comments like this;
+    //     ADD R1, R1, #0 => careful though there are things you cannot stick in these weird comments;
+    //     AND R1, R2, R3 => like apostrophes and commas and leading numbers;
+    //     AND R4, R5, #-0xF => also expressions and parens and most tokens like
+    //                          periods and arrows;
+    //     BRnzp #-1; // Or you can always use good old Rust comments like this
+    //     JMP R6;
+    //     JSR #-1024;
+    //     JSRR R2;
 
-        // No labels unfortunately.
-        LD R7, #-1;
-        LDI R4, #255;
-        LDR R0, R1, #31;
-        LEA R0, #12;
+    //     // No labels unfortunately.
+    //     LD R7, #-1;
+    //     LDI R4, #255;
+    //     LDR R0, R1, #31;
+    //     LEA R0, #12;
 
-        // After all this isn't an assembler.
-        NOT R2, R3;
-        RET;
-        RTI;
+    //     // After all this isn't an assembler.
+    //     NOT R2, R3;
+    //     RET;
+    //     RTI;
 
-        // So, make good use of comments if you're going to write things this way.
-        ST R2, #-45;
-        STI R7, #3;
-        STR R2, R0, #-32;
+    //     // So, make good use of comments if you're going to write things this way.
+    //     ST R2, #-45;
+    //     STI R7, #3;
+    //     STR R2, R0, #-32;
 
-        TRAP #0x25;
+    //     TRAP #0x25;
 
-        ADD R0, R2, #0;
-        OUT;
-        PUTS;
+    //     ADD R0, R2, #0;
+    //     OUT;
+    //     PUTS;
 
-        AND R0, R0, #0;
-        GETC;
+    //     AND R0, R0, #0;
+    //     GETC;
 
-        AND R0, R0, #0;
-        IN;
+    //     AND R0, R0, #0;
+    //     IN;
 
-        HALT;
+    //     HALT;
 
-        .FILL #0x23u16;
-    };
+    //     .FILL #0x23u16;
+    // };
+
+    // #[test]
+    // #[rustfmt::skip]
+    // fn const_context() {
+    //     assert_eq!(REG_R7, R7);
+    //     assert_eq!(A_SIMPLE_INSN, insn!(ADD R0, R0, R0 => yo));
+    //     assert_eq!(COMPLEX_LOADABLE, [
+    //         (0x3000, AddReg { dr: R0, sr1: R0, sr2: R1 }.into()),
+    //         (0x3001, AddImm { dr: R1, sr1: R1, imm5: 0 }.into()),
+    //         (0x3002, AndReg { dr: R1, sr1: R2, sr2: R3 }.into()),
+    //         (0x3003, AndImm { dr: R4, sr1: R5, imm5: -0xF }.into()),
+    //         (0x3004, Br { n: true, z: true, p: true, offset9: -1 }.into()),
+    //         (0x3005, Jmp { base: R6 }.into()),
+    //         (0x3006, Jsr { offset11: -1024 }.into()),
+    //         (0x3007, Jsrr { base: R2}.into()),
+    //         (0x3008, Ld { dr: R7, offset9: -1 }.into()),
+    //         (0x3009, Ldi { dr: R4, offset9: 255 }.into()),
+    //         (0x300A, Ldr { dr: R0, base: R0, offset6: 511 }.into()),
+    //         (0x300B, Lea { dr: R0, offset9: 12 }.into()),
+    //         (0x300C, Not { dr: R2, sr: R3 }.into()),
+    //         (0x300D, Ret.into()),
+    //         (0x300E, Rti.into()),
+    //         (0x300F, St { sr: R2, offset9: -45 }.into()),
+    //         (0x3010, Sti { sr: R7, offset9: 3 }.into()),
+    //         (0x3011, Str { sr: R2, base: R0, offset6: -32 }.into()),
+    //         (0x3012, Trap { trapvec: 0x25 }.into()),
+    //         (0x3013, AddImm { dr: R0, sr1: R2, imm5: 0 }.into()),
+    //         (0x3014, Trap { trapvec: 0x21 }.into()),
+    //         (0x3015, Trap { trapvec: 0x22 }.into()),
+    //         (0x3016, AndImm { dr: R0, sr1: R0, imm5: 0 }.into()),
+    //         (0x3017, Trap { trapvec: 0x20 }.into()),
+    //         (0x3018, AndImm { dr: R0, sr1: R0, imm5: 0 }.into()),
+    //         (0x3019, Trap { trapvec: 0x23 }.into()),
+    //         (0x301A, Trap { trapvec: 0x25 }.into()),
+    //         (0x301B, 0x23),
+    //     ]);
+    // }
+}
+
+#[cfg(test)]
+mod misc {
+    use crate::Instruction::*;
 
     #[test]
-    #[rustfmt::skip]
-    fn const_context() {
-        assert_eq!(REG_R7, R7);
-        assert_eq!(A_SIMPLE_INSN, insn!(ADD R0, R0, R0 => yo));
-        assert_eq!(COMPLEX_LOADABLE, [
-            (0x3000, AddReg { dr: R0, sr1: R0, sr2: R1 }.into()),
-            (0x3001, AddImm { dr: R1, sr1: R1, imm5: 0 }.into()),
-            (0x3002, AndReg { dr: R1, sr1: R2, sr2: R3 }.into()),
-            (0x3003, AndImm { dr: R4, sr1: R5, imm5: -0xF }.into()),
-            (0x3004, Br { n: true, z: true, p: true, offset9: -1 }.into()),
-            (0x3005, Jmp { base: R6 }.into()),
-            (0x3006, Jsr { offset11: -1024 }.into()),
-            (0x3007, Jsrr { base: R2}.into()),
-            (0x3008, Ld { dr: R7, offset9: -1 }.into()),
-            (0x3009, Ldi { dr: R4, offset9: 255 }.into()),
-            (0x300A, Ldr { dr: R0, base: R0, offset6: 511 }.into()),
-            (0x300B, Lea { dr: R0, offset9: 12 }.into()),
-            (0x300C, Not { dr: R2, sr: R3 }.into()),
-            (0x300D, Ret.into()),
-            (0x300E, Rti.into()),
-            (0x300F, St { sr: R2, offset9: -45 }.into()),
-            (0x3010, Sti { sr: R7, offset9: 3 }.into()),
-            (0x3011, Str { sr: R2, base: R0, offset6: -32 }.into()),
-            (0x3012, Trap { trapvec: 0x25 }.into()),
-            (0x3013, AddImm { dr: R0, sr1: R2, imm5: 0 }.into()),
-            (0x3014, Trap { trapvec: 0x21 }.into()),
-            (0x3015, Trap { trapvec: 0x22 }.into()),
-            (0x3016, AndImm { dr: R0, sr1: R0, imm5: 0 }.into()),
-            (0x3017, Trap { trapvec: 0x20 }.into()),
-            (0x3018, AndImm { dr: R0, sr1: R0, imm5: 0 }.into()),
-            (0x3019, Trap { trapvec: 0x23 }.into()),
-            (0x301A, Trap { trapvec: 0x25 }.into()),
-            (0x301B, 0x23),
-        ]);
+    fn br_encoding_insn_macro() {
+        if let Br { offset9, .. } = insn!(BRnzp #-1) {
+            assert_eq!(offset9, -1);
+        } else { assert!(false); }
+
+        if let Br { offset9, .. } = insn!(BRnzp #90) {
+            assert_eq!(offset9, 90);
+        } else { assert!(false); }
+
+        if let Br { offset9, .. } = insn!(BRnzp #0) {
+            assert_eq!(offset9, 0);
+        } else { assert!(false); }
     }
 }

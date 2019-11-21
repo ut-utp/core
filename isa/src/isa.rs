@@ -740,9 +740,9 @@ impl From<Instruction> for Word {
         fn Sr1(sr1: Reg) -> Word { ((sr1 as u16) & 0b111) << 5 }
         fn Sr2(sr2: Reg) -> Word { (sr2 as u16) & 0b111 }
         fn Imm5(imm5: i16) -> Word { (imm5 as u16) & 0b11111 }
-        fn N(n: bool) -> Word { (n as u16) << 10 }
-        fn Z(z: bool) -> Word { (z as u16) << 9 }
-        fn P(p: bool) -> Word { (p as u16) << 8 }
+        fn N(n: bool) -> Word { (n as u16) << 11 }
+        fn Z(z: bool) -> Word { (z as u16) << 10 }
+        fn P(p: bool) -> Word { (p as u16) << 9 }
         fn O9(offset9: i16) -> Word { (offset9 as u16) & 0b111111111 }
         fn O11(offset11: i16) -> Word { (1 << 11) | ((offset11 as u16) & 0x7FF) }
         fn Base(base: Reg) -> Word { Sr1(base) }
@@ -954,10 +954,46 @@ mod compile_time_fns {
 
 #[cfg(test)]
 mod instruction_tests {
-    use super::{Instruction::*, Reg::*};
+    use super::{Instruction::{self, *}, Reg::*};
 
     #[test]
     fn ret_jmp_r7_eq() {
         assert_eq!(Jmp { base: R7 }, Ret);
+    }
+
+    #[test]
+    fn br_encoding_neg() {
+        if let Br { n, z, p, offset9 } = Instruction::new_br(true, true, true, -9) {
+            assert_eq!(n, true);
+            assert_eq!(z, true);
+            assert_eq!(p, true);
+            assert_eq!(offset9, -9);
+        } else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn br_encoding_zero() {
+        if let Br { n, z, p, offset9 } = Instruction::new_br(true, true, true, 0) {
+            assert_eq!(n, true);
+            assert_eq!(z, true);
+            assert_eq!(p, true);
+            assert_eq!(offset9, 0);
+        } else {
+            assert!(false);
+        }
+    }
+
+    #[test]
+    fn br_encoding_pos() {
+        if let Br { n, z, p, offset9 } = Instruction::new_br(true, true, true, 15) {
+            assert_eq!(n, true);
+            assert_eq!(z, true);
+            assert_eq!(p, true);
+            assert_eq!(offset9, 15);
+        } else {
+            assert!(false);
+        }
     }
 }

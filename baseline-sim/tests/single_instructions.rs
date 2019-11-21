@@ -15,6 +15,7 @@ mod tests {
     use Reg::*;
 
     use std::convert::TryInto;
+    use std::convert::TryFrom;
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
@@ -35,7 +36,12 @@ mod tests {
         interp.set_pc(addr);
 
         for insn in insns {
+            let enc = Into::<u16>::into(insn);
+            println!("{:?}", insn);
+            println!("{:#04X} -> {:?}", enc, Instruction::try_from(enc));
             interp.set_word_unchecked(addr, insn.into());
+            println!("{:?}", Instruction::try_from(interp.get_word_unchecked(addr)));
+
             addr += 1;
         }
 
@@ -100,6 +106,9 @@ mod tests {
     }
 
     // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).
+    /////////
+    // ADD //
+    /////////
     sequence! {
         add_nop,
         insns: [ { ADD R0, R0, #0 } ],
@@ -108,7 +117,7 @@ mod tests {
         regs: { R0: 0 },
         memory: {}
     }
-    
+
     sequence! {
         add_imm_pos,
         insns: [ { ADD R0, R0, #1 } ],
@@ -140,6 +149,79 @@ mod tests {
         memory: {}
     }
 
+    /////////
+    // AND //
+    /////////
+    sequence! {
+        and_0_nop,
+        insns: [ { AND R0, R0, #0 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_1_nop,
+        insns: [ { AND R0, R0, #1 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_0_imm,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { AND R0, R0, #0 }
+        ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_1_imm,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { AND R0, R0, #1 }
+        ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: { R0: 1 },
+        memory: {}
+    }
+
+    sequence! {
+        and_0_reg,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { AND R0, R0, R1 }
+        ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_1_reg,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { ADD R1, R1, #1 },
+            { AND R2, R0, R1 }
+        ],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: { R0: 1, R1: 1, R2: 1 },
+        memory: {}
+    }
+
+    ////////
+    // BR //
+    ////////
     sequence! {
         branch_self,
         insns: [ { BRnzp #-1 } ],
@@ -177,6 +259,28 @@ mod tests {
         memory: {}
     }
 
+    /////////
+    // JMP //
+    /////////
+    sequence! {
+        jmp_0,
+        insns: [ { JMP R0 } ],
+        steps: Some(1),
+        ending_pc: 0x0000,
+        regs: {},
+        memory: {}
+    }
+
+    sequence! {
+        jmp_1,
+        insns: [ { ADD R0, R0, #1 }, { JMP R0 } ],
+        steps: Some(2),
+        ending_pc: 0x0001,
+        regs: {},
+        memory: {}
+    }
+    
+    
     // #[test]
     // #[should_panic]
     // fn no_op_fail() {
@@ -200,92 +304,6 @@ mod tests {
     //     //     0x3000,
     //     //     vec![],
     //     // )
-    // }
-    // //0+1=1 Basic Add
-    // #[test]
-    // fn add_reg_test() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![
-    //             Instruction::AddImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 1,
-    //             },
-    //             AddReg {
-    //                 dr: 2,
-    //                 sr1: 1,
-    //                 sr2: 0,
-    //             },
-    //         ],
-    //         Some(1),
-    //         [Some(0), Some(1), Some(1), None, None, None, None, None],
-    //         0x3001,
-    //         vec![],
-    //     )
-    // }
-    // //AddImm Test with R0(0) + !
-    // #[test]
-    // fn AddImmTest() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![Instruction::AddImm {
-    //             dr: R0,
-    //             sr1: R0,
-    //             imm5: 1,
-    //         }],
-    //         Some(1),
-    //         [1, None, None, None, None, None, None, None],
-    //         0x3001,
-    //         vec![],
-    //     )
-    // }
-    // //AndReg Test with R0(1) and R1(2) to R0(expected 3)
-    // #[test]
-    // fn AndRegTest() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![
-    //             Instruction::AddImm {
-    //                 dr: R0,
-    //                 sr1: R0,
-    //                 imm5: 1,
-    //             },
-    //             AddImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 2,
-    //             },
-    //             AndReg {
-    //                 dr: R0,
-    //                 sr1: R0,
-    //                 sr2: R1,
-    //             },
-    //         ],
-    //         Some(3),
-    //         [3, 2, None, None, None, None, None, None],
-    //         0x3003,
-    //         vec![],
-    //     )
-    // }
-    // //AndImm Test with R1 (1) and 0
-    // #[test]
-    // fn AndImmTest() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![
-    //             Instruction::AddImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 1,
-    //             },
-    //             AndImm {
-    //                 dr: R1,
-    //                 sr1: R1,
-    //                 imm5: 0,
-    //             },
-    //         ],
-    //         Some(2),
-    //         [0, None, None, None, None, None, None, None],
-    //         0x3002,
-    //         vec![],
-    //     )
     // }
     // //ST Test which stores 1 into x3001
     // #[test]
