@@ -100,6 +100,9 @@ mod tests {
     }
 
     // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).
+    /////////
+    // ADD //
+    /////////
     sequence! {
         add_nop,
         insns: [ { ADD R0, R0, #0 } ],
@@ -140,6 +143,79 @@ mod tests {
         memory: {}
     }
 
+    /////////
+    // AND //
+    /////////
+    sequence! {
+        and_0_nop,
+        insns: [ { AND R0, R0, #0 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_1_nop,
+        insns: [ { AND R0, R0, #1 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_0_imm,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { AND R0, R0, #0 }
+        ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_1_imm,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { AND R0, R0, #1 }
+        ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: { R0: 1 },
+        memory: {}
+    }
+
+    sequence! {
+        and_0_reg,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { AND R0, R0, R1 }
+        ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: { R0: 0 },
+        memory: {}
+    }
+
+    sequence! {
+        and_1_reg,
+        insns: [ 
+            { ADD R0, R0, #1 },
+            { ADD R1, R1, #1 },
+            { AND R2, R0, R1 }
+        ],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: { R0: 1, R1: 1, R2: 1 },
+        memory: {}
+    }
+
+    ////////
+    // BR //
+    ////////
     sequence! {
         branch_self,
         insns: [ { BRnzp #-1 } ],
