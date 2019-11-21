@@ -954,10 +954,22 @@ mod compile_time_fns {
 
 #[cfg(test)]
 mod instruction_tests {
-    use super::{Instruction::*, Reg::*};
+    use super::{Instruction::{self, *}, Reg::*};
 
     #[test]
     fn ret_jmp_r7_eq() {
         assert_eq!(Jmp { base: R7 }, Ret);
+    }
+
+    #[test]
+    fn br_encoding() {
+        if let Br { n, z, p, offset9 } = Instruction::new_br(true, true, true, -9) {
+            assert_eq!(n, true);
+            assert_eq!(z, true);
+            assert_eq!(p, true);
+            assert_eq!(offset9, -9);
+        } else {
+            assert!(false);
+        }
     }
 }
