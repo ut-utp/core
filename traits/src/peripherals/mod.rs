@@ -20,7 +20,7 @@ use timers::Timers;
 use input::Input;
 use output::Output;
 
-pub trait Peripherals<'p>: Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output {
+pub trait Peripherals<'p>: Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output<'p> {
     fn init(&mut self);
 }
 
@@ -32,7 +32,7 @@ where
     T: Timers<'p>,
     C: Clock,
     I: Input<'p>,
-    O: Output,
+    O: Output<'p>,
 {
     gpio: G,
     adc: A,
@@ -55,7 +55,7 @@ where
     T: Timers<'p>,
     C: Clock,
     I: Input<'p>,
-    O: Output,
+    O: Output<'p>,
 {
     fn default() -> Self {
         Self {
@@ -79,7 +79,7 @@ where
     T: Timers<'p>,
     C: Clock,
     I: Input<'p>,
-    O: Output,
+    O: Output<'p>,
 {
     pub fn new(gpio: G, adc: A, pwm: P, timers: T, clock: C, input: I, output: O) -> Self {
         Self {
@@ -147,7 +147,7 @@ macro_rules! peripheral_set_impl {
             T: 'p + $crate::peripherals::timers::Timers<'p>,
             C: 'p + $crate::peripherals::clock::Clock,
             I: 'p + $crate::peripherals::input::Input<'p>,
-            O: 'p + $crate::peripherals::output::Output,
+            O: 'p + $crate::peripherals::output::Output<'p>,
         { $($rest)* }
     };
 }
@@ -249,7 +249,7 @@ where
     T: 'p + Timers<'p>,
     C: 'p + Clock,
     I: 'p + Input<'p>,
-    O: 'p + Output,
+    O: 'p + Output<'p>,
 {
     fn init(&mut self) {}
 }

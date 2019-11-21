@@ -30,6 +30,5 @@ pub type PeripheralsShim<'s> = PeripheralSet<
     TimersShim<'s>,
     ClockShim,
     InputShim<'s>,
-    OutputShim<'s>,
-    // OutputShim,
+    OutputShim<'s, 's>,
 >;
