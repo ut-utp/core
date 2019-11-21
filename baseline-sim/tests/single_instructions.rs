@@ -12,7 +12,7 @@ use lc3_shims::peripherals::PeripheralsShim;
 mod tests {
     use super::*;
 
-    use Reg::*;
+    // use Reg::*;
 
     use std::convert::TryInto;
 
@@ -69,8 +69,8 @@ mod tests {
         }
     }
 
-    macro_rules! single {
-        ($(|$panics:literal|)? $name:ident, insn: {$($insn:tt)*} steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:literal: $v:literal),* }, memory: { $($addr:literal: $val:literal),* }) => {
+    macro_rules! sequence {
+        ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:literal: $v:literal),* }, memory: { $($addr:literal: $val:literal),* }) => {
         $(#[doc = $panics] #[should_panic])?
         #[test]
         fn $name() {
@@ -83,8 +83,12 @@ mod tests {
             let mut checks: Vec<(Addr, Word)> = Vec::new();
             $(checks.push(($addr, $val));)*
 
+            #[allow(unused_mut)]
+            let mut insns: Vec<Instruction> = Vec::new();
+            $(insns.push(insn!($($insn)*));)*
+
             interp_test_runner::<MemoryShim, PeripheralsShim>(
-                vec![insn!($($insn)*)],
+                insns,
                 $steps,
                 regs,
                 $pc,
@@ -93,47 +97,30 @@ mod tests {
         }};
     }
 
-    single! {
+    // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).
+
+    sequence! {
         no_op,
-        insn: { BRnzp #-1 }
+        insns: [ { BRnzp #-1 } ],
         steps: Some(1),
         ending_pc: 0x3000,
         regs: {},
         memory: {}
     }
 
-    single! {
+    sequence! {
         branch_simple,
-        insn: { BRz #3 }
-        steps: Some(1),
-        ending_pc: 0x3004,
+        insns: [ { AND R0, R0, #0 }, { BRz #3 } ],
+        steps: Some(2),
+        ending_pc: 0x3005,
         regs: {},
         memory: {}
     }
 
-    // #[test]
-    // //NO-OP do nothing run a cycle test
-    // fn no_op() {
-    //     // single! {
-    //     //     insn: { BRnzp #-1 }
-    //     //     steps: Some(1),
-    //     //     ending_pc: 0x3000,
-    //     //     regs: {},
-    //     //     memory: {}
-    //     // }
-    //     // interp_test_runner::<MemoryShim, PeripheralsShim<'a>>(
-    //     //     vec![insn!(BRnzp #-1)],
-    //     //     Some(1),
-    //     //     [None, None, None, None, None, None, None, None],
-    //     //     0x3000,
-    //     //     vec![],
-    //     // )
-    // }
-
-    single! {
-        |"panics"|
+    sequence! {
+        |"should fail"|
         no_op_fail,
-        insn: { BRnzp #2 }
+        insns: [ { BRnzp #2 } ],
         steps: Some(1),
         ending_pc: 0x3000,
         regs: {},
