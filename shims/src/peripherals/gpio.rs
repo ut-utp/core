@@ -1,6 +1,6 @@
 use core::ops::{Index, IndexMut};
 use lc3_traits::peripherals::gpio::{
-    Gpio, GpioHandler, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
+    Gpio, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
 };
 use std::sync::{Arc, RwLock};
 use core::sync::atomic::{AtomicBool, Ordering};

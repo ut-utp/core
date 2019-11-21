@@ -113,8 +113,6 @@ pub struct GpioReadErrors(pub GpioStateMismatches);
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
 
-pub type GpioHandler<'a> = &'a (dyn Fn(GpioPin) + Sync);
-
 // #[derive(Copy, Clone)]
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
 
@@ -162,10 +160,6 @@ peripheral_trait! {gpio,
 /// [`register_interrupt`](Gpio::register_interrupt)) does not automatically put a pin
 /// in [`interrupt`](GpioState::Interrupt) mode. Instead, this only updates the handler
 /// function for a pin.
-///
-/// Handler functions are `FnMut` implementors (they're allowed to mutate state) that
-/// take a [`GpioPin`] corresponding to the pin for which the rising-edge interrupt just
-/// fired.
 ///
 /// Implementations should store the last handler function provided to
 /// [`register_interrupt`](Gpio::register_interrupt) _across pin state changes_. As in,
