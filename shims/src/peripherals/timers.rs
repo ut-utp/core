@@ -10,6 +10,7 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 // The term “Single Shot” signifies a single pulse output of some duration.
 pub struct TimersShim<'a> {
@@ -55,7 +56,7 @@ impl TimersShim<'_> {
     }
 }
 
-impl Timers<'_> for TimersShim<'_> {
+impl<'a> Timers<'a> for TimersShim<'a> {
     fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> {
         self.states[timer] = state;
 
@@ -85,6 +86,38 @@ impl Timers<'_> for TimersShim<'_> {
         self.times[timer]
     }
 
+    fn register_interrupt_flag(&mut self, timer: TimerId, flag: &'a AtomicBool) {
+        self.flags[timer] = match self.flags[timer] {
+            None => Some(flag),
+            Some(_) => unreachable!(),
+        }
+    }
+
+    fn interrupt_occurred(&self, timer: TimerId) -> bool {
+        match self.flags[timer] {
+            Some(flag) => {
+                let occurred = flag.load(Ordering::SeqCst);
+                self.interrupts_enabled(timer) && occurred
+            }
+            None => unreachable!(),
+        }
+    }
+
+    fn reset_interrupt_flag(&mut self, timer: TimerId) {
+        match self.flags[timer] {
+            Some(flag) => flag.store(false, Ordering::SeqCst),
+            None => unreachable!(),
+        }
+    }
+
+    // TODO: review whether we want Interrupt state or interrupts_enabled bool state
+    fn interrupts_enabled(&self, timer: TimerId) -> bool {
+        match self.get_state(timer) {
+            SingleShot => true,
+            Repeating => true,
+            Disabled => false,
+        }
+    }
 }
 
 // #[cfg(test)]
