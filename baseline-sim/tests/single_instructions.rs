@@ -100,6 +100,45 @@ mod tests {
     }
 
     // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).
+    sequence! {
+        add_nop,
+        insns: [ { ADD R0, R0, #0 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: 0 },
+        memory: {}
+    }
+    
+    sequence! {
+        add_imm_pos,
+        insns: [ { ADD R0, R0, #1 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: 1 },
+        memory: {}
+    }
+
+    sequence! {
+        add_imm_neg,
+        insns: [ { ADD R0, R0, #-1 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: -1i16 as Word },
+        memory: {}
+    }
+
+    sequence! {
+        add_reg,
+        insns: [
+            { ADD R0, R0, #1 },
+            { ADD R1, R1, #2 },
+            { ADD R2, R0, R1 }
+        ],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: { R0: 1, R1: 2, R2: 3 },
+        memory: {}
+    }
 
     sequence! {
         branch_self,
