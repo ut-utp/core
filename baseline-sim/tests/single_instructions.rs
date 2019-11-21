@@ -15,6 +15,7 @@ mod tests {
     use Reg::*;
 
     use std::convert::TryInto;
+    use std::convert::TryFrom;
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
@@ -35,7 +36,12 @@ mod tests {
         interp.set_pc(addr);
 
         for insn in insns {
+            let enc = Into::<u16>::into(insn);
+            println!("{:?}", insn);
+            println!("{:#04X} -> {:?}", enc, Instruction::try_from(enc));
             interp.set_word_unchecked(addr, insn.into());
+            println!("{:?}", Instruction::try_from(interp.get_word_unchecked(addr)));
+
             addr += 1;
         }
 
@@ -111,7 +117,7 @@ mod tests {
         regs: { R0: 0 },
         memory: {}
     }
-    
+
     sequence! {
         add_imm_pos,
         insns: [ { ADD R0, R0, #1 } ],

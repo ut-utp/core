@@ -628,3 +628,23 @@ mod tests {
     //     ]);
     // }
 }
+
+#[cfg(test)]
+mod misc {
+    use crate::Instruction::*;
+
+    #[test]
+    fn br_encoding_insn_macro() {
+        if let Br { offset9, .. } = insn!(BRnzp #-1) {
+            assert_eq!(offset9, -1);
+        } else { assert!(false); }
+
+        if let Br { offset9, .. } = insn!(BRnzp #90) {
+            assert_eq!(offset9, 90);
+        } else { assert!(false); }
+
+        if let Br { offset9, .. } = insn!(BRnzp #0) {
+            assert_eq!(offset9, 0);
+        } else { assert!(false); }
+    }
+}
