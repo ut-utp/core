@@ -736,10 +736,10 @@ impl From<Instruction> for Word {
         use Instruction::*;
 
         fn Op(op: u8) -> Word { ((op as u16) & 0b1111) << 12 }
-        fn Dr(dr: Reg) -> Word { ((dr as u16) & 0b111) << 8 }
-        fn Sr1(sr1: Reg) -> Word { ((sr1 as u16) & 0b111) << 5 }
+        fn Dr(dr: Reg) -> Word { ((dr as u16) & 0b111) << 9 }
+        fn Sr1(sr1: Reg) -> Word { ((sr1 as u16) & 0b111) << 6 }
         fn Sr2(sr2: Reg) -> Word { (sr2 as u16) & 0b111 }
-        fn Imm5(imm5: i16) -> Word { (imm5 as u16) & 0b11111 }
+        fn Imm5(imm5: i16) -> Word { ((imm5 as u16) & 0b11111) | 0b100000 }
         fn N(n: bool) -> Word { (n as u16) << 11 }
         fn Z(z: bool) -> Word { (z as u16) << 10 }
         fn P(p: bool) -> Word { (p as u16) << 9 }
@@ -754,7 +754,7 @@ impl From<Instruction> for Word {
             AddReg { dr, sr1, sr2 }   => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Sr2(sr2)   ,
             AddImm { dr, sr1, imm5 }  => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Imm5(imm5) ,
             AndReg { dr, sr1, sr2 }   => Op(0b0101) | Dr(dr) | Sr1(sr1)   | Sr2(sr2)   ,
-            AndImm { dr, sr1, imm5 }  => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Imm5(imm5) ,
+            AndImm { dr, sr1, imm5 }  => Op(0b0101) | Dr(dr) | Sr1(sr1)   | Imm5(imm5) ,
             Br { n, z, p, offset9 }   => Op(0b0000) | N(n) | Z(z) | P(p)  | O9(offset9),
             Jmp { base }              => Op(0b1100)          | Base(base)              ,
             Jsr { offset11: offset }  => Op(0b0100)                       | O11(offset),
