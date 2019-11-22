@@ -1,6 +1,8 @@
-//! An extremely naive, terrible [`Memory` trait](lc3_traits::memory::Memory)
+//! An extremely naïve, terrible [`Memory` trait](lc3_traits::memory::Memory)
 //! implementation called [`MemoryShim`](memory::MemoryShim).
 
+use std::convert::TryInto;
+use std::ops::{Index, IndexMut};
 use std::path::Path;
 
 use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS};
@@ -9,7 +11,7 @@ use lc3_traits::memory::{Memory, MemoryMiscError};
 use super::error::MemoryShimError;
 use super::file_backed::{read_from_file, write_to_file};
 
-/// Naive [`Memory` trait](lc3_traits::memory::Memory) implementation.
+/// Naïve [`Memory` trait](lc3_traits::memory::Memory) implementation.
 ///
 /// Only good for hosted platforms since we just go and use 256 KiB of stack
 /// space.
@@ -44,6 +46,20 @@ impl MemoryShim {
 
     fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), MemoryShimError> {
         write_to_file(path, &self.persistent)
+    }
+}
+
+impl Index<Addr> for MemoryShim {
+    type Output = Word;
+
+    fn index(&self, addr: Addr) -> &Self::Output {
+        &self.staging[TryInto::<usize>::try_into(addr).unwrap()]
+    }
+}
+
+impl IndexMut<Addr> for MemoryShim {
+    fn index_mut(&mut self, addr: Addr) -> &mut Self::Output {
+        &mut self.staging[TryInto::<usize>::try_into(addr).unwrap()]
     }
 }
 

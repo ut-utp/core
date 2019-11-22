@@ -7,38 +7,24 @@
 
 use super::error::Error;
 use core::future::Future;
-use lc3_isa::{Addr, Word};
+use lc3_isa::{Addr, Reg, Word, PSR};
+use crate::memory::MemoryMiscError;
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
     Interrupted, // If we get paused or stepped, this is returned.
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum State {
     Paused,
     RunningUntilEvent,
-}
-
-// TODO: derive macro to give us:
-//   - an iterator through all the variants
-//   - a const function with the number of variants (`Reg::num_variants()`)
-#[derive(Copy, Clone)]
-pub enum Reg {
-    R0,
-    R1,
-    R2,
-    R3,
-    R4,
-    R5,
-    R6,
-    R7,
-    PSR,
+    Halted,
 }
 
 pub trait Control {
@@ -50,21 +36,20 @@ pub trait Control {
     fn get_register(&self, reg: Reg) -> Word;
     fn set_register(&mut self, reg: Reg, data: Word); // Should be infallible.
 
-    fn get_registers_and_pc(&self) -> ([Word; 9], Word) {
-        let mut regs = [0; 9];
+    fn get_registers_psr_and_pc(&self) -> ([Word; Reg::NUM_REGS], Word, Word) {
+        let mut regs = [0; Reg::NUM_REGS];
 
-        use Reg::*;
-        [R0, R1, R2, R3, R4, R5, R6, R7, PSR]
+        Reg::REGS
             .iter()
             .enumerate()
             .for_each(|(idx, r)| regs[idx] = self.get_register(*r));
 
-        (regs, self.get_pc())
+        (regs, self.read_word(PSR), self.get_pc())
     }
 
-    fn write_word(&mut self, addr: Addr, word: Word);
     fn read_word(&self, addr: Addr) -> Word;
-    fn commit_memory(&self) -> Result<(), ()>;
+    fn write_word(&mut self, addr: Addr, word: Word);
+    fn commit_memory(&mut self) -> Result<(), MemoryMiscError>;
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
@@ -73,9 +58,9 @@ pub trait Control {
         MAX_BREAKPOINTS
     }
 
-    fn set_memory_watch(&mut self, addr: Addr) -> Result<usize, ()>;
+    fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()>;
     fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()>;
-    fn get_memory_watches(&self) -> [Option<Addr>; MAX_MEMORY_WATCHES];
+    fn get_memory_watches(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHES];
     fn get_max_memory_watches() -> usize {
         MAX_MEMORY_WATCHES
     }
