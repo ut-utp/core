@@ -151,6 +151,19 @@ mod tests {
         regs: { R0: 1, R1: 2, R2: 3 },
         memory: {}
     }
+    
+    sequence! {
+        add_subtract,
+        insns: [
+            { ADD R0, R0, #1 },
+            { ADD R1, R1, #-1 },
+            { ADD R2, R1, R0 }
+        ],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: { R0: 1, R1: 0xffff, R2: 0 },
+        memory: {}
+    }
 
     sequence! {
         add_reg_uninitialized,
