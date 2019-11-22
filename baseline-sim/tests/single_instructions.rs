@@ -636,11 +636,10 @@ mod tests {
         memory: {}
     }
 
-
-     /////////
+    /////////
     // RTI //
     /////////
-    sequence! { 
+    sequence! {
         rti_0,
         // R1 <- x3001, R2 <- 10, xA <- R1, TRAP at xA, RTI
         //insns: [ {LEA R1, #-2}, { ADD R2, R2, #14}, {STR R1, R2, #0}, {ADD R6, R6, #14}, {TRAP #14} ],

@@ -840,9 +840,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         // TODO: Peripheral interrupt stuff
 
         match self.get_word(current_pc).and_then(|w| match w.try_into() {
-            Ok(insn) => {
-                self.instruction_step_inner(insn)
-            }
+            Ok(insn) => self.instruction_step_inner(insn),
             Err(_) => {
                 self.handle_exception(ILLEGAL_OPCODE_EXCEPTION_VECTOR);
                 Ok(())
