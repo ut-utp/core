@@ -30,6 +30,7 @@ fn all_br() -> impl Iterator<Item = Instruction> {
         [true, false].iter(),
         -256..255
     )
+    .filter(|(n, z, p, _)| *n | *z | *p)
     .map(|(n, z, p, offset9)| Instruction::new_br(*n, *z, *p, offset9))
 }
 
@@ -143,9 +144,20 @@ fn all_insns() -> impl Iterator<Item = Instruction> {
 }
 
 #[cfg(test)]
-mod tests {
+mod roundtrip_instruction_tests {
     use super::*;
 
+    use std::convert::TryFrom;
+
     #[test]
-    fn name() {}
+    fn number_of_instructions() {
+        assert_eq!(all_insns().count(), 39162);
+    }
+
+    #[test]
+    fn full_roundtrip() {
+        all_insns().for_each(|insn| {
+            assert_eq!(insn, Instruction::try_from(Into::<u16>::into(insn)).unwrap());
+        })
+    }
 }
