@@ -139,7 +139,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
                 Str { sr, base, offset6 } => {}
                 Trap { trapvec } => {}
             },
-            Err(word) => {}//todo!("exception!?"),
+            Err(word) => {} //todo!("exception!?"),
         }
     }
 

@@ -1,8 +1,8 @@
 use super::Word;
-//use serde::{Serialize, Deserialize};
 use core::convert::{TryFrom, TryInto};
 use core::ops::Range;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+
 #[rustfmt::skip]
 #[derive(Copy, Clone)]
 #[derive(Serialize, Deserialize, Debug)]

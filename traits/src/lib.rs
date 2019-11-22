@@ -62,10 +62,7 @@ pub mod control;
 pub mod memory;
 pub mod peripherals;
 
-pub mod CommunicationChannel;
-pub mod transport_layer;
-pub mod tokio_serial_test;
+pub mod control_rpc;
 
 //pub mod interp;
 //pub mod isa;
-

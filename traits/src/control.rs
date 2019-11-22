@@ -8,22 +8,19 @@
 use super::error::Error;
 use core::future::Future;
 use lc3_isa::{Addr, Word};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
-#[derive(Copy, Clone)]
-
-
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
     Interrupted, // If we get paused or stepped, this is returned.
 }
 
-#[derive(Copy, Clone)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum State {
     Paused,
     RunningUntilEvent,
@@ -32,8 +29,7 @@ pub enum State {
 // TODO: derive macro to give us:
 //   - an iterator through all the variants
 //   - a const function with the number of variants (`Reg::num_variants()`)
-#[derive(Copy, Clone)]
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Reg {
     R0,
     R1,
@@ -100,15 +96,15 @@ pub trait Control {
 
     // I/O Access:
     // TODO!! Does the state/reading separation make sense?
-   // fn get_gpio_states();
-   // fn get_gpio_reading();
-   // fn get_adc_states();
-   // fn get_adc_reading();
-   // fn get_timer_states();
-   // fn get_timer_config();
-   // fn get_pwm_states();
-   // fn get_pwm_config();
-   // fn get_clock();
+    // fn get_gpio_states();
+    // fn get_gpio_reading();
+    // fn get_adc_states();
+    // fn get_adc_reading();
+    // fn get_timer_states();
+    // fn get_timer_config();
+    // fn get_pwm_states();
+    // fn get_pwm_config();
+    // fn get_clock();
 
     // So with some of these functions that are basically straight wrappers over their Memory/Peripheral trait counterparts,
     // we have a bit of a choice. We can make Control a super trait of those traits so that we can have default impls of said
