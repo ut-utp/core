@@ -4,6 +4,8 @@ use core::convert::TryFrom;
 use core::ops::{Deref, Index, IndexMut};
 
 use crate::peripheral_trait;
+use core::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
 // Switched to using enums to identify peripheral pin numbers; this way
 // referring to invalid/non-existent pin numbers isn't an error that peripheral
@@ -65,6 +67,13 @@ pub enum GpioState {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioPinArr<T>(pub [T; GpioPin::NUM_PINS]);
 
+// For when we have const functions:
+// impl<T: Copy> GpioPinArr<T> {
+//     const fn new(val: T) -> Self {
+//         Self([val; GpioPin::NUM_PINS])
+//     }
+// }
+
 // Once const fn is more stable:
 // impl<T: Copy> GpioPinArr<T> {
 //     const fn new(val: T) -> Self {
@@ -113,8 +122,6 @@ pub struct GpioReadErrors(pub GpioStateMismatches);
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
 
-pub type GpioHandler<'a> = &'a (dyn Fn(GpioPin) + Sync);
-
 // #[derive(Copy, Clone)]
 // pub struct GpioInterruptRegisterError(GpioStateMismatch); // See comments below
 
@@ -162,10 +169,6 @@ peripheral_trait! {gpio,
 /// [`register_interrupt`](Gpio::register_interrupt)) does not automatically put a pin
 /// in [`interrupt`](GpioState::Interrupt) mode. Instead, this only updates the handler
 /// function for a pin.
-///
-/// Handler functions are `FnMut` implementors (they're allowed to mutate state) that
-/// take a [`GpioPin`] corresponding to the pin for which the rising-edge interrupt just
-/// fired.
 ///
 /// Implementations should store the last handler function provided to
 /// [`register_interrupt`](Gpio::register_interrupt) _across pin state changes_. As in,
@@ -248,26 +251,11 @@ pub trait Gpio<'a>: Default {
         errors
     }
 
-    // This error only make sense if you have to put the Gpio Pin in interrupt mode _before_ you set the interrupt handler.
-    // That doesn't really make any sense.
-    //
-    // This operation should probably be infallible. If we want to actually check that a handler has been registered, we could require that
-    // the handler be registered first and then when you call set_state, it can error if it's still using the default handler.
-    //
-    // But really, enabling interrupts and having them go to the default handler should be possible... (default handler should probably do nothing!)
-    //
-    // Another approach is to make adding interrupts an extra thing that you can do when you're in Input mode. I don't like this because
-    // it means we now need to provide a disable_interrupt function though...
-    // fn register_interrupt(&mut self, pin: GpioPin, func: impl FnMut(bool)) -> Result<(), GpioInterruptRegisterError>;
+    fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool);
+    fn interrupt_occurred(&self, pin: GpioPin) -> bool;
+    fn reset_interrupt_flag(&mut self, pin: GpioPin);
+    fn interrupts_enabled(&self, pin: GpioPin) -> bool;
 
-    // Gonna switch to MiscError for now then (TODO ^^^^^^):
-    fn register_interrupt(
-        &mut self,
-        pin: GpioPin,
-        // handler: impl FnMut(GpioPin)
-        // handler: &mut dyn FnMut(GpioPin)
-        handler: GpioHandler<'a>
-    ) -> Result<(), GpioMiscError>;
 }}
 
 impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
@@ -346,14 +334,21 @@ using_std! {
             RwLock::write(self).unwrap().write(pin, bit)
         }
 
-        fn register_interrupt(
-            &mut self,
-            pin: GpioPin,
-            handler: GpioHandler<'a>,
-        ) -> Result<(), GpioMiscError> {
-            RwLock::write(self)
-                .unwrap()
-                .register_interrupt(pin, handler)
+        fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool) {
+            RwLock::write(self).unwrap().register_interrupt_flag(pin, flag)
         }
+
+        fn interrupt_occurred(&self, pin: GpioPin) -> bool {
+            RwLock::read(self).unwrap().interrupt_occurred(pin)
+        }
+
+        fn reset_interrupt_flag(&mut self, pin: GpioPin) {
+            RwLock::write(self).unwrap().reset_interrupt_flag(pin)
+        }
+
+        fn interrupts_enabled(&self, pin: GpioPin) -> bool {
+            RwLock::read(self).unwrap().interrupts_enabled(pin)
+        }
+
     }
 }

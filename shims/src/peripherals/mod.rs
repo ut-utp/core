@@ -25,10 +25,10 @@ pub use output::OutputShim;
 pub type PeripheralsShim<'s> = PeripheralSet<
     's,
     GpioShim<'s>,
-    AdcShim<'s>,
+    AdcShim,
     PwmShim,
-    TimersShim,
+    TimersShim<'s>,
     ClockShim,
-    InputShim,
-    OutputShim<'s>,
+    InputShim<'s>,
+    OutputShim<'s, 's>,
 >;

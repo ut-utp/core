@@ -22,7 +22,6 @@ pub const ADC_PINS: AdcPinArr<AdcPin> = {
 pub enum AdcState {
     Enabled,
     Disabled,
-    Interrupt,
 }
 
 impl From<AdcPin> for usize {
@@ -69,12 +68,10 @@ impl<T> IndexMut<AdcPin> for AdcPinArr<T> {
     }
 }
 
-pub type AdcHandler<'a> = &'a (dyn Fn(AdcPin, u8) + Sync);
-
 peripheral_trait! {adc,
 
 /// Adc access for the interpreter.
-pub trait Adc<'a>: Default {
+pub trait Adc: Default {
     fn set_state(&mut self, pin: AdcPin, state: AdcState) -> Result<(), ()>;
     fn get_state(&self, pin: AdcPin) -> AdcState;
     fn get_states(&self) -> AdcPinArr<AdcState> {
@@ -99,11 +96,6 @@ pub trait Adc<'a>: Default {
         readings
     }
 
-    fn register_interrupt(
-        &mut self,
-        pin: AdcPin,
-        handler: AdcHandler<'a>
-    ) -> Result<(), AdcMiscError>;
 }}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -119,7 +111,7 @@ pub struct AdcReadError(pub AdcStateMismatch);
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
-    impl<'a, A: Adc<'a>> Adc<'a> for Arc<RwLock<A>> {
+    impl<A: Adc> Adc for Arc<RwLock<A>> {
         fn set_state(&mut self, pin: AdcPin, state: AdcState) -> Result<(), ()> {
             RwLock::write(self).unwrap().set_state(pin, state)
         }
@@ -130,16 +122,6 @@ using_std! {
 
         fn read(&self, pin: AdcPin) -> Result<u8, AdcReadError> {
             RwLock::read(self).unwrap().read(pin)
-        }
-
-        fn register_interrupt(
-            &mut self,
-            pin: AdcPin,
-            handler: AdcHandler<'a>,
-        ) -> Result<(), AdcMiscError> {
-            RwLock::write(self)
-                .unwrap()
-                .register_interrupt(pin, handler)
         }
     }
 }

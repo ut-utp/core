@@ -1,29 +1,38 @@
+use core::sync::atomic::{AtomicBool, Ordering};
 use lc3_traits::peripherals::input::{Input, ReadError};
 use std::io::{stdin, Read};
 
-pub struct InputShim {
+pub struct InputShim<'a> {
+    interrupts_enabled: bool,
     source: Box<dyn Read>,
+    flag: Option<&'a AtomicBool>,
 }
 
-impl Default for InputShim {
+impl Default for InputShim<'_> {
     fn default() -> Self {
         Self {
+            interrupts_enabled: false,
             source: Box::new(stdin()),
+            flag: None,
         }
     }
 }
 
-impl InputShim {
+impl InputShim<'_> {
     fn new() -> Self {
         Self::default()
     }
 
     fn using(source: Box<dyn Read>) -> Self {
-        Self { source }
+        Self {
+            interrupts_enabled: false,
+            source,
+            flag: None,
+        }
     }
 }
 
-impl Input for InputShim {
+impl<'a> Input<'a> for InputShim<'a> {
     fn read(&mut self) -> Result<u8, ReadError> {
         let mut buf: [u8; 1] = [0];
         match self.source.read(&mut buf) {
@@ -31,6 +40,34 @@ impl Input for InputShim {
             Ok(_) => Ok(buf[0]),
             Err(_) => Err(ReadError),
         }
+    }
+
+    fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
+        self.flag = match self.flag {
+            None => Some(flag),
+            Some(_) => unreachable!(),
+        }
+    }
+
+    fn interrupt_occurred(&self) -> bool {
+        match self.flag {
+            Some(f) => {
+                let occurred = f.load(Ordering::SeqCst);
+                self.interrupts_enabled() && occurred
+            }
+            None => unreachable!(),
+        }
+    }
+
+    fn reset_interrupt_flag(&mut self) {
+        match self.flag {
+            Some(f) => f.store(false, Ordering::SeqCst),
+            None => unreachable!(),
+        }
+    }
+
+    fn interrupts_enabled(&self) -> bool {
+        self.interrupts_enabled
     }
 }
 
