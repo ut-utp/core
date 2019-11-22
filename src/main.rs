@@ -1,20 +1,35 @@
-extern crate futures; // 0.1.23
+//extern crate futures; // 0.1.23
 extern crate rand;
-use futures::{sync::mpsc, Async, Sink, Stream};
+extern crate serde;
+extern crate serde_json;
+//use lc3_traits;
+//use lc3_baseline_sim;
+//use lc3_isa;
+//use lc3_tui;
+//use futures::{sync::mpsc, Async, Sink, Stream};
 //use std::sync::mpsc;
 use std::{thread, time};
-use prost::Message;
+//use prost::Message;
 use bytes::{BytesMut, BufMut, BigEndian};
-use futures::future::{ ok};
+//use futures::future::{ ok};
 use serde::{Serialize, Deserialize};
-use error::Error;
-use prototype::*; 
-use prototype::control::*;
+use lc3_traits::error::Error;
+use lc3_isa::*; 
+use lc3_traits::control::Reg;
+use lc3_traits::control::*;
+use lc3_traits::transport_layer::{Message, TransportLayer, Server, Client};
 use std::time::Duration;
 use rand::distributions::{Range, IndependentSample};
 use core::future::Future;
-use std::task::*;
-
+use std::task::{Context, Poll, Waker};
+ use std::sync::mpsc::{sync_channel, SyncSender, Sender, Receiver};
+//use futures::future::*;
+use {
+    futures::{
+        future::{FutureExt, BoxFuture},
+        task::{ArcWake, waker_ref},
+    },
+};
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 #[derive(Serialize, Deserialize, Debug)]
@@ -34,6 +49,9 @@ enum signal{
   GET_MAX_MEMORY_WATCHES,
   STEP,
   RUN_UNTIL_EVENT,
+  SET_REGISTER(Reg, Word),
+  GET_REGISTER(Reg),
+
 }
 
 
@@ -146,7 +164,7 @@ struct get_state{
 struct run_until_event{
     message: signal,
 }
- use std::sync::mpsc::{Sender, Receiver};
+
 
 
  struct message_channel{
@@ -170,21 +188,31 @@ struct run_until_event{
     device_to_host_receiver:    Receiver<device_status>, 
 
  }
-// impl Future for signal{
-//         type Output = Event;
 
-//     fn poll(&mut self, ctx: &Context) -> Poll<Self::Output> {
+struct SharedState {
+    /// Whether or not the sleep time has elapsed
+    completed: bool,
 
-//     }
-// }
+    /// The waker for the task that `TimerFuture` is running on.
+    /// The thread can use this after setting `completed = true` to tell
+    /// `TimerFuture`'s task to wake up, see that `completed = true`, and
+    /// move forward.
+    waker: Option<std::task::Waker>,
+}
+
+pub struct TimerFuture {
+    shared_state: Arc<Mutex<SharedState>>,
+}
+
 struct CurrentEvent{
   CurrentEvent: Event,
   CurrentState: State,
+  //shared_state: Arc<Mutex<SharedState>>,
 
 }
 impl Future for CurrentEvent{
 
-type Output=prototype::control::Event;
+type Output=lc3_traits::control::Event;
 fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Self::Output>{
             match self.CurrentState {
  //             let ret_status = device_status::PAUSE_SUCCESSFUL;
@@ -200,10 +228,119 @@ fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Sel
                   Poll::Pending
               }
           }
+
     // Poll::Pending
     }
 }
 
+
+impl Future for TimerFuture {
+    type Output = lc3_traits::control::Event;
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context) -> Poll<Self::Output> {
+        // Look at the shared state to see if the timer has already completed.
+        let mut shared_state = self.shared_state.lock().unwrap();
+        if shared_state.completed {
+            Poll::Ready(Event::Interrupted)
+        } else {
+            shared_state.waker = Some(cx.waker().clone());
+            Poll::Pending
+        }
+    }
+}
+
+
+impl TimerFuture {
+    pub fn new(duration: Duration) -> Self {
+        let shared_state = Arc::new(Mutex::new(SharedState {
+            completed: false,
+            waker: None,
+        }));
+
+        // Spawn the new thread
+        let thread_shared_state = shared_state.clone();
+        thread::spawn(move || {
+            thread::sleep(duration);
+            let mut shared_state = thread_shared_state.lock().unwrap();
+            // Signal that the timer has completed and wake up the last
+            // task on which the future was polled, if one exists.
+            shared_state.completed = true;
+            if let Some(waker) = shared_state.waker.take() {
+                waker.wake()
+            }
+        });
+
+        TimerFuture { shared_state }
+    }
+}
+
+/// Task executor that receives tasks off of a channel and runs them.
+struct Executor {
+    ready_queue: Receiver<Arc<Task>>,
+}
+
+/// `Spawner` spawns new futures onto the task channel.
+#[derive(Clone)]
+struct Spawner {
+    task_sender: SyncSender<Arc<Task>>,
+}
+
+/// A future that can reschedule itself to be polled by an `Executor`.
+struct Task {
+    future: Mutex<Option<BoxFuture<'static, ()>>>,
+
+    /// Handle to place the task itself back onto the task queue.
+    task_sender: SyncSender<Arc<Task>>,
+}
+
+fn new_executor_and_spawner() -> (Executor, Spawner) {
+    const MAX_QUEUED_TASKS: usize = 10_000;
+    let (task_sender, ready_queue) = sync_channel(MAX_QUEUED_TASKS);
+    (Executor { ready_queue }, Spawner { task_sender })
+}
+
+impl Spawner {
+    fn spawn(&self, future: impl Future<Output = ()> + 'static + Send) {
+        let future = future.boxed();
+        let task = Arc::new(Task {
+            future: Mutex::new(Some(future)),
+            task_sender: self.task_sender.clone(),
+        });
+        self.task_sender.send(task).expect("too many tasks queued");
+    }
+}
+
+impl ArcWake for Task {
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        // Implement `wake` by sending this task back onto the task channel
+        // so that it will be polled again by the executor.
+        let cloned = arc_self.clone();
+        arc_self.task_sender.send(cloned).expect("too many tasks queued");
+    }
+}
+
+impl Executor {
+    fn run(&self) {
+        while let Ok(task) = self.ready_queue.recv() {
+            // Take the future, and if it has not yet completed (is still Some),
+            // poll it in an attempt to complete it.
+            let mut future_slot = task.future.lock().unwrap();
+            if let Some(mut future) = future_slot.take() {
+                // Create a `LocalWaker` from the task itself
+                let waker = waker_ref(&task);
+                let context = &mut Context::from_waker(&*waker);
+                // `BoxFuture<T>` is a type alias for
+                // `Pin<Box<dyn Future<Output = T> + Send + 'static>>`.
+                // We can get a `Pin<&mut dyn Future + Send + 'static>`
+                // from it by calling the `Pin::as_mut` method.
+                if let Poll::Pending = future.as_mut().poll(context) {
+                    // We're not done processing the future, so put it
+                    // back in its task to be run again in the future.
+                    *future_slot = Some(future);
+                }
+            }
+        }
+    }
+}
 
 impl Control for host_control{
       // type EventFuture: Future<Output = Event>;
@@ -223,11 +360,22 @@ impl Control for host_control{
     } // Should be infallible.
 
     fn get_register(&self, reg: Reg) -> Word{
-        16
+          let point = signal::GET_REGISTER(reg);
+         let serialized = serde_json::to_string(&point).unwrap();
+         println!("serialized = {}", serialized);
+         //let (mut tx, mut rx) = self.channel1;
+         self.host_to_device_transmitter.send(serialized).unwrap();   
+         16
 
 
     }
     fn set_register(&mut self, reg: Reg, data: Word){
+
+         let point = signal::SET_REGISTER(reg, data);
+         let serialized = serde_json::to_string(&point).unwrap();
+         println!("serialized = {}", serialized);
+         //let (mut tx, mut rx) = self.channel1;
+         self.host_to_device_transmitter.send(serialized).unwrap();  
 
     } // Should be infallible.
 
@@ -334,10 +482,27 @@ impl Control for host_control{
          //let (mut tx, mut rx) = self.channel1;
          self.host_to_device_transmitter.send(serialized).unwrap();
           println!("Output: {:?}", self.device_to_host_receiver.recv().unwrap());
+    let (executor, spawner) = new_executor_and_spawner();
 
+    // Spawn a task to print before and after waiting on a timer.
+    spawner.spawn(async {
+        println!("howdy!");
+        // Wait for our timer future to complete after two seconds.
+        TimerFuture::new(Duration::new(1, 0)).await;
+        println!("done!");
+    });
+
+    // Drop the spawner so that our executor knows it is finished and won't
+    // receive more incoming tasks to run.
+    drop(spawner);
+
+    // Run the executor until the task queue is empty.
+    // This will print "howdy!", pause, and then print "done!".
+    executor.run();
         CurrentEvent{
             CurrentEvent: Event::Interrupted,
             CurrentState: State::RunningUntilEvent,
+            //shared_state:()
         }
 
     } // Can be interrupted by step or pause.
@@ -398,11 +563,11 @@ impl Control for device_control{
     fn get_registers_and_pc(&self) -> ([Word; 9], Word) {
         let mut regs = [0; 9];
 
-        use Reg::*;
-        [R0, R1, R2, R3, R4, R5, R6, R7, PSR]
-            .iter()
-            .enumerate()
-            .for_each(|(idx, r)| regs[idx] = self.get_register(*r));
+        // use Reg::*;
+        // [R0, R1, R2, R3, R4, R5, R6, R7, PSR]
+        //     .iter()
+        //     .enumerate()
+        //     .for_each(|(idx, r)| regs[idx] = self.get_register(*r));
 
         (regs, self.get_pc())
     }
@@ -456,6 +621,7 @@ impl Control for device_control{
         CurrentEvent{
             CurrentEvent: Event::Interrupted,
             CurrentState: State::RunningUntilEvent,
+            //shared_state:()
         }
 
     } // Can be interrupted by step or pause.
@@ -648,9 +814,9 @@ impl Control for device_control{
         // let mut buf = BytesMut::with_capacity(1024);
         // let (sender, receiver) = std::sync::mpsc::channel();
          //println!("serialized = {:?}", serialized);
-         tx.send(serialized).unwrap();
-         let mut my_future = (Device_Signal::default());
-         println!("Issued run until event: {:?}", run(my_future));
+         //tx.send(serialized).unwrap();
+        // let mut my_future = (Device_Signal::default());
+        // println!("Issued run until event: {:?}", run(my_future));
         // println!("got message:");
        // let deserialized: run_until_event = serde_json::from_str(&receiver.recv().unwrap()).unwrap();
         
@@ -658,123 +824,6 @@ impl Control for device_control{
 
         }
 
-        // fn test_device_reception(){
-        //     let (mut tx, rx) = mpsc::channel(1024);
-        //         let handle = thread::spawn(move || {
-        //     tx.send(1)
-        //         .and_then(|tx| tx.send(2))
-        //         .and_then(|tx| tx.send(3))
-        //         .wait()
-        //         .expect("Unable to send");
-        // });
-
-        // let mut rx = rx.map(|x| x * x);
-
-        // handle.join().unwrap();
-
-        // while let Ok(Async::Ready(Some(v))) = rx.poll() {
-        //     println!("stream: {}", v);
-        // }
-
-        // }
-
-
-
-
-// fn main() {
-// 	    //let point = Point {message: signal::SET_PC, addr: 2000 };
-
-//     // Convert the Point to a JSON string.
-//     //let serialized = serde_json::to_string(&point).unwrap();
-
-//     // Prints serialized = {"x":1,"y":2}
-//     //println!("serialized = {}", serialized);
-
-//     // Convert the JSON string back to a Point.
-//     //let deserialized: Point = serde_json::from_str(&serialized).unwrap();
-
-//     // Prints deserialized = Point { x: 1, y: 2 }
-//     //println!("deserialized = {:?}", deserialized);
-//     get_pc();
-//     set_pc();
-//     pause();
-//     set_memory_watch();
-//     unset_memory_watch();
-//     write_word();
-//     unset_breakpoint();
-//     set_breakpoint();
-//     read_word();
-//     run_until_event();
-//     test_device_reception();
-//   //  let (tx, rx) = mpsc::channel(1000);
-//       let temp:i32 = 1;
-//   //  let mut xs: [i32; 5] = [1, 2, 3, 4, 5];
-
-
-
-//     //println!("{}", a);
-//   let (mut tx, rx) = mpsc::channel(1024);
-
-//     thread::spawn(move || {
-//         println!("--> START THREAD");
-//         // We'll have the stream produce a series of values.
-//         for _ in 0..10 {
-
-//             let waited_for = sleep_temp();
-//             println!("+++ THREAD WAITED {}", waited_for);
-
-//             // When we `send()` a value it consumes the sender. Returning
-//             // a 'new' sender which we have to handle. In this case we just
-//             // re-assign.
-//             match tx.send(waited_for).wait() {
-//                 // Why do we need to do this? This is how back pressure is implemented.
-//                 // When the buffer is full `wait()` will block.
-//                 Ok(new_tx) => tx = new_tx,
-//                 Err(_) => panic!("Oh no!"),
-//             }
-
-//         }
-//         println!("<-- END THREAD");
-//         // Here the stream is dropped.
-//     });
-
-//     // We can `.fold()` like we would an iterator. In fact we can do many
-//     // things like we would an iterator.
-//     let sum = rx.fold(0, |acc, val| {
-//             // Notice when we run that this is happening after each item of
-//             // the stream resolves, like an iterator.
-//             println!("+++ FOLDING {} INTO {}", val, acc);
-//             // `ok()` is a simple way to say "Yes this worked."
-//             // `err()` also exists.
-//             ok(acc + val)
-//         })
-//         .wait()
-//         .unwrap();
-//     println!("SUM {}", sum);
-// }
-
-use std::cell::RefCell;
-use std::ops::Deref;
-use std::ops::DerefMut; 
-thread_local!(static NOTIFY: RefCell<bool> = RefCell::new(true));
-
-struct Context<'a> {
-    waker: &'a Waker,
-}
-
-// const GLOBAL_STATE: Mutex<RefCell<bool>> = Mutex::nes
-
-impl<'a> Context<'a> {
-    fn from_waker(waker: &'a Waker) -> Self {
-        Context { waker }
-    }
-
-    fn waker(&self) -> &'a Waker {
-        &self.waker
-    }
-}
-
-struct Waker;
 
 #[derive(Serialize, Deserialize, Debug)]
 enum device_status{
@@ -786,91 +835,48 @@ enum device_status{
     PAUSE_UNSUCCESSFUL,
 
 }
-impl Waker {
-    fn wake(&self) {
-        NOTIFY.with(|f| *f.borrow_mut() = true)
-    }
-}
 
-enum Poll2<T> {
-    Ready(T),
-    Pending,
-}
-
-trait Futur {
-    type Output;
-
-    fn poll(&mut self, cx: &Context) -> Poll2<Self::Output>;
-}
 
 #[derive(Default)]
 struct Device_Signal {
     count: u32,
 }
-impl Deref for Device_Signal{
-    type Target = u32;
 
-    fn deref(&self) -> &Self::Target {
-        &self.count
-    }
-}
-
-impl DerefMut for Device_Signal {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.count
-    }
-}
-
-impl Futur for Device_Signal {
-    type Output = device_status;
-
-    fn poll(&mut self, ctx: &Context) -> Poll2<Self::Output> {
-        match self.count {
-           // let ret_status = device_status::PAUSE_SUCCESSFUL;
-
-            1 => Poll2::Ready(device_status::RUN_COMPLETED),
-            2 => Poll2::Ready(device_status::STEP_SUCCESSFUL),
-            3 => Poll2::Ready(device_status::PAUSE_SUCCESSFUL),
-            4 => Poll2::Ready(device_status::RUN_FAILED),
-            5 => Poll2::Ready(device_status::PAUSE_UNSUCCESSFUL),
-            6 => Poll2::Ready(device_status::STEP_UNSUCCESSFUL),
-            _ => {
-                ctx.waker().wake();
-                Poll2::Pending
-            }
-        }
-    }
-}
-
-fn run<F>(mut f: F) -> F::Output
-where
-    F: Futur,
-{
-    NOTIFY.with(|n| loop {
-        if *n.borrow() {
-            *n.borrow_mut() = false;
-            let ctx = Context::from_waker(&Waker);
-            if let Poll2::Ready(val) = f.poll(&ctx) {
-                return val;
-
-            }
-        }
-    })
-}
-
-// fn main() {
-//    // let (sender, receiver) = std::sync::mpsc::channel();
-//     let mut my_future = Device_Signal::default();
-
-//     my_future.count = 4;
-//     println!("Output: {:?}", run(my_future));
-//     println!("Execution unblocked");
-// }
 
 
 static NTHREADS: usize = 1;
 use std::sync::{Arc, Mutex};
+
+
+struct MPSC_Transport{
+    tx: Sender<std::string::String>,
+    rx: Receiver<std::string::String>,
+   // channel2: (Sender<Message>, Receiver<Message>),
+}
+
+impl TransportLayer for MPSC_Transport{
+   fn send(&self, message: Message) -> Result<(), ()>{
+        let point = message;
+        let serialized = serde_json::to_string(&point).unwrap();
+        //let (tx, rx)= &self.channel;
+        self.tx.send(serialized).unwrap();
+
+       // self.port.write(serialized);
+    Ok(())
+
+   }
+   
+   fn get(&self) -> Option<Message>{
+    //let deserialized: run_until_event = serde_json::from_str(&receiver.recv().unwrap()).unwrap();
+    //let (tx, rx)= &self.channel;
+    let deserialized: Message = serde_json::from_str(&self.rx.recv().unwrap()).unwrap();
+    println!("deserialized = {:?}", deserialized);
+    Some(deserialized)
+   }
+}
+
 fn main() {
+    
     // Channels have two endpoints: the `Sender<T>` and the `Receiver<T>`,
     // where `T` is the type of the message to be transferred
     // (type annotation is superfluous)
@@ -878,114 +884,52 @@ fn main() {
    // let (tx, rx): (Sender<std::string::String>, Receiver<std::string::String>) = std::sync::mpsc::channel();
    // let (tx2, rx2): (Sender<device_status>, Receiver<device_status>) = std::sync::mpsc::channel();
    // let mut ids2 = Vec::with_capacity(NTHREADS);
-   let mut overall_channel = message_channel{
-    channel1: std::sync::mpsc::channel(),
-    channel2: std::sync::mpsc::channel(),
-   };
-   let (tx2, rx2) = overall_channel.channel2;
-   let (tx, rx)   = overall_channel.channel1;
+   let channel1= std::sync::mpsc::channel();
+   let channel2= std::sync::mpsc::channel();
+   let (tx_h, rx_h) = channel1;
+   let (tx_d, rx_d) = channel2;
 
-   let mut host_cpy = host_control{
-    host_to_device_transmitter: tx,
-    device_to_host_receiver:    rx2,
+   let mut HostChannel = MPSC_Transport{
+    //channel: std::sync::mpsc::channel(),
+    tx: tx_h,
+    rx: rx_d,
+   };
+   let mut DeviceChannel = MPSC_Transport{
+   // channel2: std::sync::mpsc::channel(),
+   tx: tx_d,
+   rx: rx_h,
+    //channel1: std::sync::mpsc::channel(),
    };
 
-        // The sender endpoint can be copied
-       // let thread_tx = tx.clone();
-    //let mut my_future = Arc::new((Device_Signal::default()));
+   let mut server = Server::<MPSC_Transport>{
+        transport: HostChannel,
+   };
+
+   let client = Client::<MPSC_Transport>{
+        transport: DeviceChannel,
+   };
+   let cl = Arc::new(Mutex::new(client));
+   //let (tx2, rx2) = server.transport.channel2;
+   //let (tx, rx)   = server.transport.channel1;
+
+   // let mut host_cpy = host_control{
+   //  //host_to_device_transmitter: tx,
+   //  //device_to_host_receiver:    rx2,
+   // };
+    let counter = Arc::clone(&cl);
     
-   // let mutex = std::sync::Mutex::new(foo);
-//let arc = std::sync::Arc::new(mutex);
-
-   // my_future.count = 8;
-        // Each thread will send its id via the channel
-
-        thread::spawn(move || {
-            let mut dev_cpy = device_control{
+      let handle =   thread::spawn(move || {
+       // let counter = Arc::clone(&serv);
+             let mut dev_cpy = device_control{
                 
-            };
-            // The thread takes ownership over `thread_tx`
-            // Each thread queues a message in the channel
-           // thread_tx.send(3).unwrap();
-         //  Arc::downgrade(&my_future);
-          // (my_future).count=4;
-          //let mut guard = my_future.lock().unwrap();
-          //guard.count = 4;
-           
-             //tx.send(1.to_string());
-             //let mut rx_set = Vec::new();
-            // println!("Output: {:?}", rx.recv().wait().unwrap());
+             };
              loop{
             // let deserialized = serde_json::from_str(&serialized).unwrap();
         // println!("deserialized = {:?}", deserialized);
-            let deserialized: signal = serde_json::from_str(&rx.recv().unwrap()).unwrap();
-             println!("Received deserialized: {:?}", deserialized);
-             
-             match deserialized{
-                signal::RUN_UNTIL_EVENT => {println!("Issued and invoking Run until event");
-                                            tx2.send(device_status::RUN_COMPLETED);
-
-                                            },
-                signal::SET_PC(addr)          => {
-                                                  dev_cpy.set_pc(addr);
-
-                                                 },
-                signal::WRITE_WORD(word, value)     =>   {println!("Wrote word {:?} {:?}", word, value);
-                                                          dev_cpy.write_word(word, value);
-
-                                                         },
-                signal::PAUSE        =>  {println!("Paused program");
-                                          dev_cpy.pause();
-
-                                         },
-                signal::SET_BREAKPOINT(addr) => {println!("Set breakpoint");
-                                                 dev_cpy.set_breakpoint(addr);
-                                                },
-                signal:: UNSET_BREAKPOINT(addr) => {println!("Unset breakpoint");
-                                                    dev_cpy.unset_breakpoint(16);
-                                                    },
-
-                signal:: GET_BREAKPOINTS(idx) => {println!("Obtain breakpoints");
-                                                  dev_cpy.get_breakpoints();
-
-                                                  },
-                signal:: GET_MAX_BREAKPOINTS => {
-                                                println!("Max breakpoints");
-                                                device_control::get_max_breakpoints();
-                                                },
-                signal:: SET_MEMORY_WATCH(addr)   => {
-                                                      println!("Set memory watches" );
-                                                      dev_cpy.set_memory_watch(16);
-                                                     },
-                signal:: UNSET_MEMORY_WATCH(idx) => {
-                                                     println!("Unset memory watch" );
-                                                     dev_cpy.unset_memory_watch(idx);
-                                                    },
-                signal:: GET_MAX_BREAKPOINTS => {
-                                                println!("Get max break points");
-                                                device_control::get_max_breakpoints();
-                                                },
-                signal:: GET_MAX_MEMORY_WATCHES => {
-                                                    println!("Get max breakpoints");
-                                                    device_control::get_max_memory_watches();
-                                                   },
-                signal:: STEP                    => {
-                                                    println!("Issue step");
-                                                    dev_cpy.step();
-                                                    },
-                signal::GET_PC                 =>   {
-                                                     println!("Get PC");
-                                                     dev_cpy.get_pc();
-                                                    }
-                signal::READ_WORD(addr)            => {
-                                                       println!("Read word");
-                                                       dev_cpy.read_word(addr);
-                                                      }
-                signal::GET_MEMORY_WATCHES    =>     {
-                                                      println!("Get memory watches");
-                                                      dev_cpy.get_memory_watches();
-                                                     }
-             };
+         //let deserialized: signal = serde_json::from_str(&rx.recv().unwrap()).unwrap();
+             //println!("Received deserialized: {:?}", deserialized);
+              (*counter).lock().unwrap().step(&mut dev_cpy);
+             // println!("came here");
              let one_sec = time::Duration::from_millis(1000);
              thread::sleep(one_sec);
          }
@@ -1006,16 +950,33 @@ fn main() {
             loop {
    // let tx = tx.clone();
        // set_pc(tx);
-        host_cpy.set_pc(1000);
-        host_cpy.set_pc(500);
-        host_cpy.run_until_event();
+       // host_cpy.set_pc(1000);
+       // host_cpy.set_pc(500);
+       // host_cpy.run_until_event();
+        server.get_pc();
+        server.step();
+        server.read_word(40);
+        server.write_word( 0, 4);
+        server.set_register(Reg::R4, 4);
+        server.get_register(Reg::R4);
+        server.pause();
+        server.set_breakpoint(14);
+        server.unset_breakpoint(14);
+        server.set_memory_watch(15);
+        server.unset_memory_watch(8);
+        server.get_breakpoints();
+        server.commit_memory();
+        server.get_state();
+
+
         let one_sec = time::Duration::from_millis(1000);
         thread::sleep(one_sec);
         
     }
+    handle.join().unwrap();
    // });
 
-    println!("Output: {:?}", rx2.recv().unwrap());
+  //  println!("Output: {:?}", rx2.recv().unwrap());
 
     
     
@@ -1034,6 +995,8 @@ fn main() {
     // Show the order in which the messages were sent
     //println!("{:?}", ids);
 }
+
+
 pub fn sleep_temp() -> u64 {
     let mut generator = rand::thread_rng();
     let possibilities = Range::new(0, 100);

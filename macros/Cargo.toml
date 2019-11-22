@@ -1,0 +1,38 @@
+[package]
+name = "lc3-macros"
+version = "0.1.0"
+authors = ["UT UTP <ut.utp.group@gmail.com>"]
+edition = "2018"
+
+workspace = ".."
+
+description = "Helper proc-macros."
+homepage = "https://ut-utp.github.io"
+repository = "http://github.com/ut-utp/prototype"
+
+readme = "README.md"
+
+keywords = ["utp"]
+categories = []
+
+license = "MPL-2.0"
+
+
+[badges]
+github-actions = { repository = "ut-utp/prototype", workflow = "macros" }
+codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
+
+is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }
+is-it-maintained-open-issues = { repository = "ut-utp/prototype" }
+maintenance = { status = "actively-developed" }
+
+
+[lib]
+proc-macro = true
+
+
+[dependencies]
+quote = "1.0.2"
+proc-macro2 = "1.0.3"
+syn = { version = "1.0.5" } # features = ["derive", "visit-mut", "parsing", "full"]
+

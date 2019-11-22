@@ -1,0 +1,53 @@
+[package]
+name = "lc3-traits"
+version = "0.1.0"
+authors = ["UT UTP <ut.utp.group@gmail.com>"]
+edition = "2018"
+
+workspace = ".."
+
+description = "Traits defining the LC-3's peripherals, memory, and control interface."
+homepage = "https://ut-utp.github.io"
+repository = "http://github.com/ut-utp/prototype"
+
+readme = "README.md"
+
+keywords = ["lc-3", "traits", "peripherals", "utp"]
+categories = ["no-std", "simulation"]
+
+license = "MPL-2.0"
+
+
+[badges]
+github-actions = { repository = "ut-utp/prototype", workflow = "traits" }
+codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
+
+is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }
+is-it-maintained-open-issues = { repository = "ut-utp/prototype" }
+maintenance = { status = "actively-developed" }
+
+
+[dependencies]
+lc3-isa = { path = "../isa", version = "0.1.0" }
+lc3-macros = { path = "../macros", version = "0.1.0" }
+#lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0" }
+bytes = "0.4"
+#futures-preview = "=0.3.0-alpha.17"
+futures="0.1"
+rand = "0.5.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio-serial = "3.3"
+#futures = "0.1"
+tokio-io = "0.1"
+tokio-reactor = "0.1"
+mio = "0.6"
+mio-serial = { version = "=3.3.0", default-features = false }
+tokio = "0.1"
+
+[dev-dependencies]
+
+[features]
+default = []
+no_std = []
+std_functionality = []
