@@ -889,7 +889,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
                 ($($dev:ty),*) => {
                     match addr {
                         $(<$dev as MemMapped>::ADDR => self.set_device_reg::<$dev>(word).unwrap(),)*
-                        _ => unimplemented!() // TODO: make a sane handler?
+                        _ => (), // unimplemented!() // TODO: make a sane handler?
                     }
                 };
             }
@@ -911,7 +911,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
                 ($($dev:ty),*) => {
                     match addr {
                         $(<$dev as MemMapped>::ADDR => *self.get_device_reg::<$dev>().unwrap(),)*
-                        _ => unimplemented!() // TODO: make a sane handler?
+                        _ => 0, // unimplemented!() // TODO: make a sane handler?
                     }
                 };
             }
