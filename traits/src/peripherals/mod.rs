@@ -20,19 +20,19 @@ use timers::Timers;
 use input::Input;
 use output::Output;
 
-pub trait Peripherals<'p>: Gpio<'p> + Adc<'p> + Pwm + Timers<'p> + Clock + Input + Output {
+pub trait Peripherals<'p>: Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output<'p> {
     fn init(&mut self);
 }
 
 pub struct PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: Gpio<'p>,
-    A: Adc<'p>,
+    A: Adc,
     P: Pwm,
     T: Timers<'p>,
     C: Clock,
-    I: Input,
-    O: Output,
+    I: Input<'p>,
+    O: Output<'p>,
 {
     gpio: G,
     adc: A,
@@ -50,12 +50,12 @@ where
 impl<'p, G, A, P, T, C, I, O> Default for PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: Gpio<'p>,
-    A: Adc<'p>,
+    A: Adc,
     P: Pwm,
     T: Timers<'p>,
     C: Clock,
-    I: Input,
-    O: Output,
+    I: Input<'p>,
+    O: Output<'p>,
 {
     fn default() -> Self {
         Self {
@@ -74,12 +74,12 @@ where
 impl<'p, G, A, P, T, C, I, O> PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: Gpio<'p>,
-    A: Adc<'p>,
+    A: Adc,
     P: Pwm,
     T: Timers<'p>,
     C: Clock,
-    I: Input,
-    O: Output,
+    I: Input<'p>,
+    O: Output<'p>,
 {
     pub fn new(gpio: G, adc: A, pwm: P, timers: T, clock: C, input: I, output: O) -> Self {
         Self {
@@ -142,12 +142,12 @@ macro_rules! peripheral_set_impl {
         where
             $($lifetime: 'p,)?
             G: 'p + $crate::peripherals::gpio::Gpio<'p>,
-            A: 'p + $crate::peripherals::adc::Adc<'p>,
+            A: 'p + $crate::peripherals::adc::Adc,
             P: 'p + $crate::peripherals::pwm::Pwm,
             T: 'p + $crate::peripherals::timers::Timers<'p>,
             C: 'p + $crate::peripherals::clock::Clock,
-            I: 'p + $crate::peripherals::input::Input,
-            O: 'p + $crate::peripherals::output::Output,
+            I: 'p + $crate::peripherals::input::Input<'p>,
+            O: 'p + $crate::peripherals::output::Output<'p>,
         { $($rest)* }
     };
 }
@@ -244,12 +244,12 @@ macro_rules! func_sig {
 impl<'p, G, A, P, T, C, I, O> Peripherals<'p> for PeripheralSet<'p, G, A, P, T, C, I, O>
 where
     G: 'p + Gpio<'p>,
-    A: 'p + Adc<'p>,
+    A: 'p + Adc,
     P: 'p + Pwm,
     T: 'p + Timers<'p>,
     C: 'p + Clock,
-    I: 'p + Input,
-    O: 'p + Output,
+    I: 'p + Input<'p>,
+    O: 'p + Output<'p>,
 {
     fn init(&mut self) {}
 }

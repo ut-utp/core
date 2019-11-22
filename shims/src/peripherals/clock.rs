@@ -67,17 +67,19 @@ mod tests {
         assert_eq!(clock.get_milliseconds(), 2);
 
         clock.set_milliseconds(4000);
-        assert_eq!(clock.get_milliseconds(), 4000);
-
+       // assert_eq!(clock.get_milliseconds(), 4000);
+        assert!(3950 <= clock.get_milliseconds()  && clock.get_milliseconds() <= 4050);
+        
         sleep(Duration::from_millis(15));
-        assert_eq!(clock.get_milliseconds(), 4015);
+         assert!(3965 <= clock.get_milliseconds()  && clock.get_milliseconds() <= 4165);
+       // assert_eq!(clock.get_milliseconds(), 4015);
 
         sleep(Duration::from_millis(400));
         clock.set_milliseconds(200);
-        assert_eq!(clock.get_milliseconds(), 200);
+        assert!(195 <= clock.get_milliseconds() && clock.get_milliseconds() <= 205);
 
         sleep(Duration::from_millis(90));
-        assert_eq!(clock.get_milliseconds(), 290);
+        assert!(285 <= clock.get_milliseconds() && clock.get_milliseconds() <= 295);
     }
 
     #[test]
