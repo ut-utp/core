@@ -103,7 +103,7 @@ impl<'b> Output<'b> for OutputShim<'_, 'b> {
             Some(_) => unreachable!(),
         }
     }
-    
+
     fn interrupt_occurred(&self) -> bool {
         match self.flag {
             Some(f) => {
@@ -120,7 +120,7 @@ impl<'b> Output<'b> for OutputShim<'_, 'b> {
             None => unreachable!(),
         }
     }
-    
+
     fn interrupts_enabled(&self) -> bool {
         self.interrupts_enabled
     }

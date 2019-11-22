@@ -4,7 +4,6 @@ use crate::peripheral_trait;
 use core::ops::{Deref, Index, IndexMut};
 
 use core::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use lc3_isa::Word;
 
 // TODO: Add Errors
@@ -111,7 +110,7 @@ pub trait Timers<'a>: Default {
     fn interrupt_occurred(&self, timer: TimerId) -> bool;
     fn reset_interrupt_flag(&mut self, timer: TimerId);
     fn interrupts_enabled(&self, timer: TimerId) -> bool;
-    
+
 }}
 
 // TODO: Into Error stuff (see Gpio)
@@ -119,8 +118,7 @@ pub trait Timers<'a>: Default {
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
-    use core::sync::atomic::AtomicBool;
-    
+
     impl<'a, T: Timers<'a>> Timers<'a> for Arc<RwLock<T>> {
         fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> { // TODO: Infallible?
             RwLock::write(self).unwrap().set_state(timer, state)
@@ -137,19 +135,19 @@ using_std! {
         fn get_period(&self, timer: TimerId) -> Word {
             RwLock::read(self).unwrap().get_period(timer)
         }
-        
+
         fn register_interrupt_flag(&mut self, timer: TimerId, flag: &'a AtomicBool) {
             RwLock::write(self).unwrap().register_interrupt_flag(timer, flag)
         }
-        
+
         fn interrupt_occurred(&self, timer: TimerId) -> bool {
             RwLock::read(self).unwrap().interrupt_occurred(timer)
         }
-        
+
         fn reset_interrupt_flag(&mut self, timer: TimerId) {
             RwLock::write(self).unwrap().reset_interrupt_flag(timer)
         }
-        
+
         fn interrupts_enabled(&self, timer: TimerId) -> bool {
             RwLock::read(self).unwrap().interrupts_enabled(timer)
         }

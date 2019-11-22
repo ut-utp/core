@@ -257,7 +257,8 @@ macro_rules! gpio_mem_mapped {
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
-            {                use lc3_traits::peripherals::gpio::GpioState::*;
+            {
+                use lc3_traits::peripherals::gpio::GpioState::*;
                 let state = match value.bits(0..2) {
                     0 => Disabled,
                     1 => Output,
@@ -370,7 +371,6 @@ macro_rules! adc_mem_mapped {
                 let word: Word = match state {
                     Disabled => 0,
                     Enabled => 1,
-                    Interrupt => 2,
                 };
 
                 Ok(Self::with_value(word))
@@ -382,12 +382,9 @@ macro_rules! adc_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 use lc3_traits::peripherals::adc::AdcState::*;
-                let state = match value.bits(0..2) {
-                    0 => Disabled,
-                    1 => Enabled,
-                    2 => Interrupt,
-                    3 => Disabled,      // TODO: What to do with invalid state?
-                    _ => unreachable!()
+                let state = match value.bit(0) {
+                    false => Disabled,
+                    true => Enabled,
                 };
 
                 Adc::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?

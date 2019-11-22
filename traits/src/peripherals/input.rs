@@ -2,7 +2,7 @@
 use crate::peripheral_trait;
 
 use core::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+
 peripheral_trait! {input,
 pub trait Input<'a>: Default {
     /// Read a single ASCII character.
@@ -21,21 +21,20 @@ pub struct ReadError;
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
-    use core::sync::atomic::AtomicBool;
-    
+
     impl<'a, I: Input<'a>> Input<'a> for Arc<RwLock<I>> {
         fn read(&mut self) -> Result<u8, ReadError> {
             RwLock::write(self).unwrap().read()
         }
-        
+
         fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
             RwLock::write(self).unwrap().register_interrupt_flag(flag)
         }
-        
+
         fn interrupt_occurred(&self) -> bool {
             RwLock::read(self).unwrap().interrupt_occurred()
         }
-        
+
         fn reset_interrupt_flag(&mut self) {
             RwLock::write(self).unwrap().reset_interrupt_flag()
         }
@@ -52,5 +51,5 @@ using_std! {
     //         self.read()
     //     }
     // }
-    
+
 }

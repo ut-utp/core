@@ -250,7 +250,7 @@ pub trait Gpio<'a>: Default {
 
         errors
     }
-    
+
     fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool);
     fn interrupt_occurred(&self, pin: GpioPin) -> bool;
     fn reset_interrupt_flag(&mut self, pin: GpioPin);
@@ -316,7 +316,6 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
-    use core::sync::atomic::AtomicBool;
 
     impl<'a, G: Gpio<'a>> Gpio<'a> for Arc<RwLock<G>> {
         fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
@@ -334,22 +333,22 @@ using_std! {
         fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError> {
             RwLock::write(self).unwrap().write(pin, bit)
         }
-        
+
         fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool) {
             RwLock::write(self).unwrap().register_interrupt_flag(pin, flag)
         }
-        
+
         fn interrupt_occurred(&self, pin: GpioPin) -> bool {
             RwLock::read(self).unwrap().interrupt_occurred(pin)
         }
-        
+
         fn reset_interrupt_flag(&mut self, pin: GpioPin) {
             RwLock::write(self).unwrap().reset_interrupt_flag(pin)
         }
-        
+
         fn interrupts_enabled(&self, pin: GpioPin) -> bool {
             RwLock::read(self).unwrap().interrupts_enabled(pin)
         }
-        
+
     }
 }
