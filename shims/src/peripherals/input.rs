@@ -1,6 +1,6 @@
+use core::sync::atomic::{AtomicBool, Ordering};
 use lc3_traits::peripherals::input::{Input, ReadError};
 use std::io::{stdin, Read};
-use core::sync::atomic::{AtomicBool, Ordering};
 
 pub struct InputShim<'a> {
     interrupts_enabled: bool,

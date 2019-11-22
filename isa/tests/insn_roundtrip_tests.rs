@@ -35,7 +35,10 @@ fn all_br() -> impl Iterator<Item = Instruction> + Clone {
 }
 
 fn all_jmp() -> impl Iterator<Item = Instruction> + Clone {
-    Reg::REGS.iter().filter(|r| **r != Reg::R7).map(|base| Instruction::new_jmp(*base))
+    Reg::REGS
+        .iter()
+        .filter(|r| **r != Reg::R7)
+        .map(|base| Instruction::new_jmp(*base))
 }
 
 fn all_jsr() -> impl Iterator<Item = Instruction> + Clone {
@@ -60,8 +63,7 @@ fn all_ldr() -> impl Iterator<Item = Instruction> + Clone {
 }
 
 fn all_lea() -> impl Iterator<Item = Instruction> + Clone {
-    iproduct!(Reg::REGS.iter(), -256..=255)
-        .map(|(dr, offset)| Instruction::new_lea(*dr, offset))
+    iproduct!(Reg::REGS.iter(), -256..=255).map(|(dr, offset)| Instruction::new_lea(*dr, offset))
 }
 fn all_not() -> impl Iterator<Item = Instruction> + Clone {
     iproduct!(Reg::REGS.iter(), Reg::REGS.iter()).map(|(dr, sr)| Instruction::new_not(*dr, *sr))
@@ -76,13 +78,11 @@ fn all_rti() -> impl Iterator<Item = Instruction> + Clone {
 }
 
 fn all_st() -> impl Iterator<Item = Instruction> + Clone {
-    iproduct!(Reg::REGS.iter(), -256..=255)
-        .map(|(sr, offset9)| Instruction::new_st(*sr, offset9))
+    iproduct!(Reg::REGS.iter(), -256..=255).map(|(sr, offset9)| Instruction::new_st(*sr, offset9))
 }
 
 fn all_sti() -> impl Iterator<Item = Instruction> + Clone {
-    iproduct!(Reg::REGS.iter(), -256..=255)
-        .map(|(sr, offset9)| Instruction::new_sti(*sr, offset9))
+    iproduct!(Reg::REGS.iter(), -256..=255).map(|(sr, offset9)| Instruction::new_sti(*sr, offset9))
 }
 
 fn all_str() -> impl Iterator<Item = Instruction> + Clone {
@@ -146,8 +146,8 @@ fn all_insns() -> impl Iterator<Item = Instruction> + Clone {
 
 #[cfg(test)]
 mod roundtrip_instruction_tests {
+    use super::*;
     use lc3_isa::Word;
-use super::*;
 
     use std::convert::TryFrom;
 
@@ -162,7 +162,10 @@ use super::*;
             let expected = insn;
             let got = Instruction::try_from(Into::<u16>::into(insn)).unwrap();
 
-            assert_eq!(expected, got, "\nExp: ({:#16b}) {:?} \nGot: ({:#16b}) {:?}",
+            assert_eq!(
+                expected,
+                got,
+                "\nExp: ({:#16b}) {:?} \nGot: ({:#16b}) {:?}",
                 Into::<Word>::into(expected),
                 expected,
                 Into::<Word>::into(got),

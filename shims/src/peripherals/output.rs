@@ -5,8 +5,8 @@ use std::convert::AsMut;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 enum OwnedOrRef<'a, R: ?Sized> {
     Owned(Box<R>),

@@ -1,6 +1,6 @@
 use lc3_traits::peripherals::adc::{
-    Adc, AdcMiscError, AdcPin as Pin, AdcPinArr as PinArr,
-    AdcReadError as ReadError, AdcState, AdcStateMismatch as StateMismatch,
+    Adc, AdcMiscError, AdcPin as Pin, AdcPinArr as PinArr, AdcReadError as ReadError, AdcState,
+    AdcStateMismatch as StateMismatch,
 };
 
 pub struct AdcShim {

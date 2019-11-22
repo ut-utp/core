@@ -6,13 +6,13 @@
 //! the [interp module](crate::interp).
 
 use super::error::Error;
+use crate::memory::MemoryMiscError;
+use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
+use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
+use crate::peripherals::pwm::{PwmPinArr, PwmState};
+use crate::peripherals::timers::{TimerArr, TimerState};
 use core::future::Future;
 use lc3_isa::{Addr, Reg, Word, PSR};
-use crate::memory::MemoryMiscError;
-use crate::peripherals::gpio::{GpioPinArr, GpioState, GpioReadError};
-use crate::peripherals::adc::{AdcPinArr, AdcState, AdcReadError};
-use crate::peripherals::timers::{TimerArr, TimerState};
-use crate::peripherals::pwm::{PwmPinArr, PwmState};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;

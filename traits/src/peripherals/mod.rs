@@ -20,7 +20,9 @@ use timers::Timers;
 use input::Input;
 use output::Output;
 
-pub trait Peripherals<'p>: Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output<'p> {
+pub trait Peripherals<'p>:
+    Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output<'p>
+{
     fn init(&mut self);
 }
 

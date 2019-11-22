@@ -3,9 +3,9 @@
 use core::convert::TryFrom;
 use core::ops::{Deref, Index, IndexMut};
 
+use crate::peripheral_trait;
 use core::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use crate::peripheral_trait;
 
 // Switched to using enums to identify peripheral pin numbers; this way
 // referring to invalid/non-existent pin numbers isn't an error that peripheral

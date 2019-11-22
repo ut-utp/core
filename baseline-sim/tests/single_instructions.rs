@@ -14,10 +14,9 @@ mod tests {
 
     use Reg::*;
 
-    use std::convert::TryInto;
-    use std::convert::TryFrom;
     use lc3_isa::Reg::R0;
-
+    use std::convert::TryFrom;
+    use std::convert::TryInto;
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
@@ -42,7 +41,10 @@ mod tests {
             println!("{:?}", insn);
             println!("{:#04X} -> {:?}", enc, Instruction::try_from(enc));
             interp.set_word_unchecked(addr, insn.into());
-            println!("{:?}", Instruction::try_from(interp.get_word_unchecked(addr)));
+            println!(
+                "{:?}",
+                Instruction::try_from(interp.get_word_unchecked(addr))
+            );
 
             addr += 1;
         }
@@ -61,7 +63,13 @@ mod tests {
         // Check PC:
         let expected_pc = pc;
         let actual_pc = interp.get_pc();
-        assert_eq!(pc, interp.get_pc(), "Expected PC = {:#04X}, got {:#04X}", expected_pc, actual_pc);
+        assert_eq!(
+            pc,
+            interp.get_pc(),
+            "Expected PC = {:#04X}, got {:#04X}",
+            expected_pc,
+            actual_pc
+        );
 
         // Check registers:
         for (idx, r) in regs.iter().enumerate() {
@@ -120,7 +128,7 @@ mod tests {
         regs: { R0: 0 },
         memory: {}
     }
-    
+
     sequence! {
         add_imm_pos,
         insns: [ { ADD R0, R0, #1 } ],
@@ -336,7 +344,6 @@ mod tests {
         memory: {}
     }
 
-
     ////////
     // LD //
     ////////
@@ -369,7 +376,7 @@ mod tests {
         regs: {R0: -1i16 as Word},
         memory: {}
     }
-    
+
     sequence! {  // take a positive number
         not_1,
         insns: [ { ADD R0, R0, #1 }, { NOT R0, R0 } ],
@@ -378,18 +385,16 @@ mod tests {
         regs: {R0: -2i16 as Word},
         memory: {}
     }
-  
-    sequence! { // take a negative number 
+
+    sequence! { // take a negative number
         not_neg,
         insns: [ { ADD R0, R0, #-1 }, { NOT R0, R0 } ],
         steps: Some(2),
         ending_pc: 0x3002,
         regs: {R0: 0},
         memory: {}
-    }    
-    
+    }
 
-    
     ////////
     // ST //
     ////////
@@ -401,7 +406,6 @@ mod tests {
         regs: {R0: 0},
         memory: {0x3012: 0}
     }
-
 
     sequence! { // take 1
         st_1,
@@ -421,7 +425,6 @@ mod tests {
         memory: {0x3012: -1i16 as Word}
     }
 
-   
     sequence! { // store behind
         st_neg_offset,
         insns: [ { ADD R0, R0, #1}, {ST R0, #-16}],
@@ -434,7 +437,7 @@ mod tests {
     /////////
     // RET //
     /////////
-    sequence! { 
+    sequence! {
         ret_2,
         insns: [ { JSR #2 }, {ADD R0, R0, #0}, {ADD R0, R0, #0}, { RET } ],
         steps: Some(2),
@@ -443,7 +446,7 @@ mod tests {
         memory: {}
     }
 
-    sequence! { 
+    sequence! {
         ret_pos_neg,
         insns: [ { JSR #1 }, {RET}, {ADD R0, R0, #0}, {ADD R0, R0, #0}, { JSR #-4 } ],
         steps: Some(5),
@@ -451,9 +454,9 @@ mod tests {
         regs: { R7: 0x3005 },
         memory: {}
     }
-    
+
     // load the return into a register -> store it somewhere -> jump there
-    sequence! { 
+    sequence! {
         ret_neg_pos,
         insns: [{LD R0, #3}, {ST R0, #-2}, {ADD R0, R0, #0}, { JSR #-4 }, {RET},  { JSR #-4 } ],
         steps: Some(5),
@@ -461,14 +464,14 @@ mod tests {
         regs: { R7: 0x3004 },
         memory: {}
     }
-    // not sure how to test negative returns... 
+    // not sure how to test negative returns...
     // Need to store return in a previous address
-    // then can jump to there... ? 
+    // then can jump to there... ?
 
     /////////
     // STI //
     /////////
-    sequence! { 
+    sequence! {
         sti_pos,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #2}, {STI R1, #1}],
         steps: Some(4),
@@ -476,7 +479,7 @@ mod tests {
         regs: {},
         memory: {0x3011: 1}
     }
-    sequence! { 
+    sequence! {
         sti_zero,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #1}, {STI R1, #0}],
         steps: Some(4),
@@ -485,7 +488,7 @@ mod tests {
         memory: {0x3011: 1}
     }
 
-    sequence! { 
+    sequence! {
         sti_neg,
         insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {ST R0, #-1}, {STI R1, #-2}],
         steps: Some(4),
@@ -494,11 +497,10 @@ mod tests {
         memory: {0x3000: 1}
     }
 
-
     //////////
     // STR //
     /////////
-    sequence! { 
+    sequence! {
         str_pos,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #1}],
         steps: Some(3),
@@ -507,7 +509,7 @@ mod tests {
         memory: {0x3012: 1}
     }
 
-    sequence! { 
+    sequence! {
         str_zero,
         insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {STR R1, R0, #0}],
         steps: Some(3),
@@ -516,7 +518,7 @@ mod tests {
         memory: {0x3000: 1}
     }
 
-    sequence! { 
+    sequence! {
         str_neg,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #-1}],
         steps: Some(3),
@@ -525,11 +527,10 @@ mod tests {
         memory: {0x3010: 1}
     }
 
-
     //////////
     // LDR //
     /////////
-    sequence! { 
+    sequence! {
         ldr_pos,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #1}, {LDR R2, R0, #1}],
         steps: Some(4),
@@ -538,7 +539,7 @@ mod tests {
         memory: {0x3012: 1}
     }
 
-    sequence! { 
+    sequence! {
         ldr_zero,
         insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {STR R1, R0, #0}, {LDR R2, R0, #0}],
         steps: Some(4),
@@ -547,7 +548,7 @@ mod tests {
         memory: {0x3000: 1}
     }
 
-    sequence! { 
+    sequence! {
         ldr_neg,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #-1}, {LDR R2, R0, #-1}],
         steps: Some(4),
@@ -556,11 +557,10 @@ mod tests {
         memory: {0x3010: 1}
     }
 
-
     /////////
     // LDI //
     /////////
-    sequence! { 
+    sequence! {
         ldi_pos,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #3}, {STI R1, #2}, {LDI R2, #1}],
         steps: Some(5),
@@ -568,7 +568,7 @@ mod tests {
         regs: {R2: 1},
         memory: {0x3011: 1}
     }
-    sequence! { 
+    sequence! {
         ldi_zero,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #2}, {STI R1, #1}, {LDI R2, #0}],
         steps: Some(5),
@@ -577,7 +577,7 @@ mod tests {
         memory: {0x3011: 1}
     }
 
-    sequence! { 
+    sequence! {
         ldi_neg,
         insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {ST R0, #-1}, {STI R1, #-2}, {LDI R2, #-3}],
         steps: Some(5),
@@ -586,11 +586,10 @@ mod tests {
         memory: {0x3000: 1}
     }
 
-
     /////////
     // LEA //
     /////////
-    sequence! { 
+    sequence! {
         lea_pos,
         insns: [ { LEA R0, #1} ],
         steps: Some(1),
@@ -598,7 +597,7 @@ mod tests {
         regs: {R0: 0x3002},
         memory: {}
     }
-    sequence! { 
+    sequence! {
         lea_zero,
         insns: [ { LEA R0, #0} ],
         steps: Some(1),
@@ -607,7 +606,7 @@ mod tests {
         memory: {}
     }
 
-    sequence! { 
+    sequence! {
         lea_neg,
         insns: [ { LEA R0, #-1} ],
         steps: Some(1),
@@ -619,7 +618,7 @@ mod tests {
     /////////
     // TRAP //
     /////////
-    sequence! { 
+    sequence! {
         trap_0,
         insns: [ { ADD R6, R6, #15}, {TRAP #1} ],
         steps: Some(2),
@@ -628,8 +627,7 @@ mod tests {
         memory: {}
     }
 
-
-    sequence! { 
+    sequence! {
         trap_1,
         insns: [ {LEA R1, #-2}, { ADD R2, R2, #14}, {STR R1, R2, #0}, {ADD R6, R6, #14}, {TRAP #14} ],
         steps: Some(5),
@@ -647,25 +645,24 @@ mod tests {
     // }
 
     // we can't write to values that are actually big enough to write to...
-    
 
-    // sequence! { 
+    // sequence! {
     //     sti_1,
     //     insns: [ { ADD R1, R1, #1}, {ADD R0, R0, #1}, {ST R0, #16}, {STI R0, #15}],
     //     steps: Some(4),
     //     ending_pc: 0x3004,
     //     regs: {R0: 1},
-    //     memory: {0x3012: 1, 0x0001: 1} 
+    //     memory: {0x3012: 1, 0x0001: 1}
     // }
 
-    // sequence! { 
+    // sequence! {
     //     sti_neg,
     //     insns: [ { ADD R0, R0, #-1}, {ST R0, #16}, {STI R0, #15}],
     //     steps: Some(3),
     //     ending_pc: 0x3003,
     //     regs: {R0: -1i16 as Word},
-    //     memory: {0x3012: 1, 0x0001: 1} 
-    // }    
+    //     memory: {0x3012: 1, 0x0001: 1}
+    // }
 
     /////////
     // LDI //
@@ -676,7 +673,7 @@ mod tests {
     // LDR //
     /////////
     // Hard without .FILL
-    
+
     // #[test]
     // #[should_panic]
     // fn no_op_fail() {

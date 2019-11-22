@@ -16,15 +16,15 @@ use core::ops::Deref;
 use lc3_traits::control::State::Paused;
 use lc3_traits::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHES};
 use lc3_traits::error::Error;
+use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcReadError, AdcState};
+use lc3_traits::peripherals::clock::Clock;
+use lc3_traits::peripherals::gpio::{Gpio, GpioPinArr, GpioReadError, GpioState};
+use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
+use lc3_traits::peripherals::timers::{TimerArr, TimerState, Timers};
 use lc3_traits::peripherals::*;
 use std::f32::MAX;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use lc3_traits::peripherals::gpio::{Gpio, GpioPinArr, GpioState, GpioReadError};
-use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcState, AdcReadError};
-use lc3_traits::peripherals::timers::{Timers, TimerArr, TimerState};
-use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
-use lc3_traits::peripherals::clock::Clock;
 
 struct Simulator<'a, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>>
 where
@@ -204,7 +204,7 @@ where
         Adc::get_states(self.interp.get_peripherals())
     }
 
-    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>>{
+    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>> {
         Adc::read_all(self.interp.get_peripherals())
     }
 

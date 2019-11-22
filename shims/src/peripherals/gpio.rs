@@ -1,10 +1,10 @@
 use core::ops::{Index, IndexMut};
+use core::sync::atomic::{AtomicBool, Ordering};
+use lc3_traits::peripherals::gpio::GpioState::Interrupt;
 use lc3_traits::peripherals::gpio::{
     Gpio, GpioMiscError, GpioPin, GpioPinArr, GpioReadError, GpioState, GpioWriteError,
 };
 use std::sync::{Arc, RwLock};
-use core::sync::atomic::{AtomicBool, Ordering};
-use lc3_traits::peripherals::gpio::GpioState::Interrupt;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum State {
@@ -41,7 +41,7 @@ impl From<State> for GpioState {
 ///     retrieved at any time.
 pub struct GpioShim<'a> {
     states: GpioPinArr<State>,
-    flags: GpioPinArr<Option<&'a AtomicBool>>
+    flags: GpioPinArr<Option<&'a AtomicBool>>,
 }
 
 impl Index<GpioPin> for GpioShim<'_> {
@@ -97,11 +97,11 @@ impl GpioShim<'_> {
 
         Some(())
     }
-    
+
     fn raise_interrupt(&self, pin: GpioPin) {
         match self.flags[pin] {
             Some(flag) => flag.store(true, Ordering::SeqCst),
-            None => unreachable!()
+            None => unreachable!(),
         }
     }
 

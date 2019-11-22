@@ -954,7 +954,10 @@ mod compile_time_fns {
 
 #[cfg(test)]
 mod instruction_tests {
-    use super::{Instruction::{self, *}, Reg::*};
+    use super::{
+        Instruction::{self, *},
+        Reg::*,
+    };
 
     #[test]
     fn ret_jmp_r7_eq() {

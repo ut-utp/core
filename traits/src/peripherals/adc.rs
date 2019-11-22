@@ -68,7 +68,6 @@ impl<T> IndexMut<AdcPin> for AdcPinArr<T> {
     }
 }
 
-
 peripheral_trait! {adc,
 
 /// Adc access for the interpreter.

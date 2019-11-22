@@ -49,7 +49,6 @@
 
 use lc3_isa::{Instruction::*, Reg::*};
 
-
 // TODO: actually go test const functionality with this...
 #[test]
 #[rustfmt::skip]
