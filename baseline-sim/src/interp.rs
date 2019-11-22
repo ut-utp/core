@@ -857,7 +857,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             Ok(insn) => {
                 println!("{:?}", insn);
                 self.instruction_step_inner(insn)
-            },
+            }
             Err(_) => {
                 self.handle_exception(ILLEGAL_OPCODE_EXCEPTION_VECTOR);
                 Ok(())
@@ -942,12 +942,21 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
     fn set_word_force_memory_backed(&mut self, addr: Addr, word: Word) {
         use core::convert::TryFrom;
-        println!("<<<<<<<< WRITING TO MEMORY {:#04X} <- {:#04X} ({:?})", addr, word, Instruction::try_from(word));
+        println!(
+            "<<<<<<<< WRITING TO MEMORY {:#04X} <- {:#04X} ({:?})",
+            addr,
+            word,
+            Instruction::try_from(word)
+        );
         self.memory.write_word(addr, word)
     }
 
     fn get_word_force_memory_backed(&self, addr: Addr) -> Word {
-        println!(">>>>>>>> READING FROM MEMORY {:#04X} -> {:#04X}", addr, self.memory.read_word(addr));
+        println!(
+            ">>>>>>>> READING FROM MEMORY {:#04X} -> {:#04X}",
+            addr,
+            self.memory.read_word(addr)
+        );
         self.memory.read_word(addr)
     }
 

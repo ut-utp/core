@@ -58,9 +58,9 @@ pub trait Control {
         MAX_BREAKPOINTS
     }
 
-    fn set_memory_watch(&mut self, addr: Addr) -> Result<usize, ()>;
+    fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()>;
     fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()>;
-    fn get_memory_watches(&self) -> [Option<Addr>; MAX_MEMORY_WATCHES];
+    fn get_memory_watches(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHES];
     fn get_max_memory_watches() -> usize {
         MAX_MEMORY_WATCHES
     }

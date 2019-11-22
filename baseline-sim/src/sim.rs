@@ -1,5 +1,5 @@
 use lc3_isa::{Addr, Bits, Instruction, Reg, Word};
-use lc3_traits::control::{Control, State, Event};
+use lc3_traits::control::{Control, Event, State};
 use lc3_traits::memory::{Memory, MemoryMiscError};
 use lc3_traits::peripherals::input::Input;
 use lc3_traits::peripherals::{PeripheralSet, Peripherals};
@@ -8,15 +8,18 @@ use core::convert::TryInto;
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
 
+use crate::interp::{InstructionInterpreter, InstructionInterpreterPeripheralAccess};
 use core::cell::Cell;
-use crate::interp::{InstructionInterpreterPeripheralAccess, InstructionInterpreter};
 
-use lc3_traits::control::{MAX_MEMORY_WATCHES, MAX_BREAKPOINTS};
-use lc3_traits::error::Error;
-use core::ops::Deref;
 use core::future::Future;
-use std::task::{Context, Poll};
+use core::ops::Deref;
+use lc3_traits::control::State::Paused;
+use lc3_traits::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHES};
+use lc3_traits::error::Error;
+use lc3_traits::peripherals::*;
+use std::f32::MAX;
 use std::pin::Pin;
+use std::task::{Context, Poll};
 
 struct Simulator<'a, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>>
 where
@@ -27,6 +30,7 @@ where
     watchpoints: [Option<(Addr, Word)>; MAX_MEMORY_WATCHES], // TODO: change to throw these when the location being watched to written to; not just when the value is changed...
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
+    state: State,
     _i: PhantomData<&'a ()>,
 }
 
@@ -50,130 +54,175 @@ where
             watchpoints: [None; MAX_MEMORY_WATCHES],
             num_set_breakpoints: 0,
             num_set_watchpoints: 0,
+            state: State::Paused,
             _i: PhantomData,
         }
     }
 }
 
- impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Control for Simulator<'a, I>
- where
-     <I as Deref>::Target: Peripherals<'a>,
- {
-     type EventFuture = SimFuture;
+impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Control for Simulator<'a, I>
+where
+    <I as Deref>::Target: Peripherals<'a>,
+{
+    type EventFuture = SimFuture;
 
-     fn get_pc(&self) -> Addr {
-         self.interp.get_pc()
-     }
+    fn get_pc(&self) -> Addr {
+        self.interp.get_pc()
+    }
 
-     fn set_pc(&mut self, addr: Addr) {
-         self.interp.set_pc(addr)
-     }
+    fn set_pc(&mut self, addr: Addr) {
+        self.interp.set_pc(addr)
+    }
 
-     fn get_register(&self, reg: Reg) -> Word {
-         self.interp.get_register(reg)
-     }
+    fn get_register(&self, reg: Reg) -> Word {
+        self.interp.get_register(reg)
+    }
 
-     fn set_register(&mut self, reg: Reg, data: Word) {
-         self.interp.set_register(reg, data)
-     }
+    fn set_register(&mut self, reg: Reg, data: Word) {
+        self.interp.set_register(reg, data)
+    }
 
-     fn write_word(&mut self, addr: Addr, word: Word) {
-         self.interp.set_word_unchecked(addr, word)
-     }
+    fn write_word(&mut self, addr: Addr, word: Word) {
+        self.interp.set_word_unchecked(addr, word)
+    }
 
-     fn read_word(&self, addr: Addr) -> Word {
-         self.interp.get_word_unchecked(addr)
-     }
+    fn read_word(&self, addr: Addr) -> Word {
+        self.interp.get_word_unchecked(addr)
+    }
 
-     fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
-         self.interp.commit_memory()
-     }
+    fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
+        self.interp.commit_memory()
+    }
 
-     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
-         unimplemented!()
-     }
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+        if self.num_set_breakpoints < MAX_BREAKPOINTS {
+            self.breakpoints[self.num_set_breakpoints] = Option::from(addr);
+            self.num_set_breakpoints += 1;
+            Ok(self.num_set_breakpoints)
+        } else {
+            Err(())
+        }
+    }
 
-     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
-         unimplemented!()
-     }
+    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
+        if idx < self.num_set_breakpoints {
+            self.breakpoints[idx] = None;
+            self.num_set_breakpoints -= 1;
 
-//     fn get_breakpoint(&self) ->
+            let mut i = idx;
+            while self.breakpoints[i + 1] != None {
+                self.breakpoints[i] = self.breakpoints[i + 1];
+                i += 1;
+            }
 
-     fn get_breakpoints(&self) -> [Option<u16>; 10] {
-         unimplemented!()
-     }
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
 
-     fn set_memory_watch(&mut self, addr: u16) -> Result<usize, ()> {
-         unimplemented!()
-     }
+    //     fn get_breakpoint(&self) ->
 
-     fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()> {
-         unimplemented!()
-     }
+    fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] {
+        self.breakpoints
+    }
 
-     fn get_memory_watches(&self) -> [Option<u16>; 10] {
-         unimplemented!()
-     }
+    // TODO: breakpoints and watchpoints look macroable
+    fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()> {
+        if self.num_set_watchpoints < MAX_MEMORY_WATCHES {
+            self.watchpoints[self.num_set_watchpoints] = Option::from((addr, data));
+            self.num_set_watchpoints += 1;
+            Ok(self.num_set_watchpoints)
+        } else {
+            Err(())
+        }
+    }
 
-     fn run_until_event(&mut self) -> Self::EventFuture {
-         // DO NOT IMPLEMENT, yet
-         unimplemented!()
-     }
+    fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()> {
+        if idx < self.num_set_watchpoints {
+            self.watchpoints[idx] = None;
+            self.num_set_watchpoints -= 1;
 
-     fn step(&mut self) {
-         unimplemented!()
-//         self.interp.step()
-     }
+            let mut i = idx;
+            while self.watchpoints[i + 1] != None {
+                self.watchpoints[i] = self.watchpoints[i + 1];
+                i += 1;
+            }
 
-     fn pause(&mut self) {
-         unimplemented!()
-     }
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
 
-     fn get_state(&self) -> State {
-         unimplemented!()
-     }
+    fn get_memory_watches(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHES] {
+        self.watchpoints
+    }
 
-     fn get_error(&self) -> Option<Error> {
-         unimplemented!()
-     }
+    fn run_until_event(&mut self) -> Self::EventFuture {
+        // DO NOT IMPLEMENT, yet
+        unimplemented!()
+    }
 
-     fn get_gpio_states() {
-         unimplemented!()
-     }
+    fn step(&mut self) {
+        match self.interp.step() {
+            Running => {
+                self.state = State::Paused;
+            }
+            Halted => {
+                self.state = State::Halted;
+            }
+        }
+    }
 
-     fn get_gpio_reading() {
-         unimplemented!()
-     }
+    fn pause(&mut self) {
+        unimplemented!()
+    }
 
-     fn get_adc_states() {
-         unimplemented!()
-     }
+    fn get_state(&self) -> State {
+        self.state
+    }
 
-     fn get_adc_reading() {
-         unimplemented!()
-     }
+    fn get_error(&self) -> Option<Error> {
+        unimplemented!()
+    }
 
-     fn get_timer_states() {
-         unimplemented!()
-     }
+    fn get_gpio_states() {
+        unimplemented!()
+    }
 
-     fn get_timer_config() {
-         unimplemented!()
-     }
+    fn get_gpio_reading() {
+        unimplemented!()
+    }
 
-     fn get_pwm_states() {
-         unimplemented!()
-     }
+    fn get_adc_states() {
+        unimplemented!()
+    }
 
-     fn get_pwm_config() {
-         unimplemented!()
-     }
+    fn get_adc_reading() {
+        unimplemented!()
+    }
 
-     fn get_clock() {
-         unimplemented!()
-     }
+    fn get_timer_states() {
+        unimplemented!()
+    }
 
- }
+    fn get_timer_config() {
+        unimplemented!()
+    }
+
+    fn get_pwm_states() {
+        unimplemented!()
+    }
+
+    fn get_pwm_config() {
+        unimplemented!()
+    }
+
+    fn get_clock() {
+        unimplemented!()
+    }
+}
 
 pub struct SimFuture;
 
