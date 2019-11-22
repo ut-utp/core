@@ -245,6 +245,19 @@ mod tests {
         regs: { R0: 1, R1: 1, R2: 1 },
         memory: {}
     }
+    
+    sequence! {
+        and_3_reg,
+        insns: [
+            { ADD R0, R0, #3 },
+            { ADD R1, R1, #1 },
+            { AND R2, R0, R1 }
+        ],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: { R0: 3, R1: 1, R2: 1 },
+        memory: {}
+    }
 
     ////////
     // BR //
