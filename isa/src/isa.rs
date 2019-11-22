@@ -675,7 +675,7 @@ impl Bits for Word {
     }
 
     fn bits(self, range: Range<u32>) -> usize {
-        let mask = !(core::u16::MAX << (range.end - range.start));
+        let mask = !(core::u16::MAX << ((range.end + 1) - range.start));
         ((self >> range.start) & mask) as usize
     }
 }
@@ -769,7 +769,7 @@ impl From<Instruction> for Word {
             St { sr, offset9 }        => Op(0b0011) | Dr(sr)              | O9(offset9),
             Sti { sr, offset9 }       => Op(0b1011) | Dr(sr)              | O9(offset9),
             Str { sr, base, offset6 } => Op(0b0111) | Dr(sr) | Base(base) | O6(offset6),
-            Trap { trapvec }          => Op(0b0111)          | Trapvec(trapvec)        ,
+            Trap { trapvec }          => Op(0b1111)          | Trapvec(trapvec)        ,
         }
     }
 }
