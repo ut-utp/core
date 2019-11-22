@@ -71,10 +71,12 @@ pub trait Control {
 
     // Execution control functions:
     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
-    fn step(&mut self);
+    fn step(&mut self) -> State;
     fn pause(&mut self);
 
     fn get_state(&self) -> State;
+
+    fn reset(&mut self);
 
     // TBD whether this is literally just an error for the last step or if it's the last error encountered.
     // If it's the latter, we should return the PC value when the error was encountered.
