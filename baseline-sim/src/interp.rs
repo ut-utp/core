@@ -47,6 +47,8 @@ where
         M::update(self, func)
     }
 
+    fn commit_memory(&mut self) -> Result<(), MemoryMiscError>;
+
     fn get_special_reg<M: MemMappedSpecial>(&self) -> M {
         M::from_special(self)
     }
@@ -539,6 +541,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> DerefMut for Interpreter<'a, M, P> {
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'a>
     for Interpreter<'a, M, P>
 {
+    fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
+        self.memory.commit()
+    }
 }
 
 impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
@@ -828,6 +833,7 @@ use super::mem_mapped::{BSP, DDR, DSR, KBDR, KBSR, PSR};
 use super::mem_mapped::{
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
 };
+use lc3_traits::memory::MemoryMiscError;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     fn step(&mut self) -> MachineState {

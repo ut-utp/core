@@ -8,6 +8,7 @@
 use super::error::Error;
 use core::future::Future;
 use lc3_isa::{Addr, Reg, Word, PSR};
+use crate::memory::MemoryMiscError;
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
@@ -23,6 +24,7 @@ pub enum Event {
 pub enum State {
     Paused,
     RunningUntilEvent,
+    Halted,
 }
 
 pub trait Control {
@@ -47,7 +49,7 @@ pub trait Control {
 
     fn read_word(&self, addr: Addr) -> Word;
     fn write_word(&mut self, addr: Addr, word: Word);
-    fn commit_memory(&self) -> Result<(), ()>;
+    fn commit_memory(&mut self) -> Result<(), MemoryMiscError>;
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
