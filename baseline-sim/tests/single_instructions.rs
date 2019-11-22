@@ -368,7 +368,7 @@ mod tests {
         regs: {R0: -1i16 as Word},
         memory: {}
     }
-    // fails 
+    
     sequence! {  // take a positive number
         not_1,
         insns: [ { ADD R0, R0, #1 }, { NOT R0, R0 } ],
@@ -377,7 +377,7 @@ mod tests {
         regs: {R0: -2i16 as Word},
         memory: {}
     }
-    // fails
+  
     sequence! { // take a negative number 
         not_neg,
         insns: [ { ADD R0, R0, #-1 }, { NOT R0, R0 } ],
@@ -401,7 +401,7 @@ mod tests {
         memory: {0x3012: 0}
     }
 
-    // fails
+
     sequence! { // take 1
         st_1,
         insns: [ { ADD R0, R0, #1}, {ST R0, #16}],
@@ -411,7 +411,6 @@ mod tests {
         memory: {0x3012: 1}
     }
 
-    // fails 
     sequence! { // take -1
         st_neg,
         insns: [ { ADD R0, R0, #-1}, {ST R0, #16}],
@@ -421,7 +420,7 @@ mod tests {
         memory: {0x3012: -1i16 as Word}
     }
 
-    // idk if this works - tested on lc3tools and doesn't give what I expect it to
+   
     sequence! { // store behind
         st_neg_offset,
         insns: [ { ADD R0, R0, #1}, {ST R0, #-16}],
@@ -432,16 +431,72 @@ mod tests {
     }
 
     /////////
+    // RET //
+    /////////
+    sequence! { 
+        ret_2,
+        insns: [ { JSR #2 }, {ADD R0, R0, #0}, {ADD R0, R0, #0}, { RET } ],
+        steps: Some(2),
+        ending_pc: 0x3001,
+        regs: { R7: 0x3001 },
+        memory: {}
+    }
+
+    sequence! { 
+        res_pos_neg,
+        insns: [ { JSR #1 }, {RET}, {ADD R0, R0, #0}, {ADD R0, R0, #0}, { JSR #-4 } ],
+        steps: Some(5),
+        ending_pc: 0x3005,
+        regs: { R7: 0x3005 },
+        memory: {}
+    }
+    
+    // load the return into a register -> store it somewhere -> jump there
+    sequence! { 
+        res_neg_pos,
+        insns: [{LD R0, #3}, {ST R0, #-2}, {ADD R0, R0, #0}, { JSR #-4 }, {RET},  { JSR #-4 } ],
+        steps: Some(5),
+        ending_pc: 0x3004,
+        regs: { R7: 0x3004 },
+        memory: {}
+    }
+    // not sure how to test negative returns... 
+    // Need to store return in a previous address
+    // then can jump to there... ? 
+
+    /////////
     // STI //
     /////////
-    // sequence! { 
-    //     sti_0,
-    //     insns: [ { ADD R0, R0, #0}, {ST R0, #16}, {STI R0, #15}],
-    //     steps: Some(3),
-    //     ending_pc: 0x3003,
-    //     regs: {R0: 0},
-    //     memory: {0x3012: 0, 0x0000: 0}
+    sequence! { 
+        sti_0,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #2}, {STI R1, #1}],
+        steps: Some(4),
+        ending_pc: 0x3004,
+        regs: {},
+        memory: {0x3011: 1}
+    }
+
+    sequence! { 
+        sti_neg,
+        insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {ST R0, #2}, {STI R1, #1}],
+        steps: Some(4),
+        ending_pc: 0x3004,
+        regs: {},
+        memory: {0x3000: 1}
+    }
+
+
+    // sequence! {
+    //     ret_neg,
+    //     insns: [ { JSR #-2 }, { RET } ],
+    //     steps: Some(2),
+    //     ending_pc: 0x3001,
+    //     regs: { R7: 0x3001 },
+    //     memory: {}
     // }
+
+    // we can't write to values that are actually big enough to write to...
+    
 
     // sequence! { 
     //     sti_1,
