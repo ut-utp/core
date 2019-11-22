@@ -774,16 +774,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             AndImm { dr, sr1, imm5 } => I!(dr <- R[sr1] & imm5),
             Br { n, z, p, offset9 } => {
                 let (cc_n, cc_z, cc_p) = self.get_cc();
-                println!("INSN: {:?}", insn);
-                println!("CURRENT CC: {:?}", self.get_cc());
-                println!("BRANCH CC: {:?}", (n, z, p));
-                println!("Current PC: {}, {}", self.get_pc(), offset9);
-                println!("IF taken: {}", self.get_pc().wrapping_add(offset9 as Word));
                 if n && cc_n || z && cc_z || p && cc_p {
-                    println!("TAKING THE BRANCH!");
                     I!(PC <- PC + offset9)
-                } else {
-                    println!("NO BRANCH");
                 }
             }
             Jmp { base: R7 } | Ret => I!(PC <- R[R7]),
@@ -847,15 +839,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
         // TODO: Peripheral interrupt stuff
 
-        for r in Reg::REGS.iter() {
-            println!("{:?}: {}", r, self[*r]);
-        }
-
-        println!("{:#x?}", self.get_word(current_pc).unwrap());
-
         match self.get_word(current_pc).and_then(|w| match w.try_into() {
             Ok(insn) => {
-                println!("{:?}", insn);
                 self.instruction_step_inner(insn)
             }
             Err(_) => {
@@ -941,22 +926,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     fn set_word_force_memory_backed(&mut self, addr: Addr, word: Word) {
-        use core::convert::TryFrom;
-        println!(
-            "<<<<<<<< WRITING TO MEMORY {:#04X} <- {:#04X} ({:?})",
-            addr,
-            word,
-            Instruction::try_from(word)
-        );
         self.memory.write_word(addr, word)
     }
 
     fn get_word_force_memory_backed(&self, addr: Addr) -> Word {
-        println!(
-            ">>>>>>>> READING FROM MEMORY {:#04X} -> {:#04X}",
-            addr,
-            self.memory.read_word(addr)
-        );
         self.memory.read_word(addr)
     }
 
