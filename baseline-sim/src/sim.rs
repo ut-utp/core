@@ -20,6 +20,11 @@ use lc3_traits::peripherals::*;
 use std::f32::MAX;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use lc3_traits::peripherals::gpio::{Gpio, GpioPinArr, GpioState, GpioReadError};
+use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcState, AdcReadError};
+use lc3_traits::peripherals::timers::{Timers, TimerArr, TimerState};
+use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
+use lc3_traits::peripherals::clock::Clock;
 
 struct Simulator<'a, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>>
 where
@@ -187,40 +192,40 @@ where
         unimplemented!()
     }
 
-    fn get_gpio_states() {
-        unimplemented!()
+    fn get_gpio_states(&self) -> GpioPinArr<GpioState> {
+        Gpio::get_states(self.interp.get_peripherals())
     }
 
-    fn get_gpio_reading() {
-        unimplemented!()
+    fn get_gpio_reading(&self) -> GpioPinArr<Result<bool, GpioReadError>> {
+        Gpio::read_all(self.interp.get_peripherals())
     }
 
-    fn get_adc_states() {
-        unimplemented!()
+    fn get_adc_states(&self) -> AdcPinArr<AdcState> {
+        Adc::get_states(self.interp.get_peripherals())
     }
 
-    fn get_adc_reading() {
-        unimplemented!()
+    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>>{
+        Adc::read_all(self.interp.get_peripherals())
     }
 
-    fn get_timer_states() {
-        unimplemented!()
+    fn get_timer_states(&self) -> TimerArr<TimerState> {
+        Timers::get_states(self.interp.get_peripherals())
     }
 
-    fn get_timer_config() {
-        unimplemented!()
+    fn get_timer_config(&self) -> TimerArr<Word> {
+        Timers::get_periods(self.interp.get_peripherals())
     }
 
-    fn get_pwm_states() {
-        unimplemented!()
+    fn get_pwm_states(&self) -> PwmPinArr<PwmState> {
+        Pwm::get_states(self.interp.get_peripherals())
     }
 
-    fn get_pwm_config() {
-        unimplemented!()
+    fn get_pwm_config(&self) -> PwmPinArr<u8> {
+        Pwm::get_duty_cycles(self.interp.get_peripherals())
     }
 
-    fn get_clock() {
-        unimplemented!()
+    fn get_clock(&self) -> Word {
+        Clock::get_milliseconds(self.interp.get_peripherals())
     }
 }
 

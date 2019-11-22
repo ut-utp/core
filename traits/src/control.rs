@@ -9,6 +9,10 @@ use super::error::Error;
 use core::future::Future;
 use lc3_isa::{Addr, Reg, Word, PSR};
 use crate::memory::MemoryMiscError;
+use crate::peripherals::gpio::{GpioPinArr, GpioState, GpioReadError};
+use crate::peripherals::adc::{AdcPinArr, AdcState, AdcReadError};
+use crate::peripherals::timers::{TimerArr, TimerState};
+use crate::peripherals::pwm::{PwmPinArr, PwmState};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
@@ -80,15 +84,15 @@ pub trait Control {
 
     // I/O Access:
     // TODO!! Does the state/reading separation make sense?
-    fn get_gpio_states();
-    fn get_gpio_reading();
-    fn get_adc_states();
-    fn get_adc_reading();
-    fn get_timer_states();
-    fn get_timer_config();
-    fn get_pwm_states();
-    fn get_pwm_config();
-    fn get_clock();
+    fn get_gpio_states(&self) -> GpioPinArr<GpioState>;
+    fn get_gpio_reading(&self) -> GpioPinArr<Result<bool, GpioReadError>>;
+    fn get_adc_states(&self) -> AdcPinArr<AdcState>;
+    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>>;
+    fn get_timer_states(&self) -> TimerArr<TimerState>;
+    fn get_timer_config(&self) -> TimerArr<Word>;
+    fn get_pwm_states(&self) -> PwmPinArr<PwmState>;
+    fn get_pwm_config(&self) -> PwmPinArr<u8>;
+    fn get_clock(&self) -> Word;
 
     // So with some of these functions that are basically straight wrappers over their Memory/Peripheral trait counterparts,
     // we have a bit of a choice. We can make Control a super trait of those traits so that we can have default impls of said
