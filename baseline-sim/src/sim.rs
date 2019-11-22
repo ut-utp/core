@@ -123,27 +123,26 @@ where
 
     // TODO: breakpoints and watchpoints look macroable
     fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()> {
-        if self.num_set_watchpoints < MAX_MEMORY_WATCHES {
-            self.watchpoints[self.num_set_watchpoints] = Option::from((addr, data));
-            self.num_set_watchpoints += 1;
-            Ok(self.num_set_watchpoints)
-        } else {
+        if self.num_set_watchpoints == MAX_MEMORY_WATCHES {
             Err(())
+        } else {
+            // Scan for the next open slot:
+            let mut next_free: usize = 0;
+
+            while let Some(_) = self.watchpoints[next_free] {
+                next_free += 1;
+            }
+
+            assert!(next_free < MAX_MEMORY_WATCHES, "Invariant violated.");
+
+            self.watchpoints[next_free] = Some((addr, data));
+            Ok(next_free)
         }
     }
 
     fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()> {
-        if idx < self.num_set_watchpoints {
-            self.watchpoints[idx] = None;
-            self.num_set_watchpoints -= 1;
-
-            let mut i = idx;
-            while self.watchpoints[i + 1] != None {
-                self.watchpoints[i] = self.watchpoints[i + 1];
-                i += 1;
-            }
-
-            Ok(())
+        if idx < MAX_MEMORY_WATCHES {
+            self.watchpoints[idx].take().map(|_| ()).ok_or(())
         } else {
             Err(())
         }
