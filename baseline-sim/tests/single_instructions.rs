@@ -288,6 +288,24 @@ mod tests {
         regs: {},
         memory: {}
     }
+    
+    sequence! {
+        branch_simple,
+        insns: [ { ADD R0, R0, #1 }, { BRp #2 } ],
+        steps: Some(2),
+        ending_pc: 0x3004,
+        regs: {R0: 1},
+        memory: {}
+    }
+    
+    sequence! {
+        branch_simple,
+        insns: [ { ADD R0, R0, #-1 }, { BRn #1 } ],
+        steps: Some(2),
+        ending_pc: 0x3003,
+        regs: {R0: 0xffff},
+        memory: {}
+    }
 
     sequence! {
         |"should fail"|
