@@ -585,6 +585,37 @@ mod tests {
         regs: {R2: 1},
         memory: {0x3000: 1}
     }
+
+
+    /////////
+    // LEA //
+    /////////
+    sequence! { 
+        lea_pos,
+        insns: [ { LEA R0, #1} ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: {R0: 0x3002},
+        memory: {}
+    }
+    sequence! { 
+        lea_zero,
+        insns: [ { LEA R0, #0} ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: {R0: 0x3001},
+        memory: {}
+    }
+
+    sequence! { 
+        lea_neg,
+        insns: [ { LEA R0, #-1} ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: {R0: 0x3000},
+        memory: {}
+    }
+
     // sequence! {
     //     ret_neg,
     //     insns: [ { JSR #-2 }, { RET } ],
