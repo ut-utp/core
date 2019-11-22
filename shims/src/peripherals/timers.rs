@@ -39,7 +39,7 @@ impl TimersShim<'_> {
     }
 }
 
-impl<'a> Timers<'static> for TimersShim<'static> {
+impl<'a> Timers<'a> for TimersShim {
     fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> {
         use TimerState::*;
         self.states[timer] = match state {
@@ -150,6 +150,7 @@ impl<'a> Timers<'static> for TimersShim<'static> {
     fn get_period(&self, timer: TimerId) -> Word {
         self.times[timer]
     }
+
 
     fn register_interrupt_flag(&mut self, timer: TimerId, flag: &'static AtomicBool) {
         self.flags[timer] = match self.flags[timer] {
