@@ -128,7 +128,7 @@ pub struct PeripheralInterruptFlags {
 }
 
 impl PeripheralInterruptFlags {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         macro_rules! b {
             () => {
                 AtomicBool::new(false)

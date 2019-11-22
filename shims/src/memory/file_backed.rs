@@ -36,7 +36,7 @@ impl FileBackedMemoryShim {
         }
     }
 
-    fn from_existing_file<P: AsRef<Path>>(path: &P) -> Result<Self, MemoryShimError> {
+    pub fn from_existing_file<P: AsRef<Path>>(path: &P) -> Result<Self, MemoryShimError> {
         let mut memory: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
         read_from_file(path, &mut memory)?;
 
