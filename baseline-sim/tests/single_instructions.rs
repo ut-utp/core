@@ -365,6 +365,15 @@ mod tests {
         memory: {}
     }
 
+    sequence! {
+        ld_pos,
+        insns: [ { LD R0, #1 }, { AND R0, R0, R0 }, { ADD R0, R0, R0 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: Instruction::AddReg{dr: R0, sr1: R0, sr2: R0}.into() },
+        memory: {}
+    }
+
     /////////
     // NOT //
     /////////
