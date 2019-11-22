@@ -616,6 +616,27 @@ mod tests {
         memory: {}
     }
 
+    /////////
+    // TRAP //
+    /////////
+    sequence! { 
+        trap_0,
+        insns: [ { ADD R6, R6, #15}, {TRAP #1} ],
+        steps: Some(2),
+        ending_pc: 0x0000,
+        regs: {R6: 13},
+        memory: {}
+    }
+
+
+    sequence! { 
+        trap_1,
+        insns: [ {LEA R1, #-2}, { ADD R2, R2, #14}, {STR R1, R2, #0}, {ADD R6, R6, #14}, {TRAP #14} ],
+        steps: Some(5),
+        ending_pc: 0x2fff,
+        regs: {R6: 12},
+        memory: {}
+    }
     // sequence! {
     //     ret_neg,
     //     insns: [ { JSR #-2 }, { RET } ],
