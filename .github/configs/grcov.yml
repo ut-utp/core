@@ -1,0 +1,8 @@
+prefix-dir: /home/user/build/
+path-mapping:
+  - "/baseline-sim"
+  - "/isa"
+  - "/macros"
+  - "/shims"
+  - "/traits"
+  - "/tui"
