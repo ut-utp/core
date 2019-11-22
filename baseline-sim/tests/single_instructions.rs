@@ -80,7 +80,7 @@ mod tests {
     }
 
     macro_rules! sequence {
-        ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:tt: $v:expr),* }, memory: { $($addr:literal: $val:literal),* }) => {
+        ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:tt: $v:expr),* }, memory: { $($addr:literal: $val:expr),* }) => {
         $(#[doc = $panics] #[should_panic])?
         #[test]
         fn $name() {
@@ -356,6 +356,110 @@ mod tests {
         regs: { R0: Instruction::AddReg{dr: R0, sr1: R0, sr2: R0}.into() },
         memory: {}
     }
+
+    /////////
+    // NOT //
+    /////////
+    sequence! { // take 0
+        not_0,
+        insns: [ { ADD R0, R0, #0 }, { NOT R0, R0} ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: {R0: -1i16 as Word},
+        memory: {}
+    }
+    // fails 
+    sequence! {  // take a positive number
+        not_1,
+        insns: [ { ADD R0, R0, #1 }, { NOT R0, R0 } ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: {R0: -2i16 as Word},
+        memory: {}
+    }
+    // fails
+    sequence! { // take a negative number 
+        not_neg,
+        insns: [ { ADD R0, R0, #-1 }, { NOT R0, R0 } ],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: {R0: 0},
+        memory: {}
+    }    
+    
+
+    
+    ////////
+    // ST //
+    ////////
+    sequence! { // take 0
+        st_0,
+        insns: [ { ADD R0, R0, #0}, {ST R0, #16}],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: {R0: 0},
+        memory: {0x3012: 0}
+    }
+
+    // fails
+    sequence! { // take 1
+        st_1,
+        insns: [ { ADD R0, R0, #1}, {ST R0, #16}],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: {R0: 1},
+        memory: {0x3012: 1}
+    }
+
+    // fails 
+    sequence! { // take -1
+        st_neg,
+        insns: [ { ADD R0, R0, #-1}, {ST R0, #16}],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: {R0: -1i16 as Word},
+        memory: {0x3012: -1i16 as Word}
+    }
+
+    // idk if this works - tested on lc3tools and doesn't give what I expect it to
+    sequence! { // store behind
+        st_neg_offset,
+        insns: [ { ADD R0, R0, #1}, {ST R0, #-16}],
+        steps: Some(2),
+        ending_pc: 0x3002,
+        regs: {R0: 1},
+        memory: {0x2FF2: 1}
+    }
+
+    /////////
+    // STI //
+    /////////
+    // sequence! { 
+    //     sti_0,
+    //     insns: [ { ADD R0, R0, #0}, {ST R0, #16}, {STI R0, #15}],
+    //     steps: Some(3),
+    //     ending_pc: 0x3003,
+    //     regs: {R0: 0},
+    //     memory: {0x3012: 0, 0x0000: 0}
+    // }
+
+    // sequence! { 
+    //     sti_1,
+    //     insns: [ { ADD R1, R1, #1}, {ADD R0, R0, #1}, {ST R0, #16}, {STI R0, #15}],
+    //     steps: Some(4),
+    //     ending_pc: 0x3004,
+    //     regs: {R0: 1},
+    //     memory: {0x3012: 1, 0x0001: 1} 
+    // }
+
+    // sequence! { 
+    //     sti_neg,
+    //     insns: [ { ADD R0, R0, #-1}, {ST R0, #16}, {STI R0, #15}],
+    //     steps: Some(3),
+    //     ending_pc: 0x3003,
+    //     regs: {R0: -1i16 as Word},
+    //     memory: {0x3012: 1, 0x0001: 1} 
+    // }    
 
     /////////
     // LDI //
