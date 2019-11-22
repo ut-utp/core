@@ -26,7 +26,7 @@ impl Default for FileBackedMemoryShim {
 }
 
 impl FileBackedMemoryShim {
-    fn with_initialized_memory<P: AsRef<Path>>(
+    pub fn with_initialized_memory<P: AsRef<Path>>(
         path: P,
         memory: [Word; ADDR_SPACE_SIZE_IN_WORDS],
     ) -> Self {
@@ -43,7 +43,7 @@ impl FileBackedMemoryShim {
         Ok(Self::with_initialized_memory(path, memory))
     }
 
-    fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
         Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS])
     }
 
