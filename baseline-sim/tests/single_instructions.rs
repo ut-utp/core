@@ -143,7 +143,7 @@ mod tests {
         insns: [ { ADD R0, R0, #-1 } ],
         steps: Some(1),
         ending_pc: 0x3001,
-        regs: { R0: -1i16 as Word },
+        regs: { R0: 0xffff },
         memory: {}
     }
 
@@ -373,7 +373,7 @@ mod tests {
         insns: [ { ADD R0, R0, #0 }, { NOT R0, R0} ],
         steps: Some(2),
         ending_pc: 0x3002,
-        regs: {R0: -1i16 as Word},
+        regs: {R0: 0xffff},
         memory: {}
     }
 
@@ -382,7 +382,7 @@ mod tests {
         insns: [ { ADD R0, R0, #1 }, { NOT R0, R0 } ],
         steps: Some(2),
         ending_pc: 0x3002,
-        regs: {R0: -2i16 as Word},
+        regs: {R0: 0xfffe},
         memory: {}
     }
 
@@ -421,8 +421,8 @@ mod tests {
         insns: [ { ADD R0, R0, #-1}, {ST R0, #16}],
         steps: Some(2),
         ending_pc: 0x3002,
-        regs: {R0: -1i16 as Word},
-        memory: {0x3012: -1i16 as Word}
+        regs: {R0: 0xffff},
+        memory: {0x3012: 0xffff}
     }
 
     sequence! { // store behind
@@ -635,6 +635,22 @@ mod tests {
         regs: {R6: 12},
         memory: {}
     }
+
+
+     /////////
+    // RTI //
+    /////////
+    sequence! { 
+        rti_0,
+        // R1 <- x3001, R2 <- 10, xA <- R1, TRAP at xA, RTI
+        //insns: [ {LEA R1, #-2}, { ADD R2, R2, #14}, {STR R1, R2, #0}, {ADD R6, R6, #14}, {TRAP #14} ],
+        insns: [{ BRnzp #2}, {ADD R5, R5, #15}, {RTI}, {LEA R1, #-3}, {ADD R2, R2, #10}, {STR R1, R2, #0}, {ADD R6, R6, #14}, {TRAP #10}, {ADD R5, R5, #15}],
+        steps: Some(9),
+        ending_pc: 0x3009,
+        regs: {R6: 14, R5: 30, R2: 10}, // R6 = 14 because it popped PC and PSR when RTI-ing
+        memory: {}
+    }
+
     // sequence! {
     //     ret_neg,
     //     insns: [ { JSR #-2 }, { RET } ],
