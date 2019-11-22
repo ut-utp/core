@@ -4,10 +4,13 @@ use crate::peripheral_trait;
 use core::num::NonZeroU8;
 use core::ops::{Deref, Index, IndexMut};
 
+
+use serde::{Deserialize, Serialize};
 // TODO: Switch to enum for pins
 // TODO: Add Errors
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum PwmPin { P0, P1 }
 
 // TODO: remove once the derive macro happens...
@@ -31,12 +34,14 @@ pub const PWM_PINS: PwmPinArr<PwmPin> = {
 }; // TODO: save us, derive macro
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum PwmState {
     Enabled(NonZeroU8),
     Disabled,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub struct PwmPinArr<T>(pub [T; PwmPin::NUM_PINS]);
 
 // Once const fn is more stable:

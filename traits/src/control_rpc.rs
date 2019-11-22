@@ -1,15 +1,17 @@
 // extern crate futures; // 0.1.23
 // extern crate rand;
 
-use crate::control::{Control, Event, Reg, State, MAX_BREAKPOINTS, MAX_MEMORY_WATCHES};
+use crate::control::{Control, Event, State, MAX_BREAKPOINTS, MAX_MEMORY_WATCHES};
 use crate::error::Error;
+use lc3_isa::Reg;
+use crate::peripherals::{gpio::*, timers::*, pwm::*, adc::*};
+use crate::memory::MemoryMiscError;
 
 use lc3_isa::*;
 
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-
 use serde::{Deserialize, Serialize};
 
 static mut CURRENT_STATE: State = State::Paused; // TODO: what to do?
@@ -55,17 +57,18 @@ pub enum Message {
     UNSET_BREAKPOINT(usize),
     UNSET_BREAKPOINT_SUCCESS,
     GET_BREAKPOINTS,
-    GET_BREAKPOINTS_RETURN_VAL([Option<Addr>; MAX_BREAKPOINTS]),
+
+    GET_BREAKPOINTS_RETURN_VAL([Option<(Addr)>; MAX_BREAKPOINTS]),
     GET_MAX_BREAKPOINTS,
-    SET_MEMORY_WATCH(u16),
-    SET_MEMORY_WATCH_SUCCESS,
+    SET_MEMORY_WATCH(u16, u16),
+    SET_MEMORY_WATCH_SUCCESS(Result<usize,()>),
     UNSET_MEMORY_WATCH(usize),
-    UNSET_MEMORY_WATCH_SUCCESS,
+    UNSET_MEMORY_WATCH_SUCCESS(Result<(),()>),
     GET_MEMORY_WATCHES,
-    GET_MEMORY_WATCHES_RETURN_VAL([Option<Addr>; MAX_MEMORY_WATCHES]),
+    GET_MEMORY_WATCHES_RETURN_VAL([Option<(Addr,Word)>; MAX_MEMORY_WATCHES]),
     GET_MAX_MEMORY_WATCHES,
     STEP,
-    STEP_SUCCESSFUL,
+    STEP_RETURN_STATE(State),
     RUN_UNTIL_EVENT,
     ISSUED_RUN_UNTIL_EVENT,
     SET_REGISTER(Reg, Word),
@@ -73,9 +76,29 @@ pub enum Message {
     GET_REGISTER(Reg),
     GET_REGISTER_RETURN_VAL(u16),
     COMMIT_MEMORY,
-    COMMIT_MEMORY_SUCCESS,
+    COMMIT_MEMORY_SUCCESS(Result<(), MemoryMiscError>),
     GET_STATE,
     GET_STATE_RETURN_VAL(State),
+    GET_GPIO_STATES,
+    GET_GPIO_STATES_RETURN_VAL(GpioPinArr<GpioState>),
+    GET_GPIO_READING,
+    GET_GPIO_READING_RETURN_VAL(GpioPinArr<Result<bool, GpioReadError>>),
+    GET_ADC_STATES,
+    GET_ADC_STATES_RETURN_VAL(AdcPinArr<AdcState>),
+    GET_ADC_READING,
+    GET_ADC_READING_RETURN_VAL(AdcPinArr<Result<u8, AdcReadError>>),
+    GET_TIMER_STATES,
+    GET_TIMER_STATES_RETURN_VAL(TimerArr<TimerState>),
+    GET_TIMER_CONFIG,
+    GET_TIMER_CONFIG_RETURN_VAL(TimerArr<Word>),
+    GET_PWM_STATES,
+    GET_PWM_STATES_RETURN_VAL(PwmPinArr<PwmState>),
+    GET_PWM_CONFIG,
+    GET_PWM_CONFIG_RETURN_VAL(PwmPinArr<u8>),
+    GET_CLOCK,
+    GET_CLOCK_RETURN_VAL(Word),
+
+
 }
 
 pub trait TransportLayer {
@@ -160,15 +183,19 @@ impl<T: TransportLayer> Control for Server<T> {
         ret
     }
 
-    fn commit_memory(&self) -> Result<(), ()> {
-        let mut res: Result<(), ()> = Err(());
+    fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
+        let mut res: Result<(), MemoryMiscError>;// = Err(());
         self.transport.send(Message::COMMIT_MEMORY);
         if let Some(m) = self.transport.get() {
-            if let Message::COMMIT_MEMORY_SUCCESS = m {
-                res = Ok(());
+            if let Message::COMMIT_MEMORY_SUCCESS(status) = m {
+                res = status;
             } else {
-                res = Err(());
+                panic!();
             }
+
+        }
+        else{
+            panic!();
         }
         res
     }
@@ -202,7 +229,7 @@ impl<T: TransportLayer> Control for Server<T> {
     }
 
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] {
-        let mut ret: [Option<Addr>; MAX_BREAKPOINTS] = [None; MAX_BREAKPOINTS];
+        let mut ret: [Option<(Addr)>; MAX_BREAKPOINTS] = [None; MAX_BREAKPOINTS];
         self.transport.send(Message::GET_BREAKPOINTS);
 
         if let Some(m) = self.transport.get() {
@@ -222,15 +249,16 @@ impl<T: TransportLayer> Control for Server<T> {
         MAX_BREAKPOINTS
     }
 
-    fn set_memory_watch(&mut self, addr: Addr) -> Result<usize, ()> {
-        self.transport.send(Message::SET_MEMORY_WATCH(addr));
+    fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()> {
+        self.transport.send(Message::SET_MEMORY_WATCH(addr, data));
         let mut res: Result<usize, ()> = Err(());
         // self.transport.send(Message::SET_MEMORY_WATCH(addr));
         if let Some(m) = self.transport.get() {
-            if let Message::SET_MEMORY_WATCH_SUCCESS = m {
-                res = Ok(1);
+            if let Message::SET_MEMORY_WATCH_SUCCESS(ret) = m {
+                res = ret;
             } else {
-                res = Err(());
+                //res = Err(());
+                panic!();
             }
         }
         res
@@ -241,17 +269,17 @@ impl<T: TransportLayer> Control for Server<T> {
         let mut res: Result<(), ()> = Err(());
         // self.transport.send(Message::SET_MEMORY_WATCH(addr));
         if let Some(m) = self.transport.get() {
-            if let Message::UNSET_MEMORY_WATCH_SUCCESS = m {
-                res = Ok(());
+            if let Message::UNSET_MEMORY_WATCH_SUCCESS(ret) = m {
+                res = ret;
             } else {
-                res = Err(());
+                panic!();
             }
         }
         res
     }
 
-    fn get_memory_watches(&self) -> [Option<Addr>; MAX_MEMORY_WATCHES] {
-        let mut ret: [Option<Addr>; MAX_MEMORY_WATCHES] = [None; MAX_MEMORY_WATCHES];
+    fn get_memory_watches(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHES] {
+        let mut ret: [Option<(Addr, Word)>; MAX_MEMORY_WATCHES] = [None; MAX_MEMORY_WATCHES];
         self.transport.send(Message::GET_MEMORY_WATCHES);
 
         if let Some(m) = self.transport.get() {
@@ -287,14 +315,17 @@ impl<T: TransportLayer> Control for Server<T> {
             CurrentState: State::RunningUntilEvent,
         }
     } // Can be interrupted by step or pause.
-    fn step(&mut self) {
+    fn step(&mut self) -> State {
+        let mut ret: State = State::Paused;
         self.transport.send(Message::STEP);
         if let Some(m) = self.transport.get() {
-            if let Message::STEP_SUCCESSFUL = m {
+            if let Message::STEP_RETURN_STATE(state) = m {
+                ret=state;
             } else {
                 panic!();
             }
         }
+        ret
     }
     fn pause(&mut self) {
         self.transport.send(Message::PAUSE);
@@ -339,6 +370,141 @@ impl<T: TransportLayer> Control for Server<T> {
             }
         }
     } // Should be infallible.
+    fn get_gpio_states(&self) -> GpioPinArr<GpioState>{
+        let mut ret: GpioPinArr<GpioState>;// = State::Paused;
+        self.transport.send(Message::GET_GPIO_STATES);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_GPIO_STATES_RETURN_VAL(states) = m {
+                ret = states;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+    }
+
+    fn get_gpio_reading(&self) -> GpioPinArr<Result<bool, GpioReadError>>{
+        let mut ret: GpioPinArr<Result<bool, GpioReadError>>;// = State::Paused;
+        self.transport.send(Message::GET_GPIO_READING);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_GPIO_READING_RETURN_VAL(gpio) = m {
+                ret = gpio;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+    }
+
+    fn get_adc_states(&self) -> AdcPinArr<AdcState>{
+        let mut ret: AdcPinArr<AdcState>;
+        self.transport.send(Message::GET_ADC_STATES);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_ADC_STATES_RETURN_VAL(adc) = m {
+                ret = adc;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+
+
+    }
+    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>>{
+         let mut ret: AdcPinArr<Result<u8, AdcReadError>>;// = State::Paused;
+        self.transport.send(Message::GET_ADC_STATES);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_ADC_READING_RETURN_VAL(addr) = m {
+                ret = addr;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+
+    }
+    fn get_timer_states(&self) -> TimerArr<TimerState>{
+        let mut ret: TimerArr<TimerState>;// = State::Paused;
+        self.transport.send(Message::GET_TIMER_STATES);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_TIMER_STATES_RETURN_VAL(addr) = m {
+                ret = addr;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+
+    }
+    fn get_timer_config(&self) -> TimerArr<Word>{
+        let mut ret: TimerArr<Word>;// = State::Paused;
+        self.transport.send(Message::GET_TIMER_CONFIG);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_TIMER_CONFIG_RETURN_VAL(addr) = m {
+                ret = addr;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+
+    }
+    fn get_pwm_states(&self) -> PwmPinArr<PwmState>{
+        let mut ret: PwmPinArr<PwmState>;
+        self.transport.send(Message::GET_PWM_STATES);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_PWM_STATES_RETURN_VAL(states) = m {
+                ret = states;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+
+    }
+    fn get_pwm_config(&self) -> PwmPinArr<u8>{
+        let mut ret: PwmPinArr<u8>;
+        self.transport.send(Message::GET_PWM_CONFIG);
+
+        if let Some(m) = self.transport.get() {
+            if let Message::GET_PWM_CONFIG_RETURN_VAL(conf) = m {
+                ret = conf;
+            } else {
+                panic!();
+            }
+        } else {
+            panic!();
+        }
+        ret
+    }
+    fn get_clock(&self) -> Word{
+        16
+
+    }
+    fn reset(&mut self){
+
+    }
 }
 
 pub struct Client<T: TransportLayer> {
@@ -402,22 +568,22 @@ impl<T: TransportLayer> Client<T> {
                     self.transport.send(GET_BREAKPOINTS_RETURN_VAL(breaks));
                 }
 
-                SET_MEMORY_WATCH(addr) => {
-                    cont.set_memory_watch(16);
-                    self.transport.send(SET_MEMORY_WATCH_SUCCESS);
+                SET_MEMORY_WATCH(addr, word) => {
+                    let res =  cont.set_memory_watch(addr, word);
+                    self.transport.send(SET_MEMORY_WATCH_SUCCESS(res));
                 }
 
                 UNSET_MEMORY_WATCH(idx) => {
-                    cont.unset_memory_watch(idx);
-                    self.transport.send(UNSET_MEMORY_WATCH_SUCCESS);
+                    let res= cont.unset_memory_watch(idx);
+                    self.transport.send(UNSET_MEMORY_WATCH_SUCCESS(res));
                 }
 
                 GET_MAX_BREAKPOINTS => (),    // TODO: do
                 GET_MAX_MEMORY_WATCHES => (), // TODO: do
 
                 STEP => {
-                    cont.step();
-                    self.transport.send(STEP_SUCCESSFUL);
+                    let state=cont.step();
+                    self.transport.send(STEP_RETURN_STATE(state));
                 }
 
                 READ_WORD(addr) => {
@@ -434,13 +600,53 @@ impl<T: TransportLayer> Client<T> {
                 }
 
                 COMMIT_MEMORY => {
-                    cont.commit_memory();
-                    self.transport.send(COMMIT_MEMORY_SUCCESS);
+                    let res = cont.commit_memory();
+                    self.transport.send(COMMIT_MEMORY_SUCCESS(res));
                 }
 
                 GET_STATE => {
                     let state = cont.get_state();
                     self.transport.send(GET_STATE_RETURN_VAL(state));
+                }
+
+                GET_GPIO_STATES =>{
+                    let state = cont.get_gpio_states();
+                    self.transport.send(GET_GPIO_STATES_RETURN_VAL(state));
+                }
+                GET_GPIO_READING =>{
+                    let state = cont.get_gpio_reading();
+                    self.transport.send(GET_GPIO_READING_RETURN_VAL(state));               
+                }
+                GET_ADC_READING =>{
+                    let state = cont.get_adc_reading();
+                    self.transport.send(GET_ADC_READING_RETURN_VAL(state));
+                }
+                GET_ADC_STATES => {
+                    let state = cont.get_adc_states();
+                    self.transport.send(GET_ADC_STATES_RETURN_VAL(state));
+                }
+                GET_TIMER_STATES => {
+                    let state = cont.get_timer_states();
+                    self.transport.send(GET_TIMER_STATES_RETURN_VAL(state));
+                }
+
+                GET_TIMER_CONFIG =>{
+                    let state = cont.get_timer_config();
+                    self.transport.send(GET_TIMER_CONFIG_RETURN_VAL(state));
+                }
+
+                GET_PWM_STATES => {
+                    let state = cont.get_pwm_states();
+                    self.transport.send(GET_PWM_STATES_RETURN_VAL(state));
+                }
+
+                GET_PWM_CONFIG =>{
+                    let state = cont.get_pwm_config();
+                    self.transport.send(GET_PWM_CONFIG_RETURN_VAL(state));
+                }
+                GET_CLOCK =>{
+                      let state = cont.get_clock();
+                    self.transport.send(GET_CLOCK_RETURN_VAL(state));                  
                 }
 
                 _ => unreachable!(),

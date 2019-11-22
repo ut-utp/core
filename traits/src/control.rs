@@ -31,6 +31,7 @@ pub enum Event {
 pub enum State {
     Paused,
     RunningUntilEvent,
+    Halted,
 }
 
 pub trait Control {
