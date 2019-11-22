@@ -16,6 +16,7 @@ mod tests {
 
     use std::convert::TryInto;
     use std::convert::TryFrom;
+    use lc3_isa::Reg::R0;
 
 
     // Test that the instructions work
@@ -292,7 +293,80 @@ mod tests {
         memory: {}
     }
 
+    /////////
+    // JSR //
+    /////////
+    sequence! {
+        jsr_2,
+        insns: [ { JSR #2 } ],
+        steps: Some(1),
+        ending_pc: 0x3003,
+        regs: { R7: 0x3001 },
+        memory: {}
+    }
 
+    sequence! {
+        jsr_neg,
+        insns: [ { JSR #-10 } ],
+        steps: Some(1),
+        ending_pc: 0x2FF7,
+        regs: { R7: 0x3001 },
+        memory: {}
+    }
+
+    //////////
+    // JSRR //
+    //////////
+    sequence! {
+        jsrr_0,
+        insns: [ { JSRR R0 } ],
+        steps: Some(1),
+        ending_pc: 0x0000,
+        regs: { R7: 0x3001 },
+        memory: {}
+    }
+
+    sequence! {
+        jsrr_1,
+        insns: [ { ADD R0, R0, #1 }, { JSRR R0 }],
+        steps: Some(2),
+        ending_pc: 0x0001,
+        regs: { R7: 0x3002 },
+        memory: {}
+    }
+
+
+    ////////
+    // LD //
+    ////////
+    sequence! {
+        ld_self,
+        insns: [ { LD R0, #-1 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: Instruction::Ld{dr: R0, offset9: -1}.into() },
+        memory: {}
+    }
+
+    sequence! {
+        ld_0,
+        insns: [ { LD R0, #0 }, { ADD R0, R0, R0 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: Instruction::AddReg{dr: R0, sr1: R0, sr2: R0}.into() },
+        memory: {}
+    }
+
+    /////////
+    // LDI //
+    /////////
+    // Hard without .FILL
+
+    /////////
+    // LDR //
+    /////////
+    // Hard without .FILL
+    
     // #[test]
     // #[should_panic]
     // fn no_op_fail() {
@@ -561,17 +635,6 @@ mod tests {
     //         [3000, None, None, 1, None, None, None, None],
     //         0x3004,
     //         vec![(x3003, 3000), (x3000, 1)],
-    //     )
-    // }
-    // //Jump Test, switch PC to value in register
-    // #[test]
-    // fn JmpTest() {
-    //     interp_test_runner::<MemoryShim, _>(
-    //         vec![Instruction::Lea { dr: R0, offset9: 0 }, Jmp { base: R0 }],
-    //         Some(2),
-    //         [3000, None, None, None, None, None, None, None],
-    //         0x3000,
-    //         vec![],
     //     )
     // }
     // //jsrr test, jumps to location 3005 and stores 3001 in r7
