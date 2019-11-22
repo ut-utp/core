@@ -51,7 +51,7 @@ impl FileBackedMemoryShim {
         write_to_file(&self.path, &self.memory)
     }
 
-    fn get_memory(&self) -> [Word; ADDR_SPACE_SIZE_IN_WORDS] {
+    pub fn get_memory(&self) -> [Word; ADDR_SPACE_SIZE_IN_WORDS] {
         self.memory
     }
 }
