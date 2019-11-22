@@ -1,7 +1,7 @@
 use lc3_isa::{Instruction, Reg};
 
-#[macro_use] extern crate itertools;
-
+#[macro_use]
+extern crate itertools;
 
 fn all_add_reg() -> impl Iterator<Item = Instruction> {
     iproduct!(Reg::REGS.iter(), Reg::REGS.iter(), Reg::REGS.iter())
@@ -23,54 +23,80 @@ fn all_and_imm() -> impl Iterator<Item = Instruction> {
         .map(|(dr, sr1, imm5)| Instruction::new_and_imm(*dr, *sr1, imm5))
 }
 
-fn all_br() -> impl Iterator<Item = Instruction> {}
-fn all_jmp() -> impl Iterator<Item = Instruction> {}
-fn all_jsr() -> impl Iterator<Item = Instruction> {}
-fn all_jsrr() -> impl Iterator<Item = Instruction> {}
-fn all_ld() -> impl Iterator<Item = Instruction>{}
-fn all_ldi() -> impl Iterator<Item = Instruction> {}
-fn all_ldr() -> impl Iterator<Item = Instruction> {
-
+fn all_br() -> impl Iterator<Item = Instruction> {
+    iproduct!(
+        [true, false].iter(),
+        [true, false].iter(),
+        [true, false].iter(),
+        -256..255
+    )
+    .map(|(n, z, p, offset9)| Instruction::new_br(*n, *z, *p, offset9))
 }
+
+fn all_jmp() -> impl Iterator<Item = Instruction> {
+    Reg::REGS.iter().map(|base| Instruction::new_jmp(*base))
+}
+
+fn all_jsr() -> impl Iterator<Item = Instruction> {
+    (-1024..1023i16).map(|offset11| Instruction::new_jsr(offset11))
+}
+
+fn all_jsrr() -> impl Iterator<Item = Instruction> {
+    Reg::REGS.iter().map(|base| Instruction::new_jsrr(*base))
+}
+
+fn all_ld() -> impl Iterator<Item = Instruction> {
+    iproduct!(Reg::REGS.iter(), -256..255).map(|(dr, offset9)| Instruction::new_ld(*dr, offset9))
+}
+
+fn all_ldi() -> impl Iterator<Item = Instruction> {
+    iproduct!(Reg::REGS.iter(), -256..255).map(|(dr, offset9)| Instruction::new_ldi(*dr, offset9))
+}
+
+fn all_ldr() -> impl Iterator<Item = Instruction> {
+    iproduct!(Reg::REGS.iter(), Reg::REGS.iter(), -32..31)
+        .map(|(dr, base, offset6)| Instruction::new_ldr(*dr, *base, offset6))
+}
+
 fn all_lea() -> impl Iterator<Item = Instruction> {
-    iproduct!( Reg::REGS.iter(),-256..=255)
-        .map(|(dr, offset)| Instruction::new_and_imm(*dr, offset))
+    iproduct!(Reg::REGS.iter(), -256..=255)
+        .map(|(dr, offset)| Instruction::new_lea(*dr, offset))
 }
 fn all_not() -> impl Iterator<Item = Instruction> {
-    iproduct!( Reg::REGS.iter(), Reg::REGS.iter())
-        .map(|(dr, sr)| Instruction::new_and_imm(*dr, *sr))
+    iproduct!(Reg::REGS.iter(), Reg::REGS.iter()).map(|(dr, sr)| Instruction::new_not(*dr, *sr))
 }
-fn all_ret() -> impl Iterator<Item = Instruction> {
-std::iter::once(Instruction::new_Ret()) 
-}
-fn all_rti() -> impl Iterator<Item = Instruction> {
-std::iter::once(Instruction::new_Rti())  
-}
-fn all_st() -> impl Iterator<Item = Instruction> {
-    iproduct!( Reg::REGS.iter(), -256..=255)
-        .map(|(sr, offset9)| Instruction::new_and_imm(*sr, offset9))
 
+fn all_ret() -> impl Iterator<Item = Instruction> {
+    std::iter::once(Instruction::new_ret())
 }
+
+fn all_rti() -> impl Iterator<Item = Instruction> {
+    std::iter::once(Instruction::new_rti())
+}
+
+fn all_st() -> impl Iterator<Item = Instruction> {
+    iproduct!(Reg::REGS.iter(), -256..=255)
+        .map(|(sr, offset9)| Instruction::new_st(*sr, offset9))
+}
+
 fn all_sti() -> impl Iterator<Item = Instruction> {
-    iproduct!( Reg::REGS.iter(), -256..=255)
-        .map(|(sr, offset9)| Instruction::new_and_imm(*sr, offset9))
+    iproduct!(Reg::REGS.iter(), -256..=255)
+        .map(|(sr, offset9)| Instruction::new_sti(*sr, offset9))
 }
+
 fn all_str() -> impl Iterator<Item = Instruction> {
     iproduct!(Reg::REGS.iter(), Reg::REGS.iter(), -32..=31)
-        .map(|(sr, base, offset6)| Instruction::new_and_imm(*sr, *base, offset6))
-
+        .map(|(sr, base, offset6)| Instruction::new_str(*sr, *base, offset6))
 }
-fn all_trap() -> impl Iterator<Item = Instruction> {
-    iproduct!( 0..=255)
-        .map(|(trapvec)| Instruction::Trap(trapvec))
 
+fn all_trap() -> impl Iterator<Item = Instruction> {
+    iproduct!(0..=255).map(|trapvec| Instruction::new_trap(trapvec))
 }
 
 fn all_insns() -> impl Iterator<Item = Instruction> {
-    let insns: Vec<Instruction> = Vec::new();
+    // let insns: Vec<Instruction> = Vec::new();
 
-    let iter = std::iter::empty
-        .chain(all_add_imm())
+    let iter = all_add_imm()
         .chain(all_and_reg())
         .chain(all_and_imm())
         .chain(all_br())
@@ -88,8 +114,6 @@ fn all_insns() -> impl Iterator<Item = Instruction> {
         .chain(all_sti())
         .chain(all_str())
         .chain(all_trap());
-
-
 
     // for i in 0..19 {
     //     match i {
@@ -115,7 +139,7 @@ fn all_insns() -> impl Iterator<Item = Instruction> {
     //     }
     // }
 
-    insns
+    iter
 }
 
 #[cfg(test)]
@@ -123,6 +147,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn name() {
-    }
+    fn name() {}
 }
