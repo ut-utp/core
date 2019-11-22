@@ -112,7 +112,7 @@ fn loadable_full() {
         (0x3007, Jsrr { base: R2}.into()),
         (0x3008, Ld { dr: R7, offset9: -1 }.into()),
         (0x3009, Ldi { dr: R4, offset9: 255 }.into()),
-        (0x300A, Ldr { dr: R0, base: R0, offset6: 511 }.into()),
+        (0x300A, Ldr { dr: R0, base: R1, offset6: 31 }.into()),
         (0x300B, Lea { dr: R0, offset9: 12 }.into()),
         (0x300C, Not { dr: R2, sr: R3 }.into()),
         (0x300D, Ret.into()),
