@@ -29,15 +29,42 @@ fn all_jsr() -> impl Iterator<Item = Instruction> {}
 fn all_jsrr() -> impl Iterator<Item = Instruction> {}
 fn all_ld() -> impl Iterator<Item = Instruction>{}
 fn all_ldi() -> impl Iterator<Item = Instruction> {}
-fn all_ldr() -> impl Iterator<Item = Instruction> {}
-fn all_lea() -> impl Iterator<Item = Instruction> {}
-fn all_not() -> impl Iterator<Item = Instruction> {}
-fn all_ret() -> impl Iterator<Item = Instruction> {}
-fn all_rti() -> impl Iterator<Item = Instruction> {}
-fn all_st() -> impl Iterator<Item = Instruction> {}
-fn all_sti() -> impl Iterator<Item = Instruction> {}
-fn all_str() -> impl Iterator<Item = Instruction> {}
-fn all_trap() -> impl Iterator<Item = Instruction> {}
+fn all_ldr() -> impl Iterator<Item = Instruction> {
+
+}
+fn all_lea() -> impl Iterator<Item = Instruction> {
+    iproduct!( Reg::REGS.iter(),-256..=255)
+        .map(|(dr, offset)| Instruction::new_and_imm(*dr, offset))
+}
+fn all_not() -> impl Iterator<Item = Instruction> {
+    iproduct!( Reg::REGS.iter(), Reg::REGS.iter())
+        .map(|(dr, sr)| Instruction::new_and_imm(*dr, *sr))
+}
+fn all_ret() -> impl Iterator<Item = Instruction> {
+std::iter::once(Instruction::new_Ret()) 
+}
+fn all_rti() -> impl Iterator<Item = Instruction> {
+std::iter::once(Instruction::new_Rti())  
+}
+fn all_st() -> impl Iterator<Item = Instruction> {
+    iproduct!( Reg::REGS.iter(), -256..=255)
+        .map(|(sr, offset9)| Instruction::new_and_imm(*sr, offset9))
+
+}
+fn all_sti() -> impl Iterator<Item = Instruction> {
+    iproduct!( Reg::REGS.iter(), -256..=255)
+        .map(|(sr, offset9)| Instruction::new_and_imm(*sr, offset9))
+}
+fn all_str() -> impl Iterator<Item = Instruction> {
+    iproduct!(Reg::REGS.iter(), Reg::REGS.iter(), -32..=31)
+        .map(|(sr, base, offset6)| Instruction::new_and_imm(*sr, *base, offset6))
+
+}
+fn all_trap() -> impl Iterator<Item = Instruction> {
+    iproduct!( 0..=255)
+        .map(|(trapvec)| Instruction::Trap(trapvec))
+
+}
 
 fn all_insns() -> impl Iterator<Item = Instruction> {
     let insns: Vec<Instruction> = Vec::new();
