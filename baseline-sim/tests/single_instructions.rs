@@ -108,6 +108,7 @@ mod tests {
     }
 
     // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).
+    // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).
     /////////
     // ADD //
     /////////
@@ -443,7 +444,7 @@ mod tests {
     }
 
     sequence! { 
-        res_pos_neg,
+        ret_pos_neg,
         insns: [ { JSR #1 }, {RET}, {ADD R0, R0, #0}, {ADD R0, R0, #0}, { JSR #-4 } ],
         steps: Some(5),
         ending_pc: 0x3005,
@@ -453,7 +454,7 @@ mod tests {
     
     // load the return into a register -> store it somewhere -> jump there
     sequence! { 
-        res_neg_pos,
+        ret_neg_pos,
         insns: [{LD R0, #3}, {ST R0, #-2}, {ADD R0, R0, #0}, { JSR #-4 }, {RET},  { JSR #-4 } ],
         steps: Some(5),
         ending_pc: 0x3004,
@@ -475,10 +476,18 @@ mod tests {
         regs: {},
         memory: {0x3011: 1}
     }
+    sequence! { 
+        sti_zero,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #1}, {STI R1, #0}],
+        steps: Some(4),
+        ending_pc: 0x3004,
+        regs: {},
+        memory: {0x3011: 1}
+    }
 
     sequence! { 
         sti_neg,
-        insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {ST R0, #2}, {STI R1, #1}],
+        insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {ST R0, #-1}, {STI R1, #-2}],
         steps: Some(4),
         ending_pc: 0x3004,
         regs: {},
@@ -486,7 +495,7 @@ mod tests {
     }
 
 
-     /////////
+    //////////
     // STR //
     /////////
     sequence! { 
@@ -516,6 +525,66 @@ mod tests {
         memory: {0x3010: 1}
     }
 
+
+    //////////
+    // LDR //
+    /////////
+    sequence! { 
+        ldr_pos,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #1}, {LDR R2, R0, #1}],
+        steps: Some(4),
+        ending_pc: 0x3004,
+        regs: {R2: 1},
+        memory: {0x3012: 1}
+    }
+
+    sequence! { 
+        ldr_zero,
+        insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {STR R1, R0, #0}, {LDR R2, R0, #0}],
+        steps: Some(4),
+        ending_pc: 0x3004,
+        regs: {R2: 1},
+        memory: {0x3000: 1}
+    }
+
+    sequence! { 
+        ldr_neg,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #-1}, {LDR R2, R0, #-1}],
+        steps: Some(4),
+        ending_pc: 0x3004,
+        regs: {R2: 1},
+        memory: {0x3010: 1}
+    }
+
+
+    /////////
+    // LDI //
+    /////////
+    sequence! { 
+        ldi_pos,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #3}, {STI R1, #2}, {LDI R2, #1}],
+        steps: Some(5),
+        ending_pc: 0x3005,
+        regs: {R2: 1},
+        memory: {0x3011: 1}
+    }
+    sequence! { 
+        ldi_zero,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #2}, {STI R1, #1}, {LDI R2, #0}],
+        steps: Some(5),
+        ending_pc: 0x3005,
+        regs: {R2: 1},
+        memory: {0x3011: 1}
+    }
+
+    sequence! { 
+        ldi_neg,
+        insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {ST R0, #-1}, {STI R1, #-2}, {LDI R2, #-3}],
+        steps: Some(5),
+        ending_pc: 0x3005,
+        regs: {R2: 1},
+        memory: {0x3000: 1}
+    }
     // sequence! {
     //     ret_neg,
     //     insns: [ { JSR #-2 }, { RET } ],
