@@ -468,7 +468,7 @@ mod tests {
     // STI //
     /////////
     sequence! { 
-        sti_0,
+        sti_pos,
         insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {ST R0, #2}, {STI R1, #1}],
         steps: Some(4),
         ending_pc: 0x3004,
@@ -485,6 +485,36 @@ mod tests {
         memory: {0x3000: 1}
     }
 
+
+     /////////
+    // STR //
+    /////////
+    sequence! { 
+        str_pos,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #1}],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: {},
+        memory: {0x3012: 1}
+    }
+
+    sequence! { 
+        str_zero,
+        insns: [ { LEA R0, #-1}, {ADD R1, R1, #1}, {STR R1, R0, #0}],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: {},
+        memory: {0x3000: 1}
+    }
+
+    sequence! { 
+        str_neg,
+        insns: [ { LEA R0, #16}, {ADD R1, R1, #1}, {STR R1, R0, #-1}],
+        steps: Some(3),
+        ending_pc: 0x3003,
+        regs: {},
+        memory: {0x3010: 1}
+    }
 
     // sequence! {
     //     ret_neg,
