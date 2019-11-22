@@ -1,7 +1,5 @@
 use lc3_isa::{Instruction, Reg};
 
-use rayon::iter::IntoParallelIterator;
-
 #[macro_use]
 extern crate itertools;
 
@@ -99,7 +97,8 @@ fn all_trap() -> impl Iterator<Item = Instruction> + Clone {
 fn all_insns() -> impl Iterator<Item = Instruction> + Clone {
     // let insns: Vec<Instruction> = Vec::new();
 
-    let iter = all_add_imm()
+    let iter = all_add_reg()
+        .chain(all_add_imm())
         .chain(all_and_reg())
         .chain(all_and_imm())
         .chain(all_br())
@@ -154,36 +153,36 @@ use super::*;
 
     #[test]
     fn number_of_instructions() {
-        assert_eq!(all_insns().count(), 39161);
+        assert_eq!(all_insns().count(), 39673);
     }
 
-//     #[test]
-//     fn full_roundtrip() {
-//         all_insns().for_each(|insn| {
-//             let expected = insn;
-//             let got = Instruction::try_from(Into::<u16>::into(insn)).unwrap();
+    #[test]
+    fn full_roundtrip() {
+        all_insns().for_each(|insn| {
+            let expected = insn;
+            let got = Instruction::try_from(Into::<u16>::into(insn)).unwrap();
 
-//             assert_eq!(expected, got, "\nExp: ({:#16b}) {:?} \nGot: ({:#16b}) {:?}",
-//                 Into::<Word>::into(expected),
-//                 expected,
-//                 Into::<Word>::into(got),
-//                 got,
-//             );
-//         })
-//     }
+            assert_eq!(expected, got, "\nExp: ({:#16b}) {:?} \nGot: ({:#16b}) {:?}",
+                Into::<Word>::into(expected),
+                expected,
+                Into::<Word>::into(got),
+                got,
+            );
+        })
+    }
 
-//     #[test]
-//     // #[ignore]
-//     fn full_unique() {
-//         let c = iproduct!(all_insns(), all_insns())
-//             .filter(|(a, b)| {
-//                 let a = Into::<Word>::into(*a);
-//                 let b = Into::<Word>::into(*b);
+    #[test]
+    // #[ignore]
+    fn full_unique() {
+        let c = iproduct!(all_insns(), all_insns())
+            .filter(|(a, b)| {
+                let a = Into::<Word>::into(*a);
+                let b = Into::<Word>::into(*b);
 
-//                 a == b
-//             })
-//             .count();
+                a == b
+            })
+            .count();
 
-//         assert_eq!(c, all_insns().count());
-//     }
+        assert_eq!(c, all_insns().count());
+    }
 }
