@@ -131,6 +131,7 @@ dependencies = [
 name = "lc3-isa"
 version = "0.1.0"
 dependencies = [
+ "itertools 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lc3-macros 0.1.0",
  "static_assertions 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

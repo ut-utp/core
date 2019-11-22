@@ -578,6 +578,99 @@ use lc3_traits::peripherals::pwm::{Pwm, PwmPin::*};
 pwm_mem_mapped!(P0, "P0", P0CR, P0DR, 0xFE20);
 pwm_mem_mapped!(P1, "P1", P1CR, P1DR, 0xFE22);
 
+macro_rules! timer_mem_mapped {
+    ($id:expr, $id_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+        #[doc=$id_name]
+        #[doc="Timer Control Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $cr(Word);
+
+        impl Deref for $cr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $cr {
+            const ADDR: Addr = $addr;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                let state = Timers::get_state(interp.get_peripherals(), $id);
+
+                use lc3_traits::peripherals::timers::TimerState::*;
+                let word: Word = match state {
+                    Disabled => 0,
+                    Repeated => 1,
+                    SingleShot => 2,
+                };
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                use lc3_traits::peripherals::timers::TimerState::*;
+
+                let state = match word.bits(0..2) {
+                    0 | 3 => Disabled,
+                    1 => Repeated,
+                    2 => SingleShot,
+                };
+
+                Timer::set_state(interp.get_peripherals_mut(), $id, state).unwrap(); // TODO: do something different on error?
+
+                Ok(())
+            }
+        }
+
+        #[doc=$id_name]
+        #[doc="Timer Period Register"] // TODO: format correctly
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        pub struct $dr(Word);
+
+        impl Deref for $dr {
+            type Target = Word;
+
+            fn deref(&self) -> &Self::Target { &self.0 }
+        }
+
+        impl MemMapped for $dr {
+            const ADDR: Addr = $addr + 1;
+
+            fn with_value(value: Word) -> Self { Self(value) }
+
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                let word = Timers::get_period(interp.get_peripherals(), $id);
+
+                Ok(Self::with_value(word))
+            }
+
+            fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                Timers::set_period(interp.get_peripherals_mut(), $id, value); // TODO: do something on failure
+
+                Ok(())
+            }
+        }
+    };
+}
+
 mem_mapped!(special: BSP, 0xFFFA, "Backup Stack Pointer.");
 
 mem_mapped!(special: PSR, PSR_ADDRESS, "Program Status Register.");

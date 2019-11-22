@@ -841,7 +841,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
         // TODO: Peripheral interrupt stuff
 
-        //
         for r in Reg::REGS.iter() {
             println!("{:?}: {}", r, self[*r]);
         }
