@@ -15,9 +15,9 @@ jobs:
         with:
           command: test
           args: --all --no-fail-fast --release
-          env:
-            'CARGO_INCREMENTAL': '0'
-            'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads' 
+        env:
+          'CARGO_INCREMENTAL': '0'
+          'RUSTFLAGS': '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Zno-landing-pads' 
       - uses: actions-rs/grcov@v0.1
       - uses: codecov/codecov-action@v1
         with:
