@@ -26,7 +26,7 @@ impl Default for FileBackedMemoryShim {
 }
 
 impl FileBackedMemoryShim {
-    fn with_initialized_memory<P: AsRef<Path>>(
+    pub fn with_initialized_memory<P: AsRef<Path>>(
         path: P,
         memory: [Word; ADDR_SPACE_SIZE_IN_WORDS],
     ) -> Self {
@@ -36,19 +36,23 @@ impl FileBackedMemoryShim {
         }
     }
 
-    fn from_existing_file<P: AsRef<Path>>(path: &P) -> Result<Self, MemoryShimError> {
+    pub fn from_existing_file<P: AsRef<Path>>(path: &P) -> Result<Self, MemoryShimError> {
         let mut memory: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
         read_from_file(path, &mut memory)?;
 
         Ok(Self::with_initialized_memory(path, memory))
     }
 
-    fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
         Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS])
     }
 
     fn flush(&mut self) -> Result<(), MemoryShimError> {
         write_to_file(&self.path, &self.memory)
+    }
+
+    pub fn get_memory(&self) -> [Word; ADDR_SPACE_SIZE_IN_WORDS] {
+        self.memory
     }
 }
 

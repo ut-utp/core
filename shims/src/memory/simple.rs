@@ -30,21 +30,21 @@ impl Default for MemoryShim {
 }
 
 impl MemoryShim {
-    fn new(memory: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
+    pub fn new(memory: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
         Self {
             persistent: [0u16; ADDR_SPACE_SIZE_IN_WORDS],
             staging: memory,
         }
     }
 
-    fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, MemoryShimError> {
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, MemoryShimError> {
         let mut buf: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
         read_from_file(path, &mut buf);
 
         Ok(Self::new(buf))
     }
 
-    fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), MemoryShimError> {
+    pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), MemoryShimError> {
         write_to_file(path, &self.persistent)
     }
 }

@@ -18,7 +18,7 @@ use core::ops::Deref;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
-struct Simulator<'a, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>>
+pub struct Simulator<'a, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>>
 where
     <I as Deref>::Target: Peripherals<'a>,
 {
@@ -44,7 +44,8 @@ impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Simulator<'a, I>
 where
     <I as Deref>::Target: Peripherals<'a>,
 {
-    fn new(interp: I) -> Self {
+    pub fn new(interp: I) -> Self {
+        println!("overflow");
         Self {
             interp,
             breakpoints: [None; MAX_BREAKPOINTS],

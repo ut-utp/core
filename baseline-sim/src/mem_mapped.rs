@@ -207,15 +207,17 @@ macro_rules! _mem_mapped_special_access {
 //     }
 // }
 
-mem_mapped!(KBSR, 0xFE00, "Keyboard Status Register.");
-mem_mapped!(KBDR, 0xFE02, "Keyboard Data Register.");
+// TODO! these aren't special! this is a stopgap so we don't stack overflow!
+mem_mapped!(special: KBSR, 0xFE00, "Keyboard Status Register.");
+mem_mapped!(special: KBDR, 0xFE02, "Keyboard Data Register.");
 
 // impl KBSR {
 //     pub fn
 // }
 
-mem_mapped!(DSR, 0xFE04, "Display Status Register.");
-mem_mapped!(DDR, 0xFE06, "Display Data Register.");
+// TODO! these aren't special! this is a stopgap so we don't stack overflow!
+mem_mapped!(special: DSR, 0xFE04, "Display Status Register.");
+mem_mapped!(special: DDR, 0xFE06, "Display Data Register.");
 
 macro_rules! gpio_mem_mapped {
     ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {

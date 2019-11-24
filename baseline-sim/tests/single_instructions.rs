@@ -365,6 +365,15 @@ mod tests {
         memory: {}
     }
 
+    sequence! {
+        ld_pos,
+        insns: [ { LD R0, #1 }, { AND R0, R0, R0 }, { ADD R0, R0, R0 } ],
+        steps: Some(1),
+        ending_pc: 0x3001,
+        regs: { R0: Instruction::AddReg{dr: R0, sr1: R0, sr2: R0}.into() },
+        memory: {}
+    }
+
     /////////
     // NOT //
     /////////
@@ -636,11 +645,10 @@ mod tests {
         memory: {}
     }
 
-
-     /////////
+    /////////
     // RTI //
     /////////
-    sequence! { 
+    sequence! {
         rti_0,
         // R1 <- x3001, R2 <- 10, xA <- R1, TRAP at xA, RTI
         //insns: [ {LEA R1, #-2}, { ADD R2, R2, #14}, {STR R1, R2, #0}, {ADD R6, R6, #14}, {TRAP #14} ],
