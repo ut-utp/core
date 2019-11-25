@@ -21,6 +21,7 @@ pub use timers::TimersShim;
 
 pub use input::{InputShim, SourceShim};
 pub use output::OutputShim;
+use std::ops::{Deref, DerefMut};
 
 pub type PeripheralsShim<'s> = PeripheralSet<
     's,
@@ -29,6 +30,35 @@ pub type PeripheralsShim<'s> = PeripheralSet<
     PwmShim,
     TimersShim<'s>,
     ClockShim,
-    InputShim<'s, SourceShim>,
+    InputShim<'s, 's>,
     OutputShim<'s, 's>,
 >;
+
+enum OwnedOrRef<'a, R: ?Sized> {
+    Owned(Box<R>),
+    Ref(&'a mut R),
+}
+
+impl<'a, R: ?Sized> Deref for OwnedOrRef<'a, R> {
+    type Target = R;
+
+    fn deref(&self) -> &R {
+        use OwnedOrRef::*;
+
+        match self {
+            Owned(r) => r,
+            Ref(r) => r,
+        }
+    }
+}
+
+impl<'a, R: ?Sized> DerefMut for OwnedOrRef<'a, R> {
+    fn deref_mut(&mut self) -> &mut R {
+        use OwnedOrRef::*;
+
+        match self {
+            Owned(r) => r,
+            Ref(r) => r,
+        }
+    }
+}

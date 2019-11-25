@@ -2,11 +2,12 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use lc3_traits::peripherals::input::{Input, InputError};
 use std::io::{stdin, Read};
 use std::sync::Mutex;
+use crate::peripherals::OwnedOrRef;
 
 /// The source from which Inputs will read characters.
 /// Generally expected to behave as a one-character buffer holding the latest
 /// character input to the peripheral. 
-pub trait Source: Default {
+pub trait Source {
     /// THIS FUNCTION MUST NOT TAKE SIGNIFICANT TIME (BLOCK).
     /// Returns None if the last character has already been read.
     /// Returns Some(last char input) if this function hasn't previously returned that input.
@@ -50,33 +51,41 @@ impl Source for SourceShim {
     }
 }
 
-pub struct InputShim<'a, S: Source> {
-    source: S,
-    flag: Option<&'a AtomicBool>,
+pub struct InputShim<'a, 'b> {
+    source: OwnedOrRef<'a, dyn Source>,
+    flag: Option<&'b AtomicBool>,
     interrupt_enable_bit: bool,
     data: Option<u8>,
 }
 
-impl<S: Source> Default for InputShim<'_, S> {
+impl Default for InputShim<'_, '_> {
     fn default() -> Self {
         Self::sourced_from(S::default())
     }
 }
 
-impl<S: Source> InputShim<'_, S> {
+impl<'a> InputShim<'a, '_> {
     fn new() -> Self {
         Self::default()
     }
-
-    pub fn sourced_from(source: S) -> Self {
+    
+    fn sourced_from(source: OwnedOrRef<'a, dyn Source>) -> Self {
         Self {
-            interrupt_enable_bit: false,
             source,
+            interrupt_enable_bit: false,
             flag: None,
             data: None,
         }
     }
+
+    pub fn using(source: Box<dyn Source>) -> Self {
+        InputShim::sourced_from(OwnedOrRef::Owned(source))
+    }
     
+    pub fn with_ref(source: &'a mut dyn Source) -> Self {
+        InputShim::sourced_from(OwnedOrRef::Ref(source))
+    }
+
     fn fetch_latest(&mut self) {
         let new_data = self.source.get_char();
         if let Some(char) = new_data {
@@ -89,8 +98,8 @@ impl<S: Source> InputShim<'_, S> {
     }
 }
 
-impl<'a, S: Source> Input<'a> for InputShim<'a, S> {
-    fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
+impl<'b> Input<'b> for InputShim<'_, 'b> {
+    fn register_interrupt_flag(&mut self, flag: &'b AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
             Some(_) => unreachable!(),
