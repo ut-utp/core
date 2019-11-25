@@ -36,7 +36,9 @@ where
     }
 
     fn get_device_reg<M: MemMapped>(&self) -> Result<M, Acv> {
-        M::from(self)
+//        M::from(self)
+        if M::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
+         M::stateless_from(self)
     }
 
     fn set_device_reg<M: MemMapped>(&mut self, value: Word) -> WriteAttempt {
@@ -50,11 +52,14 @@ where
     fn commit_memory(&mut self) -> Result<(), MemoryMiscError>;
 
     fn get_special_reg<M: MemMappedSpecial>(&self) -> M {
+        if M::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
         M::from_special(self)
     }
+
     fn set_special_reg<M: MemMappedSpecial>(&mut self, value: Word) {
         M::set_special(self, value)
     }
+
     fn update_special_reg<M: MemMappedSpecial>(&mut self, func: impl FnOnce(M) -> Word) {
         M::update(self, func).unwrap()
     }
