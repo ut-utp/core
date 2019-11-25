@@ -19,7 +19,7 @@ pub use gpio::GpioShim;
 pub use pwm::PwmShim;
 pub use timers::TimersShim;
 
-pub use input::InputShim;
+pub use input::{InputShim, SourceShim};
 pub use output::OutputShim;
 
 pub type PeripheralsShim<'s> = PeripheralSet<
@@ -29,6 +29,6 @@ pub type PeripheralsShim<'s> = PeripheralSet<
     PwmShim,
     TimersShim<'s>,
     ClockShim,
-    InputShim<'s>,
+    InputShim<'s, SourceShim>,
     OutputShim<'s, 's>,
 >;
