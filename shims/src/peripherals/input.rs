@@ -1,12 +1,14 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use crate::peripherals::OwnedOrRef;
+
 use lc3_traits::peripherals::input::{Input, InputError};
+
+use core::sync::atomic::{AtomicBool, Ordering};
 use std::io::{stdin, Read};
 use std::sync::Mutex;
-use crate::peripherals::OwnedOrRef;
 
 /// The source from which Inputs will read characters.
 /// Generally expected to behave as a one-character buffer holding the latest
-/// character input to the peripheral. 
+/// character input to the peripheral.
 pub trait Source {
     /// THIS FUNCTION MUST NOT TAKE SIGNIFICANT TIME (BLOCK).
     /// Returns None if the last character has already been read.
@@ -52,15 +54,31 @@ impl Source for SourceShim {
 }
 
 pub struct InputShim<'a, 'b> {
-    source: OwnedOrRef<'a, dyn Source>,
+    source: OwnedOrRef<'a, dyn Source + 'a>,
     flag: Option<&'b AtomicBool>,
     interrupt_enable_bit: bool,
     data: Option<u8>,
 }
 
+struct StdinSource;
+
+// This blocks; don't use this. This is the default though.
+//
+// We must implement Default because of our tyrannical super trait bounds.
+impl Source for StdinSource {
+    fn get_char(&self) -> Option<u8> {
+        let mut buf: [u8; 1] = [0];
+
+        match stdin().read(&mut buf) {
+            Ok(_) => Some(buf[0]),
+            Err(_) => None,
+        }
+    }
+}
+
 impl Default for InputShim<'_, '_> {
     fn default() -> Self {
-        Self::sourced_from(S::default())
+        Self::using(Box::new(StdinSource))
     }
 }
 
@@ -68,8 +86,8 @@ impl<'a> InputShim<'a, '_> {
     fn new() -> Self {
         Self::default()
     }
-    
-    fn sourced_from(source: OwnedOrRef<'a, dyn Source>) -> Self {
+
+    fn sourced_from(source: OwnedOrRef<'a, dyn Source + 'a>) -> Self {
         Self {
             source,
             interrupt_enable_bit: false,
@@ -78,11 +96,11 @@ impl<'a> InputShim<'a, '_> {
         }
     }
 
-    pub fn using(source: Box<dyn Source>) -> Self {
+    pub fn using(source: Box<dyn Source + 'a>) -> Self {
         InputShim::sourced_from(OwnedOrRef::Owned(source))
     }
-    
-    pub fn with_ref(source: &'a mut dyn Source) -> Self {
+
+    pub fn with_ref(source: &'a (dyn Source + 'a)) -> Self {
         InputShim::sourced_from(OwnedOrRef::Ref(source))
     }
 
