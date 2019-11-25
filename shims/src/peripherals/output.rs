@@ -38,30 +38,18 @@ impl<'a, R: ?Sized> DerefMut for OwnedOrRef<'a, R> {
 }
 
 pub struct OutputShim<'a, 'b> {
-    // pub struct OutputShim {
-    // sink: &'a mut dyn Write,
-    // sink: Box<dyn Write>,
     sink: OwnedOrRef<'a, dyn Write + 'a>,
-    // _marker: PhantomData<&'a ()>,
-    // sink: &'a mut dyn AsRef<dyn Write>,
     flag: Option<&'b AtomicBool>,
-    interrupts_enabled: bool,
+    interrupt_enable_bit: bool,
 }
 
 impl Default for OutputShim<'_, '_> {
-    // impl Default for OutputShim {
     fn default() -> Self {
-        Self {
-            // sink: std::boxed::Box::<std::io::Stdout>::leak(out), // TODO: DO NOT DO THIS!!!
-            sink: OwnedOrRef::Owned(Box::new(stdout())),
-            flag: None,
-            interrupts_enabled: false,
-        }
+        Self::using(Box::new(stdout()))
     }
 }
 
 impl<'a, 'b> OutputShim<'a, 'b> {
-    // impl OutputShim {
     pub fn new() -> Self {
         Self::default()
     }
@@ -70,7 +58,7 @@ impl<'a, 'b> OutputShim<'a, 'b> {
         Self {
             sink: OwnedOrRef::Owned(sink),
             flag: None,
-            interrupts_enabled: false,
+            interrupt_enable_bit: false,
         }
     }
 
@@ -78,25 +66,12 @@ impl<'a, 'b> OutputShim<'a, 'b> {
         Self {
             sink: OwnedOrRef::<'a, dyn Write>::Ref(sink),
             flag: None,
-            interrupts_enabled: false,
+            interrupt_enable_bit: false,
         }
     }
 }
 
 impl<'b> Output<'b> for OutputShim<'_, 'b> {
-    // impl Output for OutputShim {
-    fn write(&mut self, c: u8) -> Result<(), OutputError> {
-        let _ = self.sink.write(&[c]).map_err(|_| OutputError)?;
-        self.sink.flush().map_err(|_| OutputError)?;
-        if self.interrupts_enabled() {
-            match self.flag {
-                Some(f) => f.store(true, Ordering::SeqCst),
-                None => unreachable!(),
-            }
-        }
-        Ok(())
-    }
-
     fn register_interrupt_flag(&mut self, flag: &'b AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
@@ -105,24 +80,37 @@ impl<'b> Output<'b> for OutputShim<'_, 'b> {
     }
 
     fn interrupt_occurred(&self) -> bool {
-        match self.flag {
-            Some(f) => {
-                let occurred = f.load(Ordering::SeqCst);
-                self.interrupts_enabled() && occurred
-            }
-            None => unreachable!(),
-        }
+        self.current_data_written()
     }
-
-    fn reset_interrupt_flag(&mut self) {
+    
+    fn set_interrupt_enable_bit(&mut self, bit: bool) {
+        self.interrupt_enable_bit = bit;
+    }
+    
+    fn interrupts_enabled(&self) -> bool {
+        self.interrupt_enable_bit
+    }
+    
+    // TODO: handle OutputErrors to somehow report that the write or flush went wrong
+    fn write_data(&mut self, c: u8) -> Result<(), OutputError> {
         match self.flag {
             Some(f) => f.store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
+        self.sink.write(&[c]).map_err(|_| OutputError)?;
+        self.sink.flush().map_err(|_| OutputError)?;
+        match self.flag {
+            Some(f) => f.store(true, Ordering::SeqCst),
+            None => unreachable!(),
+        }
+        Ok(())
     }
 
-    fn interrupts_enabled(&self) -> bool {
-        self.interrupts_enabled
+    fn current_data_written(&self) -> bool {
+        match self.flag {
+            Some(f) => f.load(Ordering::SeqCst),
+            None => unreachable!(),
+        }
     }
 }
 

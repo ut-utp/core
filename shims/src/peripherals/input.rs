@@ -91,7 +91,10 @@ impl<S: Source> InputShim<'_, S> {
 
 impl<'a, S: Source> Input<'a> for InputShim<'a, S> {
     fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
-        self.flag = Some(flag);
+        self.flag = match self.flag {
+            None => Some(flag),
+            Some(_) => unreachable!(),
+        }
     }
 
     fn interrupt_occurred(&mut self) -> bool {
