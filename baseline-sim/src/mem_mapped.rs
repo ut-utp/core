@@ -13,35 +13,13 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
 
     fn with_value(value: Word) -> Self;
 
-    fn stateful_from<'a, I>(interp: &mut I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        unimplemented!()
-    }
-
-    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
-    where
-        I: InstructionInterpreterPeripheralAccess<'a>,
-        <I as Deref>::Target: Peripherals<'a>,
-    {
-        assert_eq!(Self::HAS_STATEFUL_READS, false);
-
         // Checked access by default:
         Ok(Self::with_value(interp.get_word(Self::ADDR)?))
-    }
-
-    fn from<'a, I>(interp: &mut I) -> Result<Self, Acv>
-    where
-        I: InstructionInterpreterPeripheralAccess<'a>,
-        <I as Deref>::Target: Peripherals<'a>,
-    {
-        if Self::HAS_STATEFUL_READS {
-            Self::stateful_from(interp)
-        } else {
-            Self::stateless_from(interp)
-        }
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
@@ -58,8 +36,7 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        if Self::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
-        Self::set(interp, func(Self::stateless_from(interp)?))
+        Self::set(interp, func(Self::from(interp)?))
     }
 
     #[doc(hidden)]
@@ -83,8 +60,7 @@ pub trait MemMappedSpecial: MemMapped {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        if Self::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
-        Self::stateless_from(interp).unwrap()
+        Self::from(interp).unwrap()
     }
 
     // Also infallible.
@@ -191,7 +167,7 @@ macro_rules! mem_mapped {
 
 macro_rules! _mem_mapped_special_access {
     (+) => {
-        fn stateless_from<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &I) -> Result<Self, Acv>
+        fn from<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &I) -> Result<Self, Acv>
         where
             <I as Deref>::Target: Peripherals<'a>,
         {
@@ -253,12 +229,12 @@ impl MemMapped for KBDR {
         Self(value)
     }
 
-    fn stateful_from<'a, I>(interp: &mut I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
         where
             I: InstructionInterpreterPeripheralAccess<'a>,
             <I as Deref>::Target: Peripherals<'a>,
     {
-        Ok(Self::with_value(Input::read_data(interp.get_peripherals_mut()).unwrap() as Word))     // TODO: Do something on error
+        Ok(Self::with_value(Input::read_data(interp.get_peripherals()).unwrap() as Word))     // TODO: Do something on error
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
@@ -287,7 +263,7 @@ impl MemMapped for KBSR {
 
     fn with_value(value: Word) -> Self { Self(value) }
 
-    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
@@ -342,7 +318,7 @@ impl MemMapped for DSR {
         Self(value)
     }
 
-    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
         where
             I: InstructionInterpreterPeripheralAccess<'a>,
             <I as Deref>::Target: Peripherals<'a>,
@@ -377,7 +353,7 @@ impl MemMapped for DDR {
         Self(value)
     }
 
-    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
         where
             I: InstructionInterpreterPeripheralAccess<'a>,
             <I as Deref>::Target: Peripherals<'a>,
@@ -413,7 +389,7 @@ macro_rules! gpio_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I> (interp: &I) -> Result<Self, Acv>
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -467,7 +443,7 @@ macro_rules! gpio_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            fn from<'a, I>(interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -538,7 +514,7 @@ macro_rules! adc_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I> (interp: &I) -> Result<Self, Acv>
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -587,7 +563,7 @@ macro_rules! adc_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I> (interp: &I) -> Result<Self, Acv>
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -633,7 +609,7 @@ impl MemMapped for CLKR {
         Self(value)
     }
 
-    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
+    fn from<'a, I>(interp: &I) -> Result<Self, Acv>
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
@@ -672,7 +648,7 @@ macro_rules! pwm_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I> (interp: &I) -> Result<Self, Acv>
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -724,7 +700,7 @@ macro_rules! pwm_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -771,7 +747,7 @@ macro_rules! timer_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I> (interp: &I) -> Result<Self, Acv>
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv>
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -823,7 +799,7 @@ macro_rules! timer_mem_mapped {
 
             fn with_value(value: Word) -> Self { Self(value) }
 
-            fn stateless_from<'a, I> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
+            fn from<'a, I> (interp: &I) -> Result<Self, Acv> // TODO: change all these to some other kind of error since we already check for ACVs in read_word, etc.
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
@@ -960,7 +936,7 @@ impl MemMapped for MCR {
     fn with_value(value: Word) -> Self {
         Self(value)
     }
-    fn stateless_from<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &I) -> Result<Self, Acv>
+    fn from<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &I) -> Result<Self, Acv>
     where
         <I as Deref>::Target: Peripherals<'a>,
     {

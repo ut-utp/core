@@ -137,7 +137,7 @@ impl<'b> Input<'b> for InputShim<'_, 'b> {
         self.interrupt_enable_bit
     }
 
-    fn read_data(&mut self) -> Result<u8, InputError> {
+    fn read_data(&self) -> Result<u8, InputError> {
         self.fetch_latest();
         match self.flag {
             Some(flag) => flag.store(false, Ordering::SeqCst),

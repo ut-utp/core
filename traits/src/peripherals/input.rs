@@ -18,7 +18,9 @@ pub trait Input<'a>: Default {
     // we'll presumably just return some default value) but since
     // we're letting the interpreter decide we *do* return a Result
     // type here.
-    fn read_data(&mut self) -> Result<u8, InputError>;
+    //
+    // Must use interior mutability.
+    fn read_data(&self) -> Result<u8, InputError>;
     fn current_data_unread(&self) -> bool;
 }}
 
@@ -46,7 +48,7 @@ using_std! {
             RwLock::read(self).unwrap().interrupts_enabled()
         }
 
-        fn read_data(&mut self) -> Result<u8, InputError> {
+        fn read_data(&self) -> Result<u8, InputError> {
             RwLock::write(self).unwrap().read_data()
         }
 

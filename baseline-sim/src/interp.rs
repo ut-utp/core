@@ -35,15 +35,8 @@ where
         self.deref_mut()
     }
 
-    fn get_device_reg_from_stateful<M: MemMapped>(&mut self) -> Result<M, Acv> {
-        assert_eq!(M::HAS_STATEFUL_READS, true);
-        M::stateful_from(self)
-    }
-
     fn get_device_reg<M: MemMapped>(&self) -> Result<M, Acv> {
-        if M::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
-        M::stateless_from(self)
-        // M::from(self)
+        M::from(self)
     }
 
     fn set_device_reg<M: MemMapped>(&mut self, value: Word) -> WriteAttempt {
@@ -57,7 +50,6 @@ where
     fn commit_memory(&mut self) -> Result<(), MemoryMiscError>;
 
     fn get_special_reg<M: MemMappedSpecial>(&self) -> M {
-        if M::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
         M::from_special(self)
     }
 
@@ -921,30 +913,16 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     #[forbid(unreachable_patterns)]
-    fn get_word_unchecked(&mut self, addr: Addr) -> Word {
+    fn get_word_unchecked(&self, addr: Addr) -> Word {
         if addr >= MEM_MAPPED_START_ADDR {
             // TODO: mem mapped peripherals!
             macro_rules! devices {
-                ($($($special_access:literal)?$dev:ty),*) => {
+                ($($dev:ty),*) => {
                     match addr {
-                        $(<$dev as MemMapped>::ADDR => {
-                            if <$dev as MemMapped>::HAS_STATEFUL_READS {
-                                *self.get_device_reg_from_stateful::<$dev>().unwrap()
-                            } else {
-                                *self.get_device_reg::<$dev>().unwrap()
-                            }
-                        })*
+                        $(<$dev as MemMapped>::ADDR => *self.get_device_reg::<$dev>().unwrap(),)*
                         // $(devices!( $($special_access)? $dev ))*
                         _ => 0, // unimplemented!() // TODO: make a sane handler?
                     }
-                };
-
-                (% $dev:ty) => {
-                    <$dev as MemMapped>::ADDR => *self.get_device_reg_from_stateful::<$dev>().unwrap(),
-                };
-
-                ($dev:ty) => {
-                    <$dev as MemMapped>::ADDR => *self.get_device_reg::<$dev>().unwrap(),
                 };
             }
 
