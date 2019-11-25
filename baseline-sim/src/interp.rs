@@ -640,6 +640,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn handle_interrupt(&mut self, int_vec: u8, priority: u8) -> bool {
         // TODO: check that the ordering here is right
 
+        // TODO: Set nzp to z here
+
         // Make sure that the priority is high enough to interrupt:
         if self.get_special_reg::<PSR>().get_priority() >= priority {
             // Gotta wait.

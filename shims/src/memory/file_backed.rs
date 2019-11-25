@@ -51,8 +51,8 @@ impl FileBackedMemoryShim {
         write_to_file(&self.path, &self.memory)
     }
 
-    pub fn get_memory(&self) -> [Word; ADDR_SPACE_SIZE_IN_WORDS] {
-        self.memory
+    pub fn change_file<P: AsRef<Path>>(&mut self, path: P) {
+        self.path = path.as_ref().to_path_buf();
     }
 }
 
