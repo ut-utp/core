@@ -323,7 +323,7 @@ impl MemMapped for DSR {
             I: InstructionInterpreterPeripheralAccess<'a>,
             <I as Deref>::Target: Peripherals<'a>,
     {
-        Ok(Self::with_value((Output::interrupts_enabled(interp.get_peripherals()) as Word) << 15))
+        Ok(Self::with_value((Output::current_data_written(interp.get_peripherals()) as Word) << 15))
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
