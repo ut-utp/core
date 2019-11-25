@@ -2,6 +2,7 @@ use crate::peripherals::OwnedOrRef;
 
 use lc3_traits::peripherals::input::{Input, InputError};
 
+use core::cell::Cell;
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::io::{stdin, Read};
 use std::sync::Mutex;
@@ -57,7 +58,7 @@ pub struct InputShim<'a, 'b> {
     source: OwnedOrRef<'a, dyn Source + 'a>,
     flag: Option<&'b AtomicBool>,
     interrupt_enable_bit: bool,
-    data: Option<u8>,
+    data: Cell<Option<u8>>,
 }
 
 struct StdinSource;
@@ -92,7 +93,7 @@ impl<'a> InputShim<'a, '_> {
             source,
             interrupt_enable_bit: false,
             flag: None,
-            data: None,
+            data: Cell::new(None),
         }
     }
 
@@ -104,10 +105,10 @@ impl<'a> InputShim<'a, '_> {
         InputShim::sourced_from(OwnedOrRef::Ref(source))
     }
 
-    fn fetch_latest(&mut self) {
+    fn fetch_latest(&self) {
         let new_data = self.source.get_char();
-        if let Some(char) = new_data {
-            self.data = Some(char);
+        if let Some(c) = new_data {
+            self.data.replace(Some(c));
             match self.flag {
                 Some(flag) => flag.store(true, Ordering::SeqCst),
                 None => unreachable!(),
@@ -142,10 +143,10 @@ impl<'b> Input<'b> for InputShim<'_, 'b> {
             Some(flag) => flag.store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
-        self.data.ok_or(InputError)
+        self.data.get().ok_or(InputError)
     }
 
-    fn current_data_unread(&mut self) -> bool {
+    fn current_data_unread(&self) -> bool {
         self.fetch_latest();
         match self.flag {
             Some(flag) => flag.load(Ordering::SeqCst),

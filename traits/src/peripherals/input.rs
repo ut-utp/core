@@ -19,7 +19,7 @@ pub trait Input<'a>: Default {
     // we're letting the interpreter decide we *do* return a Result
     // type here.
     fn read_data(&mut self) -> Result<u8, InputError>;
-    fn current_data_unread(&mut self) -> bool;
+    fn current_data_unread(&self) -> bool;
 }}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -50,7 +50,7 @@ using_std! {
             RwLock::write(self).unwrap().read_data()
         }
 
-        fn current_data_unread(&mut self) -> bool {
+        fn current_data_unread(&self) -> bool {
             RwLock::write(self).unwrap().current_data_unread()
         }
     }
