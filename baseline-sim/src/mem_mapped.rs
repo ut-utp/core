@@ -686,7 +686,7 @@ impl PSR {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        self.0 = (self.0 & (!WORD_MAX_VAL.word(8..10))) | ((priority as Word).u16(0..2));
+        self.0 = (self.0 & (!WORD_MAX_VAL.word(8..10))) | ((priority as Word).u16(0..2) << 8);
 
         // Don't return a `WriteAttempt` since PSR accesses don't produce ACVs (and are hence infallible).
         self.write_current_value(interp).unwrap();
@@ -768,7 +768,84 @@ impl PSR {
     }
 }
 
-mem_mapped!(special: MCR, MCR_ADDRESS, "Machine Control Register.");
+// mem_mapped!(special: MCR, MCR_ADDRESS, "Machine Control Register.");
+
+/// Machine Control Register
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct MCR(Word);
+
+impl Deref for MCR {
+    type Target = Word;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl MemMapped for MCR {
+    const ADDR: Addr = MCR_ADDRESS;
+    fn with_value(value: Word) -> Self {
+        Self(value)
+    }
+    fn from<'a, I: InstructionInterpreterPeripheralAccess<'a>>(interp: &I) -> Result<Self, Acv>
+    where
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        Ok(Self::with_value(
+            interp.get_word_force_memory_backed(Self::ADDR),
+        ))
+    }
+
+    fn set<'a, I: InstructionInterpreterPeripheralAccess<'a>>(
+        interp: &mut I,
+        value: Word,
+    ) -> WriteAttempt
+    where
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        if !value.bit(15) {
+            interp.halt();
+        }
+
+        interp.set_word_force_memory_backed(Self::ADDR, value);
+        Ok(())
+    }
+}
+
+impl MemMappedSpecial for MCR {}
+
+
+impl MCR {
+    fn set_running_bit<'a, I>(&mut self, interp: &mut I, bit: bool)
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        self.0 = (self.0 & (!WORD_MAX_VAL.word(15..15))) | ((bit as Word) << 15);
+
+        // Don't return a `WriteAttempt` since MCR accesses don't produce ACVs (and are hence infallible).
+        self.write_current_value(interp).unwrap();
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.0.bit(15)
+    }
+
+    pub fn halt<'a, I>(&mut self, interp: &mut I)
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        self.set_running_bit(interp, false);
+    }
+
+    pub fn run<'a, I>(&mut self, interp: &mut I)
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        self.set_running_bit(interp, true);
+    }
+}
 
 // pub const KBDR: Addr = 0xFE02;
 
