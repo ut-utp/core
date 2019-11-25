@@ -7,10 +7,10 @@ peripheral_trait! {input,
 pub trait Input<'a>: Default {
     fn register_interrupt_flag(&mut self, flag: &'a AtomicBool);
     fn interrupt_occurred(&mut self) -> bool;
-    
+
     fn set_interrupt_enable_bit(&mut self, bit: bool);
     fn interrupts_enabled(&self) -> bool;
-    
+
     // Warning! This is stateful!! It marks the current data as read.
     //
     // Also note: this is technically infallible (it's up to the
@@ -33,23 +33,23 @@ using_std! {
         fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
             RwLock::write(self).unwrap().register_interrupt_flag(flag)
         }
-        
+
         fn interrupt_occurred(&mut self) -> bool {
             RwLock::write(self).unwrap().interrupt_occurred()
         }
-        
+
         fn set_interrupt_enable_bit(&mut self, bit: bool) {
             RwLock::write(self).unwrap().set_interrupt_enable_bit(bit)
         }
-        
+
         fn interrupts_enabled(&self) -> bool {
             RwLock::read(self).unwrap().interrupts_enabled()
         }
-        
+
         fn read_data(&mut self) -> Result<u8, InputError> {
             RwLock::write(self).unwrap().read_data()
         }
-        
+
         fn current_data_unread(&mut self) -> bool {
             RwLock::write(self).unwrap().current_data_unread()
         }

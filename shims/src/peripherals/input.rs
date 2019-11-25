@@ -41,7 +41,7 @@ impl SourceShim {
 impl Default for SourceShim {
     fn default() -> Self {
         Self {
-            last_char: Mutex::new(None)
+            last_char: Mutex::new(None),
         }
     }
 }
