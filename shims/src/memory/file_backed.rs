@@ -47,12 +47,12 @@ impl FileBackedMemoryShim {
         Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS])
     }
 
-    fn flush(&mut self) -> Result<(), MemoryShimError> {
+    pub fn flush(&mut self) -> Result<(), MemoryShimError> {
         write_to_file(&self.path, &self.memory)
     }
 
-    pub fn get_memory(&self) -> [Word; ADDR_SPACE_SIZE_IN_WORDS] {
-        self.memory
+    pub fn change_file<P: AsRef<Path>>(&mut self, path: P) {
+        self.path = path.as_ref().to_path_buf();
     }
 }
 
