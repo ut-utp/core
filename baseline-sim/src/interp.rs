@@ -945,8 +945,21 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     fn reset(&mut self) {
-        self.pc = 0; // TODO?
+        // self.pc = 0; // TODO?
         self.set_cc(0);
+
+        // TODO: Reset Vector
+        // On start!
+        // PC = 0x200
+        // All regs are 0
+        // cc = z
+        // pri = 7
+        self.pc = 0x200;
+        self.set_cc(0);
+        self.get_special_reg::<PSR>().set_priority(self, 7);
+
+        // TODO: zero the registers
+        // TODO: what do we do about memory?
 
         // TODO!
         // unimplemented!();
