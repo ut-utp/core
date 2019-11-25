@@ -556,6 +556,11 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     }
 
     fn push(&mut self, word: Word) -> WriteAttempt {
+        // This function will *only ever push onto the system stack*:
+        if self[R6] == 0x0 {
+            panic!("System stack overflow!");
+        }
+
         self[R6] -= 1;
         self.set_word(self[R6], word)
     }
