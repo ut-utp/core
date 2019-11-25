@@ -17,7 +17,7 @@ use lc3_isa::{
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 
-use super::mem_mapped::{MemMapped, MemMappedSpecial /*, BSP, PSR*/};
+use super::mem_mapped::{MCR, MemMapped, MemMappedSpecial /*, BSP, PSR*/};
 
 // TODO: Break up this file!
 
@@ -903,7 +903,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
             devices!(
                 KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR
+                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
             )
         } else {
             self.set_word_force_memory_backed(addr, word)
@@ -925,7 +925,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
             devices!(
                 KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR
+                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
             )
         } else {
             self.get_word_force_memory_backed(addr)
@@ -954,9 +954,11 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         // All regs are 0
         // cc = z
         // pri = 7
+        // MCR = 0;
         self.pc = 0x200;
         self.set_cc(0);
         self.get_special_reg::<PSR>().set_priority(self, 7);
+        self.get_special_reg::<MCR>().run(self);
 
         // TODO: zero the registers
         // TODO: what do we do about memory?
@@ -967,6 +969,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     fn halt(&mut self) {
+        if self.get_special_reg::<MCR>().is_running() {
+            self.get_special_reg::<MCR>().halt(self);
+        }
+
         self.state = MachineState::Halted;
     }
 }
