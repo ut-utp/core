@@ -363,9 +363,9 @@ impl<T: TransportLayer> Control for Server<T> {
     }
 
     fn set_pc(&mut self, addr: Addr) {
-        println!("came here4");
+        //println!("came here4");
         self.transport.send(Message::SET_PC(addr));
-        println!("came here 7");
+       // println!("came here 7");
         if let Some(m) = self.transport.get() {
             if let Message::SET_PC_SUCCESS = m {
             } else {
@@ -424,7 +424,7 @@ impl<T: TransportLayer> Control for Server<T> {
     }
     fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>>{
          let mut ret: AdcPinArr<Result<u8, AdcReadError>>;// = State::Paused;
-        self.transport.send(Message::GET_ADC_STATES);
+        self.transport.send(Message::GET_ADC_READING);
 
         if let Some(m) = self.transport.get() {
             if let Message::GET_ADC_READING_RETURN_VAL(addr) = m {
