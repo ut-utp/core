@@ -35,10 +35,15 @@ where
         self.deref_mut()
     }
 
+    fn get_device_reg_from_stateful<M: MemMapped>(&mut self) -> Result<M, Acv> {
+        assert_eq!(M::HAS_STATEFUL_READS, true);
+        M::stateful_from(self)
+    }
+
     fn get_device_reg<M: MemMapped>(&self) -> Result<M, Acv> {
-//        M::from(self)
         if M::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
-         M::stateless_from(self)
+        M::stateless_from(self)
+        // M::from(self)
     }
 
     fn set_device_reg<M: MemMapped>(&mut self, value: Word) -> WriteAttempt {
@@ -916,22 +921,36 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     #[forbid(unreachable_patterns)]
-    fn get_word_unchecked(&self, addr: Addr) -> Word {
+    fn get_word_unchecked(&mut self, addr: Addr) -> Word {
         if addr >= MEM_MAPPED_START_ADDR {
             // TODO: mem mapped peripherals!
             macro_rules! devices {
-                ($($dev:ty),*) => {
+                ($($($special_access:literal)?$dev:ty),*) => {
                     match addr {
-                        $(<$dev as MemMapped>::ADDR => *self.get_device_reg::<$dev>().unwrap(),)*
+                        $(<$dev as MemMapped>::ADDR => {
+                            if <$dev as MemMapped>::HAS_STATEFUL_READS {
+                                *self.get_device_reg_from_stateful::<$dev>().unwrap()
+                            } else {
+                                *self.get_device_reg::<$dev>().unwrap()
+                            }
+                        })*
+                        // $(devices!( $($special_access)? $dev ))*
                         _ => 0, // unimplemented!() // TODO: make a sane handler?
                     }
+                };
+
+                (% $dev:ty) => {
+                    <$dev as MemMapped>::ADDR => *self.get_device_reg_from_stateful::<$dev>().unwrap(),
+                };
+
+                ($dev:ty) => {
+                    <$dev as MemMapped>::ADDR => *self.get_device_reg::<$dev>().unwrap(),
                 };
             }
 
             devices!(
                 KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
-            )
+                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR            )
         } else {
             self.get_word_force_memory_backed(addr)
         }

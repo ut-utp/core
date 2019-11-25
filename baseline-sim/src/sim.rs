@@ -12,6 +12,8 @@ use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
 use lc3_traits::peripherals::timers::{TimerArr, TimerState, Timers};
 use lc3_traits::peripherals::Peripherals;
 
+use crate::mem_mapped::{KBDR, MemMapped};
+
 use core::future::Future;
 use core::marker::PhantomData;
 use core::ops::Deref;
@@ -85,6 +87,12 @@ where
     }
 
     fn read_word(&self, addr: Addr) -> Word {
+        // Our one stateful read
+        // TODO: banish this from the codebase
+        if addr == <KBDR as MemMapped>::ADDR {
+            return 0;
+        }
+
         self.interp.get_word_unchecked(addr)
     }
 

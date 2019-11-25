@@ -13,7 +13,7 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
 
     fn with_value(value: Word) -> Self;
 
-    fn stateful_from<'a, I>(intep: &mut I) -> Result<Self, Acv>
+    fn stateful_from<'a, I>(interp: &mut I) -> Result<Self, Acv>
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
