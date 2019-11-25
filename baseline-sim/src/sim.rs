@@ -45,7 +45,7 @@ where
     <I as Deref>::Target: Peripherals<'a>,
 {
     pub fn new(interp: I) -> Self {
-        println!("overflow");
+       // println!("overflow");
         Self {
             interp,
             breakpoints: [None; MAX_BREAKPOINTS],
@@ -69,6 +69,7 @@ where
     }
 
     fn set_pc(&mut self, addr: Addr) {
+       // println!("set pc");
         self.interp.set_pc(addr)
     }
 
@@ -159,6 +160,7 @@ where
     }
 
     fn step(&mut self) -> State {
+       // println!("stepped in");
         match self.interp.step() {
             MachineState::Running => {
                 self.state = State::Paused;
