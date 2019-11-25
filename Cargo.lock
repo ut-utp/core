@@ -267,6 +267,8 @@ dependencies = [
  "lc3-macros 0.1.0",
  "lc3-shims 0.1.0",
  "lc3-traits 0.1.0",
+ "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
  "tui 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

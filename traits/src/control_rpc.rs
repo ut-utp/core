@@ -13,6 +13,7 @@ use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 use serde::{Deserialize, Serialize};
+//use std::sync::mpsc::{Receiver, Sender};
 
 static mut CURRENT_STATE: State = State::Paused; // TODO: what to do?
 
@@ -656,3 +657,38 @@ impl<T: TransportLayer> Client<T> {
         num_executed_messages
     }
 }
+
+// pub struct MpscTransport {
+//     tx: Sender<std::string::String>,
+//     rx: Receiver<std::string::String>,
+// }
+
+// impl TransportLayer for MpscTransport {
+//     fn send(&self, message: Message) -> Result<(), ()> {
+//         let point = message;
+//         let serialized = serde_json::to_string(&point).unwrap();
+
+//         self.tx.send(serialized).unwrap();
+
+//         Ok(())
+//     }
+
+//     fn get(&self) -> Option<Message> {
+//         let deserialized: Message = serde_json::from_str(&self.rx.recv().unwrap()).unwrap();
+
+//         println!("deserialized = {:?}", deserialized);
+//         Some(deserialized)
+//     }
+// }
+
+// pub fn mpsc_transport_pair() -> (MpscTransport, MpscTransport) {
+//     let (tx_h, rx_h) = std::sync::mpsc::channel();
+//     let (tx_d, rx_d) = std::sync::mpsc::channel();
+
+//     let host_channel = MpscTransport { tx: tx_h, rx: rx_d };
+//     let device_channel = MpscTransport { tx: tx_d, rx: rx_h };
+
+//     (host_channel, device_channel)
+// }
+
+// //fn run_channel()
