@@ -47,7 +47,7 @@ impl FileBackedMemoryShim {
         Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS])
     }
 
-    fn flush(&mut self) -> Result<(), MemoryShimError> {
+    pub fn flush(&mut self) -> Result<(), MemoryShimError> {
         write_to_file(&self.path, &self.memory)
     }
 
