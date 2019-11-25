@@ -7,35 +7,7 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-enum OwnedOrRef<'a, R: ?Sized> {
-    Owned(Box<R>),
-    Ref(&'a mut R),
-}
-
-impl<'a, R: ?Sized> Deref for OwnedOrRef<'a, R> {
-    type Target = R;
-
-    fn deref(&self) -> &R {
-        use OwnedOrRef::*;
-
-        match self {
-            Owned(r) => r,
-            Ref(r) => r,
-        }
-    }
-}
-
-impl<'a, R: ?Sized> DerefMut for OwnedOrRef<'a, R> {
-    fn deref_mut(&mut self) -> &mut R {
-        use OwnedOrRef::*;
-
-        match self {
-            Owned(r) => r,
-            Ref(r) => r,
-        }
-    }
-}
+use crate::peripherals::OwnedOrRef;
 
 pub struct OutputShim<'a, 'b> {
     sink: OwnedOrRef<'a, dyn Write + 'a>,

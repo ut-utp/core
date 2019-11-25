@@ -203,8 +203,12 @@ macro_rules! program {
             let mut _addr: $crate::Addr;
 
             #[allow(mutable)]
+            let mut _addr_label: $crate::Addr;
+
+            #[allow(mutable)]
             let mut _mem: [($crate::Word, bool); $crate::ADDR_SPACE_SIZE_IN_WORDS] = [(0, false); $crate::ADDR_SPACE_SIZE_IN_WORDS];
 
+            $crate::program!(%%label_def, _addr_label | .ORIG #$orig; $($rest)*);
             $crate::program!(%%contd, _addr, _mem | .ORIG #$orig; $($rest)*);
         }
     };
@@ -215,12 +219,44 @@ macro_rules! program {
         $crate::program!(%%contd, $addr, $mem | $($rest)*);
     };
 
-    (%%contd, $addr:ident, $mem:ident | $name:ident #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($rest:tt)*) => {
-        println!("foo");
+    // (%%contd, $addr:ident, $mem:ident | $name:ident #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($rest:tt)*) => {
+    //     println!("foo");
+    // };
+
+    (%%contd, $addr:ident, $mem:ident | $($label:lifetime)? $(.)? $op:ident $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
+
+        // $(
+        //     #[allow(non_snake_case)]
+        //     let $label = $addr;
+        // )?
+
+        $mem[$addr as usize] = ($crate::word!($op $($regs,)* $(#($addr - $label_operand))? $(#$num)*), true);
+
+        $addr += 1;
     };
 
     // The end!
     (%%contd, $addr:ident, $mem:ident |) => {
+
+    };
+
+    // Label definition
+    (%%label_def, $addr:ident | .ORIG #$orig:expr $(=> $($_oa:ident$($_ob:literal)?)*)?; $($rest:tt)*) => {
+        $addr = $orig;
+
+        $crate::program!(%%label_def, $addr | $($rest)*);
+    };
+
+    (%%label_def, $addr:ident | $($label:lifetime)? $(.)? $op:ident $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
+        $(
+            #[allow(non_snake_case)]
+            let $label: Addr = $addr;
+        )?
+        $addr += 1;
+    };
+
+    // The end!
+    (%%label_def, $addr:ident |) => {
 
     };
 }
@@ -465,9 +501,11 @@ mod tests {
     #[test]
     #[rustfmt::skip]
     fn program_full() {
+        trace_macros!(true);
+
         let prog = program! {
             .ORIG #0x3000  => is the program start;
-            // ADD R0, R0, R1 => you can use comments like this;
+            'a ADD R0, R0, R1 => you can use comments like this;
             // ADD R1, R1, #0 => careful though there are things you cannot stick in these weird comments;
             // AND R1, R2, R3 => like apostrophes and commas and leading numbers;
             // AND R4, R5, #-0xF => also expressions and parens and most tokens like

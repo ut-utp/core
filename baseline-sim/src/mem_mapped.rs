@@ -84,7 +84,9 @@ pub trait Interrupt: MemMapped {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        Self::interrupt_ready(interp) && Self::interrupt_ready(interp)
+        // TODO: this is not true anymore, verify
+        // Important that interrupt_ready is first: we don't want to short circuit here!
+        Self::interrupt_ready(interp) && Self::interrupt_enabled(interp)
     }
 
     // TODO: eventually, const
