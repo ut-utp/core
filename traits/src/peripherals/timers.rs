@@ -106,7 +106,7 @@ pub trait Timers<'a>: Default {
         periods
     }
 
-    fn register_interrupt_flag(&mut self, timer: TimerId, flag: &'a AtomicBool);
+    fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>);
     fn interrupt_occurred(&self, timer: TimerId) -> bool;
     fn reset_interrupt_flag(&mut self, timer: TimerId);
     fn interrupts_enabled(&self, timer: TimerId) -> bool;
@@ -136,8 +136,8 @@ using_std! {
             RwLock::read(self).unwrap().get_period(timer)
         }
 
-        fn register_interrupt_flag(&mut self, timer: TimerId, flag: &'a AtomicBool) {
-            RwLock::write(self).unwrap().register_interrupt_flag(timer, flag)
+        fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
+            RwLock::write(self).unwrap().register_interrupt_flags(flags)
         }
 
         fn interrupt_occurred(&self, timer: TimerId) -> bool {

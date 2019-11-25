@@ -251,7 +251,7 @@ pub trait Gpio<'a>: Default {
         errors
     }
 
-    fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool);
+    fn register_interrupt_flags(&mut self, flags: &'a GpioPinArr<AtomicBool>);
     fn interrupt_occurred(&self, pin: GpioPin) -> bool;
     fn reset_interrupt_flag(&mut self, pin: GpioPin);
     fn interrupts_enabled(&self, pin: GpioPin) -> bool;
@@ -334,8 +334,8 @@ using_std! {
             RwLock::write(self).unwrap().write(pin, bit)
         }
 
-        fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool) {
-            RwLock::write(self).unwrap().register_interrupt_flag(pin, flag)
+        fn register_interrupt_flags(&mut self, flags: &'a GpioPinArr<AtomicBool>) {
+            RwLock::write(self).unwrap().register_interrupt_flags(flags)
         }
 
         fn interrupt_occurred(&self, pin: GpioPin) -> bool {

@@ -16,7 +16,7 @@ use timer;
 pub struct TimersShim<'a> {
     states: TimerArr<TimerState>,
     times: TimerArr<Word>,
-    flags: TimerArr<Option<&'a AtomicBool>>,
+    flags: Option<&'a TimerArr<AtomicBool>>,
     guards: TimerArr<Option<timer::Guard>>,
 }
 
@@ -25,7 +25,7 @@ impl Default for TimersShim<'_> {
         Self {
             states: TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]),
             times: TimerArr([0u16; TimerId::NUM_TIMERS]), // unlike gpio, interrupts occur on time - not on bit change
-            flags: TimerArr([None; TimerId::NUM_TIMERS]),
+            flags: None,
             guards: TimerArr([None, None]),
         }
     }
@@ -139,17 +139,19 @@ impl<'a> Timers<'a> for TimersShim<'a> {
         self.times[timer]
     }
 
-    fn register_interrupt_flag(&mut self, timer: TimerId, flag: &'a AtomicBool) {
-        self.flags[timer] = match self.flags[timer] {
-            None => Some(flag),
+    fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
+        // TODO: decide what we want to do for repeated settings of this (see gpio's shim)
+
+        self.flags = match self.flags {
+            None => Some(flags),
             Some(_) => unreachable!(),
         }
     }
 
     fn interrupt_occurred(&self, timer: TimerId) -> bool {
-        match self.flags[timer] {
-            Some(flag) => {
-                let occurred = flag.load(Ordering::SeqCst);
+        match self.flags {
+            Some(flags) => {
+                let occurred = flags[timer].load(Ordering::SeqCst);
                 self.interrupts_enabled(timer) && occurred
             }
             None => unreachable!(),
@@ -157,8 +159,8 @@ impl<'a> Timers<'a> for TimersShim<'a> {
     }
 
     fn reset_interrupt_flag(&mut self, timer: TimerId) {
-        match self.flags[timer] {
-            Some(flag) => flag.store(false, Ordering::SeqCst),
+        match self.flags {
+            Some(flag) => flag[timer].store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
     }

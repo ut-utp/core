@@ -41,7 +41,7 @@ impl From<State> for GpioState {
 ///     retrieved at any time.
 pub struct GpioShim<'a> {
     states: GpioPinArr<State>,
-    flags: GpioPinArr<Option<&'a AtomicBool>>,
+    flags: Option<&'a GpioPinArr<AtomicBool>>,
 }
 
 impl Index<GpioPin> for GpioShim<'_> {
@@ -62,7 +62,7 @@ impl Default for GpioShim<'_> {
     fn default() -> Self {
         Self {
             states: GpioPinArr([State::Disabled; GpioPin::NUM_PINS]),
-            flags: GpioPinArr([None; GpioPin::NUM_PINS]),
+            flags: None,
         }
     }
 }
@@ -99,8 +99,8 @@ impl GpioShim<'_> {
     }
 
     fn raise_interrupt(&self, pin: GpioPin) {
-        match self.flags[pin] {
-            Some(flag) => flag.store(true, Ordering::SeqCst),
+        match self.flags {
+            Some(flags) => flags[pin].store(true, Ordering::SeqCst),
             None => unreachable!(),
         }
     }
@@ -162,17 +162,17 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
     }
 
     // TODO: decide functionality when no previous flag registered
-    fn register_interrupt_flag(&mut self, pin: GpioPin, flag: &'a AtomicBool) {
-        self.flags[pin] = match self.flags[pin] {
-            None => Some(flag),
-            Some(_) => unreachable!(),
+    fn register_interrupt_flags(&mut self, flags: &'a GpioPinArr<AtomicBool>) {
+        self.flags = match self.flags {
+            None => Some(flags),
+            Some(_) => unreachable!(), // TODO: is this what we really want?
         }
     }
 
     fn interrupt_occurred(&self, pin: GpioPin) -> bool {
-        match self.flags[pin] {
+        match self.flags {
             Some(flag) => {
-                let occurred = flag.load(Ordering::SeqCst);
+                let occurred = flag[pin].load(Ordering::SeqCst);
                 self.interrupts_enabled(pin) && occurred
             }
             None => unreachable!(),
@@ -181,8 +181,8 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
 
     // TODO: decide functionality when no previous flag registered
     fn reset_interrupt_flag(&mut self, pin: GpioPin) {
-        match self.flags[pin] {
-            Some(flag) => flag.store(false, Ordering::SeqCst),
+        match self.flags {
+            Some(flags) => flags[pin].store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
     }

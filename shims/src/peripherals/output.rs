@@ -67,7 +67,9 @@ impl<'b> Output<'b> for OutputShim<'_, 'b> {
         self.flag = match self.flag {
             None => Some(flag),
             Some(_) => unreachable!(),
-        }
+        };
+
+        flag.store(true, Ordering::SeqCst);
     }
 
     fn interrupt_occurred(&self) -> bool {
