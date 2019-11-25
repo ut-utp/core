@@ -3,13 +3,10 @@
 use crate::peripheral_trait;
 use core::ops::{Deref, Index, IndexMut};
 
-
-use serde::{Deserialize, Serialize};
 // TODO: Add Errors
 
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub enum AdcPin { A0, A1, A2, A3 }
 
 impl AdcPin {
@@ -22,7 +19,6 @@ pub const ADC_PINS: AdcPinArr<AdcPin> = {
 }; // TODO: once we get the derive macro, get rid of this.
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub enum AdcState {
     Enabled,
     Disabled,
@@ -41,7 +37,6 @@ impl From<AdcPin> for usize {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub struct AdcPinArr<T>(pub [T; AdcPin::NUM_PINS]);
 
 // Once const fn is more stable:
@@ -109,7 +104,6 @@ pub struct AdcMiscError;
 pub type AdcStateMismatch = (AdcPin, AdcState);
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub struct AdcReadError(pub AdcStateMismatch);
 
 // TODO: Into Error stuff (see Gpio)

@@ -6,13 +6,10 @@ use core::ops::{Deref, Index, IndexMut};
 use core::sync::atomic::AtomicBool;
 use lc3_isa::Word;
 
-use serde::{Deserialize, Serialize};
-
 // TODO: Add Errors
 // Timer periods: [0, core::u16::MAX)
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub enum TimerId {
     T0,
     T1,
@@ -38,7 +35,6 @@ pub const TIMERS: TimerArr<TimerId> = {
 };
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub struct TimerArr<T>(pub [T; TimerId::NUM_TIMERS]);
 
 // Once const fn is more stable:
@@ -71,7 +67,6 @@ impl<T> IndexMut<TimerId> for TimerArr<T> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub enum TimerState {
     Repeated,
     SingleShot,

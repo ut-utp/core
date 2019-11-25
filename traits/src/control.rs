@@ -13,21 +13,18 @@ use crate::peripherals::pwm::{PwmPinArr, PwmState};
 use crate::peripherals::timers::{TimerArr, TimerState};
 use core::future::Future;
 use lc3_isa::{Addr, Reg, Word, PSR};
-use serde::{Deserialize, Serialize};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
     Interrupted, // If we get paused or stepped, this is returned.
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone)]
 pub enum State {
     Paused,
     RunningUntilEvent,

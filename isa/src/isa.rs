@@ -3,7 +3,6 @@ use super::{SignedWord, Word};
 use core::cmp::Ordering;
 use core::convert::{TryFrom, TryInto};
 use core::ops::Range;
-use serde::{Deserialize, Serialize};
 
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -81,8 +80,7 @@ impl Ord for PriorityLevel {
 }
 
 #[rustfmt::skip]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Reg { R0, R1, R2, R3, R4, R5, R6, R7 }
 
 // TODO: ditch these next four things once we write the macro...

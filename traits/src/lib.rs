@@ -61,8 +61,3 @@ pub mod error;
 pub mod control;
 pub mod memory;
 pub mod peripherals;
-
-pub mod control_rpc;
-
-//pub mod interp;
-//pub mod isa;

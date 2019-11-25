@@ -1,10 +1,8 @@
 use core::ops::{Index, IndexMut};
+
 use lc3_isa::{Addr, Word};
 
-use serde::{Deserialize, Serialize};
-
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
 pub struct MemoryMiscError;
 
 pub trait Memory: Index<Addr, Output = Word> + IndexMut<Addr, Output = Word> {
