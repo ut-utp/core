@@ -250,11 +250,10 @@ impl Deref for KBSR {
 
 impl MemMapped for KBSR {
     const ADDR: Addr =  0xFE00; // TODO: Constants into ISA
-    const HAS_STATEFUL_READS: bool = true;
 
     fn with_value(value: Word) -> Self { Self(value) }
 
-    fn stateful_from<'a, I>(interp: &mut I) -> Result<Self, Acv>
+    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
