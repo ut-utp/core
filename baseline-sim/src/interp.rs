@@ -17,6 +17,8 @@ use lc3_isa::{
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 
+use lc3_traits::peripherals::{gpio::Gpio, timers::Timers, input::Input, output::Output};
+
 use super::mem_mapped::{MCR, MemMapped, MemMappedSpecial /*, BSP, PSR*/};
 
 // TODO: Break up this file!
@@ -497,7 +499,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // TODO: propagate flags to the peripherals!
         // TODO: maybe eventually don't even hold flags; just pass it along
 
-        let interp = Self {
+        let mut interp = Self {
             memory,
             peripherals,
             flags,
@@ -506,8 +508,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             state,
         };
 
-        // interp.reset(); // TODO: should we? won't that negate setting the regs and pc and stuff?
-
+        interp.reset(); // TODO: should we? won't that negate setting the regs and pc and stuff?
         interp
     }
 }
@@ -545,6 +546,15 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'
 {
     fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
         self.memory.commit()
+    }
+}
+impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
+
+    pub fn init(&mut self, flags: &'a PeripheralInterruptFlags) {
+        Gpio::<'a>::register_interrupt_flags(&mut self.peripherals, &flags.gpio);
+        Timers::<'a>::register_interrupt_flags(&mut self.peripherals, &flags.timers);
+        Input::<'a>::register_interrupt_flag(&mut self.peripherals, &flags.input);
+        Output::<'a>::register_interrupt_flag(&mut self.peripherals, &flags.output);
     }
 }
 

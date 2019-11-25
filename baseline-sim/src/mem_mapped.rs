@@ -323,6 +323,7 @@ impl MemMapped for DSR {
             I: InstructionInterpreterPeripheralAccess<'a>,
             <I as Deref>::Target: Peripherals<'a>,
     {
+
         Ok(Self::with_value((Output::current_data_written(interp.get_peripherals()) as Word) << 15))
     }
 

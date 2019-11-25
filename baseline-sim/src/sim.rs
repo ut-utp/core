@@ -47,7 +47,6 @@ where
     <I as Deref>::Target: Peripherals<'a>,
 {
     pub fn new(interp: I) -> Self {
-        println!("overflow");
         Self {
             interp,
             breakpoints: [None; MAX_BREAKPOINTS],
@@ -59,6 +58,16 @@ where
         }
     }
 }
+
+// impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Simulator<'a, I>
+// where
+//     <I as Deref>::Target: Peripherals<'a>,
+// {
+//     pub fn get_interpreter(&mut self) -> &mut I {
+//         &mut self.interp
+//     }
+// }
+
 
 impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Control for Simulator<'a, I>
 where
