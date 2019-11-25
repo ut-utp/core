@@ -180,7 +180,7 @@ where
     }
 
     fn reset(&mut self) {
-        InstructionInterpreter::reset(&mut self);
+        InstructionInterpreter::reset(&mut self.interp);
     }
 
     fn get_error(&self) -> Option<Error> {
