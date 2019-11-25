@@ -40,7 +40,7 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
         if Self::HAS_STATEFUL_READS {
             Self::stateful_from(interp)
         } else {
-            Self::stateful_from(interp)
+            Self::stateless_from(interp)
         }
     }
 
@@ -58,7 +58,8 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        Self::set(interp, func(Self::from(interp)?))
+        if Self::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
+        Self::set(interp, func(Self::stateless_from(interp)?))
     }
 
     #[doc(hidden)]
@@ -77,12 +78,13 @@ pub trait MemMapped: Deref<Target = Word> + Sized {
 // Use the macro below instead.
 pub trait MemMappedSpecial: MemMapped {
     // Infallible.
-    fn from_special<'a, I>(interp: &mut I) -> Self
+    fn from_special<'a, I>(interp: &I) -> Self
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        Self::from(interp).unwrap()
+        if Self::HAS_STATEFUL_READS { panic!("Cannot get device register with stateful reads in this function!") }
+        Self::stateless_from(interp).unwrap()
     }
 
     // Also infallible.
@@ -232,11 +234,43 @@ macro_rules! _mem_mapped_special_access {
 //     }
 // }
 
-// TODO! these aren't special! this is a stopgap so we don't stack overflow!
+use lc3_traits::peripherals::input::Input;
+#[doc = "Keyboard Data Register"]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct KBDR(Word);
+impl Deref for KBDR {
+    type Target = Word;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl MemMapped for KBDR {
+    const ADDR: Addr = 0xFE02;
+    const HAS_STATEFUL_READS: bool = true;
+
+    fn with_value(value: Word) -> Self {
+        Self(value)
+    }
+
+    fn stateful_from<'a, I>(interp: &mut I) -> Result<Self, Acv>
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Ok(Self::with_value(Input::read_data(interp.get_peripherals_mut()).unwrap() as Word))     // TODO: Do something on error
+    }
+
+    fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Ok(()) // TODO: Ignore writes to keyboard data register?
+    }
+}
 // mem_mapped!(special: KBSR, 0xFE00, "Keyboard Status Register.");
 // mem_mapped!(special: KBDR, 0xFE02, "Keyboard Data Register.");
-
-use lc3_traits::peripherals::input::Input;
 
 /// Keyboard Status Register
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -288,8 +322,78 @@ impl MemMapped for KBSR {
 // }
 
 // TODO! these aren't special! this is a stopgap so we don't stack overflow!
-mem_mapped!(special: DSR, 0xFE04, "Display Status Register.");
-mem_mapped!(special: DDR, 0xFE06, "Display Data Register.");
+
+use lc3_traits::peripherals::output::Output;
+
+#[doc = "Display Status Register"]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DSR(Word);
+impl Deref for DSR {
+    type Target = Word;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl MemMapped for DSR {
+    const ADDR: Addr = 0xFE04;
+
+    fn with_value(value: Word) -> Self {
+        Self(value)
+    }
+
+    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Ok(Self::with_value((Output::interrupts_enabled(interp.get_peripherals()) as Word) << 15))
+    }
+
+    fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Output::set_interrupt_enable_bit(interp.get_peripherals_mut(), value.bit(1));
+        Ok(())
+    }
+}
+
+#[doc = "Display Data Register"]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DDR(Word);
+impl Deref for DDR {
+    type Target = Word;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl MemMapped for DDR {
+    const ADDR: Addr = 0xFE06;
+
+    fn with_value(value: Word) -> Self {
+        Self(value)
+    }
+
+    fn stateless_from<'a, I>(interp: &I) -> Result<Self, Acv>
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Ok(Self::with_value(0 as Word))
+    }
+
+    fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Output::write_data(interp.get_peripherals_mut(), value as u8);
+        Ok(())
+    }
+}
 
 macro_rules! gpio_mem_mapped {
     ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
