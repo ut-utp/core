@@ -365,7 +365,7 @@ impl<T: TransportLayer> Control for Server<T> {
     fn set_pc(&mut self, addr: Addr) {
         println!("came here4");
         self.transport.send(Message::SET_PC(addr));
-        
+        println!("came here 7");
         if let Some(m) = self.transport.get() {
             if let Message::SET_PC_SUCCESS = m {
             } else {
