@@ -22,10 +22,10 @@ pub struct SourceShim {
 }
 
 impl SourceShim {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self::default()
     }
-    fn push(&self, c: char) {
+    pub fn push(&self, c: char) {
         if c.is_ascii() {
             let mut last_char = self.last_char.lock().unwrap();
             last_char.replace(c as u8);
@@ -68,7 +68,7 @@ impl<S: Source> InputShim<'_, S> {
         Self::default()
     }
 
-    fn sourced_from(source: S) -> Self {
+    pub fn sourced_from(source: S) -> Self {
         Self {
             interrupt_enable_bit: false,
             source,
