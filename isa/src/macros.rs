@@ -245,7 +245,8 @@ macro_rules! program {
         //     let $label = $addr;
         // )?
 
-        $mem[$addr as usize] = ($crate::word!($op $($regs,)* $(#($addr - $label_operand))? $(#$num)*), true);
+        if $mem[$addr as usize].1 { panic!("Overlap at {}!", $addr); }
+        $mem[$addr as usize] = ($crate::word!($op $($regs,)* $(#((($label_operand as i64) - ($addr as i64) - 1) as $crate::SignedWord))? $(#$num)*), true);
 
         $addr += 1;
 
