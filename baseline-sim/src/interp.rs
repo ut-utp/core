@@ -157,7 +157,7 @@ impl Default for PeripheralInterruptFlags {
 
 // TODO: Either find a `core` replacement for this or pull it out into a `util`
 // mod or something.
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone)]
 pub enum OwnedOrRef<'a, T> {
     Owned(T),
     Ref(&'a T),
@@ -193,7 +193,7 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 //     }
 // }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     memory: M,
     peripherals: P,

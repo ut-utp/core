@@ -20,6 +20,7 @@ use core::ops::Deref;
 use core::pin::Pin;
 use core::task::{Context, Poll};
 
+#[derive(Debug, Clone)]
 pub struct Simulator<'a, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>>
 where
     <I as Deref>::Target: Peripherals<'a>,
