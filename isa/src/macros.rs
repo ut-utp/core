@@ -106,8 +106,21 @@ macro_rules! word {
     () => { 0 };
     // (.END) => {};
     ($(.)? FILL #$word:expr $(=> $($extra:tt)*)?) => {
+        // This is a temporary workaround for ergonomic reasons.
+        //
+        // It's cumbersome to have to do .FILL #(-5 as Word) for every negative
+        // number so we'll do put the cast here.
+        //
+        // This is far from ideal but it's probably good enough for something
+        // that isn't the real assembler (TODO: revisit).
+        // $word as $crate::Word
+
+        // To mute 'trivial_numeric_casts' lints:
+        #[allow(trivial_numeric_casts)]
+        { $word as $crate::Word }
+
         // Once const-fn arrives:
-        Into::<$crate::Word>::into($word)
+        // Into::<$crate::Word>::into($word)
     };
 
     ($(.)? BLKW #$word:expr $(=> $($extra:tt)*)?) => {
