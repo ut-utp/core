@@ -54,6 +54,7 @@ impl Source for SourceShim {
     }
 }
 
+// #[derive(Clone)] // TODO: Debug
 pub struct InputShim<'a, 'b> {
     source: OwnedOrRef<'a, dyn Source + 'a>,
     flag: Option<&'b AtomicBool>,

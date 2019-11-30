@@ -16,6 +16,7 @@ use core::sync::atomic::{AtomicBool, Ordering};
 static PWM_SHIM_PINS: PwmPinArr<AtomicBool> =
     PwmPinArr([AtomicBool::new(false), AtomicBool::new(false)]);
 
+#[derive(Clone)] // TODO: Debug
 pub struct PwmShim {
     states: PwmPinArr<PwmState>,
     duty_cycle: PwmPinArr<u8>,

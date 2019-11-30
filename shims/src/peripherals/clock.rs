@@ -4,7 +4,7 @@ use lc3_traits::peripherals::clock::Clock;
 
 use std::time::{Duration, Instant};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ClockShim {
     start_time: Instant,
 }

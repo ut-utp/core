@@ -13,6 +13,7 @@ use time;
 use timer;
 
 // The term “Single Shot” signifies a single pulse output of some duration.
+#[derive(Clone)] // TODO: Debug
 pub struct TimersShim<'a> {
     states: TimerArr<TimerState>,
     times: TimerArr<Word>,

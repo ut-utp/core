@@ -34,6 +34,7 @@ pub type PeripheralsShim<'s> = PeripheralSet<
     OutputShim<'s, 's>,
 >;
 
+#[derive(Debug)]
 pub enum OwnedOrRefMut<'a, R: ?Sized> {
     Owned(Box<R>),
     Ref(&'a mut R),
@@ -63,6 +64,7 @@ impl<'a, R: ?Sized> DerefMut for OwnedOrRefMut<'a, R> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum OwnedOrRef<'a, R: ?Sized> {
     Owned(Box<R>),
     Ref(&'a R),

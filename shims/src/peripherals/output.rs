@@ -28,6 +28,7 @@ impl<W: Write> Sink for Mutex<W> {
     }
 }
 
+// #[derive(Clone)] // TODO: Debug
 pub struct OutputShim<'a, 'b> {
     sink: OwnedOrRef<'a, dyn Sink + 'a>,
     flag: Option<&'b AtomicBool>,

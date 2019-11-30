@@ -3,6 +3,7 @@ use lc3_traits::peripherals::adc::{
     AdcStateMismatch as StateMismatch,
 };
 
+#[derive(Debug, Clone)]
 pub struct AdcShim {
     states: PinArr<State>,
 }
