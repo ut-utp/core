@@ -223,6 +223,8 @@ macro_rules! program {
 
             $crate::program!(%%label_def, _addr_label | .ORIG #$orig; $($rest)*);
             $crate::program!(%%contd, _addr, _mem | .ORIG #$orig; $($rest)*);
+
+            _mem
         }
     };
 
@@ -236,7 +238,7 @@ macro_rules! program {
     //     println!("foo");
     // };
 
-    (%%contd, $addr:ident, $mem:ident | $($label:lifetime)? $(.)? $op:ident $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
+    (%%contd, $addr:ident, $mem:ident | $(@$label:ident)? $(.)? $op:ident $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
 
         // $(
         //     #[allow(non_snake_case)]
@@ -246,6 +248,8 @@ macro_rules! program {
         $mem[$addr as usize] = ($crate::word!($op $($regs,)* $(#($addr - $label_operand))? $(#$num)*), true);
 
         $addr += 1;
+
+        $crate::program!(%%contd, $addr, $mem | $($rest)*);
     };
 
     // The end!
@@ -260,12 +264,16 @@ macro_rules! program {
         $crate::program!(%%label_def, $addr | $($rest)*);
     };
 
-    (%%label_def, $addr:ident | $($label:lifetime)? $(.)? $op:ident $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
+    (%%label_def, $addr:ident | $(@$label:ident)? $(.)? $op:ident $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
         $(
             #[allow(non_snake_case)]
-            let $label: Addr = $addr;
+            let $label: $crate::Addr = $addr;
+            // lc3_macros::create_label!($label $addr);`
+            // let lc3_macros::lifetime_to_ident!($label): Addr = $addr;
         )?
         $addr += 1;
+
+        $crate::program!(%%label_def, $addr | $($rest)*);
     };
 
     // The end!
