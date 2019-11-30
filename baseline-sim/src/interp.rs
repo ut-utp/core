@@ -29,11 +29,11 @@ pub trait InstructionInterpreterPeripheralAccess<'a>:
 where
     <Self as Deref>::Target: Peripherals<'a>,
 {
-    fn get_peripherals(&self) -> &<Self as std::ops::Deref>::Target {
+    fn get_peripherals(&self) -> &<Self as Deref>::Target {
         self.deref()
     }
 
-    fn get_peripherals_mut(&mut self) -> &mut <Self as std::ops::Deref>::Target {
+    fn get_peripherals_mut(&mut self) -> &mut <Self as Deref>::Target {
         self.deref_mut()
     }
 

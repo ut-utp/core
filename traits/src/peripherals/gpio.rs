@@ -5,7 +5,6 @@ use core::ops::{Deref, Index, IndexMut};
 
 use crate::peripheral_trait;
 use core::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 
 // Switched to using enums to identify peripheral pin numbers; this way
 // referring to invalid/non-existent pin numbers isn't an error that peripheral
