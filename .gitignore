@@ -2,6 +2,12 @@
 /target
 **/*.rs.bk
 
+### UTP Specific Things ###
+*.mem
+
+### GDB ###
+.gdb_history
+
 ### IntelliJ and friends ###
 .idea
 
