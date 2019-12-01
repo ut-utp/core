@@ -639,6 +639,11 @@ pub trait Bits: Sized + Copy {
         self.u16(range)
     }
 
+    fn select(self, range: Range<u32>) -> Word {
+        let start = range.start;
+        self.u16(range) << start
+    }
+
     fn i16(self, range: Range<u32>) -> i16 {
         assert!(range.end - range.start <= 16);
 

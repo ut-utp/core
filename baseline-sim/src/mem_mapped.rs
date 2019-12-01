@@ -842,7 +842,7 @@ impl PSR {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        self.0 = (self.0 & (!WORD_MAX_VAL.word(8..10))) | ((priority as Word).u16(0..2) << 8);
+        self.0 = (self.0 & (!WORD_MAX_VAL.select(8..10))) | ((priority as Word).u16(0..2) << 8);
 
         // Don't return a `WriteAttempt` since PSR accesses don't produce ACVs (and are hence infallible).
         self.write_current_value(interp).unwrap();
@@ -917,7 +917,7 @@ impl PSR {
 
         let b = bit_to_word;
 
-        self.0 = (self.0 & !(WORD_MAX_VAL.word(0..2))) | b(n, 2) | b(z, 1) | b(p, 0);
+        self.0 = (self.0 & !(WORD_MAX_VAL.select(0..2))) | b(n, 2) | b(z, 1) | b(p, 0);
 
         // Don't return a `WriteAttempt` since PSR accesses are infallible.
         self.write_current_value(interp).unwrap();
@@ -975,7 +975,7 @@ impl MCR {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        self.0 = (self.0 & (!WORD_MAX_VAL.word(15..15))) | ((bit as Word) << 15);
+        self.0 = (self.0 & (!WORD_MAX_VAL.select(15..15))) | ((bit as Word) << 15);
 
         // Don't return a `WriteAttempt` since MCR accesses don't produce ACVs (and are hence infallible).
         self.write_current_value(interp).unwrap();
