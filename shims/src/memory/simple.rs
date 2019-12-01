@@ -6,6 +6,7 @@ use std::ops::{Index, IndexMut};
 use std::path::Path;
 
 use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS};
+use lc3_isa::util::MemoryDump;
 use lc3_traits::memory::{Memory, MemoryMiscError};
 
 use super::error::MemoryShimError;
@@ -39,13 +40,19 @@ impl MemoryShim {
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, MemoryShimError> {
         let mut buf: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
-        read_from_file(path, &mut buf);
+        read_from_file(path, &mut buf)?;
 
         Ok(Self::new(buf))
     }
 
     pub fn to_file<P: AsRef<Path>>(&self, path: P) -> Result<(), MemoryShimError> {
         write_to_file(path, &self.persistent)
+    }
+}
+
+impl From<MemoryShim> for MemoryDump {
+    fn from(mem: MemoryShim) -> MemoryDump {
+        mem.staging.into()
     }
 }
 

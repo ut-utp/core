@@ -8,6 +8,7 @@ use std::ops::{Index, IndexMut};
 use std::path::{Path, PathBuf};
 
 use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_BYTES, ADDR_SPACE_SIZE_IN_WORDS};
+use lc3_isa::util::MemoryDump;
 use lc3_traits::memory::{Memory, MemoryMiscError};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -28,11 +29,11 @@ impl Default for FileBackedMemoryShim {
 impl FileBackedMemoryShim {
     pub fn with_initialized_memory<P: AsRef<Path>>(
         path: P,
-        memory: [Word; ADDR_SPACE_SIZE_IN_WORDS],
+        memory: MemoryDump,
     ) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
-            memory,
+            memory: *memory,
         }
     }
 
@@ -40,11 +41,11 @@ impl FileBackedMemoryShim {
         let mut memory: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
         read_from_file(path, &mut memory)?;
 
-        Ok(Self::with_initialized_memory(path, memory))
+        Ok(Self::with_initialized_memory(path, memory.into()))
     }
 
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
-        Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS])
+        Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS].into())
     }
 
     pub fn flush(&mut self) -> Result<(), MemoryShimError> {
@@ -53,6 +54,12 @@ impl FileBackedMemoryShim {
 
     pub fn change_file<P: AsRef<Path>>(&mut self, path: P) {
         self.path = path.as_ref().to_path_buf();
+    }
+}
+
+impl From<FileBackedMemoryShim> for MemoryDump {
+    fn from(mem: FileBackedMemoryShim) -> MemoryDump {
+        mem.memory.into()
     }
 }
 
