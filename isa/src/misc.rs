@@ -391,57 +391,6 @@ pub mod util {
 
     impl<I: IntoIterator<Item = (Addr, Word)>> LoadableIterator for I {}
 
-    // pub struct MemoryDumpLoadableIterator<'a> {
-    //     inner: &'a MemoryDump,
-    //     position: Option<Addr>,
-    // }
-
-    // impl<'a> Iterator for MemoryDumpLoadableIterator<'a> {
-    //     type Item = &'a (Addr, Word);
-
-    //     #[inline]
-    //     fn next(&mut self) -> Option<Self::Item> {
-    //         let pos = self.position;
-
-    //         self.position = match pos {
-    //             Some(addr) => if addr == crate::ADDR_MAX_VAL {
-    //                     None
-    //                 } else {
-    //                     Some(addr + 1)
-    //                 },
-    //             None => None,
-    //         };
-
-    //         pos.map(|addr| (addr, (self.inner.0)[addr as usize])).as_ref()
-    //     }
-
-    //     #[inline]
-    //     fn size_hint(&self) -> (usize, Option<usize>) {
-    //         match self.position {
-    //             None => (0, Some(0)),
-    //             Some(addr) => {
-    //                 let remaining = ((crate::ADDR_MAX_VAL - addr) as usize) + 1;
-
-    //                 (remaining, Some(remaining))
-    //             }
-    //         }
-    //     }
-
-    //     #[inline]
-    //     fn count(self) -> usize {
-    //         self.size_hint().0
-    //     }
-
-    //     #[inline]
-    //     fn last(self) -> Option<Self::Item> {
-    //         if let Some(_) = self.position {
-    //             Some(&(crate::ADDR_MAX_VAL, (self.inner.0)[crate::ADDR_MAX_VAL as usize]))
-    //         } else {
-    //             None
-    //         }
-    //     }
-    // }
-
     use core::{
         iter::{Enumerate, Filter, Map},
         slice::Iter,
@@ -453,18 +402,11 @@ pub mod util {
         type IntoIter = Map<Enumerate<Iter<'a, Word>>, &'a dyn Fn((usize, &Word)) -> (Addr, Word)>;
 
         fn into_iter(self) -> Self::IntoIter {
-            // MemoryDumpLoadableIterator {
-            //     inner: self,
-            //     position: Some(0),
-            // }
-
             self.iter()
                 .enumerate()
                 .map(&|(idx, word)| (idx as Addr, *word))
         }
     }
-
-    // const ASSEMBLED_PROGRAM_FILTER_FUNC: &(dyn Fn(&(usize, &(u16, bool))) -> bool) = &|(_, (_, set)): &(usize, &(Word, bool))| *set;
 
     impl<'a> IntoIterator for &'a AssembledProgram {
         type Item = (Addr, Word);
@@ -477,12 +419,10 @@ pub mod util {
         fn into_iter(self) -> Self::IntoIter {
             self.iter()
                 .enumerate()
-                // .filter(&|(_, (_, set)): &(usize, &(Word, bool))| *set) // I have no idea why this doesn't work
                 .filter(
                     (&|(_, (_, set)): &(usize, &(Word, bool))| *set)
                         as &(dyn Fn(&(usize, &(u16, bool))) -> bool),
                 ) // This cast is marked as trivial but it's not, apparently
-                // .filter(ASSEMBLED_PROGRAM_FILTER_FUNC)
                 .map(&|(idx, (word, _)): (usize, &(Word, bool))| (idx as Addr, *word))
         }
     }
