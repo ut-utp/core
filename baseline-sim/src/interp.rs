@@ -193,7 +193,8 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 //     }
 // }
 
-#[derive(Debug, Default, Clone)]
+// #[derive(Debug, Default, Clone)] // TODO: Clone
+#[derive(Debug, Default)]
 pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     memory: M,
     peripherals: P,

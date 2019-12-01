@@ -7,6 +7,7 @@ members = [
     "tui",
     "baseline-sim",
     "macros",
+    "os",
 ]
 
 # TODO: publish all w/CI (check versions match?)
