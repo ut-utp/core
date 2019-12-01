@@ -302,6 +302,7 @@ pub mod util {
     use core::ops::{Deref, DerefMut};
 
     // Newtype
+    #[derive(Clone)]
     pub struct MemoryDump(pub [Word; ADDR_SPACE_SIZE_IN_WORDS]);
     impl Deref for MemoryDump {
         type Target = [Word; ADDR_SPACE_SIZE_IN_WORDS];
@@ -319,10 +320,20 @@ pub mod util {
         }
     }
 
+    impl MemoryDump {
+        pub fn layer_loadble<L: LoadableIterator>(&mut self, loadable: L) -> &mut Self {
+            for (addr, word) in loadable {
+                self[addr as usize] = word;
+            }
+
+            self
+        }
+    }
+
     type AssembledProgramInner = [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS];
 
-    impl From<AssembledProgramInner> for MemoryDump {
-        fn from(memory: [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
+    impl From<AssembledProgram> for MemoryDump {
+        fn from(memory: AssembledProgram) -> Self {
             let mut mem: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0; ADDR_SPACE_SIZE_IN_WORDS];
 
             memory.iter().enumerate().for_each(|(idx, (w, _))| mem[idx] = *w);
@@ -331,7 +342,14 @@ pub mod util {
         }
     }
 
+    impl From<AssembledProgramInner> for MemoryDump {
+        fn from(memory: AssembledProgramInner) -> Self {
+            Into::<AssembledProgram>::into(memory).into()
+        }
+    }
+
     // Newtype
+    #[derive(Clone)]
     pub struct AssembledProgram(pub [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS]);
     impl Deref for AssembledProgram {
         type Target = AssembledProgramInner;
