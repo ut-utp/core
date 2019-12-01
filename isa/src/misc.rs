@@ -294,3 +294,170 @@
 /// have support for UTF-8 string literals iiuc; I'm not sure how (if at all)
 /// they deal with UTF-8 strings/characters in the userspace.
 pub fn __() -> () {}
+
+pub mod util {
+    /// Associated types and other weird bits for the LC-3 ISA.
+
+    use crate::{Word, Addr, ADDR_SPACE_SIZE_IN_WORDS};
+    use core::ops::{Deref, DerefMut};
+
+    // Newtype
+    pub struct MemoryDump(pub [Word; ADDR_SPACE_SIZE_IN_WORDS]);
+    impl Deref for MemoryDump {
+        type Target = [Word; ADDR_SPACE_SIZE_IN_WORDS];
+
+        fn deref(&self) -> &Self::Target { &self.0 }
+    }
+
+    impl DerefMut for MemoryDump {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    }
+
+    impl From<[Word; ADDR_SPACE_SIZE_IN_WORDS]> for MemoryDump {
+        fn from(memory: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
+            Self(memory)
+        }
+    }
+
+    type AssembledProgramInner = [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS];
+
+    impl From<AssembledProgramInner> for MemoryDump {
+        fn from(memory: [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
+            let mut mem: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0; ADDR_SPACE_SIZE_IN_WORDS];
+
+            memory.iter().enumerate().for_each(|(idx, (w, _))| mem[idx] = *w);
+
+            Self(mem)
+        }
+    }
+
+    // Newtype
+    pub struct AssembledProgram(pub [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS]);
+    impl Deref for AssembledProgram {
+        type Target = AssembledProgramInner;
+
+        fn deref(&self) -> &Self::Target { &self.0 }
+    }
+
+    impl DerefMut for AssembledProgram {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+    }
+
+    impl From<AssembledProgramInner> for AssembledProgram {
+        fn from(prog: AssembledProgramInner) -> Self {
+            Self(prog)
+        }
+    }
+
+    // pub trait LoadableIterator<'a>: IntoIterator<Item = &'a (Addr, Word)> + Sized {
+    pub trait LoadableIterator: IntoIterator<Item = (Addr, Word)> + Sized {
+        fn to_memory_dump(self) -> MemoryDump {
+            let mut mem: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0; ADDR_SPACE_SIZE_IN_WORDS];
+
+            self.into_iter().for_each(|(addr, word)| mem[addr as usize] = word);
+
+            mem.into()
+        }
+    }
+
+    impl<I: IntoIterator<Item = (Addr, Word)>> LoadableIterator for I {}
+
+    // pub struct MemoryDumpLoadableIterator<'a> {
+    //     inner: &'a MemoryDump,
+    //     position: Option<Addr>,
+    // }
+
+    // impl<'a> Iterator for MemoryDumpLoadableIterator<'a> {
+    //     type Item = &'a (Addr, Word);
+
+    //     #[inline]
+    //     fn next(&mut self) -> Option<Self::Item> {
+    //         let pos = self.position;
+
+    //         self.position = match pos {
+    //             Some(addr) => if addr == crate::ADDR_MAX_VAL {
+    //                     None
+    //                 } else {
+    //                     Some(addr + 1)
+    //                 },
+    //             None => None,
+    //         };
+
+    //         pos.map(|addr| (addr, (self.inner.0)[addr as usize])).as_ref()
+    //     }
+
+    //     #[inline]
+    //     fn size_hint(&self) -> (usize, Option<usize>) {
+    //         match self.position {
+    //             None => (0, Some(0)),
+    //             Some(addr) => {
+    //                 let remaining = ((crate::ADDR_MAX_VAL - addr) as usize) + 1;
+
+    //                 (remaining, Some(remaining))
+    //             }
+    //         }
+    //     }
+
+    //     #[inline]
+    //     fn count(self) -> usize {
+    //         self.size_hint().0
+    //     }
+
+    //     #[inline]
+    //     fn last(self) -> Option<Self::Item> {
+    //         if let Some(_) = self.position {
+    //             Some(&(crate::ADDR_MAX_VAL, (self.inner.0)[crate::ADDR_MAX_VAL as usize]))
+    //         } else {
+    //             None
+    //         }
+    //     }
+    // }
+
+    use core::{slice::Iter, iter::{Enumerate, Map, Filter}};
+
+    impl<'a> IntoIterator for &'a MemoryDump {
+        type Item = (Addr, Word);
+        // type IntoIter = MemoryDumpLoadableIterator<'a>;
+        type IntoIter = Map<Enumerate<Iter<'a, Word>>, &'a dyn Fn((usize, &Word),) -> (Addr, Word)>;
+
+        fn into_iter(self) -> Self::IntoIter {
+            // MemoryDumpLoadableIterator {
+            //     inner: self,
+            //     position: Some(0),
+            // }
+
+            self
+                .iter()
+                .enumerate()
+                .map(&|(idx, word)| (idx as Addr, *word))
+        }
+    }
+
+    // const ASSEMBLED_PROGRAM_FILTER_FUNC: &(dyn Fn(&(usize, &(u16, bool))) -> bool) = &|(_, (_, set)): &(usize, &(Word, bool))| *set;
+
+    impl<'a> IntoIterator for &'a AssembledProgram {
+        type Item = (Addr, Word);
+        type IntoIter =
+            Map<
+                Filter<
+                    Enumerate<
+                        Iter<'a, (Word, bool)>
+                    >,
+                    &'a dyn Fn(&(usize, &(u16, bool))) -> bool
+                >,
+                &'a dyn Fn((usize, &(Word, bool)),) -> (Addr, Word)
+            >;
+
+        #[allow(trivial_casts)]
+        fn into_iter(self) -> Self::IntoIter {
+
+            self
+                .iter()
+                .enumerate()
+                // .filter(&|(_, (_, set)): &(usize, &(Word, bool))| *set) // I have no idea why this doesn't work
+                .filter((&|(_, (_, set)): &(usize, &(Word, bool))| *set) as &(dyn Fn(&(usize, &(u16, bool))) -> bool)) // This cast is marked as trivial but it's not, apparently
+                // .filter(ASSEMBLED_PROGRAM_FILTER_FUNC)
+                .map(&|(idx, (word, _)): (usize, &(Word, bool))| (idx as Addr, *word))
+        }
+    }
+}
