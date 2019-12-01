@@ -245,7 +245,11 @@ macro_rules! program {
         //     let $label = $addr;
         // )?
 
-        if $mem[$addr as usize].1 { panic!("Overlap at {}!", $addr); }
+        // If we want to be const, we'll have to disable this check (or find a workaround).
+        // Right now the blocker for being const is that we can't match (or deal with enum
+        // variants at all) which breaks our ability to convert `Instruction`s to `Word`s
+        // (which is fairly required).
+        if $mem[$addr as usize].1 { panic!("Overlap at {:#4X}!", $addr); }
         $mem[$addr as usize] = ($crate::word!($op $($regs,)* $(#((($label_operand as i64) - ($addr as i64) - 1) as $crate::SignedWord))? $(#$num)*), true);
 
         $addr += 1;
@@ -518,6 +522,19 @@ mod tests {
             (0x301A, Trap { trapvec: 0x25 }.into()),
             (0x301B, 0x23),
         ]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn program_overlap() {
+        let _ = program! {
+            .ORIG #0x3000;
+            ADD R0, R0, R1;
+            .FILL #('!' as Word);
+
+            .ORIG #0x3001;
+            BRnzp #-1;
+        };
     }
 
     #[test]
