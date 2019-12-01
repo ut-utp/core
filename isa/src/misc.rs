@@ -324,7 +324,11 @@ pub mod util {
     }
 
     impl MemoryDump {
-        pub fn layer_loadble<L: LoadableIterator>(&mut self, loadable: L) -> &mut Self {
+        pub fn blank() -> Self {
+            [0; ADDR_SPACE_SIZE_IN_WORDS].into()
+        }
+
+        pub fn layer_loadable<L: LoadableIterator>(&mut self, loadable: L) -> &mut Self {
             for (addr, word) in loadable {
                 self[addr as usize] = word;
             }
