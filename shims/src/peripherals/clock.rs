@@ -39,6 +39,9 @@ mod tests {
     use lc3_traits::peripherals::clock::Clock;
     use std::thread::sleep;
 
+    use pretty_assertions::{assert_eq, assert_ne};
+
+
     #[test]
     fn get_milliseconds() {
         let clock = ClockShim::default();

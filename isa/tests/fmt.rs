@@ -1,5 +1,7 @@
 use lc3_isa::{Instruction, Reg};
 
+use pretty_assertions::assert_eq;
+
 #[test]
 fn registers() {
     use Reg::*;

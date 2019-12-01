@@ -80,6 +80,9 @@ mod tests {
     use super::*;
     use lc3_traits::peripherals::adc::{Adc, AdcPin::*, AdcState};
 
+    use pretty_assertions::{assert_eq, assert_ne};
+
+
     #[test]
     fn get_state_initial() {
         let shim = AdcShim::new();

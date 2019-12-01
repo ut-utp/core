@@ -159,4 +159,7 @@ impl<'b> Input<'b> for InputShim<'_, 'b> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use pretty_assertions::{assert_eq, assert_ne};
+
 }

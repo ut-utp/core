@@ -196,8 +196,9 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use lc3_traits::peripherals::gpio::{self, Gpio, GpioPin::*};
+
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn get_state_disabled() {

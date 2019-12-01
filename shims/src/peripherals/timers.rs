@@ -181,6 +181,8 @@ impl<'a> Timers<'a> for TimersShim<'a> {
 //     use super::*;
 //     use lc3_traits::peripherals::timers::{Timer::*, Timers};
 
+//     use pretty_assertions::assert_eq;
+
 //     #[test]
 //     fn get_disabled() {
 //         let shim = TimersShim::new();

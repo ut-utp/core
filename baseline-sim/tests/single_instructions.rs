@@ -11,12 +11,14 @@ use lc3_shims::peripherals::PeripheralsShim;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lc3_isa::Reg::R0;
 
     use Reg::*;
 
-    use lc3_isa::Reg::R0;
     use std::convert::TryFrom;
     use std::convert::TryInto;
+
+    use pretty_assertions::{assert_eq, assert_ne};
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>

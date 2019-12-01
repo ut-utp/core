@@ -1,5 +1,7 @@
 //! Test that the macros work when called from outside the crate.
 
+use pretty_assertions::assert_eq;
+
 // use lc3_isa::{Addr, Word};
 
 // const LOADABLE: [(lc3_isa::Addr, lc3_isa::Word); 28] = lc3_isa::loadable! {
