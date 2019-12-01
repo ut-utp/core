@@ -18,7 +18,7 @@ mod tests {
     use std::convert::TryFrom;
     use std::convert::TryInto;
 
-    use pretty_assertions::{assert_eq, assert_ne};
+    use pretty_assertions::assert_eq;
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
@@ -249,7 +249,7 @@ mod tests {
     sequence! {
         branch_self,
         insns: [ { BRnzp #-1 } ],
-        steps: Some(1),
+        steps: Some(20),
         ending_pc: 0x3000,
         regs: { },
         memory: {}
