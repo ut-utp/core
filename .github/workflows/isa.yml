@@ -41,7 +41,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p ${{ matrix.crate }} --no-default-features --features ${{ matrix.features }}
+          args: -p ${{ matrix.crate }} --no-default-features --features ${{ matrix.features }} --  --include-ignored
 
   lint:
     name: Format + run clippy

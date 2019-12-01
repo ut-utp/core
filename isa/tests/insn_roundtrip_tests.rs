@@ -178,7 +178,7 @@ mod roundtrip_instruction_tests {
     }
 
     #[test]
-    // #[ignore]
+    #[ignore] // This one takes a while..
     fn full_unique() {
         let c = iproduct!(all_insns(), all_insns())
             .filter(|(a, b)| {
