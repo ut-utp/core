@@ -968,7 +968,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         // cc = z
         // pri = 7
         // MCR = 0;
-        self.pc = 0x200;
+        self.pc = lc3_isa::OS_START_ADDR;
         self.set_cc(0);
         self.get_special_reg::<PSR>().set_priority(self, 7);
         self.get_special_reg::<MCR>().run(self);

@@ -72,6 +72,8 @@ sa::const_assert!({
 pub const PSR: Addr = 0xFFFC;
 pub const MCR: Addr = 0xFFFE;
 
+pub const OS_START_ADDR: Addr = 0x0200; // TODO: should this go here?
+
 pub const MEM_MAPPED_START_ADDR: Addr = 0xFE00;
 pub const USER_PROGRAM_START_ADDR: Addr = 0x3000;
 
