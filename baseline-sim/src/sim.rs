@@ -12,7 +12,7 @@ use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
 use lc3_traits::peripherals::timers::{TimerArr, TimerState, Timers};
 use lc3_traits::peripherals::Peripherals;
 
-use crate::mem_mapped::{KBDR, MemMapped};
+use crate::mem_mapped::{MemMapped, KBDR};
 
 use core::future::Future;
 use core::marker::PhantomData;
@@ -68,7 +68,6 @@ where
 //         &mut self.interp
 //     }
 // }
-
 
 impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Control for Simulator<'a, I>
 where

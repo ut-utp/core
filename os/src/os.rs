@@ -1,6 +1,6 @@
 //! (TODO!)
 
-use super::{USER_PROG_START_ADDR, ERROR_ON_ACV_SETTING_ADDR};
+use super::{ERROR_ON_ACV_SETTING_ADDR, USER_PROG_START_ADDR};
 use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
 
@@ -17,7 +17,6 @@ lazy_static! {
 }
 
 fn os() -> AssembledProgram {
-
     let os = lc3_isa::program! {
         // The following is a lightly modified version of the OS that ships with Chirag
         // Sakhuja's [lc3tools](https://github.com/chiragsakhuja/lc3tools). Many thanks

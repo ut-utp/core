@@ -108,4 +108,4 @@ mod macros;
 mod misc;
 
 pub use isa::*;
-pub use misc::util as util;
+pub use misc::util;

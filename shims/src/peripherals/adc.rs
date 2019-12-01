@@ -82,7 +82,6 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
 
-
     #[test]
     fn get_state_initial() {
         let shim = AdcShim::new();

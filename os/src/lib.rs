@@ -3,7 +3,6 @@
 //! TODO!
 
 #![recursion_limit = "1024"]
-
 // TODO: forbid
 #![warn(
     bad_style,

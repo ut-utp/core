@@ -114,7 +114,6 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-
     #[test]
     fn write_one() {
         let vec = Vec::new();

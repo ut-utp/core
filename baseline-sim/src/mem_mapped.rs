@@ -230,17 +230,19 @@ impl MemMapped for KBDR {
     }
 
     fn from<'a, I>(interp: &I) -> Result<Self, Acv>
-        where
-            I: InstructionInterpreterPeripheralAccess<'a>,
-            <I as Deref>::Target: Peripherals<'a>,
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
-        Ok(Self::with_value(Input::read_data(interp.get_peripherals()).unwrap() as Word))     // TODO: Do something on error
+        Ok(Self::with_value(
+            Input::read_data(interp.get_peripherals()).unwrap() as Word,
+        )) // TODO: Do something on error
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
-        where
-            I: InstructionInterpreterPeripheralAccess<'a>,
-            <I as Deref>::Target: Peripherals<'a>,
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Ok(()) // TODO: Ignore writes to keyboard data register?
     }
@@ -255,13 +257,17 @@ pub struct KBSR(Word);
 impl Deref for KBSR {
     type Target = Word;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl MemMapped for KBSR {
-    const ADDR: Addr =  0xFE00; // TODO: Constants into ISA
+    const ADDR: Addr = 0xFE00; // TODO: Constants into ISA
 
-    fn with_value(value: Word) -> Self { Self(value) }
+    fn with_value(value: Word) -> Self {
+        Self(value)
+    }
 
     fn from<'a, I>(interp: &I) -> Result<Self, Acv>
     where
@@ -270,13 +276,11 @@ impl MemMapped for KBSR {
     {
         // Bit 15: Ready
         // Bit 14: Interrupt Enabled
-        let word =
-            ((Input::current_data_unread(interp.get_peripherals()) as Word) << 15) |
-            ((Input::interrupts_enabled(interp.get_peripherals()) as Word) << 14);
+        let word = ((Input::current_data_unread(interp.get_peripherals()) as Word) << 15)
+            | ((Input::interrupts_enabled(interp.get_peripherals()) as Word) << 14);
 
         Ok(Self::with_value(word))
     }
-
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
     where
@@ -319,18 +323,19 @@ impl MemMapped for DSR {
     }
 
     fn from<'a, I>(interp: &I) -> Result<Self, Acv>
-        where
-            I: InstructionInterpreterPeripheralAccess<'a>,
-            <I as Deref>::Target: Peripherals<'a>,
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
-
-        Ok(Self::with_value((Output::current_data_written(interp.get_peripherals()) as Word) << 15))
+        Ok(Self::with_value(
+            (Output::current_data_written(interp.get_peripherals()) as Word) << 15,
+        ))
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
-        where
-            I: InstructionInterpreterPeripheralAccess<'a>,
-            <I as Deref>::Target: Peripherals<'a>,
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Output::set_interrupt_enable_bit(interp.get_peripherals_mut(), value.bit(1));
         Ok(())
@@ -355,17 +360,17 @@ impl MemMapped for DDR {
     }
 
     fn from<'a, I>(interp: &I) -> Result<Self, Acv>
-        where
-            I: InstructionInterpreterPeripheralAccess<'a>,
-            <I as Deref>::Target: Peripherals<'a>,
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Ok(Self::with_value(0 as Word))
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
-        where
-            I: InstructionInterpreterPeripheralAccess<'a>,
-            <I as Deref>::Target: Peripherals<'a>,
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
     {
         Output::write_data(interp.get_peripherals_mut(), value as u8);
         Ok(())
@@ -963,7 +968,6 @@ impl MemMapped for MCR {
 }
 
 impl MemMappedSpecial for MCR {}
-
 
 impl MCR {
     fn set_running_bit<'a, I>(&mut self, interp: &mut I, bit: bool)

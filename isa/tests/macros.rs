@@ -51,7 +51,7 @@ use pretty_assertions::assert_eq;
 //     .FILL #0x23u16;
 // };
 
-use lc3_isa::{Addr, Word, Instruction::*, Reg::*};
+use lc3_isa::{Addr, Instruction::*, Reg::*, Word};
 
 // TODO: actually go test const functionality with this...
 #[test]

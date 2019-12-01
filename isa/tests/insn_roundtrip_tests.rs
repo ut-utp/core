@@ -153,7 +153,6 @@ mod roundtrip_instruction_tests {
 
     use pretty_assertions::assert_eq;
 
-
     #[test]
     fn number_of_instructions() {
         assert_eq!(all_insns().count(), 39673);

@@ -41,7 +41,6 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
 
-
     #[test]
     fn get_milliseconds() {
         let clock = ClockShim::default();

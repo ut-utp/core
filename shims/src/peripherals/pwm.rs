@@ -156,7 +156,6 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-
     #[test]
     fn get_disabled() {
         let mut shim = PwmShim::new();

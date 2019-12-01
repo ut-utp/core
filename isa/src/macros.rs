@@ -307,13 +307,13 @@ macro_rules! reg {
 mod tests {
     const _REG_R7: Reg = reg!(R7);
 
+    use crate::util::AssembledProgram;
     use crate::{
         Addr,
         Instruction::{self, *},
         Reg::{self, *},
         Word,
     };
-    use crate::util::AssembledProgram;
 
     use core::convert::TryInto;
 

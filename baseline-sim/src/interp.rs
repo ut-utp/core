@@ -17,9 +17,9 @@ use lc3_isa::{
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 
-use lc3_traits::peripherals::{gpio::Gpio, timers::Timers, input::Input, output::Output};
+use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
 
-use super::mem_mapped::{MCR, MemMapped, MemMappedSpecial /*, BSP, PSR*/};
+use super::mem_mapped::{MemMapped, MemMappedSpecial /*, BSP, PSR*/, MCR};
 
 // TODO: Break up this file!
 
@@ -550,7 +550,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'
     }
 }
 impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
-
     pub fn init(&mut self, flags: &'a PeripheralInterruptFlags) {
         Gpio::<'a>::register_interrupt_flags(&mut self.peripherals, &flags.gpio);
         Timers::<'a>::register_interrupt_flags(&mut self.peripherals, &flags.timers);
@@ -939,7 +938,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
             devices!(
                 KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR            )
+                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
+            )
         } else {
             self.get_word_force_memory_backed(addr)
         }

@@ -297,8 +297,7 @@ pub fn __() -> () {}
 
 pub mod util {
     /// Associated types and other weird bits for the LC-3 ISA.
-
-    use crate::{Word, Addr, ADDR_SPACE_SIZE_IN_WORDS};
+    use crate::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS};
     use core::ops::{Deref, DerefMut};
 
     // Newtype
@@ -307,11 +306,15 @@ pub mod util {
     impl Deref for MemoryDump {
         type Target = [Word; ADDR_SPACE_SIZE_IN_WORDS];
 
-        fn deref(&self) -> &Self::Target { &self.0 }
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
     }
 
     impl DerefMut for MemoryDump {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
+        }
     }
 
     impl From<[Word; ADDR_SPACE_SIZE_IN_WORDS]> for MemoryDump {
@@ -336,7 +339,10 @@ pub mod util {
         fn from(memory: AssembledProgram) -> Self {
             let mut mem: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0; ADDR_SPACE_SIZE_IN_WORDS];
 
-            memory.iter().enumerate().for_each(|(idx, (w, _))| mem[idx] = *w);
+            memory
+                .iter()
+                .enumerate()
+                .for_each(|(idx, (w, _))| mem[idx] = *w);
 
             Self(mem)
         }
@@ -354,11 +360,15 @@ pub mod util {
     impl Deref for AssembledProgram {
         type Target = AssembledProgramInner;
 
-        fn deref(&self) -> &Self::Target { &self.0 }
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
     }
 
     impl DerefMut for AssembledProgram {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0 }
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.0
+        }
     }
 
     impl From<AssembledProgramInner> for AssembledProgram {
@@ -372,7 +382,8 @@ pub mod util {
         fn to_memory_dump(self) -> MemoryDump {
             let mut mem: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0; ADDR_SPACE_SIZE_IN_WORDS];
 
-            self.into_iter().for_each(|(addr, word)| mem[addr as usize] = word);
+            self.into_iter()
+                .for_each(|(addr, word)| mem[addr as usize] = word);
 
             mem.into()
         }
@@ -431,12 +442,15 @@ pub mod util {
     //     }
     // }
 
-    use core::{slice::Iter, iter::{Enumerate, Map, Filter}};
+    use core::{
+        iter::{Enumerate, Filter, Map},
+        slice::Iter,
+    };
 
     impl<'a> IntoIterator for &'a MemoryDump {
         type Item = (Addr, Word);
         // type IntoIter = MemoryDumpLoadableIterator<'a>;
-        type IntoIter = Map<Enumerate<Iter<'a, Word>>, &'a dyn Fn((usize, &Word),) -> (Addr, Word)>;
+        type IntoIter = Map<Enumerate<Iter<'a, Word>>, &'a dyn Fn((usize, &Word)) -> (Addr, Word)>;
 
         fn into_iter(self) -> Self::IntoIter {
             // MemoryDumpLoadableIterator {
@@ -444,8 +458,7 @@ pub mod util {
             //     position: Some(0),
             // }
 
-            self
-                .iter()
+            self.iter()
                 .enumerate()
                 .map(&|(idx, word)| (idx as Addr, *word))
         }
@@ -455,25 +468,20 @@ pub mod util {
 
     impl<'a> IntoIterator for &'a AssembledProgram {
         type Item = (Addr, Word);
-        type IntoIter =
-            Map<
-                Filter<
-                    Enumerate<
-                        Iter<'a, (Word, bool)>
-                    >,
-                    &'a dyn Fn(&(usize, &(u16, bool))) -> bool
-                >,
-                &'a dyn Fn((usize, &(Word, bool)),) -> (Addr, Word)
-            >;
+        type IntoIter = Map<
+            Filter<Enumerate<Iter<'a, (Word, bool)>>, &'a dyn Fn(&(usize, &(u16, bool))) -> bool>,
+            &'a dyn Fn((usize, &(Word, bool))) -> (Addr, Word),
+        >;
 
         #[allow(trivial_casts)]
         fn into_iter(self) -> Self::IntoIter {
-
-            self
-                .iter()
+            self.iter()
                 .enumerate()
                 // .filter(&|(_, (_, set)): &(usize, &(Word, bool))| *set) // I have no idea why this doesn't work
-                .filter((&|(_, (_, set)): &(usize, &(Word, bool))| *set) as &(dyn Fn(&(usize, &(u16, bool))) -> bool)) // This cast is marked as trivial but it's not, apparently
+                .filter(
+                    (&|(_, (_, set)): &(usize, &(Word, bool))| *set)
+                        as &(dyn Fn(&(usize, &(u16, bool))) -> bool),
+                ) // This cast is marked as trivial but it's not, apparently
                 // .filter(ASSEMBLED_PROGRAM_FILTER_FUNC)
                 .map(&|(idx, (word, _)): (usize, &(Word, bool))| (idx as Addr, *word))
         }
