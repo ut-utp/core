@@ -117,8 +117,11 @@ mod tests {
     #[test]
     fn write_one() {
         let vec = Vec::new();
+        let flag = AtomicBool::new(false);
         let mut sink = Mutex::new(vec);
         let mut shim = OutputShim::with_ref(&mut sink);
+        shim.register_interrupt_flag(&flag);
+
         // let mut shim = OutputShim { sink: OwnedOrRef::Ref(&mut sink) };
         let ch0 = 'A' as u8;
         let res = shim.write_data(ch0);
@@ -130,8 +133,11 @@ mod tests {
     #[test]
     fn write_multiple() {
         let vec = Vec::new();
+        let flag = AtomicBool::new(false);
         let mut sink = Mutex::new(vec);
         let mut shim = OutputShim::with_ref(&mut sink);
+        shim.register_interrupt_flag(&flag);
+
         let ch0 = 'L' as u8;
         let ch1 = 'C' as u8;
         let ch2 = '-' as u8;
@@ -152,10 +158,12 @@ mod tests {
     // Annoyingly, this does not fail.
     fn write_too_much() {
         let mut buf: [u8; 1] = [0];
+        let flag = AtomicBool::new(false);
         let thing = &mut buf.as_mut();
         let sink = Mutex::new(thing);
-
         let mut shim = OutputShim::with_ref(&sink);
+        shim.register_interrupt_flag(&flag);
+
         let ch0 = 'Y' as u8;
         let ch1 = 'P' as u8;
         shim.write_data(ch0).unwrap();
