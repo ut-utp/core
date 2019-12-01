@@ -273,8 +273,6 @@ macro_rules! program {
         $(
             #[allow(non_snake_case)]
             let $label: $crate::Addr = $addr;
-            // lc3_macros::create_label!($label $addr);`
-            // let lc3_macros::lifetime_to_ident!($label): Addr = $addr;
         )?
         $addr += 1;
 
@@ -307,7 +305,7 @@ macro_rules! reg {
 
 #[cfg(test)]
 mod tests {
-    const REG_R7: Reg = reg!(R7);
+    const _REG_R7: Reg = reg!(R7);
 
     use crate::{
         Addr,
@@ -416,8 +414,8 @@ mod tests {
         );
     }
 
-    #[should_panic]
     #[test]
+    #[should_panic]
     fn add_imm_out_of_range() {
         let _ = insn!(ADD R0, R5, #16);
     }
