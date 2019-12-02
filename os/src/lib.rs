@@ -43,7 +43,7 @@
 #![doc(test(attr(deny(warnings))))]
 #![doc(html_logo_url = "")] // TODO!
 
-// Mark the crate as no_std if the `no_std` feature is enabled.
+// We're a no_std crate!
 #![no_std]
 
 pub const USER_PROG_START_ADDR: lc3_isa::Addr = 0x0400;
