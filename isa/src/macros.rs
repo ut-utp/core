@@ -238,6 +238,25 @@ macro_rules! program {
     //     println!("foo");
     // };
 
+    (%%contd, $addr:ident, $mem:ident | $(@$label:ident)? $(.)? FILL $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
+
+        // $(
+        //     #[allow(non_snake_case)]
+        //     let $label = $addr;
+        // )?
+
+        // If we want to be const, we'll have to disable this check (or find a workaround).
+        // Right now the blocker for being const is that we can't match (or deal with enum
+        // variants at all) which breaks our ability to convert `Instruction`s to `Word`s
+        // (which is fairly required).
+        if $mem[$addr as usize].1 { panic!("Overlap at {:#4X}!", $addr); }
+        $mem[$addr as usize] = ($crate::word!(FILL $($regs,)* $(#((($label_operand))))? $(#$num)*), true);
+
+        $addr += 1;
+
+        $crate::program!(%%contd, $addr, $mem | $($rest)*);
+    };
+
     (%%contd, $addr:ident, $mem:ident | $(@$label:ident)? $(.)? $op:ident $($regs:ident),* $(,)? $(@$label_operand:ident)? $(#$num:expr)? $(=> $($_a:ident$($_b:literal)?)*)?; $($rest:tt)* ) => {
 
         // $(
