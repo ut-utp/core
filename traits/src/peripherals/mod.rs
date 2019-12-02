@@ -10,15 +10,15 @@ pub mod timers;
 pub mod input;
 pub mod output;
 
-use adc::Adc;
-use clock::Clock;
-use core::marker::PhantomData;
-use gpio::Gpio;
-use pwm::Pwm;
-use timers::Timers;
+pub use gpio::Gpio;
+pub use adc::Adc;
+pub use pwm::Pwm;
+pub use timers::Timers;
+pub use clock::Clock;
+pub use input::Input;
+pub use output::Output;
 
-use input::Input;
-use output::Output;
+use core::marker::PhantomData;
 
 pub trait Peripherals<'p>:
     Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output<'p>

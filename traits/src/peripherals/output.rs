@@ -2,7 +2,6 @@
 use crate::peripheral_trait;
 
 use core::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 
 peripheral_trait! {output,
 pub trait Output<'a>: Default {
