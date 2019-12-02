@@ -59,12 +59,12 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x1D
         .FILL @UNKNOWN_TRAP; // 0x1E
         .FILL @UNKNOWN_TRAP; // 0x1F
-        .FILL @TRAP_GETC; // 0x20
-        .FILL @TRAP_OUT; // 0x21
-        .FILL @TRAP_PUTS; // 0x22
-        .FILL @TRAP_IN; // 0x23
-        .FILL @TRAP_PUTSP; // 0x24
-        .FILL @TRAP_HALT; // 0x25
+        .FILL @TRAP_GETC;    // 0x20
+        .FILL @TRAP_OUT;     // 0x21
+        .FILL @TRAP_PUTS;    // 0x22
+        .FILL @TRAP_IN;      // 0x23
+        .FILL @TRAP_PUTSP;   // 0x24
+        .FILL @TRAP_HALT;    // 0x25
         .FILL @UNKNOWN_TRAP; // 0x26
         .FILL @UNKNOWN_TRAP; // 0x27
         .FILL @UNKNOWN_TRAP; // 0x28
@@ -582,11 +582,11 @@ fn os() -> AssembledProgram {
             // Prepare to switch to the user program:
             LD R0, @USER_PROG_PSR_INIT; // Fetch the initial PSR for the user program:
 
-            ADD R6, R6, #-1;          // And then go push it onto the stack.
+            ADD R6, R6, #-1;            // And then go push it onto the stack.
             STR R0, R6, #0;
 
             LDI R0, @USER_PROG_START_ADDR_PTR; // Fetch the starting address of the program.
-            ADD R6, R6, #1;               // And push that onto the stack next.
+            ADD R6, R6, #-1;            // And push that onto the stack next.
             STR R0, R6, #0;
 
             // Finally start the program!
@@ -660,9 +660,9 @@ fn os() -> AssembledProgram {
                 LDI R1, @DSR;
                 BRzp @TRAP_OUT_WAIT; // Spin until the display is ready.
 
-            STI R0, @DDR;  // When it's ready, write the new character..
-            LD R1, @OS_R1; // ..restore R1..
-            RTI;           // ..and return.
+            STI R0, @DDR;        // When it's ready, write the new character..
+            LD R1, @TRAP_OUT_R1; // ..restore R1..
+            RTI;                 // ..and return.
 
         // PUTS: Outputs a string (null-terminated).
         //
