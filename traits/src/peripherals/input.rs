@@ -6,7 +6,7 @@ use core::sync::atomic::AtomicBool;
 peripheral_trait! {input,
 pub trait Input<'a>: Default {
     fn register_interrupt_flag(&mut self, flag: &'a AtomicBool);
-    fn interrupt_occurred(&mut self) -> bool;
+    fn interrupt_occurred(&self) -> bool;
 
     fn set_interrupt_enable_bit(&mut self, bit: bool);
     fn interrupts_enabled(&self) -> bool;
@@ -36,8 +36,8 @@ using_std! {
             RwLock::write(self).unwrap().register_interrupt_flag(flag)
         }
 
-        fn interrupt_occurred(&mut self) -> bool {
-            RwLock::write(self).unwrap().interrupt_occurred()
+        fn interrupt_occurred(&self) -> bool {
+            RwLock::read(self).unwrap().interrupt_occurred()
         }
 
         fn set_interrupt_enable_bit(&mut self, bit: bool) {

@@ -95,7 +95,7 @@ pub trait Timers<'a>: Default {
     // TODO: setting the period on an already running timer resets the timer, right?
     // TODO: period of zero? disabled, right?
     fn set_period(&mut self, timer: TimerId, ms: Word) -> Result<(), TimerMiscError>;  // Should this be infallible (TODO)
-    fn get_period(&self, timer: TimerId) -> Word;
+    fn get_period(&self, timer: TimerId) -> Word; // should be fallible? (i.e. what happens when we're disabled?)
     fn get_periods(&self) -> TimerArr<Word> {
         let mut periods = TimerArr([0u16; TimerId::NUM_TIMERS]);
 

@@ -126,7 +126,7 @@ impl<'b> Input<'b> for InputShim<'_, 'b> {
         }
     }
 
-    fn interrupt_occurred(&mut self) -> bool {
+    fn interrupt_occurred(&self) -> bool {
         self.current_data_unread()
     }
 

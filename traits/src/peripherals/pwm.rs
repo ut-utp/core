@@ -88,8 +88,10 @@ pub trait Pwm: Default {
 
         states
     }
-    fn get_pin(&self, pin: PwmPin) -> bool;
+    fn get_pin(&self, pin: PwmPin) -> bool; // TODO: should perhaps not be infallible (actually why does this even exist?)
     fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError>;
+
+    // TODO: why is this infallible?
     fn get_duty_cycle(&self, pin: PwmPin) -> u8; // This is u8 because u16 fractions seem excessive.
     fn get_duty_cycles(&self) -> PwmPinArr<u8> {
         let mut duty_cycles = PwmPinArr([0u8; PwmPin::NUM_PINS]);
