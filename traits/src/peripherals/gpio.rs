@@ -6,6 +6,8 @@ use core::ops::{Deref, Index, IndexMut};
 use crate::peripheral_trait;
 use core::sync::atomic::AtomicBool;
 
+use serde::{Deserialize, Serialize};
+
 // Switched to using enums to identify peripheral pin numbers; this way
 // referring to invalid/non-existent pin numbers isn't an error that peripheral
 // trait implementations have to deal with.
@@ -20,6 +22,7 @@ use core::sync::atomic::AtomicBool;
 
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
 
 impl GpioPin {
@@ -50,6 +53,7 @@ impl From<GpioPin> for usize {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum GpioState {
     Input,
     Output,
@@ -64,6 +68,7 @@ pub enum GpioState {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub struct GpioPinArr<T>(pub [T; GpioPin::NUM_PINS]);
 
 // For when we have const functions:
@@ -110,7 +115,9 @@ pub struct GpioMiscError;
 type GpioStateMismatch = (GpioPin, GpioState);
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub struct GpioReadError(pub GpioStateMismatch);
+#[derive(Serialize, Deserialize)]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct GpioWriteError(pub GpioStateMismatch);
 
