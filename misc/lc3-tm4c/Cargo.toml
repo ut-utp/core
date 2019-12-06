@@ -1,10 +1,18 @@
 [package]
 name = "lc3-tm4c"
 version = "0.1.0"
-authors = ["Rahul Butani <rr.butani@gmail.com>"]
+authors = ["UT UTP <ut.utp.group@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+workspace = "../../"
+
+# TODO: CI
+# TODO: README
+# TODO: CHANGELOG
+# TODO: all the other keys
+# TODO: lints and attributes for this crate
+# (this is very much just a proof of concept! not a prototype!!)
+# We'll do all these things when this graduates to being in its own repo
 
 [dependencies]
 cortex-m = "0.6.0"
@@ -12,9 +20,9 @@ cortex-m-rt = "0.6.10"
 cortex-m-semihosting = "0.3.3"
 panic-halt = "0.2.0"
 
-lc3-baseline-sim = { path = "../prototype/baseline-sim", version = "0.1.0", default-features = false, features = ["no_std"] }
-lc3-isa = { path = "../prototype/isa", version = "0.1.0", default-features = false, features = ["no_std"] }
-lc3-traits = { path = "../prototype/traits", version = "0.1.0", default-features = false, features = ["no_std"]  }
+lc3-baseline-sim = { path = "../../baseline-sim", version = "0.1.0", default-features = false, features = ["no_std"] }
+lc3-isa = { path = "../../isa", version = "0.1.0", default-features = false, features = ["no_std"] }
+lc3-traits = { path = "../../traits", version = "0.1.0", default-features = false, features = ["no_std"]  }
 
 [profile.release]
 codegen-units = 1 # better optimizations

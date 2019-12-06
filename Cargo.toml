@@ -8,6 +8,7 @@ members = [
     "baseline-sim",
     "macros",
     "os",
+    "misc/lc3-tm4c",
 ]
 
 # TODO: publish all w/CI (check versions match?)
