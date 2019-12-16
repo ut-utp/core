@@ -842,25 +842,24 @@ using_std! {
         }
     }
 
-    impl TransportLayer for MpscTransport {
-        fn send(&self, message: Message) -> Result<(), ()> {
-            let point = message;
-            let serialized = serde_json::to_string(&point).unwrap();
+    pub struct MpscTransport<EncodedFormat> {
+        tx: Sender<EncodedFormat>,
+        rx: Receiver<EncodedFormat>,
+    }
 
-            self.tx.send(serialized).unwrap();
+    impl<EncodedFormat> Transport<EncodedFormat> for MpscTransport<EncodedFormat> {
+        type Err = SendError<EncodedFormat>;
 
-            Ok(())
+        fn send(&self, message: EncodedFormat) -> Result<(), Self::Err> {
+            self.tx.send(message)
         }
 
         fn get(&self) -> Option<Message> {
-            let deserialized: Message = serde_json::from_str(&self.rx.recv().unwrap()).unwrap();
-
-            eprintln!("deserialized = {:?}", deserialized);
-            Some(deserialized)
+            self.try_recv().ok()
         }
     }
 
-    impl MpscTransport {
+    impl<EncodedFormat> MpscTransport<EncodedFormat> {
         pub fn new() -> (MpscTransport, MpscTransport) {
             mpsc_transport_pair()
         }
