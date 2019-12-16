@@ -124,62 +124,28 @@ pub enum ControlMessage {
     GetClockResponse(Word),
 }
 
-impl<T: TransportLayer> Control for Server<T> {
-    type EventFuture = CurrentEvent;
-    fn get_pc(&self) -> Addr {
-        let mut ret: u16 = 0;
-        self.transport.send(Message::GET_PC);
+pub trait Encoding {
+    type Encoded;
+    type Err: core::fmt::Debug;
 
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_PC_RETURN_VAL(addr) = m {
-                ret = addr;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-        //panic!();
+    fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err>;
+    fn decode(encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err>;
+}
+
+pub struct TransparentEncoding;
+
+impl Encoding for TransparentEncoding {
+    type Encoded = ControlMessage;
+    type Err = Infallible;
+
+    fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err> {
+        Ok(message)
     }
 
-    fn get_register(&self, reg: Reg) -> Word {
-        let mut ret: u16 = 0;
-        self.transport.send(Message::GET_REGISTER(reg));
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_REGISTER_RETURN_VAL(val) = m {
-                ret = val;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
+    fn decode(message: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
+        Ok(*message)
     }
-
-    fn set_register(&mut self, reg: Reg, data: Word) {
-        self.transport.send(Message::SET_REGISTER(reg, data));
-        if let Some(m) = self.transport.get() {
-            if let Message::SET_REGISTER_SUCCESS = m {
-            } else {
-                panic!();
-            }
-        }
-    } // Should be infallible.
-
-    // fn get_registers_and_pc(&self) -> ([Word; 9], Word); // TODO
-
-    fn write_word(&mut self, addr: Addr, word: Word) {
-        self.transport.send(Message::WRITE_WORD(addr, word));
-        if let Some(m) = self.transport.get() {
-            if let Message::WRITE_WORD_SUCCESS = m {
-            } else {
-                panic!();
-            }
-        }
-    }
+}
 
     fn read_word(&self, addr: Addr) -> Word {
         let mut ret: u16 = 0;
