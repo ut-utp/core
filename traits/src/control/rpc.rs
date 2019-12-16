@@ -1,119 +1,127 @@
 // extern crate futures; // 0.1.23
 // extern crate rand;
 
-use super::control::{Control, Event, State, MAX_BREAKPOINTS, MAX_MEMORY_WATCHES};
-use crate::error::Error;
+use super::control::{Control, Event, State, MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::error::Error as Lc3Error;
 use crate::memory::MemoryMiscError;
 use crate::peripherals::{adc::*, gpio::*, pwm::*, timers::*};
 use lc3_isa::Reg;
 
 use lc3_isa::*;
 
+use core::task::Waker;
 use core::future::Future;
 use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::task::{Context, Poll, RawWaker, RawWakerVTable};
+use core::convert::Infallible;
+use core::cell::Cell;
+use core::num::NonZeroU8;
+use core::sync::atomic::{AtomicBool, Ordering};
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
+
 use serde::{Deserialize, Serialize};
-//use std::sync::mpsc::{Receiver, Sender};
-
-static mut CURRENT_STATE: State = State::Paused; // TODO: what to do?
-
-pub struct CurrentEvent {
-    CurrentEvent: Event,
-    CurrentState: State,
-}
-
-impl Future for CurrentEvent {
-    type Output = Event;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        unsafe {
-            match CURRENT_STATE {
-                Paused => {
-                    CURRENT_STATE = State::Paused;
-                    Poll::Ready(Event::Interrupted)
-                }
-                _ => {
-                    cx.waker().clone().wake();
-                    Poll::Pending
-                }
-            }
-        }
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum Message {
-    GET_PC,
-    GET_PC_RETURN_VAL(Addr),
-    SET_PC(u16),
-    SET_PC_SUCCESS,
-    WRITE_WORD(u16, u16),
-    WRITE_WORD_SUCCESS,
-    READ_WORD(u16),
-    READ_WORD_RETURN_VAL(u16),
-    PAUSE,
-    PAUSE_SUCCESS,
-    SET_BREAKPOINT(u16),
-    SET_BREAKPOINT_SUCCESS,
-    UNSET_BREAKPOINT(usize),
-    UNSET_BREAKPOINT_SUCCESS,
-    GET_BREAKPOINTS,
-    GET_BREAKPOINTS_RETURN_VAL([Option<(Addr)>; MAX_BREAKPOINTS]),
-    GET_MAX_BREAKPOINTS,
-    SET_MEMORY_WATCH(u16, u16),
-    SET_MEMORY_WATCH_SUCCESS(Result<usize, ()>),
-    UNSET_MEMORY_WATCH(usize),
-    UNSET_MEMORY_WATCH_SUCCESS(Result<(), ()>),
-    GET_MEMORY_WATCHES,
-    GET_MEMORY_WATCHES_RETURN_VAL([Option<(Addr, Word)>; MAX_MEMORY_WATCHES]),
-    GET_MAX_MEMORY_WATCHES,
-    STEP,
-    STEP_RETURN_STATE(State),
-    RUN_UNTIL_EVENT,
-    ISSUED_RUN_UNTIL_EVENT,
-    SET_REGISTER(Reg, Word),
-    SET_REGISTER_SUCCESS,
-    GET_REGISTER(Reg),
-    GET_REGISTER_RETURN_VAL(u16),
-    COMMIT_MEMORY,
-    COMMIT_MEMORY_SUCCESS(Result<(), MemoryMiscError>),
-    GET_STATE,
-    GET_STATE_RETURN_VAL(State),
-    GET_GPIO_STATES,
-    GET_GPIO_STATES_RETURN_VAL(GpioPinArr<GpioState>),
-    GET_GPIO_READING,
-    GET_GPIO_READING_RETURN_VAL(GpioPinArr<Result<bool, GpioReadError>>),
-    GET_ADC_STATES,
-    GET_ADC_STATES_RETURN_VAL(AdcPinArr<AdcState>),
-    GET_ADC_READING,
-    GET_ADC_READING_RETURN_VAL(AdcPinArr<Result<u8, AdcReadError>>),
-    GET_TIMER_STATES,
-    GET_TIMER_STATES_RETURN_VAL(TimerArr<TimerState>),
-    GET_TIMER_CONFIG,
-    GET_TIMER_CONFIG_RETURN_VAL(TimerArr<Word>),
-    GET_PWM_STATES,
-    GET_PWM_STATES_RETURN_VAL(PwmPinArr<PwmState>),
-    GET_PWM_CONFIG,
-    GET_PWM_CONFIG_RETURN_VAL(PwmPinArr<u8>),
-    GET_CLOCK,
-    GET_CLOCK_RETURN_VAL(Word),
-}
+pub enum ControlMessage {
+    GetPcRequest,
+    GetPcResponse(Addr),
 
-pub trait TransportLayer {
-    fn send(&self, message: Message) -> Result<(), ()>;
+    SetPcRequest { addr: Addr },
+    SetPcSuccess,
 
-    fn get(&self) -> Option<Message>;
-}
+    GetRegisterRequest { reg: Reg },
+    GetRegisterResponse(Word),
 
-// TODO: Add tokio tracing to this (behind a feature flag) or just the normal
-// log crate.
+    SetRegisterRequest { reg: Reg, data: Word },
+    SetRegisterSuccess,
 
-// TODO: auto gen (proc macro, probably) the nice type up above from and the
-// crimes below.
+    // Optional, but we're including it in case implementors wish to do
+    // something special or just cut down on overhead.
+    GetRegistersPsrAndPcRequest,
+    GetRegistersPsrAndPcResponse([Word; Reg::NUM_REGS], Word, Word),
 
-// TODO: rename to Controller?
-pub struct Server<T: TransportLayer> {
-    pub transport: T,
+    ReadWordRequest { addr: Addr },
+    ReadWordResponse(Word),
+
+    WriteWordRequest { addr: Addr, word: Word },
+    WriteWordSuccess,
+
+    CommitMemoryRequest,
+    CommitMemoryResponse(Result<(), MemoryMiscError>),
+
+    SetBreakpointRequest { addr: Addr },
+    SetBreakpointResponse(Result<usize, ()>),
+
+    UnsetBreakpointRequest { idx: usize },
+    UnsetBreakpointResponse(Result<(), ()>),
+
+    GetBreakpointsRequest,
+    GetBreakpointsResponse([Option<Addr>; MAX_BREAKPOINTS]),
+
+    GetMaxBreakpointsRequest,
+    GetMaxBreakpointsResponse(usize),
+
+    SetMemoryWatchpointRequest { addr: Addr },
+    SetMemoryWatchpointResponse(Result<usize, ()>),
+
+    UnsetMemoryWatchpointRequest { idx: usize },
+    UnsetMemoryWatchpointResponse(Result<(), ()>),
+
+    GetMemoryWatchpointsRequest,
+    GetMemoryWatchpointsResponse([Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS]),
+
+    GetMaxMemoryWatchpointsRequest,
+    GetMaxMemoryWatchpointsResponse(usize),
+
+    // (TODO)
+    RunUntilEventRequest,
+    RunUntilEventResponse(Event, State),
+    // TODO: add a quick immediate response message (probably should do this!)
+    // (call it success!)
+
+    StepRequest,
+    StepResponse(State),
+
+    PauseRequest,
+    PauseSuccess,
+
+    GetStateRequest,
+    GetStateResponse(State),
+
+    ResetRequest,
+    ResetSuccess,
+
+    // (TODO)
+    GetErrorRequest,
+    GetErrorResponse(Option<Lc3Error>),
+
+    GetGpioStatesRequest,
+    GetGpioStatesResponse(GpioPinArr<GpioState>),
+
+    GetGpioReadingsRequest,
+    GetGpioReadingsResponse(GpioPinArr<Result<bool, GpioReadError>>),
+
+    GetAdcStatesRequest,
+    GetAdcStatesResponse(AdcPinArr<AdcState>),
+
+    GetAdcReadingsRequest,
+    GetAdcReadingsResponse(AdcPinArr<Result<u8, AdcReadError>>),
+
+    GetTimerStatesRequest,
+    GetTimerStatesResponse(TimerArr<TimerState>),
+
+    GetTimerConfigRequest,
+    GetTimerConfigResponse(TimerArr<Word>), // TODO
+
+    GetPwmStatesRequest,
+    GetPwmStatesResponse(PwmPinArr<PwmState>),
+
+    GetPwmConfigRequest,
+    GetPwmConfigResponse(PwmPinArr<u8>), // TODO
+
+    GetClockRequest,
+    GetClockResponse(Word),
 }
 
 impl<T: TransportLayer> Control for Server<T> {
