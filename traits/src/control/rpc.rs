@@ -317,230 +317,182 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     }
 }
 
-    fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] {
-        let mut ret: [Option<(Addr)>; MAX_BREAKPOINTS] = [None; MAX_BREAKPOINTS];
-        self.transport.send(Message::GET_BREAKPOINTS);
+#[derive(Debug)]
+pub enum SharedStateState { // TODO: bad name, I know
+    Errored,
+    Dormant,
+    WaitingForAnEvent { waker: Option<Waker>, count: NonZeroU8 },
+    WaitingForFuturesToResolve { pair: (Event, State), waker: Option<Waker>, count: NonZeroU8 },
+}
 
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_BREAKPOINTS_RETURN_VAL(val) = m {
-                ret = val;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
+impl Default for SharedStateState {
+    fn default() -> Self {
+        Self::Errored
+    }
+}
+
+pub struct SimpleEventFutureSharedState {
+    // waker: Cell<Option<Waker>>,
+    // count: AtomicU8,
+    // state: Cell<Option<(Event, State)>>,
+    inner: Cell<SharedStateState>
+}
+
+impl SimpleEventFutureSharedState {
+    const fn new() -> Self {
+        Self {
+            // waker: Cell::new(None),
+            // count: AtomicU8::new(0),
+            // state: Cell::new(None),
+            inner: Cell::new(SharedStateState::Dormant),
         }
+    }
+}
+
+impl EventFutureSharedState for SimpleEventFutureSharedState {
+
+    fn register_waker(&self, new_waker: Waker) {
+        use SharedStateState::*;
+        let s = self.inner.take();
+
+        match s {
+            Errored => unreachable!(),
+            Dormant => panic!("Invariant violated: waker registered on shared state that has no attached futures."),
+            WaitingForAnEvent { waker, count } => {
+                if let Some(old) = waker {
+                    if !new_waker.will_wake(&old) {
+                        // This should *not* panic since this property isn't guaranteed
+                        // even for the same future.
+                        panic!("New waker doesn't wake the same futures as the old waker.")
+                    }
+                }
+
+                self.inner.set(WaitingForAnEvent { waker: Some(new_waker), count } )
+            },
+            WaitingForFuturesToResolve { .. } => {
+                panic!("Future registered a waker even though the event has happened!");
+            }
+        }
+
+        // if let Some(old) = self.waker.get() {
+        //     if self.is_clean() {
+        //         panic!("Invariant violated: waker registered on shared state that has no attached futures.")
+        //     }
+
+        //     if !waker.will_wake(old) {
+        //         // This should *not* panic since this property isn't guaranteed
+        //         // even for the same future.
+        //         panic!("New waker doesn't wake the same futures as the old waker.")
+        //     }
+        // }
+
+        // self.waker.set(Some(waker))
+    }
+
+    fn wake(&self) {
+        use SharedStateState::*;
+        let s = self.inner.take();
+
+        self.inner.set(match s {
+            Errored | Dormant | WaitingForAnEvent { .. } => unreachable!(),
+            WaitingForFuturesToResolve { pair, waker, count } => {
+                if let Some(waker) = waker {
+                    waker.wake()
+                }
+
+                // We'll only call the waker once!
+                WaitingForFuturesToResolve { pair, waker: None, count }
+            }
+        });
+    }
+
+    fn set_event_and_state(&self, event: Event, state: State) {
+        use SharedStateState::*;
+        let s = self.inner.take();
+
+        self.inner.set(match s {
+            Errored | Dormant => panic!("Attempted to make an event without any futures!"),
+            WaitingForFuturesToResolve { .. } => panic!("Attempted to make multiple events in a batch!"),
+            WaitingForAnEvent { waker, count } => {
+                WaitingForFuturesToResolve { pair: (event, state), waker, count }
+            }
+        });
+    }
+
+    fn get_event_and_state(&self) -> Option<(Event, State)> {
+        use SharedStateState::*;
+        let s = self.inner.take();
+
+        let (next, ret) = match s {
+            Errored | Dormant => panic!("Unregistered future polled the state!"),
+            WaitingForFuturesToResolve { waker: Some(_), .. } => panic!("Waker persisted after batch was sealed!"),
+            s @ WaitingForAnEvent { .. } => (s, None),
+            WaitingForFuturesToResolve { pair, waker: None, count } => {
+                if count.get() == 1 {
+                    (Dormant, Some(pair))
+                } else {
+                    (
+                        WaitingForFuturesToResolve {
+                            pair,
+                            waker: None,
+                            count: NonZeroU8::new(count.get() - 1).unwrap(),
+                        },
+                        Some(pair)
+                    )
+                }
+            },
+        };
+
+        self.inner.set(next);
         ret
     }
 
-    fn get_max_breakpoints() -> usize {
-        // TODO: Actually proxy this
-        MAX_BREAKPOINTS
+    fn increment(&self) -> u8 {
+        use SharedStateState::*;
+        let s = self.inner.take();
+
+        let (next, ret) = match s {
+            Errored => unreachable!(),
+            WaitingForFuturesToResolve { .. } => panic!("Attempted to add a future to a sealed batch!"),
+            Dormant => {
+                (WaitingForAnEvent { waker: None, count: NonZeroU8::new(1).unwrap() }, 1)
+            },
+            WaitingForAnEvent { waker, count } => {
+                let count = count.get().checked_add(1).unwrap();
+                (WaitingForAnEvent { waker, count: NonZeroU8::new(count).unwrap() }, count)
+            }
+        };
+
+        self.inner.set(next);
+        ret
     }
 
-    fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()> {
-        self.transport.send(Message::SET_MEMORY_WATCH(addr, data));
-        let mut res: Result<usize, ()> = Err(());
-        // self.transport.send(Message::SET_MEMORY_WATCH(addr));
-        if let Some(m) = self.transport.get() {
-            if let Message::SET_MEMORY_WATCH_SUCCESS(ret) = m {
-                res = ret;
-            } else {
-                //res = Err(());
-                panic!();
-            }
-        }
+    fn batch_sealed(&self) -> bool {
+        let s = self.inner.take();
+
+        let res = if let SharedStateState::WaitingForFuturesToResolve { .. } = s {
+            true
+        } else {
+            false
+        };
+
+        self.inner.set(s);
         res
     }
 
-    fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()> {
-        self.transport.send(Message::UNSET_MEMORY_WATCH(idx));
-        let mut res: Result<(), ()> = Err(());
-        // self.transport.send(Message::SET_MEMORY_WATCH(addr));
-        if let Some(m) = self.transport.get() {
-            if let Message::UNSET_MEMORY_WATCH_SUCCESS(ret) = m {
-                res = ret;
-            } else {
-                panic!();
-            }
-        }
+    fn is_clean(&self) -> bool {
+        let s = self.inner.take();
+
+        let res = if let SharedStateState::Dormant = s {
+            true
+        } else {
+            false
+        };
+
+        self.inner.set(s);
         res
     }
-
-    fn get_memory_watches(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHES] {
-        let mut ret: [Option<(Addr, Word)>; MAX_MEMORY_WATCHES] = [None; MAX_MEMORY_WATCHES];
-        self.transport.send(Message::GET_MEMORY_WATCHES);
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_MEMORY_WATCHES_RETURN_VAL(val) = m {
-                ret = val;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-
-    fn get_max_memory_watches() -> usize {
-        MAX_MEMORY_WATCHES
-    }
-
-    // Execution control functions:
-    fn run_until_event(&mut self) -> Self::EventFuture {
-        self.transport.send(Message::RUN_UNTIL_EVENT);
-        if let Some(m) = self.transport.get() {
-            if let Message::ISSUED_RUN_UNTIL_EVENT = m {
-            } else {
-                panic!();
-            }
-        }
-        unsafe {
-            CURRENT_STATE = State::RunningUntilEvent;
-        }
-        CurrentEvent {
-            CurrentEvent: Event::Interrupted,
-            CurrentState: State::RunningUntilEvent,
-        }
-    } // Can be interrupted by step or pause.
-    fn step(&mut self) -> State {
-        let mut ret: State = State::Paused;
-        self.transport.send(Message::STEP);
-        if let Some(m) = self.transport.get() {
-            if let Message::STEP_RETURN_STATE(state) = m {
-                ret = state;
-            } else {
-                panic!();
-            }
-        }
-        ret
-    }
-    fn pause(&mut self) {
-        self.transport.send(Message::PAUSE);
-        if let Some(m) = self.transport.get() {
-            if let Message::PAUSE_SUCCESS = m {
-            } else {
-                panic!();
-            }
-        }
-    }
-
-    fn get_state(&self) -> State {
-        let mut ret: State = State::Paused;
-        self.transport.send(Message::GET_STATE);
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_STATE_RETURN_VAL(addr) = m {
-                ret = addr;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-
-    // TBD whether this is literally just an error for the last step or if it's the last error encountered.
-    // If it's the latter, we should return the PC value when the error was encountered.
-    //
-    // Leaning towards it being the error in the last step though.
-    fn get_error(&self) -> Option<Error> {
-        None
-    }
-
-    fn set_pc(&mut self, addr: Addr) {
-        //println!("came here4");
-        self.transport.send(Message::SET_PC(addr));
-        // println!("came here 7");
-        if let Some(m) = self.transport.get() {
-            if let Message::SET_PC_SUCCESS = m {
-            } else {
-                panic!();
-            }
-        }
-    } // Should be infallible.
-    fn get_gpio_states(&self) -> GpioPinArr<GpioState> {
-        let mut ret: GpioPinArr<GpioState>; // = State::Paused;
-        self.transport.send(Message::GET_GPIO_STATES);
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_GPIO_STATES_RETURN_VAL(states) = m {
-                ret = states;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-
-    fn get_gpio_reading(&self) -> GpioPinArr<Result<bool, GpioReadError>> {
-        let mut ret: GpioPinArr<Result<bool, GpioReadError>>; // = State::Paused;
-        self.transport.send(Message::GET_GPIO_READING);
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_GPIO_READING_RETURN_VAL(gpio) = m {
-                ret = gpio;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-
-    fn get_adc_states(&self) -> AdcPinArr<AdcState> {
-        let mut ret: AdcPinArr<AdcState>;
-        self.transport.send(Message::GET_ADC_STATES);
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_ADC_STATES_RETURN_VAL(adc) = m {
-                ret = adc;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>> {
-        let mut ret: AdcPinArr<Result<u8, AdcReadError>>; // = State::Paused;
-        self.transport.send(Message::GET_ADC_READING);
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_ADC_READING_RETURN_VAL(addr) = m {
-                ret = addr;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-    fn get_timer_states(&self) -> TimerArr<TimerState> {
-        let mut ret: TimerArr<TimerState>; // = State::Paused;
-        self.transport.send(Message::GET_TIMER_STATES);
-
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_TIMER_STATES_RETURN_VAL(addr) = m {
-                ret = addr;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-    fn get_timer_config(&self) -> TimerArr<Word> {
-        let mut ret: TimerArr<Word>; // = State::Paused;
-        self.transport.send(Message::GET_TIMER_CONFIG);
+}
 
         if let Some(m) = self.transport.get() {
             if let Message::GET_TIMER_CONFIG_RETURN_VAL(addr) = m {
