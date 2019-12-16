@@ -694,32 +694,55 @@ impl<T: TransportLayer> Client<T> {
     }
 }
 
-// pub struct MpscTransport {
-//     tx: Sender<std::string::String>,
-//     rx: Receiver<std::string::String>,
-// }
+using_std! {
+    use std::sync::RwLock;
+    use std::sync::mpsc::{Sender, Receiver, SendError};
 
-// impl TransportLayer for MpscTransport {
-//     fn send(&self, message: Message) -> Result<(), ()> {
-//         let point = message;
-//         let serialized = serde_json::to_string(&point).unwrap();
+    // TODO: this is a little silly since we've essentially got
+    // `RwLock<Cell<SharedStateState>>`. We can ditch the Cell since the RwLock
+    // affords us interior mutability.
+    //
+    // Didn't want to duplicate all the logic in the trait impl for
+    // `SimpleEventFutureSharedState` yet though, which is why this even exists.
+    struct SyncEventFutureSharedState(RwLock<SimpleEventFutureSharedState>);
 
-//         self.tx.send(serialized).unwrap();
+    impl SyncEventFutureSharedState {
+        // This, unfortunately, can't be const. Users will need to use
+        // lazy_static or something similar.
+        fn new() -> Self {
+            Self(RwLock::new(SimpleEventFutureSharedState::new()))
+        }
+    }
 
-//         Ok(())
-//     }
+    impl EventFutureSharedState for SyncEventFutureSharedState {
+        fn register_waker(&self, waker: Waker) {
+            self.write().register_waker(waker)
+        }
 
-//     fn get(&self) -> Option<Message> {
-//         let deserialized: Message = serde_json::from_str(&self.rx.recv().unwrap()).unwrap();
+        fn wake(&self) {
+            self.write().wake()
+        }
 
-//         println!("deserialized = {:?}", deserialized);
-//         Some(deserialized)
-//     }
-// }
+        fn set_event_and_state(&self, event: Event, state: State) {
+            self.write().set_event_and_state(event, state)
+        }
 
-// pub fn mpsc_transport_pair() -> (MpscTransport, MpscTransport) {
-//     let (tx_h, rx_h) = std::sync::mpsc::channel();
-//     let (tx_d, rx_d) = std::sync::mpsc::channel();
+        fn get_event_and_state(&self) -> Option<(Event, State)> {
+            self.write().get_event_and_state()
+        }
+
+        fn increment(&self) -> u8 {
+            self.write().increment()
+        }
+
+        fn batch_sealed(&self) -> bool {
+            self.read().batch_sealed()
+        }
+
+        fn is_clean(&self) -> bool {
+            self.read().is_clean()
+        }
+    }
 
 //     let host_channel = MpscTransport { tx: tx_h, rx: rx_d };
 //     let device_channel = MpscTransport { tx: tx_d, rx: rx_h };
