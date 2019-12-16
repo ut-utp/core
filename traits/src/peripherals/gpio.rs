@@ -109,23 +109,21 @@ impl<T> IndexMut<GpioPin> for GpioPinArr<T> {
 
 // pub type GpioPinArr<T> = [T; GpioPin::NUM_PINS];
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GpioMiscError;
 
 type GpioStateMismatch = (GpioPin, GpioState);
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GpioReadError(pub GpioStateMismatch);
-#[derive(Serialize, Deserialize)]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GpioWriteError(pub GpioStateMismatch);
 
 pub type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GpioReadErrors(pub GpioStateMismatches);
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
 
 // #[derive(Copy, Clone)]
