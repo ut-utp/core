@@ -674,41 +674,105 @@ where
     fn get_clock(&self) -> Word { ctrl!(self, GetClockRequest, GetClockResponse(r), r) }
 }
 
-                GET_ADC_STATES => {
-                    let state = cont.get_adc_states();
-                    self.transport.send(GET_ADC_STATES_RETURN_VAL(state));
-                }
+// Check for messages and execute them on something that implements the control
+// interface.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct Device<E, T, C>
+where
+    E: Encoding,
+    T: Transport<<E as Encoding>::Encoded>,
+    C: Control,
+    // <C as Control>::EventFuture: Unpin,
+{
+    pub encoding: E,
+    pub transport: T,
+    _c: PhantomData<C>,
+    pending_event_future: Option<Pin<C::EventFuture>>,
+}
 
-                GET_TIMER_STATES => {
-                    let state = cont.get_timer_states();
-                    self.transport.send(GET_TIMER_STATES_RETURN_VAL(state));
-                }
+impl<E, T, C> Device<E, T, C>
+where
+    E: Encoding,
+    T: Transport<<E as Encoding>::Encoded>,
+    C: Control,
+    // <C as Control>::EventFuture: Unpin,
+{
+    const fn new(encoding: E, transport: T) -> Self {
+        Self {
+            encoding,
+            transport,
+            _c: PhantomData,
+            pending_event_future: None,
+        }
+    }
+}
 
-                GET_TIMER_CONFIG => {
-                    let state = cont.get_timer_config();
-                    self.transport.send(GET_TIMER_CONFIG_RETURN_VAL(state));
-                }
+static RAW_WAKER: RawWaker = RawWaker::new(
+    &(),
+    &RawWakerVTable::new(
 
-                GET_PWM_STATES => {
-                    let state = cont.get_pwm_states();
-                    self.transport.send(GET_PWM_STATES_RETURN_VAL(state));
-                }
+    )
+);
 
-                GET_PWM_CONFIG => {
-                    let state = cont.get_pwm_config();
-                    self.transport.send(GET_PWM_CONFIG_RETURN_VAL(state));
-                }
+impl<E, T, C> Device<E, T, C>
+where
+    E: Encoding,
+    T: Transport<<E as Encoding>::Encoded>,
+    C: Control,
+    // <C as Control>::EventFuture: Unpin,
+    // <C as Control>::EventFuture: Deref<Target = <C as Control>::EventFuture>,
+    <C as Control>::EventFuture: Deref,
+    <C as Control>::EventFuture: DerefMut,
+    <<C as Control>::EventFuture as Deref>::Target: Future<Output = (Event, State)>,
+    <<C as Control>::EventFuture as Deref>::Target: Unpin,
+{
+    pub fn step(&mut self, c: &mut C) -> usize {
+        use ControlMessage::*;
+        let mut num_processed_messages = 0;
 
-                GET_CLOCK => {
-                    let state = cont.get_clock();
-                    self.transport.send(GET_CLOCK_RETURN_VAL(state));
-                }
+        if let Some(f) = self.pending_event_future {
+            if let Poll::Ready((event, state)) = f.as_mut().poll(&mut Context::from_waker(&Waker::from_raw(RAW_WAKER))) {
+                self.pending_event_future = None;
 
-                _ => unreachable!(),
+                let enc = E::encode(RunUntilEventResponse(event, state)).unwrap();
+                self.transport.send(enc).unwrap();
             }
         }
 
-        num_executed_messages
+        while let Some(m) = self.transport.get().map(|enc| E::decode(&enc).unwrap()) {
+            num_processed_messages += 1;
+
+            macro_rules! dev {
+                ($(($req:pat, $resp:pat, $resp_expr:expr))*) => {
+                    #[forbid(unreachable_patterns)]
+                    match m {
+                        RunUntilEventRequest => {
+                            if self.pending_event_future.is_some() {
+                                panic!() // TODO: write a message
+                            } else {
+                                self.pending_event_future = Some(Pin::new(c.run_until_event()));
+                            }
+                        },
+                        RunUntilEventResponse(_, _) => panic!("Received a run_until_event response on the device side!"),
+                        $(
+                            $req => self.transport.send(E::encode($resp_expr).unwrap()).unwrap(),
+                            $resp => panic!("Received a response on the device side!"),
+                        )*
+                    }
+
+                };
+            }
+
+            dev!{
+                (GetPcRequest, GetPcResponse(_), GetPcResponse(c.get_pc()))
+                (SetPcRequest { addr }, SetPcSuccess, { c.set_pc(addr); SetPcSuccess })
+
+                (GetRegisterRequest { reg }, GetRegisterResponse(_), GetRegisterResponse(c.get_register(reg)))
+                (SetRegisterRequest { reg, data }, SetRegisterSuccess, { c.set_register(reg, data); SetRegisterSuccess })
+            };
+        }
+
+        num_processed_messages
     }
 }
 
