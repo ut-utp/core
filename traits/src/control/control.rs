@@ -5,29 +5,30 @@
 //! Control; instead the 'shim' is an instruction level simulator that lives in
 //! the [interp module](crate::interp).
 
-use super::error::Error;
+use crate::error::Error;
 use crate::memory::MemoryMiscError;
 use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
 use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
 use crate::peripherals::timers::{TimerArr, TimerState};
-use core::future::Future;
+
 use lc3_isa::{Addr, Reg, Word, PSR};
+
+use core::future::Future;
+
 use serde::{Deserialize, Serialize};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHES: usize = 10;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
     Interrupted, // If we get paused or stepped, this is returned.
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum State {
     Paused,
     RunningUntilEvent,
