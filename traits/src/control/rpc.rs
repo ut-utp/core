@@ -504,157 +504,175 @@ impl<'a, S: EventFutureSharedStatePorcelain> Future for EventFuture<'a, S> {
     }
 }
 
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_PWM_STATES_RETURN_VAL(states) = m {
-                ret = states;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-    fn get_pwm_config(&self) -> PwmPinArr<u8> {
-        let mut ret: PwmPinArr<u8>;
-        self.transport.send(Message::GET_PWM_CONFIG);
+// TODO: Add tokio tracing to this (behind a feature flag) or just the normal
+// log crate.
 
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_PWM_CONFIG_RETURN_VAL(conf) = m {
-                ret = conf;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
-    }
-    fn get_clock(&self) -> Word {
-        16
-    }
-    fn reset(&mut self) {}
-}
+// TODO: auto gen (proc macro, probably) the nice type up above from and the
+// crimes below.
 
-// TODO: rename to Device? Or Source?
-/// Check for messages and execute them on something that implements the control
-/// interface.
-pub struct Client<T: TransportLayer> {
+#[derive(Debug)]
+pub struct Controller<'a, E, T, S>
+where
+    E: Encoding,
+    T: Transport<<E as Encoding>::Encoded>,
+    S: EventFutureSharedState,
+{
+    pub encoding: E,
     pub transport: T,
+    // pending_messages: Cell<[Option<ControlMessage>; 2]>,
+    // pending_messages: [Option<ControlMessage>; 2],
+    shared_state: &'a S,
+    waiting_for_event: AtomicBool, // TODO: no reason for this to be Atomic
+    // waiting_for_event: bool,
 }
 
-impl<T: TransportLayer> Client<T> {
-    pub fn step<C: Control>(&mut self, cont: &mut C) -> usize {
-        let mut num_executed_messages = 0;
+impl<'a, E, T, S> Controller<'a, E, T, S>
+where
+    E: Encoding,
+    T: Transport<<E as Encoding>::Encoded>,
+    S: EventFutureSharedState,
+{
+    const fn new(encoding: E, transport: T, shared_state: &'a S) -> Self {
+        Self {
+            encoding,
+            transport,
+            // pending_messages: Cell::new([None; 2]),
+            // pending_messages: [None; 2],
+            shared_state,
+            waiting_for_event: AtomicBool::new(false),
+            // waiting_for_event: false,
+        }
+    }
+}
 
-        while let Some(m) = self.transport.get() {
-            use Message::*;
+impl<'a, E, T, S> Controller<'a, E, T, S>
+where
+    E: Encoding,
+    T: Transport<<E as Encoding>::Encoded>,
+    S: EventFutureSharedStatePorcelain,
+{
+    // For now, we're going to assume sequential consistency (we receive
+    // responses to messages in the same order we filed the requests). (TODO)
+    //
+    // Responses to our one non-blocking call (`run_until_event`) are the only
+    // thing that could interrupt this.
+    fn tick(&self) -> Option<ControlMessage> {
+        let encoded_message = self.transport.get()?;
+        let message = E::decode(&encoded_message).unwrap();
 
-            num_executed_messages += 1;
+        if let ControlMessage::RunUntilEventResponse(event, state) = message {
+            if self.waiting_for_event.load(Ordering::SeqCst) {
+                self.shared_state.resolve_all(event, state).unwrap();
+                self.waiting_for_event.store(false, Ordering::SeqCst);
 
-            match m {
-                GET_PC => {
-                    self.transport.send(GET_PC_RETURN_VAL(cont.get_pc()));
+                None
+            } else {
+                // Something has gone very wrong.
+                // We were told an event happened but we never asked.
+                unreachable!()
+            }
+        } else {
+            Some(message)
+        }
+    }
+}
+
+
+macro_rules! ctrl {
+    ($s:ident, $req:expr, $resp:pat$(, $ret:expr)?) => {{
+        use ControlMessage::*;
+        $s.transport.send(E::encode($req).unwrap()).unwrap();
+
+        loop {
+            if let Some(m) = $s.tick() {
+                if let $resp = m {
+                    break $($ret)?
+                } else {
+                    panic!("Incorrect response for message!")
                 }
+            }
+        }
+    }};
+}
 
-                GET_PC_RETURN_VAL(h) => {}
 
-                SET_PC(val) => {
-                    cont.set_pc(val);
-                    self.transport.send(SET_PC_SUCCESS);
-                }
+impl<'a, E, T, S> Control for Controller<'a, E, T, S>
+where
+    E: Encoding,
+    T: Transport<<E as Encoding>::Encoded>,
+    S: EventFutureSharedStatePorcelain,
+{
+    type EventFuture = EventFuture<'a, S>;
 
-                SET_REGISTER(reg, word) => {
-                    cont.set_register(reg, word);
-                    self.transport.send(SET_REGISTER_SUCCESS);
-                }
+    fn get_pc(&self) -> Addr { ctrl!(self, GetPcRequest, GetPcResponse(addr), addr) }
+    fn set_pc(&mut self, addr: Addr) { ctrl!(self, SetPcRequest { addr }, SetPcSuccess) }
 
-                RUN_UNTIL_EVENT => {
-                    cont.run_until_event();
-                    self.transport.send(ISSUED_RUN_UNTIL_EVENT);
-                }
+    fn get_register(&self, reg: Reg) -> Word { ctrl!(self, GetRegisterRequest { reg }, GetRegisterResponse(word), word) }
+    fn set_register(&mut self, reg: Reg, data: Word) { ctrl!(self, SetRegisterRequest { reg, data }, SetRegisterResponse) }
 
-                WRITE_WORD(word, value) => {
-                    cont.write_word(word, value);
-                    self.transport.send(WRITE_WORD_SUCCESS);
-                }
+    fn get_registers_psr_and_pc(&self) -> ([Word; Reg::NUM_REGS], Word, Word) {
+        ctrl!(self, GetRegistersPsrAndPcRequest, GetRegistersPsrAndPcResponse(r, psr, pc), (r, psr, pc))
+    }
 
-                PAUSE => {
-                    cont.pause();
-                    self.transport.send(PAUSE_SUCCESS);
-                }
+    fn read_word(&self, addr: Addr) -> Word { ctrl!(self, ReadWordRequest { addr }, ReadWordResponse(w), w) }
+    fn write_word(&mut self, addr: Addr, word: Word) { ctrl!(self, WriteWordRequest { addr, word }, WriteWordSuccess) }
+    fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
+        ctrl!(self, CommitMemoryRequest, CommitMemoryResponse(r), r)
+    }
 
-                SET_BREAKPOINT(addr) => {
-                    cont.set_breakpoint(addr);
-                    self.transport.send(SET_BREAKPOINT_SUCCESS);
-                }
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+        ctrl!(self, SetBreakpointRequest { addr }, SetBreakpointResponse(r), r)
+    }
+    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
+        ctrl!(self, UnsetBreakpointRequest { idx }, UnsetBreakpointResponse(r), r)
+    }
+    fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] { ctrl!(self, GetBreakpointsRequest, GetBreakpointsResponse(r), r) }
+    fn get_max_breakpoints(&self) -> usize { ctrl!(self, GetMaxBreakpointsRequest, GetMaxBreakpointsResponse(r), r) }
 
-                UNSET_BREAKPOINT(addr) => {
-                    cont.unset_breakpoint(addr);
-                    self.transport.send(UNSET_BREAKPOINT_SUCCESS);
-                }
+    fn set_memory_watchpoint(&mut self, addr: Addr, data: Word) -> Result<usize, ()> {
+        ctrl!(self, SetMemoryWatchpointRequest { addr }, SetMemoryWatchpointResponse(r), r)
+    }
+    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
+        ctrl!(self, UnsetMemoryWatchpointRequest { idx }, UnsetBreakpointResponse(r), r)
+    }
+    fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS] { ctrl!(self, GetMemoryWatchpointsRequest, GetMemoryWatchpointsResponse(r), r) }
+    fn get_max_memory_watchpoints(&self) -> usize { ctrl!(self, GetMaxMemoryWatchpointsRequest, GetMaxMemoryWatchpointsResponse(r), r) }
 
-                GET_BREAKPOINTS => {
-                    let breaks = cont.get_breakpoints();
-                    self.transport.send(GET_BREAKPOINTS_RETURN_VAL(breaks));
-                }
+    // Execution control functions:
+    fn run_until_event(&mut self) -> Self::EventFuture {
+        // If we're in a sealed batch with pending futures, just crash.
+        self.shared_state.add_new_future().expect("no new futures once a batch starts to resolve");
 
-                SET_MEMORY_WATCH(addr, word) => {
-                    let res = cont.set_memory_watch(addr, word);
-                    self.transport.send(SET_MEMORY_WATCH_SUCCESS(res));
-                }
+        // If we're already waiting for an event, don't bother sending the
+        // request along again:
+        if !self.waiting_for_event.load(Ordering::SeqCst) {
+            self.transport.send(E::encode(ControlMessage::RunUntilEventRequest).unwrap()).unwrap();
+            self.waiting_for_event.store(true, Ordering::SeqCst);
+        }
 
-                UNSET_MEMORY_WATCH(idx) => {
-                    let res = cont.unset_memory_watch(idx);
-                    self.transport.send(UNSET_MEMORY_WATCH_SUCCESS(res));
-                }
+        EventFuture(self.shared_state)
+    }
 
-                GET_MAX_BREAKPOINTS => (),    // TODO: do
+    fn step(&mut self) -> State { ctrl!(self, StepRequest, StepResponse(r), r) }
+    fn pause(&mut self) { ctrl!(self, PauseRequest, PauseSuccess) }
 
-                GET_MAX_MEMORY_WATCHES => (), // TODO: do
+    fn get_state(&self) -> State { ctrl!(self, GetStateRequest, GetStateResponse(r), r) }
 
-                STEP => {
-                    let state = cont.step();
-                    self.transport.send(STEP_RETURN_STATE(state));
-                }
+    fn reset(&mut self) { ctrl!(self, ResetRequest, ResetSuccess) }
 
-                READ_WORD(addr) => {
-                    self.transport
-                        .send(READ_WORD_RETURN_VAL(cont.read_word(addr)));
-                }
-                GET_MEMORY_WATCHES => {
-                    cont.get_memory_watches();
-                }
+    fn get_error(&self) -> Option<Lc3Error> { ctrl!(self, GetErrorRequest, GetErrorResponse(r), r) }
 
-                GET_REGISTER(reg) => {
-                    self.transport
-                        .send(GET_REGISTER_RETURN_VAL(cont.get_register(reg)));
-                }
-
-                COMMIT_MEMORY => {
-                    let res = cont.commit_memory();
-                    self.transport.send(COMMIT_MEMORY_SUCCESS(res));
-                }
-
-                GET_STATE => {
-                    let state = cont.get_state();
-                    self.transport.send(GET_STATE_RETURN_VAL(state));
-                }
-
-                GET_GPIO_STATES => {
-                    let state = cont.get_gpio_states();
-                    self.transport.send(GET_GPIO_STATES_RETURN_VAL(state));
-                }
-
-                GET_GPIO_READING => {
-                    let state = cont.get_gpio_reading();
-                    self.transport.send(GET_GPIO_READING_RETURN_VAL(state));
-                }
-
-                GET_ADC_READING => {
-                    let state = cont.get_adc_reading();
-                    self.transport.send(GET_ADC_READING_RETURN_VAL(state));
-                }
+    // I/O Access:
+    fn get_gpio_states(&self) -> GpioPinArr<GpioState> { ctrl!(self, GetGpioStatesRequest, GetGpioStatesResponse(r), r) }
+    fn get_gpio_readings(&self) -> GpioPinArr<Result<bool, GpioReadError>> { ctrl!(self, GetGpioReadingsRequest, GetGpioReadingsResponse(r), r) }
+    fn get_adc_states(&self) -> AdcPinArr<AdcState> { ctrl!(self, GetAdcStatesRequest, GetAdcStatesResponse(r), r) }
+    fn get_adc_readings(&self) -> AdcPinArr<Result<u8, AdcReadError>> { ctrl!(self, GetAdcReadingsRequest, GetAdcReadingsResponse(r), r) }
+    fn get_timer_states(&self) -> TimerArr<TimerState> { ctrl!(self, GetTimerStatesRequest, GetTimerStatesResponse(r), r) }
+    fn get_timer_config(&self) -> TimerArr<Word> { ctrl!(self, GetTimerConfigRequest, GetTimerConfigResponse(r), r) }
+    fn get_pwm_states(&self) -> PwmPinArr<PwmState> { ctrl!(self, GetPwmStatesRequest, GetPwmStatesResponse(r), r) }
+    fn get_pwm_config(&self) -> PwmPinArr<u8> { ctrl!(self, GetPwmConfigRequest, GetPwmConfigResponse(r), r) }
+    fn get_clock(&self) -> Word { ctrl!(self, GetClockRequest, GetClockResponse(r), r) }
+}
 
                 GET_ADC_STATES => {
                     let state = cont.get_adc_states();
