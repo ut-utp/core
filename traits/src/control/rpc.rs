@@ -147,63 +147,175 @@ impl Encoding for TransparentEncoding {
     }
 }
 
-    fn read_word(&self, addr: Addr) -> Word {
-        let mut ret: u16 = 0;
-        self.transport.send(Message::READ_WORD(addr));
-        if let Some(m) = self.transport.get() {
-            if let Message::READ_WORD_RETURN_VAL(word) = m {
-                ret = word;
-            } else {
-                panic!();
-            }
+pub trait Transport<EncodedFormat> {
+    type Err: core::fmt::Debug;
+
+    fn send(&self, message: EncodedFormat) -> Result<(), Self::Err>;
+
+    // None if no messages were sent, Some(message) otherwise.
+    fn get(&self) -> Option<EncodedFormat>; // TODO: should this be wrapped in a Result?
+}
+
+// TODO: for now, getting multiple futures at once (i.e. calling run_until_event
+// twice) is somewhat undefined: at least one of the futures will eventually
+// resolve but there's no guarantee on which one it will be. Additionally, all
+// (or just more than one) of the futures may also resolve.
+
+/// All these functions take an immutable reference to self so that instances of
+/// the implementor can be shared between the future and the Controller
+/// implementation.
+///
+/// This trait does not require that implementors be Sync (a requirement imposed
+/// on Futures by certain executors) but some implementations will be (TODO).
+///
+/// Implementors are encouraged to provide a const-fn constructor so that
+/// instances of the implementation can be put into `static` variables and
+/// therefore be `'static' (this is desirable since most executors - at least
+/// those that don't use scoped thread pools - require that the futures they
+/// execute be static).
+///
+/// Here's how the flow is supposed to go.
+///
+/// First off we have to talk about what the discrete events are:
+///   N: New future: the producer makes a new Future and gives a reference to an
+///      instance of something that implements this trait. We'll call said
+///      instance the state from here on out. The producer will call increment
+///      on the state.
+///   R: A future that the producer made is polled. The future calls
+///      `get_event_and_state` to check if the producer has produced an event.
+///      If it has, the future resolves and never calls anything on the state
+///      again. The state decrements the count and if the count hits 0, drops
+///      the event. We'll call this event R.
+///   P: When the future goes to call `get_event_and_state` also possible is
+///      that the producer hasn't made an event yet, in which case the future
+///      simply registers its waker (again, potentially) and tries again later.
+///      We'll call this P.
+///   F: When the producer finally does make an event, it should inform the
+///      state so that R can happen.
+///
+/// A couple more things:
+///  - The first time `run_until_event` is called, a batch is created. Every
+///    subsequent call to `run_until_event` *until an event actually happens*
+///    produces a future that is part of this same batch.
+///  - (NOTE: this is very much an arbitrary decision; in the future we might
+///    decide that subsequent calls correspond to the next event, and the next
+///    next event and so on. However such a system is likely to be more
+///    confusing to users of the Control interface and will likely require a
+///    heap backed queue or deque which is at odds with our goal of no_std
+///    support. So, we'll stick with this system for now.)
+///  - The key invariant we're trying to maintain is that batches *do not
+///    overlap*. This means that once the producer makes an event, we cannot
+///    make new futures (doing so starts a new batch) until all the existing
+///    futures have resolved.
+///  - (NOTE: this is also extremely arbitrary! Unlike the above, this isn't
+///    very defensible; the primary reason we don't want batches to overlap
+///    is simplicity. We could totally have an instance of the
+///    `EventFutureSharedState` implementor per batch. This does, however, get
+///    complicated quickly because, as mentioned, this state needs to be static
+///    for many executors which makes having a variable number of them tricky.
+///    However, having a fixed number of slots is entirely doable (not sure what
+///    the failure mode would be though) and is something that can be done in
+///    the future).
+///
+/// Now we can talk about ordering:
+///  - We have to start with one or more Ns (since R, P, and F cannot happen
+///    unless N has happened).
+///  - From there futures can be polled (P) and new futures in the batch can be
+///    created in any order. R depends on F and thus cannot happen yet.
+///  - At some point, F will happen. Note that this can happen immediately after
+///    the first N.
+///  - Once F happens, the only thing that can follow F is X Rs where X is the
+///    number of Ns between F and the last F. P cannot happen since any polls
+///    will result in an R. We cannot allow new futures to be made (N) without
+///    having overlapping batches. And F cannot happen again for the batch.
+///
+/// As a regex, kind of: `N(P*N*)*F(R){X}`
+///
+/// An example: `NPPPPPNPPPPPNNNPNPNPNPPNPPPPPPPPPPPPFRRRRRRRRR`.
+///
+/// The reset (starting state) should be: no waker, no event, count = 0.
+///
+/// Producers and Futures should probably use this trait's less prickly cousin,
+/// [`EventFutureSharedStatePorcelain`], instead.
+pub trait EventFutureSharedState {
+    /// Implementors should hold onto at least the last waker passed in with
+    /// this method.
+    fn register_waker(&self, waker: Waker);
+
+    /// Calls wake on the implementor's inner Waker(s) (if one or more are
+    /// present).
+    fn wake(&self);
+
+    /// Should panic if called before all the futures depending on this instance
+    /// call get_event_and_state.
+    ///
+    /// In normal use producers (i.e. not Futures) should call `is_clean` before
+    /// calling this so that they don't panic.
+    ///
+    /// Implementors should not call `wake()` in this method. We'll let
+    /// producers do that.
+    fn set_event_and_state(&self, event: Event, state: State);
+
+    /// Returns the state if it is present.
+    ///
+    /// Each time this is called while state *is* present, the count should be
+    /// decremented. The state and any registered wakers disappear once the
+    /// count hits 0.
+    fn get_event_and_state(&self) -> Option<(Event, State)>;
+
+    /// Increments the count of the number of futures that are out and using
+    /// this instance to poll for the next event.
+    ///
+    /// Panics if we hit the maximum count.
+    fn increment(&self) -> u8;
+
+    /// `true` if `set_event_and_state` has been called on the state *and* there
+    /// are still pending futures that need to be resolved.
+    fn batch_sealed(&self) -> bool;
+
+    /// `true` if the instance has no pending futures out waiting for it to;
+    /// `false` otherwise.
+    ///
+    /// In other words, says whether or not the state is ready for a new batch.
+    ///
+    /// Note: this is no practical use for this function.
+    fn is_clean(&self) -> bool;
+}
+
+
+pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
+    /// To be called by Futures.
+    fn poll(&self, waker: Waker) -> Poll<(Event, State)> {
+        if let Some(pair) = self.get_event_and_state() {
+            Poll::Ready(pair)
         } else {
-            panic!();
+            self.register_waker(waker);
+            Poll::Pending
         }
-        ret
     }
 
-    fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
-        let mut res: Result<(), MemoryMiscError>; // = Err(());
-        self.transport.send(Message::COMMIT_MEMORY);
-        if let Some(m) = self.transport.get() {
-            if let Message::COMMIT_MEMORY_SUCCESS(status) = m {
-                res = status;
-            } else {
-                panic!();
-            }
+    /// To be called by producers.
+    fn add_new_future(&self) -> Result<&Self, ()> {
+        if self.batch_sealed() {
+            Err(())
         } else {
-            panic!();
+            self.increment();
+            Ok(self)
         }
-        res
     }
 
-    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
-        let mut res: Result<usize, ()> = Err(());
-        self.transport.send(Message::SET_BREAKPOINT(addr));
-        if let Some(m) = self.transport.get() {
-            if let Message::SET_BREAKPOINT_SUCCESS = m {
-                res = Ok(1)
-            } else {
-                res = Err(());
-            }
-        }
-        res
-    }
+    /// To be called by producers.
+    fn resolve_all(&self, event: Event, state: State) -> Result<(), ()> {
+        if self.batch_sealed() {
+            Err(())
+        } else {
+            self.set_event_and_state(event, state);
+            self.wake();
 
-    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
-        self.transport.send(Message::UNSET_BREAKPOINT(idx));
-        //self.transport.send(Message::SET_MEMORY_WATCH(addr));
-        let mut res: Result<(), ()> = Err(());
-        // self.transport.send(Message::SET_MEMORY_WATCH(addr));
-        if let Some(m) = self.transport.get() {
-            if let Message::UNSET_BREAKPOINT_SUCCESS = m {
-                res = Ok(());
-            } else {
-                res = Err(());
-            }
+            Ok(())
         }
-        res
     }
+}
 
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] {
         let mut ret: [Option<(Addr)>; MAX_BREAKPOINTS] = [None; MAX_BREAKPOINTS];
