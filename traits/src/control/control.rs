@@ -19,7 +19,7 @@ use core::future::Future;
 use serde::{Deserialize, Serialize};
 
 pub const MAX_BREAKPOINTS: usize = 10;
-pub const MAX_MEMORY_WATCHES: usize = 10;
+pub const MAX_MEMORY_WATCHPOINTS: usize = 10;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Event {
@@ -36,7 +36,7 @@ pub enum State {
 }
 
 pub trait Control {
-    type EventFuture: Future<Output = Event>;
+    type EventFuture: Future<Output = (Event, State)>;
 
     fn get_pc(&self) -> Addr;
     fn set_pc(&mut self, addr: Addr); // Should be infallible.
@@ -62,21 +62,21 @@ pub trait Control {
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS];
-    fn get_max_breakpoints() -> usize {
+    fn get_max_breakpoints(&self) -> usize {
         MAX_BREAKPOINTS
     }
 
-    fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()>;
-    fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()>;
-    fn get_memory_watches(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHES];
-    fn get_max_memory_watches() -> usize {
-        MAX_MEMORY_WATCHES
+    fn set_memory_watchpoint(&mut self, addr: Addr, data: Word) -> Result<usize, ()>;
+    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()>;
+    fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS];
+    fn get_max_memory_watchpoints(&self) -> usize {
+        MAX_MEMORY_WATCHPOINTS
     }
 
     // Execution control functions:
     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
     fn step(&mut self) -> State;
-    fn pause(&mut self);
+    fn pause(&mut self); // TODO: should we respond saying whether or not the pause actually did anything (i.e. if we were already paused... it did not).
 
     fn get_state(&self) -> State;
 
@@ -91,13 +91,13 @@ pub trait Control {
     // I/O Access:
     // TODO!! Does the state/reading separation make sense?
     fn get_gpio_states(&self) -> GpioPinArr<GpioState>;
-    fn get_gpio_reading(&self) -> GpioPinArr<Result<bool, GpioReadError>>;
+    fn get_gpio_readings(&self) -> GpioPinArr<Result<bool, GpioReadError>>;
     fn get_adc_states(&self) -> AdcPinArr<AdcState>;
-    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>>;
+    fn get_adc_readings(&self) -> AdcPinArr<Result<u8, AdcReadError>>;
     fn get_timer_states(&self) -> TimerArr<TimerState>;
-    fn get_timer_config(&self) -> TimerArr<Word>;
+    fn get_timer_config(&self) -> TimerArr<Word>; // TODO: represent with some kind of enum? Word is problematic since it leaks interpreter impl details.
     fn get_pwm_states(&self) -> PwmPinArr<PwmState>;
-    fn get_pwm_config(&self) -> PwmPinArr<u8>;
+    fn get_pwm_config(&self) -> PwmPinArr<u8>; // TODO: ditto with using u8 here; probably should be some kind of enum (the conflict is then we're kinda pushing implementors to represent state a certain way.. or at least to have to translate it to our enum).
     fn get_clock(&self) -> Word;
 
     // So with some of these functions that are basically straight wrappers over their Memory/Peripheral trait counterparts,
