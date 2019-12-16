@@ -494,20 +494,15 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
     }
 }
 
-        if let Some(m) = self.transport.get() {
-            if let Message::GET_TIMER_CONFIG_RETURN_VAL(addr) = m {
-                ret = addr;
-            } else {
-                panic!();
-            }
-        } else {
-            panic!();
-        }
-        ret
+pub struct EventFuture<'a, S: EventFutureSharedState>(&'a S);
+
+impl<'a, S: EventFutureSharedStatePorcelain> Future for EventFuture<'a, S> {
+    type Output = (Event, State);
+
+    fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.0.poll(ctx.waker().clone())
     }
-    fn get_pwm_states(&self) -> PwmPinArr<PwmState> {
-        let mut ret: PwmPinArr<PwmState>;
-        self.transport.send(Message::GET_PWM_STATES);
+}
 
         if let Some(m) = self.transport.get() {
             if let Message::GET_PWM_STATES_RETURN_VAL(states) = m {
