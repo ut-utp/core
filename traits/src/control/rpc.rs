@@ -874,4 +874,13 @@ using_std! {
 
         (host_channel, device_channel)
     }
+
+    pub fn mpsc_sync_pair<'a>(state: &'a SyncEventFutureSharedState) -> (Controller<'a, TransparentEncoding, MpscTransport<ControlMessage>, SyncEventFutureSharedState>, Device<TransparentEncoding, MpscTransport<ControlMessage>>) {
+        let (controller, device) = MpscTransport::new();
+
+        let controller = Controller::new(TransparentEncoding, controller, state);
+        let device = Device::new(TransparentEncoding, device);
+
+        (controller, device)
+    }
 }
