@@ -826,20 +826,20 @@ using_std! {
         }
     }
 
-//     let host_channel = MpscTransport { tx: tx_h, rx: rx_d };
-//     let device_channel = MpscTransport { tx: tx_d, rx: rx_h };
 
-//     (host_channel, device_channel)
-// }
+    pub struct JsonEncoding;
 
-// //fn run_channel()
+    impl Encoding for JsonEncoding {
+        type Encoded = String;
+        type Err = serde_json::error::Error;
 
-using_std! {
-    use std::sync::mpsc::{Sender, Receiver};
+        fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err> {
+            serde_json::to_string(&message)
+        }
 
-    pub struct MpscTransport {
-        tx: Sender<std::string::String>,
-        rx: Receiver<std::string::String>,
+        fn decode(encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
+            serde_json::from_str(encoded)
+        }
     }
 
     impl TransportLayer for MpscTransport {
