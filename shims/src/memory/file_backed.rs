@@ -90,7 +90,7 @@ pub(super) fn read_from_file<P: AsRef<Path>>(
     let mut file = File::open(path)?;
 
     let length = file.metadata()?.len();
-    if length != ADDR_SPACE_SIZE_IN_BYTES.try_into().unwrap() {
+    if length != TryInto::<u64>::try_into(ADDR_SPACE_SIZE_IN_BYTES).unwrap() {
         return Err(MemoryShimError::IncorrectlySizedFile(length));
     }
 
