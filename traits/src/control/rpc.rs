@@ -22,7 +22,7 @@ use core::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ControlMessage {
     GetPcRequest,
     GetPcResponse(Addr),
@@ -39,7 +39,7 @@ pub enum ControlMessage {
     // Optional, but we're including it in case implementors wish to do
     // something special or just cut down on overhead.
     GetRegistersPsrAndPcRequest,
-    GetRegistersPsrAndPcResponse([Word; Reg::NUM_REGS], Word, Word),
+    GetRegistersPsrAndPcResponse(([Word; Reg::NUM_REGS], Word, Word)),
 
     ReadWordRequest { addr: Addr },
     ReadWordResponse(Word),
@@ -143,7 +143,7 @@ impl Encoding for TransparentEncoding {
     }
 
     fn decode(message: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
-        Ok(*message)
+        Ok(message.clone())
     }
 }
 
@@ -339,7 +339,7 @@ pub struct SimpleEventFutureSharedState {
 }
 
 impl SimpleEventFutureSharedState {
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             // waker: Cell::new(None),
             // count: AtomicU8::new(0),
@@ -532,7 +532,8 @@ where
     T: Transport<<E as Encoding>::Encoded>,
     S: EventFutureSharedState,
 {
-    const fn new(encoding: E, transport: T, shared_state: &'a S) -> Self {
+    // When const functions can be in blanket impls, this can be made `const`.
+    /*const*/ fn new(encoding: E, transport: T, shared_state: &'a S) -> Self {
         Self {
             encoding,
             transport,
@@ -596,6 +597,7 @@ macro_rules! ctrl {
 }
 
 
+#[forbid(irrefutable_let_patterns)]
 impl<'a, E, T, S> Control for Controller<'a, E, T, S>
 where
     E: Encoding,
@@ -608,10 +610,10 @@ where
     fn set_pc(&mut self, addr: Addr) { ctrl!(self, SetPcRequest { addr }, SetPcSuccess) }
 
     fn get_register(&self, reg: Reg) -> Word { ctrl!(self, GetRegisterRequest { reg }, GetRegisterResponse(word), word) }
-    fn set_register(&mut self, reg: Reg, data: Word) { ctrl!(self, SetRegisterRequest { reg, data }, SetRegisterResponse) }
+    fn set_register(&mut self, reg: Reg, data: Word) { ctrl!(self, SetRegisterRequest { reg, data }, SetRegisterSuccess) }
 
     fn get_registers_psr_and_pc(&self) -> ([Word; Reg::NUM_REGS], Word, Word) {
-        ctrl!(self, GetRegistersPsrAndPcRequest, GetRegistersPsrAndPcResponse(r, psr, pc), (r, psr, pc))
+        ctrl!(self, GetRegistersPsrAndPcRequest, GetRegistersPsrAndPcResponse(r), r)
     }
 
     fn read_word(&self, addr: Addr) -> Word { ctrl!(self, ReadWordRequest { addr }, ReadWordResponse(w), w) }
@@ -629,7 +631,7 @@ where
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] { ctrl!(self, GetBreakpointsRequest, GetBreakpointsResponse(r), r) }
     fn get_max_breakpoints(&self) -> usize { ctrl!(self, GetMaxBreakpointsRequest, GetMaxBreakpointsResponse(r), r) }
 
-    fn set_memory_watchpoint(&mut self, addr: Addr, data: Word) -> Result<usize, ()> {
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
         ctrl!(self, SetMemoryWatchpointRequest { addr }, SetMemoryWatchpointResponse(r), r)
     }
     fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
@@ -676,7 +678,7 @@ where
 
 // Check for messages and execute them on something that implements the control
 // interface.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Debug, Default)]
 pub struct Device<E, T, C>
 where
     E: Encoding,
@@ -697,7 +699,8 @@ where
     C: Control,
     // <C as Control>::EventFuture: Unpin,
 {
-    const fn new(encoding: E, transport: T) -> Self {
+    // When const functions can be in blanket impls, this can be made `const`.
+    /*const*/ fn new(encoding: E, transport: T) -> Self {
         Self {
             encoding,
             transport,
@@ -707,12 +710,20 @@ where
     }
 }
 
-static RAW_WAKER: RawWaker = RawWaker::new(
-    &(),
-    &RawWakerVTable::new(
-
-    )
+static NO_OP_RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
+    RW_CLONE,
+    RW_WAKE,
+    RW_WAKE_BY_REF,
+    RW_DROP
 );
+
+static RW_CLONE: fn(*const ()) -> RawWaker = |_| RawWaker::new(
+    &(),
+    &NO_OP_RAW_WAKER_VTABLE,
+);
+static RW_WAKE: fn(*const ()) = |_| { };
+static RW_WAKE_BY_REF: fn(*const ()) = |_| { };
+static RW_DROP: fn(*const ()) = |_| { };
 
 impl<E, T, C> Device<E, T, C>
 where
@@ -726,12 +737,13 @@ where
     <<C as Control>::EventFuture as Deref>::Target: Future<Output = (Event, State)>,
     <<C as Control>::EventFuture as Deref>::Target: Unpin,
 {
+    #[allow(unsafe_code)]
     pub fn step(&mut self, c: &mut C) -> usize {
         use ControlMessage::*;
         let mut num_processed_messages = 0;
 
-        if let Some(f) = self.pending_event_future {
-            if let Poll::Ready((event, state)) = f.as_mut().poll(&mut Context::from_waker(&Waker::from_raw(RAW_WAKER))) {
+        if let Some(ref mut f) = self.pending_event_future {
+            if let Poll::Ready((event, state)) = f.as_mut().poll(&mut Context::from_waker(&unsafe { Waker::from_raw(RW_CLONE(&())) } )) {
                 self.pending_event_future = None;
 
                 let enc = E::encode(RunUntilEventResponse(event, state)).unwrap();
@@ -743,7 +755,7 @@ where
             num_processed_messages += 1;
 
             macro_rules! dev {
-                ($(($req:pat, $resp:pat, $resp_expr:expr))*) => {
+                ($(($req:pat => $($resp:tt)+) with $r:tt = $resp_expr:expr;)*) => {
                     #[forbid(unreachable_patterns)]
                     match m {
                         RunUntilEventRequest => {
@@ -755,8 +767,12 @@ where
                         },
                         RunUntilEventResponse(_, _) => panic!("Received a run_until_event response on the device side!"),
                         $(
-                            $req => self.transport.send(E::encode($resp_expr).unwrap()).unwrap(),
-                            $resp => panic!("Received a response on the device side!"),
+                            $req => self.transport.send(E::encode({
+                                let $r = $resp_expr;
+                                $($resp)+
+                            }).unwrap()).unwrap(),
+                            #[allow(unused_variables)]
+                            $($resp)+ => panic!("Received a response on the device side!"),
                         )*
                     }
 
@@ -764,11 +780,49 @@ where
             }
 
             dev!{
-                (GetPcRequest, GetPcResponse(_), GetPcResponse(c.get_pc()))
-                (SetPcRequest { addr }, SetPcSuccess, { c.set_pc(addr); SetPcSuccess })
+                (GetPcRequest => GetPcResponse(r)) with r = c.get_pc();
+                (SetPcRequest { addr } => SetPcSuccess) with _ = c.set_pc(addr);
 
-                (GetRegisterRequest { reg }, GetRegisterResponse(_), GetRegisterResponse(c.get_register(reg)))
-                (SetRegisterRequest { reg, data }, SetRegisterSuccess, { c.set_register(reg, data); SetRegisterSuccess })
+                (GetRegisterRequest { reg } => GetRegisterResponse(r)) with r = c.get_register(reg);
+                (SetRegisterRequest { reg, data } => SetRegisterSuccess) with _ = c.set_register(reg, data);
+
+                (GetRegistersPsrAndPcRequest => GetRegistersPsrAndPcResponse(r)) with r = c.get_registers_psr_and_pc();
+
+                (ReadWordRequest { addr } => ReadWordResponse(r)) with r = c.read_word(addr);
+                (WriteWordRequest { addr, word } => WriteWordSuccess) with _ = c.write_word(addr, word);
+
+                (CommitMemoryRequest => CommitMemoryResponse(r)) with r = c.commit_memory();
+
+                (SetBreakpointRequest { addr } => SetBreakpointResponse(r)) with r= c.set_breakpoint(addr);
+                (UnsetBreakpointRequest { idx } => UnsetBreakpointResponse(r)) with r = c.unset_breakpoint(idx);
+                (GetBreakpointsRequest => GetBreakpointsResponse(r)) with r = c.get_breakpoints();
+                (GetMaxBreakpointsRequest => GetMaxBreakpointsResponse(r)) with r = c.get_max_breakpoints();
+
+                (SetMemoryWatchpointRequest { addr } => SetMemoryWatchpointResponse(r)) with r = c.set_memory_watchpoint(addr);
+                (UnsetMemoryWatchpointRequest { idx } => UnsetMemoryWatchpointResponse(r)) with r = c.unset_memory_watchpoint(idx);
+                (GetMemoryWatchpointsRequest => GetMemoryWatchpointsResponse(r)) with r = c.get_memory_watchpoints();
+                (GetMaxMemoryWatchpointsRequest => GetMaxMemoryWatchpointsResponse(r)) with r = c.get_max_memory_watchpoints();
+
+                (StepRequest => StepResponse(r)) with r = c.step();
+                (PauseRequest => PauseSuccess) with _ = c.pause();
+                (GetStateRequest => GetStateResponse(r)) with r = c.get_state();
+                (ResetRequest => ResetSuccess) with _ = c.reset();
+
+                (GetErrorRequest => GetErrorResponse(r)) with r = c.get_error();
+
+                (GetGpioStatesRequest => GetGpioStatesResponse(r)) with r = c.get_gpio_states();
+                (GetGpioReadingsRequest => GetGpioReadingsResponse(r)) with r = c.get_gpio_readings();
+
+                (GetAdcStatesRequest => GetAdcStatesResponse(r)) with r = c.get_adc_states();
+                (GetAdcReadingsRequest => GetAdcReadingsResponse(r)) with r = c.get_adc_readings();
+
+                (GetTimerStatesRequest => GetTimerStatesResponse(r)) with r = c.get_timer_states();
+                (GetTimerConfigRequest => GetTimerConfigResponse(r)) with r = c.get_timer_config();
+
+                (GetPwmStatesRequest => GetPwmStatesResponse(r)) with r = c.get_pwm_states();
+                (GetPwmConfigRequest => GetPwmConfigResponse(r)) with r = c.get_pwm_config();
+
+                (GetClockRequest => GetClockResponse(r)) with r = c.get_clock();
             };
         }
 

@@ -15,7 +15,7 @@ use serde::{Serialize, Deserialize};
 //    + but there are probably some errors we _do_ want to actually fire exceptions on (note: we'll need new exceptions!)
 //    + I'm warming to this idea, actually. The underlying infrastructure (peripherals, control) agree on a set of errors; how those
 //      errors make their way into LC-3 land is up to the interpreter. It's literally a matter of mapping these Errors into whatever.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Error {
     InvalidGpioWrite(GpioWriteError),
     InvalidGpioWrites(GpioWriteErrors),
@@ -55,6 +55,7 @@ err!(GpioWriteError, Error::InvalidGpioWrite);
 ///
 /// TBD on whether this is impl-defined.
 /// Another thing to consider is that we may want different modes? Permissive and strict or something. Or maybe not.
+#[derive(Debug, Clone)]
 pub enum ErrorHandlingStrategy {
     DefaultValue(Word),
     Silent,
@@ -73,7 +74,7 @@ impl From<Error> for ErrorHandlingStrategy {
             InvalidGpioWrite(_) => Silent,
             InvalidGpioRead(_) => DefaultValue(0u16),
             InvalidGpioWrites(_) => Silent,
-            InvalidGpioReads(err) => {
+            InvalidGpioReads(_err) => {
                 unimplemented!()
                 // TODO: set all the mismatched bits to 0, etc.
             }

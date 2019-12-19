@@ -66,7 +66,7 @@ pub trait Control {
         MAX_BREAKPOINTS
     }
 
-    fn set_memory_watchpoint(&mut self, addr: Addr, data: Word) -> Result<usize, ()>;
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()>;
     fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS];
     fn get_max_memory_watchpoints(&self) -> usize {
