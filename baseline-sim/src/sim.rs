@@ -2,7 +2,7 @@ use crate::interp::{InstructionInterpreter, InstructionInterpreterPeripheralAcce
 
 use lc3_isa::{Addr, Reg, Word};
 use lc3_traits::control::{Control, Event, State};
-use lc3_traits::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHES};
+use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
 use lc3_traits::error::Error;
 use lc3_traits::memory::MemoryMiscError;
 use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcReadError, AdcState};
@@ -27,7 +27,7 @@ where
 {
     interp: I,
     breakpoints: [Option<Addr>; MAX_BREAKPOINTS],
-    watchpoints: [Option<(Addr, Word)>; MAX_MEMORY_WATCHES], // TODO: change to throw these when the location being watched to written to; not just when the value is changed...
+    watchpoints: [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS], // TODO: change to throw these when the location being watched to written to; not just when the value is changed...
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
     state: State,
@@ -51,7 +51,7 @@ where
         Self {
             interp,
             breakpoints: [None; MAX_BREAKPOINTS],
-            watchpoints: [None; MAX_MEMORY_WATCHES],
+            watchpoints: [None; MAX_MEMORY_WATCHPOINTS],
             num_set_breakpoints: 0,
             num_set_watchpoints: 0,
             state: State::Paused,
@@ -140,8 +140,8 @@ where
     }
 
     // TODO: breakpoints and watchpoints look macroable
-    fn set_memory_watch(&mut self, addr: Addr, data: Word) -> Result<usize, ()> {
-        if self.num_set_watchpoints == MAX_MEMORY_WATCHES {
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+        if self.num_set_watchpoints == MAX_MEMORY_WATCHPOINTS {
             Err(())
         } else {
             // Scan for the next open slot:
@@ -151,22 +151,22 @@ where
                 next_free += 1;
             }
 
-            assert!(next_free < MAX_MEMORY_WATCHES, "Invariant violated.");
+            assert!(next_free < MAX_MEMORY_WATCHPOINTS, "Invariant violated.");
 
-            self.watchpoints[next_free] = Some((addr, data));
+            self.watchpoints[next_free] = Some((addr, self.read_word(addr)));
             Ok(next_free)
         }
     }
 
-    fn unset_memory_watch(&mut self, idx: usize) -> Result<(), ()> {
-        if idx < MAX_MEMORY_WATCHES {
+    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
+        if idx < MAX_MEMORY_WATCHPOINTS {
             self.watchpoints[idx].take().map(|_| ()).ok_or(())
         } else {
             Err(())
         }
     }
 
-    fn get_memory_watches(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHES] {
+    fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS] {
         self.watchpoints
     }
 
@@ -208,7 +208,7 @@ where
         Gpio::get_states(self.interp.get_peripherals())
     }
 
-    fn get_gpio_reading(&self) -> GpioPinArr<Result<bool, GpioReadError>> {
+    fn get_gpio_readings(&self) -> GpioPinArr<Result<bool, GpioReadError>> {
         Gpio::read_all(self.interp.get_peripherals())
     }
 
@@ -216,7 +216,7 @@ where
         Adc::get_states(self.interp.get_peripherals())
     }
 
-    fn get_adc_reading(&self) -> AdcPinArr<Result<u8, AdcReadError>> {
+    fn get_adc_readings(&self) -> AdcPinArr<Result<u8, AdcReadError>> {
         Adc::read_all(self.interp.get_peripherals())
     }
 
@@ -245,7 +245,7 @@ where
 pub struct SimFuture;
 
 impl Future for SimFuture {
-    type Output = Event;
+    type Output = (Event, State);
 
     fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         unimplemented!()
