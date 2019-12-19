@@ -840,7 +840,7 @@ using_std! {
     //
     // Didn't want to duplicate all the logic in the trait impl for
     // `SimpleEventFutureSharedState` yet though, which is why this even exists.
-    struct SyncEventFutureSharedState(RwLock<SimpleEventFutureSharedState>);
+    pub struct SyncEventFutureSharedState(RwLock<SimpleEventFutureSharedState>);
 
     impl SyncEventFutureSharedState {
         // This, unfortunately, can't be const. Users will need to use
@@ -852,31 +852,31 @@ using_std! {
 
     impl EventFutureSharedState for SyncEventFutureSharedState {
         fn register_waker(&self, waker: Waker) {
-            self.write().register_waker(waker)
+            self.0.write().unwrap().register_waker(waker)
         }
 
         fn wake(&self) {
-            self.write().wake()
+            self.0.write().unwrap().wake()
         }
 
         fn set_event_and_state(&self, event: Event, state: State) {
-            self.write().set_event_and_state(event, state)
+            self.0.write().unwrap().set_event_and_state(event, state)
         }
 
         fn get_event_and_state(&self) -> Option<(Event, State)> {
-            self.write().get_event_and_state()
+            self.0.write().unwrap().get_event_and_state()
         }
 
         fn increment(&self) -> u8 {
-            self.write().increment()
+            self.0.write().unwrap().increment()
         }
 
         fn batch_sealed(&self) -> bool {
-            self.read().batch_sealed()
+            self.0.read().unwrap().batch_sealed()
         }
 
         fn is_clean(&self) -> bool {
-            self.read().is_clean()
+            self.0.read().unwrap().is_clean()
         }
     }
 
@@ -908,18 +908,18 @@ using_std! {
             self.tx.send(message)
         }
 
-        fn get(&self) -> Option<Message> {
-            self.try_recv().ok()
+        fn get(&self) -> Option<EncodedFormat> {
+            self.rx.try_recv().ok()
         }
     }
 
     impl<EncodedFormat> MpscTransport<EncodedFormat> {
-        pub fn new() -> (MpscTransport, MpscTransport) {
+        pub fn new() -> (Self, Self) {
             mpsc_transport_pair()
         }
     }
 
-    fn mpsc_transport_pair() -> (MpscTransport, MpscTransport) {
+    fn mpsc_transport_pair<C>() -> (MpscTransport<C>, MpscTransport<C>) {
         let (tx_h, rx_h) = std::sync::mpsc::channel();
         let (tx_d, rx_d) = std::sync::mpsc::channel();
 
@@ -929,11 +929,11 @@ using_std! {
         (host_channel, device_channel)
     }
 
-    pub fn mpsc_sync_pair<'a>(state: &'a SyncEventFutureSharedState) -> (Controller<'a, TransparentEncoding, MpscTransport<ControlMessage>, SyncEventFutureSharedState>, Device<TransparentEncoding, MpscTransport<ControlMessage>>) {
+    pub fn mpsc_sync_pair<'a, Enc: Encoding + Default/* = TransparentEncoding*/, C: Control>(state: &'a SyncEventFutureSharedState) -> (Controller<'a, Enc, MpscTransport<Enc::Encoded>, SyncEventFutureSharedState>, Device<Enc, MpscTransport<Enc::Encoded>, C>) {
         let (controller, device) = MpscTransport::new();
 
-        let controller = Controller::new(TransparentEncoding, controller, state);
-        let device = Device::new(TransparentEncoding, device);
+        let controller = Controller::new(Enc::default(), controller, state);
+        let device = Device::new(Enc::default(), device);
 
         (controller, device)
     }
