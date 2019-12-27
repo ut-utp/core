@@ -962,9 +962,10 @@ using_std! {
         }
     }
 
-
+    #[cfg(feature = "json_encoding")]
     pub struct JsonEncoding;
 
+    #[cfg(feature = "json_encoding")]
     impl Encoding for JsonEncoding {
         type Encoded = String;
         type Err = serde_json::error::Error;
