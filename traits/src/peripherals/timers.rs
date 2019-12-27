@@ -123,7 +123,6 @@ pub trait Timers<'a>: Default {
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
-
     impl<'a, T: Timers<'a>> Timers<'a> for Arc<RwLock<T>> {
         fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> { // TODO: Infallible?
             RwLock::write(self).unwrap().set_state(timer, state)

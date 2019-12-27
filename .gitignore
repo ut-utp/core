@@ -5,6 +5,10 @@
 ### UTP Specific Things ###
 *.mem
 
+### Sublime Text ###
+*.sublime-project
+*.sublime-workspace
+
 ### GDB ###
 .gdb_history
 

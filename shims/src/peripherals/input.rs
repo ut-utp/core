@@ -55,7 +55,7 @@ impl Source for SourceShim {
 }
 
 // #[derive(Clone)] // TODO: Debug
-pub struct InputShim<'a, 'b> {
+pub struct InputShim<'a, 'b> { // TODO: don't actually need two lifetimes
     source: OwnedOrRef<'a, dyn Source + 'a>,
     flag: Option<&'b AtomicBool>,
     interrupt_enable_bit: bool,

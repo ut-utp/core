@@ -320,7 +320,6 @@ impl TryFrom<GpioPinArr<Result<(), GpioWriteError>>> for GpioWriteErrors {
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
-
     impl<'a, G: Gpio<'a>> Gpio<'a> for Arc<RwLock<G>> {
         fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
             RwLock::write(self).unwrap().set_state(pin, state)

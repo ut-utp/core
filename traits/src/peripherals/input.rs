@@ -30,7 +30,6 @@ pub struct InputError;
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
-
     impl<'a, I: Input<'a>> Input<'a> for Arc<RwLock<I>> {
         fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
             RwLock::write(self).unwrap().register_interrupt_flag(flag)
