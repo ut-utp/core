@@ -694,7 +694,8 @@ where
     pub encoding: E,
     pub transport: T,
     _c: PhantomData<C>,
-    pending_event_future: Option<Pin<C::EventFuture>>,
+    // pending_event_future: Option<Pin<C::EventFuture>>,
+    pending_event_future: Option<C::EventFuture>,
 }
 
 impl<E, T, C> Device<E, T, C>
@@ -817,12 +818,12 @@ where
     E: Encoding,
     T: Transport<<E as Encoding>::Encoded>,
     C: Control,
-    // <C as Control>::EventFuture: Unpin,
+    <C as Control>::EventFuture: Unpin, // TODO: use `pin_utils::pin_mut!` and relax this requirement.
     // <C as Control>::EventFuture: Deref<Target = <C as Control>::EventFuture>,
-    <C as Control>::EventFuture: Deref,
-    <C as Control>::EventFuture: DerefMut,
-    <<C as Control>::EventFuture as Deref>::Target: Future<Output = (Event, State)>,
-    <<C as Control>::EventFuture as Deref>::Target: Unpin,
+    // <C as Control>::EventFuture: Deref,
+    // <C as Control>::EventFuture: DerefMut,
+    // <<C as Control>::EventFuture as Deref>::Target: Future<Output = (Event, State)>,
+    // <<C as Control>::EventFuture as Deref>::Target: Unpin,
 {
     #[allow(unsafe_code)]
     pub fn step(&mut self, c: &mut C) -> usize {
@@ -830,7 +831,7 @@ where
         let mut num_processed_messages = 0;
 
         if let Some(ref mut f) = self.pending_event_future {
-            if let Poll::Ready((event, state)) = f.as_mut().poll(&mut Context::from_waker(&unsafe { Waker::from_raw(RW_CLONE(&())) } )) {
+            if let Poll::Ready((event, state)) = Pin::new(f).poll(&mut Context::from_waker(&unsafe { Waker::from_raw(RW_CLONE(&())) } )) {
                 self.pending_event_future = None;
 
                 let enc = E::encode(RunUntilEventResponse(event, state)).unwrap();
@@ -849,7 +850,8 @@ where
                             if self.pending_event_future.is_some() {
                                 panic!() // TODO: write a message
                             } else {
-                                self.pending_event_future = Some(Pin::new(c.run_until_event()));
+                                // self.pending_event_future = Some(Pin::new(c.run_until_event()));
+                                self.pending_event_future = Some(c.run_until_event());
                             }
                         },
                         RunUntilEventResponse(_, _) => panic!("Received a run_until_event response on the device side!"),
