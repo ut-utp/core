@@ -923,19 +923,13 @@ using_std! {
     use std::sync::RwLock;
     use std::sync::mpsc::{Sender, Receiver, SendError};
 
-    // TODO: this is a little silly since we've essentially got
-    // `RwLock<Cell<SharedStateState>>`. We can ditch the Cell since the RwLock
-    // affords us interior mutability.
-    //
-    // Didn't want to duplicate all the logic in the trait impl for
-    // `SimpleEventFutureSharedState` yet though, which is why this even exists.
-    pub struct SyncEventFutureSharedState(RwLock<SimpleEventFutureSharedState>);
+    pub struct SyncEventFutureSharedState(RwLock<SharedStateState>);
 
     impl SyncEventFutureSharedState {
         // This, unfortunately, can't be const. Users will need to use
         // lazy_static or something similar.
-        fn new() -> Self {
-            Self(RwLock::new(SimpleEventFutureSharedState::new()))
+        pub fn new() -> Self {
+            Self(RwLock::new(SharedStateState::Dormant))
         }
     }
 
