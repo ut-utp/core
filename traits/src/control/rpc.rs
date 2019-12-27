@@ -317,7 +317,9 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     }
 }
 
-#[derive(Debug)]
+impl<E: EventFutureSharedState> EventFutureSharedStatePorcelain for E { }
+
+#[derive(Debug, Clone)]
 pub enum SharedStateState { // TODO: bad name, I know
     Errored,
     Dormant,
@@ -328,6 +330,114 @@ pub enum SharedStateState { // TODO: bad name, I know
 impl Default for SharedStateState {
     fn default() -> Self {
         Self::Errored
+    }
+}
+
+impl SharedStateState {
+    fn register_waker(&mut self, new_waker: Waker) {
+        use SharedStateState::*;
+
+        match self {
+            Errored => unreachable!(),
+            Dormant => panic!("Invariant violated: waker registered on shared state that has no attached futures."),
+            WaitingForAnEvent { waker, count } => {
+                if let Some(old) = waker {
+                    if !new_waker.will_wake(&old) {
+                        // This should *not* panic since this property isn't guaranteed
+                        // even for the same future.
+                        panic!("New waker doesn't wake the same futures as the old waker.")
+                    }
+                }
+
+                *self = WaitingForAnEvent { waker: Some(new_waker), count: *count };
+            },
+            WaitingForFuturesToResolve { .. } => {
+                panic!("Future registered a waker even though the event has happened!");
+            }
+        }
+    }
+
+    fn wake(&mut self) {
+        use SharedStateState::*;
+
+        match self {
+            Errored | Dormant | WaitingForAnEvent { .. } => unreachable!(),
+            WaitingForFuturesToResolve { waker, .. } => {
+                // We'll only call the waker once!
+                if let Some(waker) = waker.take() {
+                    waker.wake();
+                }
+            }
+        };
+    }
+
+    fn set_event_and_state(&mut self, event: Event, state: State) {
+        use SharedStateState::*;
+
+        match self {
+            Errored | Dormant => panic!("Attempted to make an event without any futures!"),
+            WaitingForFuturesToResolve { .. } => panic!("Attempted to make multiple events in a batch!"),
+            WaitingForAnEvent { waker, count } => {
+                *self = WaitingForFuturesToResolve { pair: (event, state), waker: waker.clone(), count: *count }
+            }
+        };
+    }
+
+    fn get_event_and_state(&mut self) -> Option<(Event, State)> {
+        use SharedStateState::*;
+
+        let ret = match self {
+            Errored | Dormant => panic!("Unregistered future polled the state!"),
+            WaitingForFuturesToResolve { waker: Some(_), .. } => panic!("Waker persisted after batch was sealed!"),
+            s @ WaitingForAnEvent { .. } => None,
+            WaitingForFuturesToResolve { pair, waker: None, count } => {
+                if count.get() == 1 {
+                    let pair = *pair;
+                    *self = Dormant;
+                    Some(pair)
+                } else {
+                    *count = NonZeroU8::new(count.get() - 1).unwrap();
+                    Some(*pair)
+                }
+            },
+        };
+
+        ret
+    }
+
+    fn increment(&mut self) -> u8 {
+        use SharedStateState::*;
+
+        let ret = match self {
+            Errored => unreachable!(),
+            WaitingForFuturesToResolve { .. } => panic!("Attempted to add a future to a sealed batch!"),
+            Dormant => {
+                *self = WaitingForAnEvent { waker: None, count: NonZeroU8::new(1).unwrap() };
+                1
+            },
+            WaitingForAnEvent { count, .. } => {
+                *count = NonZeroU8::new(count.get().checked_add(1).unwrap()).unwrap();
+                count.get()
+            }
+        };
+
+        ret
+    }
+
+    fn batch_sealed(&self) -> bool {
+        if let SharedStateState::WaitingForFuturesToResolve { .. } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn is_clean(&self) -> bool {
+        if let SharedStateState::Dormant = self {
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -347,150 +457,45 @@ impl SimpleEventFutureSharedState {
             inner: Cell::new(SharedStateState::Dormant),
         }
     }
+
+    fn update<R>(&self, func: impl FnOnce(&mut SharedStateState) -> R) -> R {
+        let mut s = self.inner.take();
+
+        let res = func(&mut s);
+        self.inner.set(s);
+
+        res
+    }
 }
 
 impl EventFutureSharedState for SimpleEventFutureSharedState {
 
     fn register_waker(&self, new_waker: Waker) {
-        use SharedStateState::*;
-        let s = self.inner.take();
-
-        match s {
-            Errored => unreachable!(),
-            Dormant => panic!("Invariant violated: waker registered on shared state that has no attached futures."),
-            WaitingForAnEvent { waker, count } => {
-                if let Some(old) = waker {
-                    if !new_waker.will_wake(&old) {
-                        // This should *not* panic since this property isn't guaranteed
-                        // even for the same future.
-                        panic!("New waker doesn't wake the same futures as the old waker.")
-                    }
-                }
-
-                self.inner.set(WaitingForAnEvent { waker: Some(new_waker), count } )
-            },
-            WaitingForFuturesToResolve { .. } => {
-                panic!("Future registered a waker even though the event has happened!");
-            }
-        }
-
-        // if let Some(old) = self.waker.get() {
-        //     if self.is_clean() {
-        //         panic!("Invariant violated: waker registered on shared state that has no attached futures.")
-        //     }
-
-        //     if !waker.will_wake(old) {
-        //         // This should *not* panic since this property isn't guaranteed
-        //         // even for the same future.
-        //         panic!("New waker doesn't wake the same futures as the old waker.")
-        //     }
-        // }
-
-        // self.waker.set(Some(waker))
+        self.update(|s| s.register_waker(new_waker))
     }
 
     fn wake(&self) {
-        use SharedStateState::*;
-        let s = self.inner.take();
-
-        self.inner.set(match s {
-            Errored | Dormant | WaitingForAnEvent { .. } => unreachable!(),
-            WaitingForFuturesToResolve { pair, waker, count } => {
-                if let Some(waker) = waker {
-                    waker.wake()
-                }
-
-                // We'll only call the waker once!
-                WaitingForFuturesToResolve { pair, waker: None, count }
-            }
-        });
+        self.update(|s| s.wake())
     }
 
     fn set_event_and_state(&self, event: Event, state: State) {
-        use SharedStateState::*;
-        let s = self.inner.take();
-
-        self.inner.set(match s {
-            Errored | Dormant => panic!("Attempted to make an event without any futures!"),
-            WaitingForFuturesToResolve { .. } => panic!("Attempted to make multiple events in a batch!"),
-            WaitingForAnEvent { waker, count } => {
-                WaitingForFuturesToResolve { pair: (event, state), waker, count }
-            }
-        });
+        self.update(|s| s.set_event_and_state(event, state))
     }
 
     fn get_event_and_state(&self) -> Option<(Event, State)> {
-        use SharedStateState::*;
-        let s = self.inner.take();
-
-        let (next, ret) = match s {
-            Errored | Dormant => panic!("Unregistered future polled the state!"),
-            WaitingForFuturesToResolve { waker: Some(_), .. } => panic!("Waker persisted after batch was sealed!"),
-            s @ WaitingForAnEvent { .. } => (s, None),
-            WaitingForFuturesToResolve { pair, waker: None, count } => {
-                if count.get() == 1 {
-                    (Dormant, Some(pair))
-                } else {
-                    (
-                        WaitingForFuturesToResolve {
-                            pair,
-                            waker: None,
-                            count: NonZeroU8::new(count.get() - 1).unwrap(),
-                        },
-                        Some(pair)
-                    )
-                }
-            },
-        };
-
-        self.inner.set(next);
-        ret
+        self.update(|s| s.get_event_and_state())
     }
 
     fn increment(&self) -> u8 {
-        use SharedStateState::*;
-        let s = self.inner.take();
-
-        let (next, ret) = match s {
-            Errored => unreachable!(),
-            WaitingForFuturesToResolve { .. } => panic!("Attempted to add a future to a sealed batch!"),
-            Dormant => {
-                (WaitingForAnEvent { waker: None, count: NonZeroU8::new(1).unwrap() }, 1)
-            },
-            WaitingForAnEvent { waker, count } => {
-                let count = count.get().checked_add(1).unwrap();
-                (WaitingForAnEvent { waker, count: NonZeroU8::new(count).unwrap() }, count)
-            }
-        };
-
-        self.inner.set(next);
-        ret
+        self.update(|s| s.increment())
     }
 
     fn batch_sealed(&self) -> bool {
-        let s = self.inner.take();
-
-        let res = if let SharedStateState::WaitingForFuturesToResolve { .. } = s {
-            true
-        } else {
-            false
-        };
-
-        self.inner.set(s);
-        res
+        self.update(|s| s.batch_sealed())
     }
 
     fn is_clean(&self) -> bool {
-        let s = self.inner.take();
-
-        let res = if let SharedStateState::Dormant = s {
-            true
-        } else {
-            false
-        };
-
-        self.inner.set(s);
-        res
+        self.update(|s| s.is_clean())
     }
 }
 
