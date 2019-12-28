@@ -55,4 +55,31 @@ using_std! {
             RwLock::write(self).unwrap().current_data_unread()
         }
     }
+
+    use std::sync::Mutex;
+    impl<'a, I: Input<'a>> Input<'a> for Arc<Mutex<I>> {
+        fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
+            Mutex::lock(self).unwrap().register_interrupt_flag(flag)
+        }
+
+        fn interrupt_occurred(&self) -> bool {
+            Mutex::lock(self).unwrap().interrupt_occurred()
+        }
+
+        fn set_interrupt_enable_bit(&mut self, bit: bool) {
+            Mutex::lock(self).unwrap().set_interrupt_enable_bit(bit)
+        }
+
+        fn interrupts_enabled(&self) -> bool {
+            Mutex::lock(self).unwrap().interrupts_enabled()
+        }
+
+        fn read_data(&self) -> Result<u8, InputError> {
+            Mutex::lock(self).unwrap().read_data()
+        }
+
+        fn current_data_unread(&self) -> bool {
+            Mutex::lock(self).unwrap().current_data_unread()
+        }
+    }
 }

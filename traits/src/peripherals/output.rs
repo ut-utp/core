@@ -50,4 +50,30 @@ using_std! {
         }
     }
 
+    use std::sync::Mutex;
+    impl<'a, O: Output<'a>> Output<'a> for Arc<Mutex<O>> {
+        fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
+            Mutex::lock(self).unwrap().register_interrupt_flag(flag)
+        }
+
+        fn interrupt_occurred(&self) -> bool {
+            Mutex::lock(self).unwrap().interrupt_occurred()
+        }
+
+        fn set_interrupt_enable_bit(&mut self, bit: bool) {
+            Mutex::lock(self).unwrap().set_interrupt_enable_bit(bit)
+        }
+
+        fn interrupts_enabled(&self) -> bool {
+            Mutex::lock(self).unwrap().interrupts_enabled()
+        }
+
+        fn write_data(&mut self, c: u8) -> Result<(), OutputError> {
+            Mutex::lock(self).unwrap().write_data(c)
+        }
+
+        fn current_data_written(&self) -> bool {
+            Mutex::lock(self).unwrap().current_data_written()
+        }
+    }
 }
