@@ -25,7 +25,6 @@ pub struct OutputError;
 using_std! {
     use std::sync::{Arc, RwLock};
     impl<'a, O: Output<'a>> Output<'a> for Arc<RwLock<O>> {
-
         fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) {
             RwLock::write(self).unwrap().register_interrupt_flag(flag)
         }
