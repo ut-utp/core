@@ -30,7 +30,7 @@ impl<W: Write> Sink for Mutex<W> {
 
 // #[derive(Clone)] // TODO: Debug
 pub struct OutputShim<'a, 'b> {
-    sink: OwnedOrRef<'a, dyn Sink + 'a>,
+    sink: OwnedOrRef<'a, dyn Sink + Send + Sync + 'a>,
     flag: Option<&'b AtomicBool>,
     interrupt_enable_bit: bool,
 }
@@ -46,7 +46,7 @@ impl<'a, 'b> OutputShim<'a, 'b> {
         Self::default()
     }
 
-    pub fn using(sink: Box<dyn Sink + 'a>) -> Self {
+    pub fn using(sink: Box<dyn Sink + Send + Sync + 'a>) -> Self {
         Self {
             sink: OwnedOrRef::Owned(sink),
             flag: None,
@@ -54,7 +54,7 @@ impl<'a, 'b> OutputShim<'a, 'b> {
         }
     }
 
-    pub fn with_ref(sink: &'a (dyn Sink + 'a)) -> Self {
+    pub fn with_ref(sink: &'a (dyn Sink + Send + Sync + 'a)) -> Self {
         Self {
             sink: OwnedOrRef::Ref(sink),
             flag: None,

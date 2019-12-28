@@ -19,8 +19,8 @@ pub use gpio::GpioShim;
 pub use pwm::PwmShim;
 pub use timers::TimersShim;
 
-pub use input::{InputShim, SourceShim};
-pub use output::OutputShim;
+pub use input::{InputShim, Source, SourceShim};
+pub use output::{OutputShim, Sink};
 use std::ops::{Deref, DerefMut};
 
 pub type PeripheralsShim<'s> = PeripheralSet<
