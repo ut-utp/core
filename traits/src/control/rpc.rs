@@ -132,6 +132,7 @@ pub trait Encoding {
     fn decode(encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err>;
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct TransparentEncoding;
 
 impl Encoding for TransparentEncoding {
