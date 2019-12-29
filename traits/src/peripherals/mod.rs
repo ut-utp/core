@@ -17,6 +17,8 @@ pub use clock::Clock;
 pub use input::Input;
 pub use output::Output;
 
+pub mod stubs;
+
 use core::marker::PhantomData;
 // use core::ops::{Deref, DerefMut};
 
