@@ -923,6 +923,7 @@ where
 using_std! {
     use std::sync::RwLock;
     use std::sync::mpsc::{Sender, Receiver, SendError};
+    use std::fmt::Debug;
 
     pub struct SyncEventFutureSharedState(RwLock<SharedStateState>);
 
@@ -981,24 +982,31 @@ using_std! {
         }
     }
 
-    pub struct MpscTransport<EncodedFormat> {
+    pub struct MpscTransport<EncodedFormat: Debug> {
         tx: Sender<EncodedFormat>,
         rx: Receiver<EncodedFormat>,
     }
 
-    impl<EncodedFormat> Transport<EncodedFormat> for MpscTransport<EncodedFormat> {
+    impl<EncodedFormat: Debug> Transport<EncodedFormat> for MpscTransport<EncodedFormat> {
         type Err = SendError<EncodedFormat>;
 
         fn send(&self, message: EncodedFormat) -> Result<(), Self::Err> {
+            log::trace!("SENT: {:?}", message);
             self.tx.send(message)
         }
 
         fn get(&self) -> Option<EncodedFormat> {
-            self.rx.try_recv().ok()
+            if let Ok(m) = self.rx.try_recv() {
+                log::trace!("GOT: {:?}", m);
+                Some(m)
+            }
+
+            // This is the older blocking variant: (TODO)
+            // self.rx.recv().ok()
         }
     }
 
-    impl<EncodedFormat> MpscTransport<EncodedFormat> {
+    impl<EncodedFormat: Debug> MpscTransport<EncodedFormat> {
         pub fn new() -> (Self, Self) {
             mpsc_transport_pair()
         }
@@ -1014,7 +1022,10 @@ using_std! {
         (host_channel, device_channel)
     }
 
-    pub fn mpsc_sync_pair<'a, Enc: Encoding + Default/* = TransparentEncoding*/, C: Control>(state: &'a SyncEventFutureSharedState) -> (Controller<'a, Enc, MpscTransport<Enc::Encoded>, SyncEventFutureSharedState>, Device<Enc, MpscTransport<Enc::Encoded>, C>) {
+    pub fn mpsc_sync_pair<'a, Enc: Encoding + Default/* = TransparentEncoding*/, C: Control>(state: &'a SyncEventFutureSharedState) -> (Controller<'a, Enc, MpscTransport<Enc::Encoded>, SyncEventFutureSharedState>, Device<Enc, MpscTransport<Enc::Encoded>, C>)
+    where
+        Enc::Encoded: Debug
+    {
         let (controller, device) = MpscTransport::new();
 
         let controller = Controller::new(Enc::default(), controller, state);
