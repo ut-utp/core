@@ -958,11 +958,12 @@ impl MemMapped for MCR {
     where
         <I as Deref>::Target: Peripherals<'a>,
     {
+        interp.set_word_force_memory_backed(Self::ADDR, value);
+
         if !value.bit(15) {
             interp.halt();
         }
 
-        interp.set_word_force_memory_backed(Self::ADDR, value);
         Ok(())
     }
 }
