@@ -19,6 +19,7 @@ use core::num::NonZeroU8;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
+use core::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
@@ -125,8 +126,8 @@ pub enum ControlMessage {
 }
 
 pub trait Encoding {
-    type Encoded;
-    type Err: core::fmt::Debug;
+    type Encoded: Debug;
+    type Err: Debug;
 
     fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err>;
     fn decode(encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err>;
@@ -923,7 +924,6 @@ where
 using_std! {
     use std::sync::RwLock;
     use std::sync::mpsc::{Sender, Receiver, SendError};
-    use std::fmt::Debug;
 
     pub struct SyncEventFutureSharedState(RwLock<SharedStateState>);
 
@@ -999,6 +999,8 @@ using_std! {
             if let Ok(m) = self.rx.try_recv() {
                 log::trace!("GOT: {:?}", m);
                 Some(m)
+            } else {
+                None
             }
 
             // This is the older blocking variant: (TODO)
@@ -1012,7 +1014,7 @@ using_std! {
         }
     }
 
-    fn mpsc_transport_pair<C>() -> (MpscTransport<C>, MpscTransport<C>) {
+    fn mpsc_transport_pair<C: Debug>() -> (MpscTransport<C>, MpscTransport<C>) {
         let (tx_h, rx_h) = std::sync::mpsc::channel();
         let (tx_d, rx_d) = std::sync::mpsc::channel();
 
@@ -1023,8 +1025,6 @@ using_std! {
     }
 
     pub fn mpsc_sync_pair<'a, Enc: Encoding + Default/* = TransparentEncoding*/, C: Control>(state: &'a SyncEventFutureSharedState) -> (Controller<'a, Enc, MpscTransport<Enc::Encoded>, SyncEventFutureSharedState>, Device<Enc, MpscTransport<Enc::Encoded>, C>)
-    where
-        Enc::Encoded: Debug
     {
         let (controller, device) = MpscTransport::new();
 
