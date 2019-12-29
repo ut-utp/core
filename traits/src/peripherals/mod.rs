@@ -6,7 +6,6 @@ pub mod clock;
 pub mod gpio;
 pub mod pwm;
 pub mod timers;
-
 pub mod input;
 pub mod output;
 

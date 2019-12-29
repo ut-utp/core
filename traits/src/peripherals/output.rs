@@ -5,18 +5,18 @@ use core::sync::atomic::AtomicBool;
 
 peripheral_trait! {output,
 pub trait Output<'a>: Default {
-    fn register_interrupt_flag(&mut self, flag: &'a AtomicBool);
-    fn interrupt_occurred(&self) -> bool;
-
-    fn set_interrupt_enable_bit(&mut self, bit: bool);
-    fn interrupts_enabled(&self) -> bool;
-
     fn write_data(&mut self, c: u8) -> Result<(), OutputError>;
 
     // Gets set to high automagically when more data can be taken.
     // Gets set to low (by [write_data](Output::write_data)) when
     // data is being written.
     fn current_data_written(&self) -> bool;
+
+    fn register_interrupt_flag(&mut self, flag: &'a AtomicBool);
+    fn interrupt_occurred(&self) -> bool;
+
+    fn set_interrupt_enable_bit(&mut self, bit: bool);
+    fn interrupts_enabled(&self) -> bool;
 }}
 
 #[derive(Copy, Clone, Debug, PartialEq)]

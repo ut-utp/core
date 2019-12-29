@@ -4,6 +4,8 @@
 
 ### UTP Specific Things ###
 *.mem
+log_files/
+
 
 ### Sublime Text ###
 *.sublime-project

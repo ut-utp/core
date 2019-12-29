@@ -787,7 +787,7 @@ fn os() -> AssembledProgram {
             LDI R0, @MCR;             // Set the top bit of the MCR to 0.
             LD R1, @MASK_HI_BIT;      // The masking isn't strictly necessary
             AND R0, R0, R1;           // since (afaik) only the top bit of the
-            STI R0, @MCR;          // MCR has functionality, but we'll be
+            STI R0, @MCR;             // MCR has functionality, but we'll be
                                       // good citizens.
 
             BRnzp @TRAP_HALT;         // If at first you don't succeed, try, try

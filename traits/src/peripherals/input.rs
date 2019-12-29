@@ -5,12 +5,6 @@ use core::sync::atomic::AtomicBool;
 
 peripheral_trait! {input,
 pub trait Input<'a>: Default {
-    fn register_interrupt_flag(&mut self, flag: &'a AtomicBool);
-    fn interrupt_occurred(&self) -> bool;
-
-    fn set_interrupt_enable_bit(&mut self, bit: bool);
-    fn interrupts_enabled(&self) -> bool;
-
     // Warning! This is stateful!! It marks the current data as read.
     //
     // Also note: this is technically infallible (it's up to the
@@ -22,6 +16,12 @@ pub trait Input<'a>: Default {
     // Must use interior mutability.
     fn read_data(&self) -> Result<u8, InputError>;
     fn current_data_unread(&self) -> bool;
+
+    fn register_interrupt_flag(&mut self, flag: &'a AtomicBool);
+    fn interrupt_occurred(&self) -> bool;
+
+    fn set_interrupt_enable_bit(&mut self, bit: bool);
+    fn interrupts_enabled(&self) -> bool;
 }}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
