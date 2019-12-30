@@ -82,3 +82,10 @@ jobs:
 # ones).
 
 # Bench, if that ever becomes necessary.
+# TODO: it is now necessary!
+# So, we'll have a bench thing for PRs that's just `criterion-compare-action`
+# But then we'll also have a thing that, for each push:
+#   - runs the benchmarks/generates the reports
+#   - uses critcomp to make the json file
+#   - uploads both to the gh-pages branch under benches/<branch name>/<commit hash>
+#      + also adds the corresponding entry on the index page
