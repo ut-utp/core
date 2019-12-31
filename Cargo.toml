@@ -8,8 +8,11 @@ members = [
     "baseline-sim",
     "macros",
     "os",
-    "misc/lc3-tm4c",
 ]
+exclude = [ "misc/lc3-tm4c" ]
+
+# TODO: turn tui into a library and reference its bin target here
+
 
 [package] # TODO
 name = "lc3-utp"

@@ -4,8 +4,6 @@ version = "0.1.0"
 authors = ["UT UTP <ut.utp.group@gmail.com>"]
 edition = "2018"
 
-workspace = "../../"
-
 # TODO: CI
 # TODO: README
 # TODO: CHANGELOG
