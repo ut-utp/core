@@ -4,6 +4,16 @@
 // TODO: move this to the top of the workspace! (doesn't belong in TUI)
 // TODO: have CI run this and give us reports
 
+extern crate lc3_baseline_sim;
+extern crate lc3_isa;
+extern crate lc3_shims;
+extern crate lc3_traits;
+extern crate lc3_os;
+
+extern crate criterion;
+extern crate async_std;
+extern crate lazy_static;
+
 use lc3_isa::{program, util::AssembledProgram, Word};
 use lc3_os::OS_IMAGE;
 
