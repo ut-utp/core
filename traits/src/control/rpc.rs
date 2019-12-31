@@ -486,6 +486,8 @@ impl SimpleEventFutureSharedState {
     }
 }
 
+impl EventFutureSharedStatePorcelain for SimpleEventFutureSharedState { }
+
 impl EventFutureSharedState for SimpleEventFutureSharedState {
 
     fn register_waker(&self, new_waker: Waker) {
@@ -998,6 +1000,44 @@ using_std! {
         // lazy_static or something similar.
         pub fn new() -> Self {
             Self(RwLock::new(SharedStateState::Dormant))
+        }
+    }
+
+    // It's not great that we have to do this... maybe we shouldn't have the default impl (TODO) or at least the blanket impl (done)
+    impl EventFutureSharedStatePorcelain for SyncEventFutureSharedState {
+        fn poll(&self, waker: Waker) -> Poll<Event> {
+            let mut s = self.0.write().unwrap();
+
+            if let Some(pair) = s.get_event() {
+                Poll::Ready(pair)
+            } else {
+                s.register_waker(waker);
+                Poll::Pending
+            }
+        }
+
+        fn add_new_future(&self) -> Result<&Self, ()> {
+            let mut s = self.0.write().unwrap();
+
+            if s.batch_sealed() {
+                Err(())
+            } else {
+                s.increment();
+                Ok(self)
+            }
+        }
+
+        fn resolve_all(&self, event: Event) -> Result<(), ()> {
+            let mut s = self.0.write().unwrap();
+
+            if s.batch_sealed() {
+                Err(())
+            } else {
+                s.set_event(event);
+                s.wake();
+
+                Ok(())
+            }
         }
     }
 
