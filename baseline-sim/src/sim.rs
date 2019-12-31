@@ -185,26 +185,181 @@ where
         self.watchpoints
     }
 
-    fn run_until_event(&mut self) -> Self::EventFuture {
-        // DO NOT IMPLEMENT, yet
-        unimplemented!()
+    fn run_until_event(&mut self) -> <Self as Control>::EventFuture {
+        //! Note: the same batching rules that apply to the shared state apply here (see
+        //! [`SharedStateState`]; basically `S` controls how this handles multiple
+        //! active `run_until_event` Futures and for now `SharedStateState` is what we
+        //! are using).
+        let s = self.shared_state.expect("The Simulator must be provided with a shared \
+            state instance if `run_until_event` is to be used.");
+
+        self.state = State::RunningUntilEvent;
+
+        s.add_new_future().expect("no new futures once a batch starts to resolve");
+
+        // println!("new sim future registered!");
+        EventFuture::new(s)
     }
 
-    fn step(&mut self) -> State {
-        match self.interp.step() {
-            MachineState::Running => {
-                self.state = State::Paused;
+    fn tick(&mut self) {
+        // We've got a tradeoff!
+        //
+        // Higher values for this constant will result in better throughput while
+        // lower values will improve response times.
+        const STEPS_IN_A_TICK: usize = 100; // TODO: tune!
+
+        use State::*;
+
+        if let RunningUntilEvent = self.get_state() {
+            // TODO: does this weird micro optimization help?
+            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
+                for _ in 0..STEPS_IN_A_TICK {
+                    // this is safe since overshooting (calling step when we have NOPs) is fine
+                    self.step();
+                }
+
+                return;
             }
-            MachineState::Halted => {
-                self.state = State::Halted;
+
+            for _ in 0..STEPS_IN_A_TICK {
+                // match self.step() {
+                //     RunningUntilEvent => {},
+                //     e @ Paused(_) | e @ Halted => {
+                //         // Resolve:
+                //         self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event").resolve_all()
+                //     }
+                // }
+                if let Some(e) = self.step() {
+                    // If we produced some event, we're no longer `RunningUntilEvent`.
+                    return;
+                }
             }
         }
+    }
 
-        self.get_state()
+    fn step(&mut self) -> Option<Event> {
+        use State::*;
+        let current_machine_state = self.interp.step();
+        let (new_state, event) = (|m: MachineState| match m {
+            MachineState::Halted => {
+                // If we're halted, we can't have hit a breakpoint or a watchpoint.
+                (Halted, Some(Event::Halted))
+            }
+            MachineState::Running => {
+                // Check for breakpoints:
+                // (Note that if a breakpoint and a watchpoint occur at the same time,
+                // the breakpoint takes precedence)
+                if self.num_set_breakpoints > 0 {
+                    let pc = self.get_pc();
+                    if let Some(addr) = self.breakpoints.iter().filter_map(|b| *b).filter(|a| *a == pc).next() {
+                        return (Paused, Some(Event::Breakpoint { addr }));
+                    }
+                }
+
+                // And watchpoints:
+                if self.num_set_watchpoints > 0 {
+                    for i in 0..self.watchpoints.len() {
+                        if let Some((addr, old_val)) = self.watchpoints[i] {
+                            let data = self.read_word(addr);
+
+                            if data != old_val {
+                                self.watchpoints[i] = Some((addr, data));
+                                return (Paused, Some(Event::MemoryWatch { addr, data }));
+                            }
+                        }
+                    }
+
+                    // if let Some((addr, data)) = self.watchpoints.iter().filter_map(|w| *w).filter(|(addr, val)| {
+                    //     let current_val = self.read_word(*addr);
+                    //     if current_val != *val {
+                    //         *val = current_val;
+                    //         true
+                    //     } else { false }
+                    // }).next() {
+                    //     return (Paused, Some(Event::MemoryWatch { addr, data }));
+                    // }
+                }
+
+                // If we didn't hit a breakpoint/watchpoint, the state doesn't change.
+                // If we were running, we're still running.
+                // If we were halted before, we're still halted (handled above).
+                // If we were paused, we're still paused.
+                (self.get_state(), None)
+            }
+        })(current_machine_state);
+
+        let current_state = self.get_state();
+        match (current_state, new_state, event) {
+            // (RunningUntilEvent, RunningUntilEvent, Some(e)) => unreachable!(),
+            // (RunningUntilEvent, RunningUntilEvent, None) => regular,
+            // (RunningUntilEvent, Paused, Some(e)) => resolve,
+            // (RunningUntilEvent, Paused, None) => unreachable!(), // can't stop running without an event
+            // (RunningUntilEvent, Halted, Some(e)) => resolve,
+            // (RunningUntilEvent, Halted, None) => unreachable!(), // can't stop running without an event
+
+            // (Paused, RunningUntilEvent, Some(e)) => unreachable!(),    // can't start running until an event in this function
+            // (Paused, RunningUntilEvent, None) => unreachable!(),       // can't start running until an event in this function
+            // (Paused, Paused, Some(e)) => regular,
+            // (Paused, Paused, None) => regular,
+            // (Paused, Halted, Some(e)) => regular,
+            // (Paused, Halted, None) => unreachable!(), // this is fine but will never happen as impl'ed above
+
+            // (Halted, RunningUntilEvent, Some(e)) => unreachable!(),    // can't start running until an event in this function
+            // (Halted, RunningUntilEvent, None) => unreachable!(),       // can't start running until an event in this function
+            // (Halted, Paused, Some(e)) => unreachable!(),            // can't transition out of halted in this function
+            // (Halted, Paused, None) => unreachable!(),               // can't transition out of halted in this function
+            // (Halted, Halted, Some(e)) => regular,
+            // (Halted, Halted, None) => unreachable!(), // this is fine but will never happen as impl'ed above
+
+            (RunningUntilEvent, Paused, Some(e)) |
+            (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
+                // println!("resolving the device future");
+                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e);
+                self.state = new_state;
+                Some(e)
+            },
+
+            (RunningUntilEvent, RunningUntilEvent, e @ None) |
+            (Paused, Paused, e @ Some(_))                    |
+            (Paused, Paused, e @ None)                       |
+            (Paused, Halted, e @ Some(Event::Halted))        |
+            (Halted, Halted, e @ Some(Event::Halted)) => {
+                self.state = new_state;
+                e
+            }
+
+            (RunningUntilEvent, Halted, Some(_)) |
+            (Paused, Halted, Some(_))            |
+            (Halted, Halted, Some(_)) => unreachable!("Transitions to the `Halted` state must only produce halted events."),
+
+            (RunningUntilEvent, RunningUntilEvent, Some(_)) => unreachable!("Can't yield an event and not finish a `RunningUntilEvent`."),
+
+            (RunningUntilEvent, Paused, None) |
+            (RunningUntilEvent, Halted, None) => unreachable!("Can't finish a `RunningUntilEvent` without an event."),
+
+            (Paused, RunningUntilEvent, Some(_)) |
+            (Paused, RunningUntilEvent, None)    |
+            (Halted, RunningUntilEvent, Some(_)) |
+            (Halted, RunningUntilEvent, None) => unreachable!("Can't start a 'run until event' in this function."),
+
+            (Halted, Paused, Some(_)) |
+            (Halted, Paused, None) => unreachable!("Can't get out of the `Halted` state in this function."),
+
+            (Paused, Halted, None) |
+            (Halted, Halted, None) => unreachable!("Always produce an event when the next state is `Halted`."),
+        }
     }
 
     fn pause(&mut self) {
-        unimplemented!()
+        use State::*;
+
+        match self.get_state() {
+            Halted | Paused => {}, // Nothing changes!
+            State::RunningUntilEvent => {
+                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(Event::Interrupted);
+                self.state = Paused;
+            }
+        }
     }
 
     fn get_state(&self) -> State {
