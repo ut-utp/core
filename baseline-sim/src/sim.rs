@@ -222,13 +222,6 @@ where
             }
 
             for _ in 0..STEPS_IN_A_TICK {
-                // match self.step() {
-                //     RunningUntilEvent => {},
-                //     e @ Paused(_) | e @ Halted => {
-                //         // Resolve:
-                //         self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event").resolve_all()
-                //     }
-                // }
                 if let Some(e) = self.step() {
                     // If we produced some event, we're no longer `RunningUntilEvent`.
                     return;

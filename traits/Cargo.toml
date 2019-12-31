@@ -43,8 +43,8 @@ default = ["no_std"]
 no_std = ["lc3-isa/no_std"]
 json_encoding = ["serde_json"]
 
+
 [[example]]
 name = "control-demo"
 path = "examples/control-demo.rs"
-default-features = false
 required-features = [""]
