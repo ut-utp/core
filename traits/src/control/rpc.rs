@@ -1106,18 +1106,19 @@ using_std! {
         }
 
         fn get(&self) -> Option<EncodedFormat> {
-            // if let Ok(m) = self.rx.try_recv() {
-            //     log::trace!("GOT: {:?}", m);
-            //     Some(m)
-            // } else {
-            //     None
-            // }
+            if let Ok(m) = self.rx.try_recv() {
+                log::trace!("GOT: {:?}", m);
+                Some(m)
+            } else {
+                None
+            }
 
+            // TODO(fix): this breaks `run_until_event`!!
             // Going to use this blocking variant for now even though it is likely to
             // result in worse performance for huge amounts of messages
-            let m = self.rx.recv().ok();
-            log::trace!("GOT: {:?}", m);
-            m
+            // let m = self.rx.recv().ok();
+            // log::trace!("GOT: {:?}", m);
+            // m
         }
     }
 
