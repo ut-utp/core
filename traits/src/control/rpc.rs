@@ -24,7 +24,7 @@ use core::fmt::Debug;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum ControlMessage {
+pub enum ControlMessage { // messages for everything but tick()
     GetPcRequest,
     GetPcResponse(Addr),
 
@@ -77,12 +77,12 @@ pub enum ControlMessage {
 
     // (TODO)
     RunUntilEventRequest,
-    RunUntilEventResponse(Event, State),
+    RunUntilEventResponse(Event),
     // TODO: add a quick immediate response message (probably should do this!)
     // (call it success!)
 
     StepRequest,
-    StepResponse(State),
+    StepResponse(Option<Event>),
 
     PauseRequest,
     PauseSuccess,
@@ -256,14 +256,14 @@ pub trait EventFutureSharedState {
     ///
     /// Implementors should not call `wake()` in this method. We'll let
     /// producers do that.
-    fn set_event_and_state(&self, event: Event, state: State);
+    fn set_event(&self, event: Event);
 
     /// Returns the state if it is present.
     ///
     /// Each time this is called while state *is* present, the count should be
     /// decremented. The state and any registered wakers disappear once the
     /// count hits 0.
-    fn get_event_and_state(&self) -> Option<(Event, State)>;
+    fn get_event(&self) -> Option<Event>;
 
     /// Increments the count of the number of futures that are out and using
     /// this instance to poll for the next event.
@@ -271,7 +271,7 @@ pub trait EventFutureSharedState {
     /// Panics if we hit the maximum count.
     fn increment(&self) -> u8;
 
-    /// `true` if `set_event_and_state` has been called on the state *and* there
+    /// `true` if `set_event` has been called on the state *and* there
     /// are still pending futures that need to be resolved.
     fn batch_sealed(&self) -> bool;
 
@@ -287,8 +287,8 @@ pub trait EventFutureSharedState {
 
 pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     /// To be called by Futures.
-    fn poll(&self, waker: Waker) -> Poll<(Event, State)> {
-        if let Some(pair) = self.get_event_and_state() {
+    fn poll(&self, waker: Waker) -> Poll<Event> {
+        if let Some(pair) = self.get_event() {
             Poll::Ready(pair)
         } else {
             self.register_waker(waker);
@@ -307,11 +307,11 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     }
 
     /// To be called by producers.
-    fn resolve_all(&self, event: Event, state: State) -> Result<(), ()> {
+    fn resolve_all(&self, event: Event) -> Result<(), ()> {
         if self.batch_sealed() {
             Err(())
         } else {
-            self.set_event_and_state(event, state);
+            self.set_event(event);
             self.wake();
 
             Ok(())
@@ -319,14 +319,14 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     }
 }
 
-impl<E: EventFutureSharedState> EventFutureSharedStatePorcelain for E { }
+// impl<E: EventFutureSharedState> EventFutureSharedStatePorcelain for E { }
 
 #[derive(Debug, Clone)]
 pub enum SharedStateState { // TODO: bad name, I know
     Errored,
     Dormant,
     WaitingForAnEvent { waker: Option<Waker>, count: NonZeroU8 },
-    WaitingForFuturesToResolve { pair: (Event, State), waker: Option<Waker>, count: NonZeroU8 },
+    WaitingForFuturesToResolve { event: Event, waker: Option<Waker>, count: NonZeroU8 },
 }
 
 impl Default for SharedStateState {
@@ -373,33 +373,33 @@ impl SharedStateState {
         };
     }
 
-    fn set_event_and_state(&mut self, event: Event, state: State) {
+    fn set_event(&mut self, event: Event) {
         use SharedStateState::*;
 
         match self {
             Errored | Dormant => panic!("Attempted to make an event without any futures!"),
             WaitingForFuturesToResolve { .. } => panic!("Attempted to make multiple events in a batch!"),
             WaitingForAnEvent { waker, count } => {
-                *self = WaitingForFuturesToResolve { pair: (event, state), waker: waker.clone(), count: *count }
+                *self = WaitingForFuturesToResolve { event, waker: waker.clone(), count: *count }
             }
         };
     }
 
-    fn get_event_and_state(&mut self) -> Option<(Event, State)> {
+    fn get_event(&mut self) -> Option<Event> {
         use SharedStateState::*;
 
         let ret = match self {
             Errored | Dormant => panic!("Unregistered future polled the state!"),
             WaitingForFuturesToResolve { waker: Some(_), .. } => panic!("Waker persisted after batch was sealed!"),
             s @ WaitingForAnEvent { .. } => None,
-            WaitingForFuturesToResolve { pair, waker: None, count } => {
+            WaitingForFuturesToResolve { event, waker: None, count } => {
                 if count.get() == 1 {
-                    let pair = *pair;
+                    let event = *event;
                     *self = Dormant;
-                    Some(pair)
+                    Some(event)
                 } else {
                     *count = NonZeroU8::new(count.get() - 1).unwrap();
-                    Some(*pair)
+                    Some(*event)
                 }
             },
         };
@@ -480,12 +480,12 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
         self.update(|s| s.wake())
     }
 
-    fn set_event_and_state(&self, event: Event, state: State) {
-        self.update(|s| s.set_event_and_state(event, state))
+    fn set_event(&self, event: Event) {
+        self.update(|s| s.set_event(event))
     }
 
-    fn get_event_and_state(&self) -> Option<(Event, State)> {
-        self.update(|s| s.get_event_and_state())
+    fn get_event(&self) -> Option<Event> {
+        self.update(|s| s.get_event())
     }
 
     fn increment(&self) -> u8 {
@@ -504,7 +504,7 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
 pub struct EventFuture<'a, S: EventFutureSharedState>(&'a S);
 
 impl<'a, S: EventFutureSharedStatePorcelain> Future for EventFuture<'a, S> {
-    type Output = (Event, State);
+    type Output = Event;
 
     fn poll(self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
         self.0.poll(ctx.waker().clone())
@@ -568,9 +568,10 @@ where
         let encoded_message = self.transport.get()?;
         let message = E::decode(&encoded_message).unwrap();
 
-        if let ControlMessage::RunUntilEventResponse(event, state) = message {
+        if let ControlMessage::RunUntilEventResponse(event) = message {
             if self.waiting_for_event.load(Ordering::SeqCst) {
-                self.shared_state.resolve_all(event, state).unwrap();
+                // println!("resolving the rpc future");
+                self.shared_state.resolve_all(event).unwrap();
                 self.waiting_for_event.store(false, Ordering::SeqCst);
 
                 None
@@ -662,7 +663,18 @@ where
         EventFuture(self.shared_state)
     }
 
-    fn step(&mut self) -> State { ctrl!(self, StepRequest, StepResponse(r), r) }
+    fn tick(&mut self) {
+        // Because we basically call tick() on every other function call here, we could
+        // probably get away with just doing nothing here in practice.
+        // But, checking here as well doesn't hurt.
+        //
+        // We should never actually get a message here (run until event responses are
+        // handled within `Self::tick()`) though.
+        // Self::tick(self).unwrap_none(); // when this goes stable, use this
+        if Self::tick(self).is_some() { panic!("Controller received a message in tick!") }
+    }
+
+    fn step(&mut self) -> Option<Event> { ctrl!(self, StepRequest, StepResponse(r), r) }
     fn pause(&mut self) { ctrl!(self, PauseRequest, PauseSuccess) }
 
     fn get_state(&self) -> State { ctrl!(self, GetStateRequest, GetStateResponse(r), r) }
@@ -856,7 +868,7 @@ where
                                 self.pending_event_future = Some(c.run_until_event());
                             }
                         },
-                        RunUntilEventResponse(_, _) => panic!("Received a run_until_event response on the device side!"),
+                        RunUntilEventResponse(_) => panic!("Received a run_until_event response on the device side!"),
                         $(
                             $req => self.transport.send(E::encode({
                                 let $r = $resp_expr;
@@ -944,12 +956,12 @@ using_std! {
             self.0.write().unwrap().wake()
         }
 
-        fn set_event_and_state(&self, event: Event, state: State) {
-            self.0.write().unwrap().set_event_and_state(event, state)
+        fn set_event(&self, event: Event) {
+            self.0.write().unwrap().set_event(event)
         }
 
-        fn get_event_and_state(&self) -> Option<(Event, State)> {
-            self.0.write().unwrap().get_event_and_state()
+        fn get_event(&self) -> Option<Event> {
+            self.0.write().unwrap().get_event()
         }
 
         fn increment(&self) -> u8 {

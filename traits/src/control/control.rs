@@ -25,7 +25,8 @@ pub const MAX_MEMORY_WATCHPOINTS: usize = 10;
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
-    Interrupted, // If we get paused or stepped, this is returned.
+    Interrupted, // If we get paused or stepped, this is returned. (TODO: we currently only return this if we're paused!! not sure if stopping on a step is reasonable behavior)
+    Halted,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -35,8 +36,16 @@ pub enum State {
     Halted,
 }
 
+// pub trait Driver: Control {
+//     type EventFuture: Future<Output = (Event, State)>;
+
+//     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
+
+//     fn make_progress(&mut self);
+// }
+
 pub trait Control {
-    type EventFuture: Future<Output = (Event, State)>;
+    type EventFuture: Future<Output = Event>;
 
     fn get_pc(&self) -> Addr;
     fn set_pc(&mut self, addr: Addr); // Should be infallible.
@@ -75,7 +84,17 @@ pub trait Control {
 
     // Execution control functions:
     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
-    fn step(&mut self) -> State;
+    // TODO: we probably want a better API than this...
+    // Maybe a Driver trait that takes a FnMut(impl Control)
+    // that calls tick under the hood and then the function provided
+
+    // The invariant to maintain is that if run_until_event is called, tick must be
+    // called periodically.
+    //
+    // Also, this function will *not* be proxied.
+    fn tick(&mut self); // The function to call so that the simulator can do some work.
+
+    fn step(&mut self) -> Option<Event>;
     fn pause(&mut self); // TODO: should we respond saying whether or not the pause actually did anything (i.e. if we were already paused... it did not).
 
     fn get_state(&self) -> State;
