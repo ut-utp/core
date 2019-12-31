@@ -6,7 +6,7 @@ enum State {
     ReadingConsoleInput(u16),
 }
 
-struct Fifo<T> {
+pub struct Fifo<T> {
     data: [T; Self::CAPACITY], // Pick this so that we can read in the largest message. Also have compile time asserts that check that all the messages fit within a buffer of this size! (TODO) (shouldn't be too bad since we have one message...)
     length: usize,
     starting: Self::Cur,
