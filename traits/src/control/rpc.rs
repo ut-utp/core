@@ -1,5 +1,6 @@
-// extern crate futures; // 0.1.23
-// extern crate rand;
+//! RPC for the Control trait.
+//!
+//! (TODO!)
 
 use super::control::{Control, Event, State, MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
 use crate::error::Error as Lc3Error;
@@ -23,6 +24,15 @@ use core::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 
+static FOO: () = {
+    let s = core::mem::size_of::<ControlMessage>();
+    let canary = [()];
+
+    canary[s - 64] // panic if the size of ControlMessage changes
+};
+
+// TODO: split into request/response types (helps with type safety (i.e. Device only
+// deals with Responses) and potentially the size of the messages)
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ControlMessage { // messages for everything but tick()
     GetPcRequest,
@@ -389,7 +399,7 @@ impl SharedStateState {
         use SharedStateState::*;
 
         let ret = match self {
-            Errored | Dormant => panic!("Unregistered future polled the state!"),
+            Errored | Dormant => panic!("Unregistered future polled the state! {:?}", self),
             WaitingForFuturesToResolve { waker: Some(_), .. } => panic!("Waker persisted after batch was sealed!"),
             s @ WaitingForAnEvent { .. } => None,
             WaitingForFuturesToResolve { event, waker: None, count } => {
@@ -501,7 +511,14 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
     }
 }
 
+#[derive(Debug)]
 pub struct EventFuture<'a, S: EventFutureSharedState>(&'a S);
+
+impl<'a, S: EventFutureSharedStatePorcelain> EventFuture<'a, S> {
+    pub /*const*/ fn new(inner: &'a S) -> Self {
+        Self(inner)
+    }
+}
 
 impl<'a, S: EventFutureSharedStatePorcelain> Future for EventFuture<'a, S> {
     type Output = Event;
@@ -529,7 +546,7 @@ where
     // pending_messages: Cell<[Option<ControlMessage>; 2]>,
     // pending_messages: [Option<ControlMessage>; 2],
     shared_state: &'a S,
-    waiting_for_event: AtomicBool, // TODO: no reason for this to be Atomic
+    waiting_for_event: AtomicBool, // TODO: no reason for this to be Atomic // Note: it's atomic so we can maintain interior mutability?
     // waiting_for_event: bool,
 }
 
@@ -593,7 +610,7 @@ macro_rules! ctrl {
         $s.transport.send(E::encode($req).unwrap()).unwrap();
 
         loop {
-            if let Some(m) = $s.tick() {
+            if let Some(m) = Controller::tick($s) {
                 if let $resp = m {
                     break $($ret)?
                 } else {
@@ -819,7 +836,8 @@ static NO_OP_RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
     RW_DROP
 );
 
-static RW_CLONE: fn(*const ()) -> RawWaker = |_| RawWaker::new(
+#[doc(hidden)]
+pub static RW_CLONE: fn(*const ()) -> RawWaker = |_| RawWaker::new(
     core::ptr::null(),
     &NO_OP_RAW_WAKER_VTABLE,
 );
@@ -844,11 +862,30 @@ where
         use ControlMessage::*;
         let mut num_processed_messages = 0;
 
+        // Make some progress:
+        c.tick();
+
         if let Some(ref mut f) = self.pending_event_future {
-            if let Poll::Ready((event, state)) = Pin::new(f).poll(&mut Context::from_waker(&unsafe { Waker::from_raw(RW_CLONE(&())) } )) {
+            // println!("polling the device future");
+
+            // TODO: we opt to poll here because we assume that the underlying future is
+            // rubbish so our waker (if we were to register a real one) would never be called.
+            //
+            // However, the simulator's future (just as the one the controller exposes) does
+            // treat the waker correctly. Additionally if someone were to write a truly
+            // async simulator, this would also be a real future that respects the waker.
+            //
+            // So, it may be worth looking into using a real waker that notifies us that
+            // something has happened. Or better yet, maybe writing an async Device rpc
+            // thing that just chains our future onto the real one.
+            //
+            // On the other hand, this is at odds with no_std support and it's unlikely
+            // to net material performance wins so, maybe eventually.
+            if let Poll::Ready(event) = Pin::new(f).poll(&mut Context::from_waker(&unsafe { Waker::from_raw(RW_CLONE(&())) } )) {
+                // println!("device future is done!");
                 self.pending_event_future = None;
 
-                let enc = E::encode(RunUntilEventResponse(event, state)).unwrap();
+                let enc = E::encode(RunUntilEventResponse(event)).unwrap();
                 self.transport.send(enc).unwrap();
             }
         }
@@ -862,7 +899,7 @@ where
                     match m {
                         RunUntilEventRequest => {
                             if self.pending_event_future.is_some() {
-                                panic!() // TODO: write a message
+                                panic!() // TODO: write a message // already have a run until event pending!
                             } else {
                                 // self.pending_event_future = Some(Pin::new(c.run_until_event()));
                                 self.pending_event_future = Some(c.run_until_event());
@@ -937,6 +974,7 @@ using_std! {
     use std::sync::RwLock;
     use std::sync::mpsc::{Sender, Receiver, SendError};
 
+    #[derive(Debug)]
     pub struct SyncEventFutureSharedState(RwLock<SharedStateState>);
 
     impl SyncEventFutureSharedState {

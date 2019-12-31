@@ -36,8 +36,10 @@ pub enum State {
     Halted,
 }
 
-// pub trait Driver: Control {
-//     type EventFuture: Future<Output = (Event, State)>;
+// Actually maybe make this Control a super trait of this can have Control still retain
+// EventFuture and run_until_event. (TODO)
+// pub trait Driver: Control { type EventFuture:
+// Future<Output = (Event, State)>;
 
 //     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
 
