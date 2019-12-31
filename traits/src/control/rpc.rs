@@ -292,6 +292,8 @@ pub trait EventFutureSharedState {
     ///
     /// Note: this is no practical use for this function.
     fn is_clean(&self) -> bool;
+
+    fn reset(&self); // TODO!
 }
 
 
@@ -451,6 +453,10 @@ impl SharedStateState {
             false
         }
     }
+
+    fn reset(&mut self) {
+        *self =  SharedStateState::Dormant; // TODO: currently pending futures!
+    }
 }
 
 pub struct SimpleEventFutureSharedState {
@@ -508,6 +514,10 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
 
     fn is_clean(&self) -> bool {
         self.update(|s| s.is_clean())
+    }
+
+    fn reset(&self) {
+        self.update(|s| s.reset())
     }
 }
 
@@ -696,7 +706,13 @@ where
 
     fn get_state(&self) -> State { ctrl!(self, GetStateRequest, GetStateResponse(r), r) }
 
-    fn reset(&mut self) { ctrl!(self, ResetRequest, ResetSuccess) }
+    fn reset(&mut self) {
+        // Drop all pending futures:
+        // (if one of these futures is polled again, bad bad things will happen; TODO)
+        self.shared_state.reset();
+
+        ctrl!(self, ResetRequest, ResetSuccess)
+    }
 
     fn get_error(&self) -> Option<Lc3Error> { ctrl!(self, GetErrorRequest, GetErrorResponse(r), r) }
 
@@ -1012,6 +1028,10 @@ using_std! {
 
         fn is_clean(&self) -> bool {
             self.0.read().unwrap().is_clean()
+        }
+
+        fn reset(&self) {
+            self.0.write().unwrap().reset();
         }
     }
 
