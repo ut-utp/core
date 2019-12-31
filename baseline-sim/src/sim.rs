@@ -3,6 +3,7 @@ use crate::interp::{InstructionInterpreter, InstructionInterpreterPeripheralAcce
 use lc3_isa::{Addr, Reg, Word};
 use lc3_traits::control::{Control, Event, State};
 use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use lc3_traits::control::rpc::{EventFutureSharedStatePorcelain, SimpleEventFutureSharedState, EventFuture};
 use lc3_traits::error::Error;
 use lc3_traits::memory::MemoryMiscError;
 use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcReadError, AdcState};
@@ -14,14 +15,14 @@ use lc3_traits::peripherals::Peripherals;
 
 use crate::mem_mapped::{MemMapped, KBDR};
 
-use core::future::Future;
+// use core::future::Future;
 use core::marker::PhantomData;
 use core::ops::Deref;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+// use core::pin::Pin;
+// use core::task::{Context, Poll};
 
 #[derive(Debug, Clone)]
-pub struct Simulator<'a, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>>
+pub struct Simulator<'a, 's, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain = SimpleEventFutureSharedState>
 where
     <I as Deref>::Target: Peripherals<'a>,
 {
@@ -31,10 +32,11 @@ where
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
     state: State,
+    shared_state: Option<&'s S>,
     _i: PhantomData<&'a ()>,
 }
 
-impl<'a, I: InstructionInterpreterPeripheralAccess<'a> + Default> Default for Simulator<'a, I>
+impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a> + Default, S: EventFutureSharedStatePorcelain> Default for Simulator<'a, 's, I, S>
 where
     <I as Deref>::Target: Peripherals<'a>,
 {
@@ -43,11 +45,12 @@ where
     }
 }
 
-impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Simulator<'a, I>
+impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain> Simulator<'a, 's, I, S>
 where
     <I as Deref>::Target: Peripherals<'a>,
 {
-    pub fn new(interp: I) -> Self {
+    // No longer public.
+    fn new(interp: I) -> Self {
         Self {
             interp,
             breakpoints: [None; MAX_BREAKPOINTS],
@@ -55,8 +58,20 @@ where
             num_set_breakpoints: 0,
             num_set_watchpoints: 0,
             state: State::Paused,
+            shared_state: None,
             _i: PhantomData,
         }
+    }
+
+    pub fn new_with_state(interp: I, state: &'s S) -> Self {
+        let mut sim = Self::new(interp);
+        sim.set_shared_state(state);
+
+        sim
+    }
+
+    pub fn set_shared_state(&mut self, state: &'s S) {
+        self.shared_state = Some(state);
     }
 }
 
@@ -69,11 +84,11 @@ where
 //     }
 // }
 
-impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Control for Simulator<'a, I>
+impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain> Control for Simulator<'a, 's, I, S>
 where
     <I as Deref>::Target: Peripherals<'a>,
 {
-    type EventFuture = SimFuture;
+    type EventFuture = EventFuture<'s, S>;
 
     fn get_pc(&self) -> Addr {
         self.interp.get_pc()
@@ -197,7 +212,9 @@ where
     }
 
     fn reset(&mut self) {
+        self.state = State::Paused;
         InstructionInterpreter::reset(&mut self.interp);
+        self.shared_state.as_ref().map(|s| s.reset());
     }
 
     fn get_error(&self) -> Option<Error> {
@@ -241,13 +258,13 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct SimFuture;
+// #[derive(Debug)]
+// pub struct SimFuture<'S, S: EventFutureSharedStatePorcelain>(&'s S);
 
-impl Future for SimFuture {
-    type Output = (Event, State);
+// impl<'s> Future for SimFuture<'s> {
+//     type Output = (Event, State);
 
-    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        unimplemented!()
-    }
-}
+//     fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+
+//     }
+// }
