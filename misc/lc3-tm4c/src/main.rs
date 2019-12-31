@@ -398,6 +398,10 @@ impl<'a> Default for Tm4cOutput<'a> {
     }
 }
 
+use lc3_traits::control::rpc::SimpleEventFutureSharedState;
+
+// static SHARED_STATE: SimpleEventFutureSharedState = SimpleEventFutureSharedState::new();
+
 use lc3_baseline_sim::interp::{Interpreter, InstructionInterpreter, InterpreterBuilder, PeripheralInterruptFlags};
 use lc3_baseline_sim::sim::Simulator;
 
@@ -406,7 +410,6 @@ use lc3_traits::control::Control;
 
 #[entry]
 fn main() -> ! {
-
     type Interp<'a> = Interpreter<'a,
         Tm4cMemory,
         PeripheralSet<'a,
@@ -422,6 +425,8 @@ fn main() -> ! {
 
     let flags: PeripheralInterruptFlags = PeripheralInterruptFlags::new();
 
+    let state: SimpleEventFutureSharedState = SimpleEventFutureSharedState::new();
+
     let mut interp: Interp = InterpreterBuilder::new()
         .with_defaults()
         .build();
@@ -429,7 +434,7 @@ fn main() -> ! {
     interp.reset();
     interp.init(&flags);
 
-    let mut sim = Simulator::new(interp);
+    let mut sim = Simulator::new_with_state(interp, &state);
     sim.reset();
 
     loop {
