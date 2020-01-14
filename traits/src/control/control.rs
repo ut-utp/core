@@ -11,6 +11,7 @@ use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
 use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
 use crate::peripherals::timers::{TimerArr, TimerState};
+use super::{DeviceInfo, ProgramMetadata, Identifier};
 
 use lc3_isa::{Addr, Reg, Word, PSR};
 
@@ -48,6 +49,7 @@ pub enum State {
 
 pub trait Control {
     type EventFuture: Future<Output = Event>;
+    const ID: Identifier = Identifier::new_that_crashes_on_invalid_inputs(['?', '?', '?', '?']);
 
     fn get_pc(&self) -> Addr;
     fn set_pc(&mut self, addr: Addr); // Should be infallible.
@@ -134,4 +136,16 @@ pub trait Control {
     // when writing a default impl) and I can't think of a way that's appreciably better so I think we just have to eat it.
     //
     // We kind of got around this with the `PeripheralSet` struct in the peripherals module, but I'm not sure it'd work here.
+
+    fn get_info(&self) -> DeviceInfo {
+        DeviceInfo::new(
+            ProgramMetadata::default(),
+            Default::default(),
+            core::any::TypeId::of::<Self>(),
+            Self::ID,
+            Default::default()
+        )
+    }
+
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata);
 }
