@@ -28,19 +28,6 @@ pub trait Peripherals<'p>:
     fn init(&mut self);
 }
 
-// pub trait DerefOrOwned<RealType>: sealed::Sealed<RealType> { }
-
-// mod sealed {
-//     use core::ops::{Deref, DerefMut};
-//     pub trait Sealed<R> { }
-
-//     impl<T> Sealed<T> for T { }
-//     // impl<P, T> Sealed<T> for P where P: Deref<Target = T> + DerefMut { }
-// }
-
-// impl<T> DerefOrOwned<T> for T { }
-// impl<P, T> DerefOrOwned<T> for P where P: Deref<Target = T> + DerefMut { }
-
 pub struct PeripheralSet<'p, G, A, P, T, C, I, O/*, GW, AW, PW, TW, CW, IW, OW*/>
 where
     G: Gpio<'p>,
@@ -370,4 +357,51 @@ where
     O: 'p + Output<'p>,
 {
     fn init(&mut self) {}
+}
+
+use crate::control::Snapshot;
+
+impl<'p, G, A, P, T, C, I, O> Snapshot for PeripheralSet<'p, G, A, P, T, C, I, O>
+where
+    G: 'p + Snapshot + Gpio<'p>,
+    A: 'p + Snapshot + Adc,
+    P: 'p + Snapshot + Pwm,
+    T: 'p + Snapshot + Timers<'p>,
+    C: 'p + Snapshot + Clock,
+    I: 'p + Snapshot + Input<'p>,
+    O: 'p + Snapshot + Output<'p>,
+{
+    type Snap = (
+        <G as Snapshot>::Snap,
+        <A as Snapshot>::Snap,
+        <P as Snapshot>::Snap,
+        <T as Snapshot>::Snap,
+        <C as Snapshot>::Snap,
+        <I as Snapshot>::Snap,
+        <O as Snapshot>::Snap,
+    );
+
+    fn record(&self) -> Self::Snap {
+        (
+            self.gpio.record(),
+            self.adc.record(),
+            self.pwm.record(),
+            self.timers.record(),
+            self.clock.record(),
+            self.input.record(),
+            self.output.record(),
+        )
+    }
+
+    fn restore(&mut self, snap: Self::Snap) {
+        let (g, a, p, t, c, i, o) = snap;
+
+        self.gpio.restore(g);
+        self.adc.restore(a);
+        self.pwm.restore(p);
+        self.timers.restore(t);
+        self.clock.restore(c);
+        self.input.restore(i);
+        self.output.restore(o);
+    }
 }
