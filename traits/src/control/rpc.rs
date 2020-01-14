@@ -135,32 +135,41 @@ pub enum ControlMessage { // messages for everything but tick()
     GetClockResponse(Word),
 }
 
-pub trait Encoding {
+// Implementors provide:
+//   - T -> Encoded (Infallible)
+//   - Encoded -> T (Fallible)
+//
+// Allowing for a full cycle:
+//    [T] -> [Encoded]
+//     ^         |
+//      \-------/
+pub trait Encoding<T: Debug> {
     type Encoded: Debug;
     type Err: Debug;
 
-    fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err>;
-    fn decode(encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err>;
+    // fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err>;
+    fn encode(message: T) -> Self::Encoded;
+    fn decode(encoded: &Self::Encoded) -> Result<T, Self::Err>;
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct TransparentEncoding;
+pub struct TransparentEncoding<T: Debug>(PhantomData<T>);
 
-impl Encoding for TransparentEncoding {
-    type Encoded = ControlMessage;
+impl<T: Debug> Encoding<T> for TransparentEncoding<T> {
+    type Encoded = T;
     type Err = Infallible;
 
-    fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err> {
+    fn encode(message: T) -> Self::Encoded {
         Ok(message)
     }
 
-    fn decode(message: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
+    fn decode(message: &Self::Encoded) -> Result<T, Self::Err> {
         Ok(message.clone())
     }
 }
 
 pub trait Transport<EncodedFormat> {
-    type Err: core::fmt::Debug;
+    type Err: Debug;
 
     fn send(&self, message: EncodedFormat) -> Result<(), Self::Err>;
 
@@ -553,7 +562,7 @@ where
     T: Transport<<E as Encoding>::Encoded>,
     S: EventFutureSharedState,
 {
-    pub encoding: E,
+    encoding: PhantomData<E>,
     pub transport: T,
     // pending_messages: Cell<[Option<ControlMessage>; 2]>,
     // pending_messages: [Option<ControlMessage>; 2],
@@ -595,7 +604,7 @@ where
     // thing that could interrupt this.
     fn tick(&self) -> Option<ControlMessage> {
         let encoded_message = self.transport.get()?;
-        let message = E::decode(&encoded_message).unwrap();
+        let message = E::decode(&encoded_message).unwrap(); // TODO: don't panic;
 
         if let ControlMessage::RunUntilEventResponse(event) = message {
             if self.waiting_for_event.load(Ordering::SeqCst) {
@@ -804,9 +813,9 @@ where
 // that arranges for whatever is underneath us to alert the executor when a
 // certain task can make progress. This suggests that individual futures can be
 // somewhat tied to reactor implementations. For example, `async-std` uses `mio`
-// and would not function correctly if the futures its functions produces were
+// and would not function correctly if the futures its functions produce were
 // executed without a Mio based reactor being present; instead the futures would
-// report that they were NotReady, would try to register themselves with their
+// report that they were `NotReady`, would try to register themselves with their
 // Mio based reactor (passing along their context or just their Waker) and would
 // then be queued by their executor, unaware that no arrangement had actually
 // been made to inform the executor once they could be awoken. All this is to
