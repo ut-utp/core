@@ -839,14 +839,65 @@ where
 // do a trait because then everything would have to be generic over the Waker;
 // they couldn't do a trait object because then object safety rears its head
 // (associated types? i think) so: all type safety was sacrificed. iirc one of
-// the withoutboats' async blog posts talks about it.
+// withoutboats' async blog posts talks about it.
 //
 // Anyways. Now that we've got something of an understanding, we can talk about
 // our fairly simple use case.
 //
 // For clarity, here's our whole picture:
 //
-//   Device:
+// ```
+//   /----------------------------------------------------------------------\
+//  |                    [Controller Side: i.e. Laptop]                      |
+//  |                                                                        |
+//  |  /----------------------\                     %%% < %%%                |
+//  | | [Controller]: `Control`|               %%% [Main Loop] %%%           |
+//  | | tick:                  |                                             |
+//  | |  - resolves futures    |           %%%  /---------------\  %%%       |
+//  | |    issued by           |               |  [Client Logic] |           |
+//  | |    `run_until_event`   |<---\     %%%  |                 |   %%%     |
+//  | | rest:                  |    |     vvv  | Uses the device |   ^^^     |
+//  | |  - proxied; send req.  |    |     %%%  | via the Control |   %%%     |
+//  | |    and block on resp.  |    |          | interface.      |           |
+//  |  \--|----------------^--/     |     %%%  |  /---^          |  %%%      |
+//  |     |                |        |           \-|-------------/            |
+//  | |---v----|     |-----|---|    |        %%%  v              %%%         |
+//  | |Enc: Req|     |Dec: Resp|    \----------->[Control::tick]             |
+//  | |-|------|     |-------^-|                    %%% > %%%                |
+//   \--|--------------------|----------------------------------------------/
+//      |<Con Send  Con Recv>|
+//      |  [Transport Layer] |
+//      |<Dev Recv  Dev Send>|
+//   /--v--------------------|----------------------------------------------\
+//  | |--------|     |-------|-|            %%% < %%%            /--------\  |
+//  | |Dec: Req|     |Enc: Resp|       %%% [Dev. Loop] %%%      |  [Sim.]  | |
+//  | |---|----|     |-----^---|                       /--------| ╭──────╮ | |
+//  |     |                |       %%%                 |   %%%  | │Interp│ | |
+//  |  /--v----------------|--\                        |        | ╰──────╯ | |
+//  | |        [Device]        |  %%%                  v     %%% \--------/  |
+//  | | tick:                  |  vvv [Device::tick(......)] ^^^             |
+//  | |  - makes progress on   |  %%%     |                  %%%             |
+//  | |    any futures that    |<---------/                                  |
+//  | |    were issued         |  %%%                       %%%              |
+//  | |  - processes new reqs  |                                             |
+//  | |    (blocks if not a    |     %%%  v              %%%                 |
+//  | |    `run_until_event`)  |                                             |
+//  |  \----------------------/             %%% > %%%                        |
+//  |                                                                        |
+//  |                         [Device Side: i.e. TM4C]                       |
+//   \----------------------------------------------------------------------/
+// ```
+
+// ╭──────╮
+// │Interp│
+// ╰──────╯
+// ╔──────╗
+// │Interp│
+// ╚──────╝
+// ╔══════╗
+// ║Interp║
+// ╚══════╝
+
 static NO_OP_RAW_WAKER_VTABLE: RawWakerVTable = RawWakerVTable::new(
     RW_CLONE,
     RW_WAKE,
