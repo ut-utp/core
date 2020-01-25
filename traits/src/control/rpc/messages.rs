@@ -1,114 +1,133 @@
 //! Messages used for proxying [Control trait](super::Control) functions.
 
+use crate::error::Error as Lc3Error;
+use crate::peripherals::{adc::AdcPinArr, gpio::GpioPinArr, pwm::PwmPinArr, timers::TimerArr}
+use crate::peripherals::{adc::AdcReadError, gpio::GpioReadError};
+use crate::memory::MemoryMiscError;
+use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::metadata::{DeviceInfo, ProgramMetadata};
+use super::{State, Event};
+
+use lc3_isa::{Addr, Reg, Word};
+
 #[allow(dead_code)]
-static FOO: () = {
-    let s = core::mem::size_of::<ControlMessage>();
+static __REQ_SIZE_CHECK: () = {
+    let s = core::mem::size_of::<RequestMessage>();
     let canary = [()];
 
-    canary[s - 64] // panic if the size of ControlMessage changes
+    canary[s - 64] // panic if the size of RequestMessage changes
 };
 
-// TODO: split into request/response types (helps with type safety (i.e. Device only
-// deals with Responses) and potentially the size of the messages)
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[deny(clippy::large_enum_variant)]
-pub enum ControlMessage { // messages for everything but tick()
-    GetPcRequest,
-    GetPcResponse(Addr),
+pub enum RequestMessage { // messages for everything but tick()
+    GetPc,
+    SetPc { addr: Addr },
 
-    SetPcRequest { addr: Addr },
-    SetPcSuccess,
-
-    GetRegisterRequest { reg: Reg },
-    GetRegisterResponse(Word),
-
-    SetRegisterRequest { reg: Reg, data: Word },
-    SetRegisterSuccess,
+    GetRegister { reg: Reg },
+    SetRegister { reg: Reg, data: Word },
 
     // Optional, but we're including it in case implementors wish to do
     // something special or just cut down on overhead.
-    GetRegistersPsrAndPcRequest,
-    GetRegistersPsrAndPcResponse(([Word; Reg::NUM_REGS], Word, Word)),
+    GetRegistersPsrAndPc,
 
-    ReadWordRequest { addr: Addr },
-    ReadWordResponse(Word),
+    ReadWord { addr: Addr },
+    WriteWord { addr: Addr, word: Word },
+    CommitMemory,
 
-    WriteWordRequest { addr: Addr, word: Word },
-    WriteWordSuccess,
+    SetBreakpoint { addr: Addr },
+    UnsetBreakpoint { idx: usize },
+    GetBreakpoints,
+    GetMaxBreakpoints,
 
-    CommitMemoryRequest,
-    CommitMemoryResponse(Result<(), MemoryMiscError>),
+    SetMemoryWatchpoint { addr: Addr },
+    UnsetMemoryWatchpoint { idx: usize },
+    GetMemoryWatchpoints,
+    GetMaxMemoryWatchpoints,
 
-    SetBreakpointRequest { addr: Addr },
-    SetBreakpointResponse(Result<usize, ()>),
+    // no tick!
+    RunUntilEvent,
 
-    UnsetBreakpointRequest { idx: usize },
-    UnsetBreakpointResponse(Result<(), ()>),
+    Step,
+    Pause,
 
-    GetBreakpointsRequest,
-    GetBreakpointsResponse([Option<Addr>; MAX_BREAKPOINTS]),
+    GetState,
 
-    GetMaxBreakpointsRequest,
-    GetMaxBreakpointsResponse(usize),
+    Reset,
 
-    SetMemoryWatchpointRequest { addr: Addr },
-    SetMemoryWatchpointResponse(Result<usize, ()>),
+    GetError,
 
-    UnsetMemoryWatchpointRequest { idx: usize },
-    UnsetMemoryWatchpointResponse(Result<(), ()>),
+    GetGpioStates,
+    GetGpioReadings,
+    GetAdcStates,
+    GetAdcReadings,
+    GetTimerStates,
+    GetTimerConfig,
+    GetPwmStates,
+    GetPwmConfig,
+    GetClock,
 
-    GetMemoryWatchpointsRequest,
-    GetMemoryWatchpointsResponse([Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS]),
+    GetInfo,
+    SetProgramMetadata { metadata: ProgramMetadata },
+}
 
-    GetMaxMemoryWatchpointsRequest,
-    GetMaxMemoryWatchpointsResponse(usize),
+#[allow(dead_code)]
+static __RESP_SIZE_CHECK: () = {
+    let s = core::mem::size_of::<ResponseMessage>();
+    let canary = [()];
 
-    // (TODO)
-    RunUntilEventRequest,
-    RunUntilEventResponse(Event),
-    // TODO: add a quick immediate response message (probably should do this!)
-    // (call it success!)
+    canary[s - 64] // panic if the size of ResponseMessage changes
+};
 
-    StepRequest,
-    StepResponse(Option<Event>),
+#[derive(Debug, Clone, Serialize, Deserialize, Debug)]
+#[deny(clippy::large_enum_variant)]
+pub enum ResponseMessage { // messages for everything but tick()
+    GetPc(Addr),
+    SetPc,
 
-    PauseRequest,
-    PauseSuccess,
+    GetRegister(Word),
+    SetRegister,
 
-    GetStateRequest,
-    GetStateResponse(State),
+    // Optional, but we're including it in case implementors wish to do
+    // something special or just cut down on overhead.
+    GetRegistersPsrAndPc(([Word; Reg::NUM_REGS], Word, Word)),
 
-    ResetRequest,
-    ResetSuccess,
+    ReadWord(Word),
+    WriteWord,
+    CommitMemory(Result<(), MemoryMiscError>),
 
-    // (TODO)
-    GetErrorRequest,
-    GetErrorResponse(Option<Lc3Error>),
+    SetBreakpoint(Result<usize, ()>),
+    UnsetBreakpoint(Result<(), ()>),
+    GetBreakpoints([Option<Addr>; MAX_BREAKPOINTS]),
+    GetMaxBreakpoints(usize),
 
-    GetGpioStatesRequest,
-    GetGpioStatesResponse(GpioPinArr<GpioState>),
+    SetMemoryWatchpoint(Result<usize, ()>),
+    UnsetMemoryWatchpoint(Result<(), ()>),
+    GetMemoryWatchpoints([Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS]),
+    GetMaxMemoryWatchpoints(usize),
 
-    GetGpioReadingsRequest,
-    GetGpioReadingsResponse(GpioPinArr<Result<bool, GpioReadError>>),
+    // no tick!
+    RunUntilEventAck, // Special acknowledge message for run until event.
+    RunUntilEvent(Event),
 
-    GetAdcStatesRequest,
-    GetAdcStatesResponse(AdcPinArr<AdcState>),
+    Step(Option<Event>),
+    Pause,
 
-    GetAdcReadingsRequest,
-    GetAdcReadingsResponse(AdcPinArr<Result<u8, AdcReadError>>),
+    GetState(State),
+    Reset,
 
-    GetTimerStatesRequest,
-    GetTimerStatesResponse(TimerArr<TimerState>),
+    GetError(Option<Lc3Error>),
 
-    GetTimerConfigRequest,
-    GetTimerConfigResponse(TimerArr<Word>), // TODO
+    GetGpioStates(GpioPinArr<GpioState>),
+    GetGpioReadings(GpioPinArr<Result<bool, GpioReadError>>),
+    GetAdcStates(AdcPinArr<AdcState>),
+    GetAdcReadings(AdcPinArr<Result<u8, AdcReadError>>),
+    GetTimerStates(TimerArr<TimerState>),
+    GetTimerConfig(TimerArr<Word>), // TODO
+    GetPwmStates(PwmPinArr<PwmState>),
+    GetPwmConfig(PwmPinArr<u8>), // TODO
+    GetClock(Word),
 
-    GetPwmStatesRequest,
-    GetPwmStatesResponse(PwmPinArr<PwmState>),
-
-    GetPwmConfigRequest,
-    GetPwmConfigResponse(PwmPinArr<u8>), // TODO
-
-    GetClockRequest,
-    GetClockResponse(Word),
+    GetInfo(DeviceInfo),
+    SetProgramMetadata,
 }
