@@ -2,30 +2,32 @@
 //!
 //! TODO!
 
-pub trait Transport<EncodedFormat> {
+pub trait Transport<SendFormat, RecvFormat> {
     type Err: Debug;
 
-    fn send(&self, message: EncodedFormat) -> Result<(), Self::Err>;
+    fn send(&self, message: SendFormat) -> Result<(), Self::Err>;
 
     // None if no messages were sent, Some(message) otherwise.
-    fn get(&self) -> Option<EncodedFormat>; // TODO: should this be wrapped in a Result?
+    fn get(&self) -> Option<RecvFormat>; // TODO: should this be wrapped in a Result?
 }
 
 using_std! {
-    pub struct MpscTransport<EncodedFormat: Debug> {
-        tx: Sender<EncodedFormat>,
-        rx: Receiver<EncodedFormat>,
+    use std::sync::mpsc::{Sender, Receiver, SendError};
+
+    pub struct MpscTransport<SendFormat: Debug, RecvFormat: Debug> {
+        tx: Sender<SendFormat>,
+        rx: Receiver<RecvFormat>,
     }
 
-    impl<EncodedFormat: Debug> Transport<EncodedFormat> for MpscTransport<EncodedFormat> {
+    impl<Send: Debug, Recv: Debug> Transport<Send, Recv> for MpscTransport<Send, Recv> {
         type Err = SendError<EncodedFormat>;
 
-        fn send(&self, message: EncodedFormat) -> Result<(), Self::Err> {
+        fn send(&self, message: Send) -> Result<(), Self::Err> {
             log::trace!("SENT: {:?}", message);
             self.tx.send(message)
         }
 
-        fn get(&self) -> Option<EncodedFormat> {
+        fn get(&self) -> Option<Recv> {
             if let Ok(m) = self.rx.try_recv() {
                 log::trace!("GOT: {:?}", m);
                 Some(m)
@@ -42,15 +44,9 @@ using_std! {
         }
     }
 
-    impl<EncodedFormat: Debug> MpscTransport<EncodedFormat> {
-        pub fn new() -> (Self, Self) {
-            mpsc_transport_pair()
-        }
-    }
-
-    fn mpsc_transport_pair<C: Debug>() -> (MpscTransport<C>, MpscTransport<C>) {
-        let (tx_h, rx_h) = std::sync::mpsc::channel();
-        let (tx_d, rx_d) = std::sync::mpsc::channel();
+    fn mpsc_transport_pair<S: Debug, R: Debug>() -> (MpscTransport<S, R>, MpscTransport<R, S>) {
+        let (tx_h, rx_h) = std::sync::mpsc::channel(); // S
+        let (tx_d, rx_d) = std::sync::mpsc::channel(); // R
 
         let host_channel = MpscTransport { tx: tx_h, rx: rx_d };
         let device_channel = MpscTransport { tx: tx_d, rx: rx_h };
@@ -58,13 +54,9 @@ using_std! {
         (host_channel, device_channel)
     }
 
-    pub fn mpsc_sync_pair<'a, Enc: Encoding + Default/* = TransparentEncoding*/, C: Control>(state: &'a SyncEventFutureSharedState) -> (Controller<'a, Enc, MpscTransport<Enc::Encoded>, SyncEventFutureSharedState>, Device<Enc, MpscTransport<Enc::Encoded>, C>)
-    {
-        let (controller, device) = MpscTransport::new();
-
-        let controller = Controller::new(Enc::default(), controller, state);
-        let device = Device::new(Enc::default(), device);
-
-        (controller, device)
+    impl<EncodedFormat: Debug> MpscTransport<EncodedFormat> {
+        pub fn new() -> (Self, Self) {
+            mpsc_transport_pair()
+        }
     }
 }
