@@ -154,23 +154,99 @@
 
 use core::fmt::Debug;
 use core::marker::PhantomData;
+use core::convert::Infallible;
 
 // Implementors provide:
 //   - T -> Encoded (Infallible)
+//
+// Encoding is assumed to be an infallible process so there is no associated
+// error type on this trait.
+pub trait Encode<Message: Debug> {
+    type Encoded: Debug;
+
+    fn encode(message: Message) -> Self::Encoded;
+}
+
+// Implementors provide:
 //   - Encoded -> T (Fallible)
+//
+// Decoding is assumed to be _fallible_ so this trait has an associated error
+// type (`Err`).
+pub trait Decode<Message: Debug> {
+    type Encoded: Debug;
+    type Err: Debug;
+
+    fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err;
+}
+
+// In a softer world:
+use core::convert::TryFrom;
+
+pub struct CoreConvert;
+impl<Encoded, Message> Encode<Message> for CoreConvert
+where
+    Encoded: Debug,
+    Message: Debug + Into<Encoded>,
+{
+    type Encoded = Encoded;
+    fn encode(message: Message) -> Self::Encoded { message.into() }
+}
+
+impl<Encoded, Message> Decode<Message> for CoreConvert
+where
+    Encoded: Debug + Clone,
+    Message: Debug + TryFrom<Encoded>,
+{
+    type Encoded = Encoded;
+    type Err = <Message as TryFrom<Encoded>>::Err;
+    fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err> {
+        TryFrom::try_from(encoded)
+    }
+}
+
+// This trait is for symmetric encodes and decodes.
+//
+// Implementors provide:
+//   - T -> Encoded (Infallible) using the [`Encode`] trait.
+//   - Encoded -> T (Fallible) using the [`Decode`] trait.
 //
 // Allowing for a full cycle:
 //    [T] -> [Encoded]
 //     ^         |
 //      \-------/
-pub trait Encoding<T: Debug> {
-    type Encoded: Debug;
-    type Err: Debug;
+//
+// Never implement this manually.
+pub trait Encoding<Message: Debug>: Encode<Message> + Decode<Message>
+where
+    Self: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>
+{
+    // This only exists for convenience.
+    // You should never implement this trait manually but if you do, you're not
+    // allowed to set this associated type.
+    type Encoded = <Self as Encode<Message>>::Encoded;
 
-    // fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err>;
-    fn encode(message: T) -> Self::Encoded;
-    fn decode(encoded: &Self::Encoded) -> Result<T, Self::Err>;
+    // Same as above for this type.
+    type Err = <Self as Decode<Message>>::Err;
+
+    fn encode(message: Message) -> <Self as Encode<Message>>::Encoded {
+        <Self as Encode<Message>>::encode(message)
+    }
+
+    fn decode(encoded: &<Self as Decode<Message>>::Encoded)
+            -> Result<Message, <Self as Decode<Message>>::Err> {
+        <Self as Decode<Message>>::decode(encoded)
+    }
 }
+
+impl<Message: Debug, Encoding> EncodingPair<Message> for Encoding
+where
+    Self: Decode<Message>,
+    Self: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>,
+{ }
+
+// Now some type level encoding combinators:
+
+// First, transparent (our "base case").
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct TransparentEncoding<T: Debug>(PhantomData<T>);
