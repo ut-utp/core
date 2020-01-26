@@ -558,3 +558,151 @@ using_std! {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! impl_enc_dec {
+        ($unit:ty: $src:ty => $dest:ty) => {
+            struct $unit;
+
+            impl Encode<$src> for $unit {
+                type Encoded = $dest;
+                fn encode(m: $src) -> $dst { m as $dst }
+            }
+
+            impl Decode<$src> for $unit {
+                type Encoded = $dest;
+                type Err = core::num::TryFromIntError;
+
+                fn decode(e: &$dst) -> Result<$src, Self::Err> {
+                    core::convert::TryInto::try_into(*e)
+                }
+            }
+        };
+    }
+
+    impl_enc_dec!(U8ToU16: u8 => u16);
+    impl_enc_dec!(U16ToU32: u16 => u32);
+    impl_enc_dec!(U32ToU64: u32 => u64);
+    impl_enc_dec!(U64ToU128: u64 => u128);
+
+    #[test]
+    fn transparent() {
+        fn check<T: Debug + Clone + Eq>(inp: T) {
+            assert_eq!(inp, Transparent::<T>::encode(inp.clone()));
+            assert_eq!(inp, Transparent::<T>::decode(&inp));
+        }
+
+        #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+        struct Foo { a: u8, b: u16, g: (u8, u128, u16) }
+
+        check(8u8);
+        check(8u8);
+        check(Foo { a: 78, b: 900, g: (1, 2, 3) });
+    }
+
+    #[test]
+    // This really does nothing at run time; if this function compiles, the
+    // blanket impl works.
+    fn encoding_blanket_impl() {
+        fn ser<M: Debug, E: Encoding<M>>(m: M) -> E::Encoded { E::encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+
+
+        let a: u16 = ser::<_, U8ToU16>(255u8);
+        let a: u32 = ser::<_, U16ToU32>(a);
+        let a: u64 = ser::<_, U32ToU64>(a);
+        let a: u128 = ser::<_, U64ToU128>(a);
+
+        let a: u64 = de::<_, U64ToU128>(a);
+        let a: u32 = de::<_, U32ToU64>(a);
+        let a: u16 = de::<_, U16ToU32>(a);
+        let a: u8 = de::<_, U8ToU16>(a);
+
+        assert_eq!(255u8, a);
+    }
+
+    #[test]
+    // This really does nothing at run time; if this function compiles, the
+    // `ChainedEncoding` types and functions work.
+    fn chained_encoding() {
+        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+
+        let chain = ChainedEncoding::new(U8ToU16)
+            .chain(U16ToU32)
+            .chain(U32ToU64)
+            .chain(U64ToU128);
+
+        assert_eq!(255u128, ser(chain, 255u8));
+        assert_eq!(Ok(255u8), de(chain, 255u128));
+
+        assert_eq!(Ok(255u8), de(chain, ser(chain, 255u8)));
+    }
+
+    #[test]
+    // This really does nothing at run time; if this function compiles, the
+    // `ChainedEncode` types and functions work.
+    fn chained_encode() {
+        fn ser<M: Debug, E: Encode<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
+
+        let chain = ChainedEncode::new(U8ToU16)
+            .chain(U16ToU32)
+            .chain(U32ToU64)
+            .chain(U64ToU128);
+
+        assert_eq!(255u128, ser(chain, 255u8));
+    }
+
+    #[test]
+    // This really does nothing at run time; if this function compiles, the
+    // `ChainedDecode` types and functions work.
+    fn chained_decode() {
+        fn de<M: Debug, E: Decode<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+
+        let chain = ChainedDecode::new(U8ToU16)
+            .chain(U16ToU32)
+            .chain(U32ToU64)
+            .chain(U64ToU128);
+
+        assert_eq!(Ok(255u8), de(chain, 255u128));
+    }
+
+    #[test]
+    // This really does nothing at run time; if this function compiles, the
+    // `Pair` types and functions work.
+    fn pair() {
+        // This is basically the same test as `chained_encoding` except we
+        // assemble the encode pipeline and the decode pipeline ourselves.
+        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+
+        fn check<M: Debug + Eq, E: Encoding<M>>(_e: E, m: M) {
+            assert_eq!(Ok(m), de(chain, ser(chain, m)));
+        }
+
+        let enc_chain = ChainedEncode::new(U8ToU16)
+            .chain(U16ToU32)
+            .chain(U32ToU64)
+            .chain(U64ToU128);
+
+        let dec_chain = ChainedDecode::new(U8ToU16)
+            .chain(U16ToU32)
+            .chain(U32ToU64)
+            .chain(U64ToU128);
+
+        let chain = Pair::with(enc_chain, dec_chain);
+        check(chain, 255u8);
+
+        // Of note is that we don't have to be perfectly symmetric here; only
+        // the inputs and outputs have to be symmetric. For example:
+        impl_enc_dec(U8ToU128: u8 => u128);
+        check(Pair::with(U8ToU128, U8ToU128), 254u8);
+        check(U8ToU128, 253u8);
+
+        check(Pair::with(enc_chain, U8ToU128), 252u8);
+        check(Pair::with(U8ToU128, dec_chain), 251u8);
+    }
+}
