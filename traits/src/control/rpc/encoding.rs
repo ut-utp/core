@@ -537,17 +537,21 @@ where
 }
 
 using_std! {
-    #[cfg(feature = "json_encoding")]
+    #[cfg(feature = "json_encoding_layer")]
     pub struct JsonEncoding;
 
-    #[cfg(feature = "json_encoding")]
-    impl Encoding for JsonEncoding {
+    #[cfg(feature = "json_encoding_layer")]
+    impl<Message: Debug> Encode<Message> for JsonEncoding {
         type Encoded = String;
-        type Err = serde_json::error::Error;
 
-        fn encode(message: ControlMessage) -> Result<Self::Encoded, Self::Err> {
-            serde_json::to_string(&message)
+        fn encode(message: Message) -> Self::Encoded {
+            serde_json::to_string(&message).unwrap()
         }
+    }
+
+    #[cfg(feature = "json_encoding_layer")]
+    impl<Message: Debug> Decode<Message> for JsonEncoding {
+        type Err = serde_json::error::Error;
 
         fn decode(encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
             serde_json::from_str(encoded)
