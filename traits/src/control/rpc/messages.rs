@@ -13,6 +13,20 @@ use lc3_isa::{Addr, Reg, Word};
 // TODO: auto gen (proc macro, probably) the types below from and the `Control`
 // trait.
 
+// TODO: one strategy to reduce message enum sizes is to not proxy the
+// "convenience calls" (i.e. the ones that Control has default impls for like
+// `get_register_psr_and_pc`) and instead have the proxying things use the
+// default impls too and to just be okay with one call on the controller side
+// for these messages resulting in multiple messages being sent.
+//
+// The benefit would be not needing to have dedicated messages for these things
+// so a smaller message size (I'm assuming that these variants are the largest
+// ones).
+//
+// On the other hand decent compression in the encoding layer would achieve
+// basically the same thing (assuming that I/O throughput is the bottleneck)
+// without adding more message related overhead to these "convenience calls".
+
 #[allow(dead_code)]
 static __REQ_SIZE_CHECK: () = {
     let s = core::mem::size_of::<RequestMessage>();
