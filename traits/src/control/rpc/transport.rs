@@ -2,8 +2,11 @@
 //!
 //! TODO!
 
+use crate::control::Identifier;
+
 pub trait Transport<SendFormat, RecvFormat> {
     type Err: Debug;
+    const ID: Identifier;
 
     fn send(&self, message: SendFormat) -> Result<(), Self::Err>;
 
@@ -21,6 +24,7 @@ using_std! {
 
     impl<Send: Debug, Recv: Debug> Transport<Send, Recv> for MpscTransport<Send, Recv> {
         type Err = SendError<EncodedFormat>;
+        const ID = Identifer::new_from_str_that_crashes_on_invalid_inputs("MPSC");
 
         fn send(&self, message: Send) -> Result<(), Self::Err> {
             log::trace!("SENT: {:?}", message);

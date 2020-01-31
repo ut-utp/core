@@ -39,6 +39,14 @@ impl Identifier {
         Ok(Self(name))
     }
 
+    pub fn new_from_str(name: &str) -> Result<Self, ()> {
+        // if name.len() != 4 {
+        //     Err(())
+        // }
+
+        Self::new(name.as_bytes().try_into().map_err(|_| ())?)
+    }
+
     pub const fn new_that_crashes_on_invalid_inputs(name: [u8; 4]) -> Self {
         // `is_ascii` == `*c & 128 == 0`
         let canary: [(); 1] = [()];
@@ -48,7 +56,29 @@ impl Identifier {
         canary[name[2] & 128];
         canary[name[3] & 128];
 
-        Ok(name)
+        Self(name)
+    }
+
+    pub const fn new_from_str_that_crashes_on_invalid_inputs(name: &str) -> Self {
+        let slice = name.as_bytes();
+
+        let canary: [(); 1] = [()];
+        let input_too_long = canary;
+
+        // check that the input is *at most* 4 bytes long
+        input_too_long[slice.len() & 4];
+
+        let input_too_short = canary;
+
+        // check that the input length isn't anything other than 4
+        input_too_short[slice.len() ^ 4];
+
+        Self::new_that_crashes_on_invalid_inputs([
+            slice[0],
+            slice[1],
+            slice[2],
+            slice[3],
+        ])
     }
 }
 

@@ -11,7 +11,7 @@ use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
 use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
 use crate::peripherals::timers::{TimerArr, TimerState};
-use super::{DeviceInfo, ProgramMetadata, Identifier};
+use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier};
 
 use lc3_isa::{Addr, Reg, Word, PSR};
 
@@ -49,7 +49,8 @@ pub enum State {
 
 pub trait Control {
     type EventFuture: Future<Output = Event>;
-    const ID: Identifier = Identifier::new_that_crashes_on_invalid_inputs(['?', '?', '?', '?']);
+    // const ID: Identifier = Identifier::new_that_crashes_on_invalid_inputs(['?', '?', '?', '?']);
+    const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("????");
 
     fn get_pc(&self) -> Addr;
     fn set_pc(&mut self, addr: Addr); // Should be infallible.
@@ -140,10 +141,10 @@ pub trait Control {
     fn get_info(&self) -> DeviceInfo {
         DeviceInfo::new(
             ProgramMetadata::default(),
-            Default::default(),
+            Capabilities::default(),
             core::any::TypeId::of::<Self>(),
             Self::ID,
-            Default::default()
+            Default::default() // (no proxies by default)
         )
     }
 
