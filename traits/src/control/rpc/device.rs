@@ -5,8 +5,9 @@
 // TODO: auto gen (proc macro, probably) the crimes below from the `Control`
 // trait.
 
-use super::{Encoding, EventFutureSharedState, Transport};
-use super::{Control, ControlMessage};
+use super::{Encode, Decode, EventFutureSharedState, Transport};
+use super::{Control, RequestMessage, ResponseMessage};
+use super::encoding::Transparent;
 
 use core::marker::PhantomData;
 use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
@@ -14,36 +15,61 @@ use core::future::Future;
 use core::pin::Pin;
 
 
-// Check for messages and execute them on something that implements the control
+// Check for messages and execute them on something that implements the [`Control`]
 // interface.
+//
+// Receives Requests and sends Responses.
+//
+// As mentioned elsewhere, there's a level of indirection of
+// `RequestMessage`/`ResponseMessage` and the types used here so that users can
+// experiment with their own messages. This may, however, be moot (TODO). See
+// the docs in `controller.rs` for more info.
 #[derive(Debug, Default)]
-pub struct Device<E, T, C>
+pub struct Device<
+    Req = RequestMessage,
+    Resp = ResponseMessage,
+    ReqDec = Transparent,
+    RespEnc = Transparent,
+    T,
+    C,
+>
 where
-    E: Encoding,
-    T: Transport<<E as Encoding>::Encoded>,
+    Req: Into<RequestMessage>,
+    Resp: Into<ResponseMessage>,
+    ReqDec: Decode<Req>,
+    RespEnc: Encode<Resp>,
+    T: Transport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
     C: Control,
     // <C as Control>::EventFuture: Unpin,
 {
-    pub encoding: E,
+    _encoding: PhantomData<(ReqDec, RespEnc)>,
+    _control_impl: PhantomData<C>,
     pub transport: T,
-    _c: PhantomData<C>,
     // pending_event_future: Option<Pin<C::EventFuture>>,
     pending_event_future: Option<C::EventFuture>,
 }
 
-impl<E, T, C> Device<E, T, C>
+impl<Req, Resp, D, E, T, C> Device<Req, Resp, E, D, T, C>
 where
-    E: Encoding,
-    T: Transport<<E as Encoding>::Encoded>,
+    Req: Into<RequestMessage>,
+    Resp: Into<ResponseMessage>,
+    D: Decode<Req>,
+    E: Encode<Resp>,
+    T: Transport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
     C: Control,
     // <C as Control>::EventFuture: Unpin,
 {
     // When const functions can be in blanket impls, this can be made `const`.
-    /*const*/ fn new(encoding: E, transport: T) -> Self {
+    //
+    // Note: we take `encoding` as a parameter here even though the actual value
+    // is never used so that users don't have to resort to using the turbofish
+    // syntax to specify what they want the encoding to be.
+    /*const*/ fn new(_encoding: E, transport: T) -> Self {
         Self {
-            encoding,
+            // encoding,
+            _encoding: PhantomData,
+            _control_impl: PhantomData,
             transport,
-            _c: PhantomData,
             pending_event_future: None,
         }
     }
@@ -52,7 +78,7 @@ where
 // This is meant to be a barebones blocking executor.
 // It has been updated to more or less mirror the 'executor' in
 // [`genawaiter`](https://docs.rs/crate/genawaiter/0.2.2/source/src/waker.rs);
-// while this doesn't guarentee correctness, it does make me feel a little
+// while this doesn't guarantee correctness, it does make me feel a little
 // better.
 //
 // Another option would have been to use (or steal) `block_on` from the
@@ -198,10 +224,13 @@ static RW_WAKE: fn(*const ()) = |_| { };
 static RW_WAKE_BY_REF: fn(*const ()) = |_| { };
 static RW_DROP: fn(*const ()) = |_| { };
 
-impl<E, T, C> Device<E, T, C>
+impl<Req, Resp, D, E, T, C> Device<Req, Resp, E, D, T, C>
 where
-    E: Encoding,
-    T: Transport<<E as Encoding>::Encoded>,
+    Req: Into<RequestMessage>,
+    Resp: Into<ResponseMessage>,
+    D: Decode<Req>,
+    E: Encode<Resp>,
+    T: Transport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
     C: Control,
     <C as Control>::EventFuture: Unpin, // TODO: use `pin_utils::pin_mut!` and relax this requirement.
     // <C as Control>::EventFuture: Deref<Target = <C as Control>::EventFuture>,
@@ -212,7 +241,8 @@ where
 {
     #[allow(unsafe_code)]
     pub fn step(&mut self, c: &mut C) -> usize {
-        use ControlMessage::*;
+        use RequestMessage::*;
+        use ResponseMessage as R;
         let mut num_processed_messages = 0;
 
         // Make some progress:
@@ -238,34 +268,32 @@ where
                 // println!("device future is done!");
                 self.pending_event_future = None;
 
-                let enc = E::encode(RunUntilEventResponse(event)).unwrap();
-                self.transport.send(enc).unwrap();
+                let enc = E::encode(R::RunUntilEvent(event).into()).unwrap(); // TODO: don't panic?
+                self.transport.send(enc).unwrap(); // TODO: don't panic?
             }
         }
 
-        while let Some(m) = self.transport.get().map(|enc| E::decode(&enc).unwrap()) {
+        while let Some(m) = self.transport.get().map(|enc| E::decode(&enc).unwrap().into()) {
             num_processed_messages += 1;
 
             macro_rules! dev {
                 ($(($req:pat => $($resp:tt)+) with $r:tt = $resp_expr:expr;)*) => {
                     #[forbid(unreachable_patterns)]
                     match m {
-                        RunUntilEventRequest => {
+                        RunUntilEvent => {
                             if self.pending_event_future.is_some() {
                                 panic!() // TODO: write a message // already have a run until event pending!
                             } else {
                                 // self.pending_event_future = Some(Pin::new(c.run_until_event()));
                                 self.pending_event_future = Some(c.run_until_event());
+                                self.transport.send(E::encode(R::RunUntilEventAck.into())).unwrap()
                             }
                         },
-                        RunUntilEventResponse(_) => panic!("Received a run_until_event response on the device side!"),
                         $(
                             $req => self.transport.send(E::encode({
                                 let $r = $resp_expr;
                                 $($resp)+
-                            }).unwrap()).unwrap(),
-                            #[allow(unused_variables)]
-                            $($resp)+ => panic!("Received a response on the device side!"),
+                            }.into())).unwrap(),
                         )*
                     }
 
@@ -273,49 +301,53 @@ where
             }
 
             dev! {
-                (GetPcRequest => GetPcResponse(r)) with r = c.get_pc();
-                (SetPcRequest { addr } => SetPcSuccess) with _ = c.set_pc(addr);
+                (GetPc => R::GetPc(r)) with r = c.get_pc();
+                (SetPc { addr } => R::SetPc) with _ = c.set_pc(addr);
 
-                (GetRegisterRequest { reg } => GetRegisterResponse(r)) with r = c.get_register(reg);
-                (SetRegisterRequest { reg, data } => SetRegisterSuccess) with _ = c.set_register(reg, data);
+                (GetRegister { reg } => R::GetRegister(r)) with r = c.get_register(reg);
+                (SetRegister { reg, data } => R::SetRegister) with _ = c.set_register(reg, data);
 
-                (GetRegistersPsrAndPcRequest => GetRegistersPsrAndPcResponse(r)) with r = c.get_registers_psr_and_pc();
+                (GetRegistersPsrAndPc => R::GetRegistersPsrAndPc(r)) with r = c.get_registers_psr_and_pc();
 
-                (ReadWordRequest { addr } => ReadWordResponse(r)) with r = c.read_word(addr);
-                (WriteWordRequest { addr, word } => WriteWordSuccess) with _ = c.write_word(addr, word);
+                (ReadWord { addr } => R::ReadWord(r)) with r = c.read_word(addr);
+                (WriteWord { addr, word } => R::WriteWord) with _ = c.write_word(addr, word);
 
-                (CommitMemoryRequest => CommitMemoryResponse(r)) with r = c.commit_memory();
+                (CommitMemory => R::CommitMemory(r)) with r = c.commit_memory();
 
-                (SetBreakpointRequest { addr } => SetBreakpointResponse(r)) with r= c.set_breakpoint(addr);
-                (UnsetBreakpointRequest { idx } => UnsetBreakpointResponse(r)) with r = c.unset_breakpoint(idx);
-                (GetBreakpointsRequest => GetBreakpointsResponse(r)) with r = c.get_breakpoints();
-                (GetMaxBreakpointsRequest => GetMaxBreakpointsResponse(r)) with r = c.get_max_breakpoints();
+                (SetBreakpoint { addr } => R::SetBreakpoint(r)) with r= c.set_breakpoint(addr);
+                (UnsetBreakpoint { idx } => R::UnsetBreakpoint(r)) with r = c.unset_breakpoint(idx);
+                (GetBreakpoints => R::GetBreakpoints(r)) with r = c.get_breakpoints();
+                (GetMaxBreakpoints => R::GetMaxBreakpoints(r)) with r = c.get_max_breakpoints();
 
-                (SetMemoryWatchpointRequest { addr } => SetMemoryWatchpointResponse(r)) with r = c.set_memory_watchpoint(addr);
-                (UnsetMemoryWatchpointRequest { idx } => UnsetMemoryWatchpointResponse(r)) with r = c.unset_memory_watchpoint(idx);
-                (GetMemoryWatchpointsRequest => GetMemoryWatchpointsResponse(r)) with r = c.get_memory_watchpoints();
-                (GetMaxMemoryWatchpointsRequest => GetMaxMemoryWatchpointsResponse(r)) with r = c.get_max_memory_watchpoints();
+                (SetMemoryWatchpoint { addr } => R::SetMemoryWatchpoint(r)) with r = c.set_memory_watchpoint(addr);
+                (UnsetMemoryWatchpoint { idx } => R::UnsetMemoryWatchpoint(r)) with r = c.unset_memory_watchpoint(idx);
+                (GetMemoryWatchpoints => R::GetMemoryWatchpoints(r)) with r = c.get_memory_watchpoints();
+                (GetMaxMemoryWatchpoints => R::GetMaxMemoryWatchpoints(r)) with r = c.get_max_memory_watchpoints();
 
-                (StepRequest => StepResponse(r)) with r = c.step();
-                (PauseRequest => PauseSuccess) with _ = c.pause();
-                (GetStateRequest => GetStateResponse(r)) with r = c.get_state();
-                (ResetRequest => ResetSuccess) with _ = c.reset();
+                (Step => R::Step(r)) with r = c.step();
+                (Pause => R::Pause) with _ = c.pause();
+                (GetState => R::GetState(r)) with r = c.get_state();
+                (Reset => R::Reset) with _ = c.reset();
 
-                (GetErrorRequest => GetErrorResponse(r)) with r = c.get_error();
+                (GetError => R::GetError(r)) with r = c.get_error();
 
-                (GetGpioStatesRequest => GetGpioStatesResponse(r)) with r = c.get_gpio_states();
-                (GetGpioReadingsRequest => GetGpioReadingsResponse(r)) with r = c.get_gpio_readings();
+                (GetGpioStates => R::GetGpioStates(r)) with r = c.get_gpio_states();
+                (GetGpioReadings => R::GetGpioReadings(r)) with r = c.get_gpio_readings();
 
-                (GetAdcStatesRequest => GetAdcStatesResponse(r)) with r = c.get_adc_states();
-                (GetAdcReadingsRequest => GetAdcReadingsResponse(r)) with r = c.get_adc_readings();
+                (GetAdcStates => R::GetAdcStates(r)) with r = c.get_adc_states();
+                (GetAdcReadings => R::GetAdcReadings(r)) with r = c.get_adc_readings();
 
-                (GetTimerStatesRequest => GetTimerStatesResponse(r)) with r = c.get_timer_states();
-                (GetTimerConfigRequest => GetTimerConfigResponse(r)) with r = c.get_timer_config();
+                (GetTimerStates => R::GetTimerStates(r)) with r = c.get_timer_states();
+                (GetTimerConfig => R::GetTimerConfig(r)) with r = c.get_timer_config();
 
-                (GetPwmStatesRequest => GetPwmStatesResponse(r)) with r = c.get_pwm_states();
-                (GetPwmConfigRequest => GetPwmConfigResponse(r)) with r = c.get_pwm_config();
+                (GetPwmStates => R::GetPwmStates(r)) with r = c.get_pwm_states();
+                (GetPwmConfig => R::GetPwmConfig(r)) with r = c.get_pwm_config();
 
-                (GetClockRequest => GetClockResponse(r)) with r = c.get_clock();
+                (GetClock => R::GetClock(r)) with r = c.get_clock();
+
+                (GetInfo => R::GetInfo(r)) with r = c.get_info().add_proxy(T::ID);
+
+                (SetProgramMetadata { metadata } => R::SetProgramMetadata) with _ = c.set_program_metadata(metadata);
             };
         }
 
