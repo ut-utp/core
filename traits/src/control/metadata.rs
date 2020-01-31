@@ -3,8 +3,16 @@
 use core::any::{Any, TypeId};
 use core::convert::AsRef;
 use core::hash::{Hasher, Hash};
+use core::hash::SipHasher; // TODO: this is deprecated (but the replacement isn't available without std).
+use core::time::Duration;
+
+use lc3_isa::util::MemoryDump;
 
 use serde::{Deserialize, Serialize};
+
+// TODO: `ProgramID` and `ProgramMetadata` should maybe move into lc3-isa. Or we
+// should spin off an lc3-program crate (or have an assembler crate) that has
+// everything in `isa/src/misc` and `ProgramID` + `ProgramMetadata`.
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ProgramId {
@@ -18,11 +26,65 @@ impl Default for ProgramId {
     }
 }
 
+impl ProgramId {
+    // Can't be const until const traits arrive (`Hasher`).
+    pub /*const*/ fn new(program: &MemoryDump) -> Self {
+        let mut hasher = SipHasher::new();
+
+        // It'd be nice to do &[u16] -> &[u8] and call `hasher.write(...)` and
+        // ditch the `for_each` but alas.
+        // program.for_each(|w| hasher.write_u16(w));
+
+        // Actually, we can do this which I'll call good enough:
+        Word::hash_slice(program, &mut hasher);
+
+        hasher.finish();
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub struct ProgramMetadata {
     pub id: ProgramId,
     /// Time the program was modified in seconds since the Unix epoch.
     pub last_modified: u64,
+}
+
+impl ProgramMetadata {
+    pub /*const*/ fn new(program: &MemoryDump, modified: Duration) -> Self {
+        Self {
+            id: ProgramId::new(program),
+            last_modified: modified.as_secs()
+        }
+    }
+
+    pub /*const*/ fn from<P: Into<MemoryDump>>(program: P, modified: Duration) -> Self {
+        Self::new(&program.into(), modified)
+    }
+}
+
+using_std! {
+    impl ProgramMetadata {
+        pub /*const*/ fn new_modified_now(program: &MemoryDump) -> Self {
+            Self::new(program, Duration::from_secs(0)).now()
+        }
+
+        pub /*const*/ fn from_modified_now<P: Into<MemoryDump>>(program: P) -> Self {
+            Self::from(program, Duration::from_secs(0)).now()
+        }
+
+        pub fn now(mut self) -> Self {
+            // SystemTime instead of Instant since we don't really care about
+            // monotonicity.
+            use std::time::SystemTime::{self, UNIX_EPOCH};
+
+            self.last_modified = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("System time to be later than 1970-01-01 00:00:00 UTC")
+                .as_secs();
+
+            self
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
