@@ -8,10 +8,10 @@ pub trait Transport<SendFormat, RecvFormat> {
     type Err: Debug;
     const ID: Identifier;
 
-    fn send(&self, message: SendFormat) -> Result<(), Self::Err>;
+    fn send(&mut self, message: SendFormat) -> Result<(), Self::Err>;
 
     // None if no messages were sent, Some(message) otherwise.
-    fn get(&self) -> Option<RecvFormat>; // TODO: should this be wrapped in a Result?
+    fn get(&mut self) -> Option<RecvFormat>; // TODO: should this be wrapped in a Result?
 }
 
 using_std! {
@@ -26,12 +26,12 @@ using_std! {
         type Err = SendError<EncodedFormat>;
         const ID = Identifer::new_from_str_that_crashes_on_invalid_inputs("MPSC");
 
-        fn send(&self, message: Send) -> Result<(), Self::Err> {
+        fn send(&mut self, message: Send) -> Result<(), Self::Err> {
             log::trace!("SENT: {:?}", message);
             self.tx.send(message)
         }
 
-        fn get(&self) -> Option<Recv> {
+        fn get(&mut self) -> Option<Recv> {
             if let Ok(m) = self.rx.try_recv() {
                 log::trace!("GOT: {:?}", m);
                 Some(m)
