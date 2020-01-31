@@ -359,7 +359,7 @@ where
     fn init(&mut self) {}
 }
 
-use crate::control::Snapshot;
+use crate::control::{Snapshot, SnapshotError};
 
 impl<'p, G, A, P, T, C, I, O> Snapshot for PeripheralSet<'p, G, A, P, T, C, I, O>
 where
@@ -381,27 +381,29 @@ where
         <O as Snapshot>::Snap,
     );
 
-    fn record(&self) -> Self::Snap {
-        (
-            self.gpio.record(),
-            self.adc.record(),
-            self.pwm.record(),
-            self.timers.record(),
-            self.clock.record(),
-            self.input.record(),
-            self.output.record(),
-        )
+    type Error = SnapshotError; // TODO: report which thing failed? make it part of the SnapshotError type?
+
+    fn record(&self) -> Result<Self::Snap, Self::Error> {
+        Ok((
+            self.gpio.record()?,
+            self.adc.record()?,
+            self.pwm.record()?,
+            self.timers.record()?,
+            self.clock.record()?,
+            self.input.record()?,
+            self.output.record()?,
+        ))
     }
 
-    fn restore(&mut self, snap: Self::Snap) {
+    fn restore(&mut self, snap: Self::Snap) -> Result<(), Self::Err> {
         let (g, a, p, t, c, i, o) = snap;
 
-        self.gpio.restore(g);
-        self.adc.restore(a);
-        self.pwm.restore(p);
-        self.timers.restore(t);
-        self.clock.restore(c);
-        self.input.restore(i);
-        self.output.restore(o);
+        self.gpio.restore(g)?;
+        self.adc.restore(a)?;
+        self.pwm.restore(p)?;
+        self.timers.restore(t)?;
+        self.clock.restore(c)?;
+        self.input.restore(i)?;
+        self.output.restore(o)?;
     }
 }
