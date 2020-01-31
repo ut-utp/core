@@ -15,7 +15,7 @@ use serde::{Serialize, Deserialize};
 //    + but there are probably some errors we _do_ want to actually fire exceptions on (note: we'll need new exceptions!)
 //    + I'm warming to this idea, actually. The underlying infrastructure (peripherals, control) agree on a set of errors; how those
 //      errors make their way into LC-3 land is up to the interpreter. It's literally a matter of mapping these Errors into whatever.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Error {
     InvalidGpioWrite(GpioWriteError),
     InvalidGpioWrites(GpioWriteErrors),
@@ -25,6 +25,12 @@ pub enum Error {
                                   // InvalidGpioInterruptRegistration(GpioInterruptRegisterError),
                                   ///// TODO: finish
 }
+
+impl Display for Error {
+    // TODO
+}
+
+using_std! { impl std::error::Error for Error { } }
 
 // TODO: automate away with a proc macro (this is a common enough pattern...)
 // or at least a macro_rules macro

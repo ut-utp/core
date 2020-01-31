@@ -10,6 +10,9 @@ use super::{State, Event};
 
 use lc3_isa::{Addr, Reg, Word};
 
+// TODO: auto gen (proc macro, probably) the types below from and the `Control`
+// trait.
+
 #[allow(dead_code)]
 static __REQ_SIZE_CHECK: () = {
     let s = core::mem::size_of::<RequestMessage>();
