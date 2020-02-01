@@ -58,8 +58,8 @@ using_std! {
         (host_channel, device_channel)
     }
 
-    impl<EncodedFormat: Debug> MpscTransport<EncodedFormat> {
-        pub fn new() -> (Self, Self) {
+    impl<S: Debug, R: Debug> MpscTransport<S, R> {
+        pub fn new() -> (MpscTransport<S, R>, MpscTransport<R, R>) {
             mpsc_transport_pair()
         }
     }

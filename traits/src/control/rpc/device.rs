@@ -49,6 +49,8 @@ where
     pending_event_future: Option<C::EventFuture>,
 }
 
+// TODO: make a builder!
+
 impl<Req, Resp, D, E, T, C> Device<Req, Resp, E, D, T, C>
 where
     Req: Into<RequestMessage>,
@@ -61,10 +63,10 @@ where
 {
     // When const functions can be in blanket impls, this can be made `const`.
     //
-    // Note: we take `encoding` as a parameter here even though the actual value
-    // is never used so that users don't have to resort to using the turbofish
-    // syntax to specify what they want the encoding to be.
-    /*const*/ fn new(_encoding: E, transport: T) -> Self {
+    // Note: we take `decode` and `encode` as parameters here even though the
+    // actual value is never used so that users don't have to resort to using
+    // the turbofish syntax to specify what they want the encoding layer to be.
+    pub /*const*/ fn new(_enc: E, _dec: D, transport: T) -> Self {
         Self {
             // encoding,
             _encoding: PhantomData,
