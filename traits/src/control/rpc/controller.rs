@@ -47,7 +47,7 @@ where
     Req: Into<RequestMessage>,
     Resp: Into<ResponseMessage>,
     ReqEnc: Encode<Req>,
-    RespDec: Decode<Req>,
+    RespDec: Decode<Resp>,
     T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
     S: EventFutureSharedState,
 {
@@ -67,7 +67,7 @@ where
     Req: Into<RequestMessage>,
     Resp: Into<ResponseMessage>,
     E: Encode<Req>,
-    D: Decode<Req>,
+    D: Decode<Resp>,
     T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
     S: EventFutureSharedState,
 {
@@ -95,7 +95,7 @@ where
     Req: Into<RequestMessage>,
     Resp: Into<ResponseMessage>,
     ReqEnc: Encode<Req>,
-    RespDec: Decode<Req>,
+    RespDec: Decode<Resp>,
     T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
     S: EventFutureSharedState,
 {
@@ -152,7 +152,7 @@ where
     Req: Into<RequestMessage>,
     Resp: Into<ResponseMessage>,
     ReqEnc: Encode<Req>,
-    RespDec: Decode<Req>,
+    RespDec: Decode<Resp>,
     T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
     S: EventFutureSharedState,
 {
