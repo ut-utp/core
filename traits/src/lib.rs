@@ -45,14 +45,7 @@
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
-// Can't have `no_std` and `std_features` enabled!
-#[cfg(all(feature = "no_std", feature = "std_functionality"))]
-compile_error!(
-    "Sorry! Can't provide std functionality for no_std targets. Either disable \
-     the `no_std` feature or the `std_functionality` feature."
-);
-
-macro_rules! using_std { ($($i:item)*) => ($(#[cfg(feature = "std_functionality")]$i)*) }
+macro_rules! using_std { ($($i:item)*) => ($(#[cfg(not(feature = "no_std"))]$i)*) }
 
 pub mod test_infrastructure;
 

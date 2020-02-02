@@ -4,10 +4,14 @@
 
 use std::convert::TryInto;
 use std::fs::File;
+use std::ops::{Index, IndexMut};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_BYTES, ADDR_SPACE_SIZE_IN_WORDS};
-use lc3_traits::memory::{Memory, MemoryMiscError};
+use lc3_isa::util::MemoryDump;
+use lc3_traits::memory::Memory;
+use lc3_traits::control::metadata::ProgramMetadata;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -16,6 +20,7 @@ use super::error::MemoryShimError;
 pub struct FileBackedMemoryShim {
     path: PathBuf,
     memory: [Word; ADDR_SPACE_SIZE_IN_WORDS],
+    metadata: ProgramMetadata,
 }
 
 impl Default for FileBackedMemoryShim {
@@ -25,60 +30,87 @@ impl Default for FileBackedMemoryShim {
 }
 
 impl FileBackedMemoryShim {
-    fn with_initialized_memory<P: AsRef<Path>>(
+    pub fn with_initialized_memory<P: AsRef<Path>>(
         path: P,
-        memory: [Word; ADDR_SPACE_SIZE_IN_WORDS],
+        memory: MemoryDump,
     ) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
-            memory,
+            memory: *memory,
+            metadata: ProgramMetadata::new_modified_now(&memory),
         }
     }
 
-    fn from_existing_file<P: AsRef<Path>>(path: &P) -> Result<Self, MemoryShimError> {
+    pub fn from_existing_file<P: AsRef<Path>>(path: &P) -> Result<Self, MemoryShimError> {
         let mut memory: [Word; ADDR_SPACE_SIZE_IN_WORDS] = [0u16; ADDR_SPACE_SIZE_IN_WORDS];
-        read_from_file(path, &mut memory)?;
+        let modified_time = read_from_file(path, &mut memory)?;
 
-        Ok(Self::with_initialized_memory(path, memory))
+        let mut mem = Self::with_initialized_memory(path, memory.into());
+        mem.metadata.modified_on(modified_time);
+
+        Ok(mem)
     }
 
-    fn new<P: AsRef<Path>>(path: P) -> Self {
-        Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS])
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS].into())
     }
 
-    fn flush(&mut self) -> Result<(), MemoryShimError> {
-        write_to_file(&self.path, &self.memory)
+    pub fn flush(&mut self) -> Result<(), MemoryShimError> {
+        write_to_file(&self.path, &self.memory)?;
+        self.metadata.updated_now();
+
+        Ok(())
+    }
+
+    pub fn change_file<P: AsRef<Path>>(&mut self, path: P) {
+        self.path = path.as_ref().to_path_buf();
+    }
+}
+
+impl From<FileBackedMemoryShim> for MemoryDump {
+    fn from(mem: FileBackedMemoryShim) -> MemoryDump {
+        mem.memory.into()
+    }
+}
+
+impl Index<Addr> for FileBackedMemoryShim {
+    type Output = Word;
+
+    fn index(&self, addr: Addr) -> &Self::Output {
+        &self.memory[TryInto::<usize>::try_into(addr).unwrap()]
+    }
+}
+
+impl IndexMut<Addr> for FileBackedMemoryShim {
+    fn index_mut(&mut self, addr: Addr) -> &mut Self::Output {
+        &mut self.memory[TryInto::<usize>::try_into(addr).unwrap()]
     }
 }
 
 impl Memory for FileBackedMemoryShim {
-    fn read_word(&self, addr: Addr) -> Word {
-        self.memory[addr as usize]
+    fn get_program_metadata(&self) -> ProgramMetadata {
+        self.metadata.clone()
     }
 
-    fn write_word(&mut self, addr: Addr, word: Word) {
-        self.memory[addr as usize] = word;
-    }
-
-    fn commit(&mut self) -> Result<(), MemoryMiscError> {
-        self.flush().map_err(|_| MemoryMiscError)
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata) {
+        self.metadata = metadata
     }
 }
 
 pub(super) fn read_from_file<P: AsRef<Path>>(
     path: P,
     mem: &mut [Word; ADDR_SPACE_SIZE_IN_WORDS],
-) -> Result<(), MemoryShimError> {
+) -> Result<SystemTime, MemoryShimError> {
     let mut file = File::open(path)?;
 
     let length = file.metadata()?.len();
-    if length != ADDR_SPACE_SIZE_IN_BYTES.try_into().unwrap() {
+    if length != TryInto::<u64>::try_into(ADDR_SPACE_SIZE_IN_BYTES).unwrap() {
         return Err(MemoryShimError::IncorrectlySizedFile(length));
     }
 
     file.read_u16_into::<LittleEndian>(mem)?;
 
-    Ok(())
+    Ok(file.metadata()?.modified()?)
 }
 
 pub(super) fn write_to_file<P: AsRef<Path>>(

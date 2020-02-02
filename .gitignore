@@ -2,6 +2,18 @@
 /target
 **/*.rs.bk
 
+### UTP Specific Things ###
+*.mem
+log_files/
+
+
+### Sublime Text ###
+*.sublime-project
+*.sublime-workspace
+
+### GDB ###
+.gdb_history
+
 ### IntelliJ and friends ###
 .idea
 

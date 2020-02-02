@@ -2,6 +2,8 @@
 //!
 //! TODO!
 
+// #![feature(try_trait)]
+
 // TODO: forbid
 #![warn(
     bad_style,
@@ -39,11 +41,17 @@
     unused_results,
     rust_2018_idioms
 )]
-#![doc(test(attr(deny(rust_2018_idioms, warnings))))]
+
+#![warn(clippy::missing_docs_in_private_items)] // TODO: add to all
+
+#![doc(test(attr(deny(warnings))))]
 #![doc(html_logo_url = "")] // TODO!
+// TODO: add doc URL to all
 
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
-mod sim;
+pub mod interp;
+pub mod mem_mapped;
+pub mod sim;
 pub mod test_infrastructure;

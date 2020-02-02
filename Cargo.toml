@@ -1,5 +1,5 @@
-[workspace]
 
+[workspace]
 members = [
     "isa",
     "traits",
@@ -7,6 +7,42 @@ members = [
     "tui",
     "baseline-sim",
     "macros",
+    "os",
 ]
+exclude = [ "misc/lc3-tm4c", "misc/serial" ]
+
+# TODO: turn tui into a library and reference its bin target here
+
+
+[package] # TODO
+name = "lc3-utp"
+version = "0.0.0"
+
+[dev-dependencies]
+lc3-baseline-sim = { path = "baseline-sim", version = "0.1.0", default-features = false }
+lc3-isa = { path = "isa", version = "0.1.0", default-features = false }
+lc3-shims = { path = "shims", version = "0.1.0" }
+lc3-traits = { path = "traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
+lc3-os = { path = "os", version = "0.1.0" }
+
+criterion = "0.3.0"
+async-std = "1.4.0"
+lazy_static = "1.4.0"
+
+
+[[bench]]
+name = "speed"
+harness = false
+
+
+[profile.bench]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+incremental = false
+overflow-checks = false
 
 # TODO: publish all w/CI (check versions match?)

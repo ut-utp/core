@@ -1,0 +1,14 @@
+on: [pull_request]
+
+name: Run benchmarks on PRs
+
+jobs:
+  bench:
+    name: bench
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: run bench + critcmp
+        uses: matchai/criterion-compare-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

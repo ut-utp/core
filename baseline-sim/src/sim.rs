@@ -1,222 +1,434 @@
-use lc3_isa::{Addr, Bits, Instruction, Reg, Word};
-use lc3_traits::control::Control;
-use lc3_traits::memory::Memory;
-use lc3_traits::peripherals::{PeripheralSet, Peripherals};
+//! TODO!
 
-use core::convert::TryInto;
+use crate::interp::{InstructionInterpreter, InstructionInterpreterPeripheralAccess, MachineState};
+
+use lc3_isa::{Addr, Reg, Word};
+use lc3_traits::control::{Control, Event, State};
+use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo};
+use lc3_traits::control::rpc::{EventFutureSharedStatePorcelain, SimpleEventFutureSharedState, EventFuture};
+use lc3_traits::error::Error;
+use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcReadError, AdcState};
+use lc3_traits::peripherals::clock::Clock;
+use lc3_traits::peripherals::gpio::{Gpio, GpioPinArr, GpioReadError, GpioState};
+use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
+use lc3_traits::peripherals::timers::{TimerArr, TimerState, Timers};
+use lc3_traits::peripherals::Peripherals;
+
+use crate::mem_mapped::{MemMapped, KBDR};
+
+// use core::future::Future;
 use core::marker::PhantomData;
-use core::ops::{Index, IndexMut};
+use core::ops::Deref;
+// use core::pin::Pin;
+// use core::task::{Context, Poll};
 
-struct Simulator<'a, M: Memory, P: Peripherals<'a>> {
-    mem: M,
-    peripherals: P,
-    regs: [Word; 8],
-    pc: Word,
-    _p: PhantomData<&'a ()>,
+#[derive(Debug, Clone)]
+pub struct Simulator<'a, 's, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain = SimpleEventFutureSharedState>
+where
+    <I as Deref>::Target: Peripherals<'a>,
+{
+    interp: I,
+    breakpoints: [Option<Addr>; MAX_BREAKPOINTS],
+    watchpoints: [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS], // TODO: change to throw these when the location being watched to written to; not just when the value is changed...
+    num_set_breakpoints: usize,
+    num_set_watchpoints: usize,
+    state: State,
+    shared_state: Option<&'s S>,
+    _i: PhantomData<&'a ()>,
 }
 
-impl<'a, M: Memory, P: Peripherals<'a>> Default for Simulator<'a, M, P> {
+impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a> + Default, S: EventFutureSharedStatePorcelain> Default for Simulator<'a, 's, I, S>
+where
+    <I as Deref>::Target: Peripherals<'a>,
+{
     fn default() -> Self {
-        unimplemented!()
+        Self::new(I::default())
     }
 }
 
-pub const KBSR: Addr = 0xFE00;
-pub const KBDR: Addr = 0xFE02;
-pub const DSR: Addr = 0xFE04;
-pub const DDR: Addr = 0xFE06;
-pub const BSP: Addr = 0xFFFA; // TODO: when is this used!!!
-pub const PSR: Addr = 0xFFFC;
-pub const MCR: Addr = 0xFFFE;
-
-pub trait Sim {
-    fn step(&mut self);
-
-    fn set_pc(&mut self, addr: Addr);
-    fn get_pc(&self) -> Addr;
-
-    fn set_word(&mut self, addr: Addr, word: Word);
-    fn get_word(&self, addr: Addr) -> Word;
-
-    fn get_register(&self, reg: Reg) -> Word;
-    fn set_register(&mut self, reg: Reg, word: Word);
-}
-
-impl<'a, M: Memory, P: Peripherals<'a>> Index<Reg> for Simulator<'a, M, P> {
-    type Output = Word;
-
-    fn index(&self, reg: Reg) -> &Word {
-        &self.regs[TryInto::<usize>::try_into(Into::<u8>::into(reg)).unwrap()]
-    }
-}
-
-impl<'a, M: Memory, P: Peripherals<'a>> IndexMut<Reg> for Simulator<'a, M, P> {
-    fn index_mut(&mut self, reg: Reg) -> &mut Word {
-        &mut self.regs[TryInto::<usize>::try_into(Into::<u8>::into(reg)).unwrap()]
-    }
-}
-
-impl<'a, M: Memory, P: Peripherals<'a>> Simulator<'a, M, P> {
-    fn set_cc(&mut self, word: Word) {
-        // n is the high bit:
-        let n: bool = (word >> ((core::mem::size_of::<Word>() * 8) - 1)) != 0;
-
-        // z is easy enough to check for:
-        let z: bool = word == 0;
-
-        // if we're not negative or zero, we're positive:
-        let p: bool = !(n | z);
-
-        fn bit_to_word(bit: bool, left_shift: u32) -> u16 {
-            (if bit { 1 } else { 0 }) << left_shift
+impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain> Simulator<'a, 's, I, S>
+where
+    <I as Deref>::Target: Peripherals<'a>,
+{
+    // No longer public.
+    fn new(interp: I) -> Self {
+        Self {
+            interp,
+            breakpoints: [None; MAX_BREAKPOINTS],
+            watchpoints: [None; MAX_MEMORY_WATCHPOINTS],
+            num_set_breakpoints: 0,
+            num_set_watchpoints: 0,
+            state: State::Paused,
+            shared_state: None,
+            _i: PhantomData,
         }
-
-        let b = bit_to_word;
-
-        self.mem.write_word(
-            PSR,
-            (self.mem.read_word(PSR) & !(0x0007)) | b(n, 2) | b(z, 1) | b(p, 0),
-        );
     }
 
-    fn get_cc(&self) -> (bool, bool, bool) {
-        let psr = self.mem.read_word(PSR);
+    pub fn new_with_state(interp: I, state: &'s S) -> Self {
+        let mut sim = Self::new(interp);
+        sim.set_shared_state(state);
 
-        (psr.bit(2), psr.bit(1), psr.bit(0))
+        sim
+    }
+
+    pub fn set_shared_state(&mut self, state: &'s S) {
+        self.shared_state = Some(state);
     }
 }
 
-impl<'a, M: Memory, P: Peripherals<'a>> Sim for Simulator<'a, M, P> {
-    fn step(&mut self) {
-        use Instruction::*;
+// impl<'a, I: InstructionInterpreterPeripheralAccess<'a>> Simulator<'a, I>
+// where
+//     <I as Deref>::Target: Peripherals<'a>,
+// {
+//     pub fn get_interpreter(&mut self) -> &mut I {
+//         &mut self.interp
+//     }
+// }
 
-        self.set_pc(self.get_pc() + 1);
+impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain> Control for Simulator<'a, 's, I, S>
+where
+    <I as Deref>::Target: Peripherals<'a>,
+{
+    type EventFuture = EventFuture<'s, S>;
 
-        match self.mem.read_word(self.pc).try_into() {
-            Ok(ins) => match ins {
-                AddReg { dr, sr1, sr2 } => {
-                    self[dr] = self[sr1].wrapping_add(self[sr2]);
-                    self.set_cc(self[dr]);
-                }
-                AddImm { dr, sr1, imm5 } => {
-                    self[dr] = self[sr1] + imm5 as u16;
-                    self.set_cc(self[dr]);
-                }
-                AndReg { dr, sr1, sr2 } => {}
-                AndImm { dr, sr1, imm5 } => {}
-                Br { n, z, p, offset9 } => {
-                    let (N, Z, P) = self.get_cc();
-
-                    if n & N || z & Z || p & P {
-                        self.set_pc(self.get_pc().wrapping_add(offset9 as Word))
-                    }
-                }
-                Jmp { base } => {
-                    self.set_pc(self[base]);
-                }
-                Jsr { offset11 } => {
-                    self[Reg::R7] = self.get_pc();
-                    self.set_pc(self.get_pc().wrapping_add(offset11 as Word));
-                }
-                Jsrr { base } => {
-                    // TODO: add a test where base _is_ R7!!
-                    let (pc, new_pc) = (self.get_pc(), self[base]);
-
-                    self.set_pc(new_pc);
-                    self[Reg::R7] = pc;
-                }
-                Ld { dr, offset9 } => {}
-                Ldi { dr, offset9 } => {}
-                Ldr { dr, base, offset6 } => {}
-                Lea { dr, offset9 } => {}
-                Not { dr, sr } => {}
-                Ret => {
-                    self.set_pc(self[Reg::R7]);
-                }
-                Rti => {}
-                St { sr, offset9 } => {}
-                Sti { sr, offset9 } => {}
-                Str { sr, base, offset6 } => {}
-                Trap { trapvec } => {}
-            },
-            Err(word) => todo!("exception!?"),
-        }
+    fn get_pc(&self) -> Addr {
+        self.interp.get_pc()
     }
 
     fn set_pc(&mut self, addr: Addr) {
-        self.pc = addr;
-    }
-    fn get_pc(&self) -> Addr {
-        self.pc
-    }
-
-    fn set_word(&mut self, addr: Addr, word: Word) {
-        self.mem.write_word(addr, word)
-    }
-
-    fn get_word(&self, addr: Addr) -> Word {
-        self.mem.read_word(addr)
+        self.interp.set_pc(addr)
     }
 
     fn get_register(&self, reg: Reg) -> Word {
-        self[reg]
+        self.interp.get_register(reg)
     }
 
-    fn set_register(&mut self, reg: Reg, word: Word) {
-        self[reg] = word;
+    fn set_register(&mut self, reg: Reg, data: Word) {
+        self.interp.set_register(reg, data)
     }
 
-    // fn get_state(&self) -> State {
-    //     self.state
-    // }
+    fn write_word(&mut self, addr: Addr, word: Word) {
+        self.interp.set_word_unchecked(addr, word)
+    }
+
+    fn read_word(&self, addr: Addr) -> Word {
+        // Our one stateful read
+        // TODO: banish this from the codebase
+        if addr == <KBDR as MemMapped>::ADDR {
+            return 0;
+        }
+
+        self.interp.get_word_unchecked(addr)
+    }
+
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+        if self.num_set_breakpoints == MAX_BREAKPOINTS {
+            Err(())
+        } else {
+            // Scan for the next open slot:
+            let mut next_free: usize = 0;
+
+            while let Some(_) = self.breakpoints[next_free] {
+                next_free += 1;
+            }
+
+            assert!(next_free < MAX_BREAKPOINTS, "Invariant violated.");
+
+            self.breakpoints[next_free] = Some(addr);
+            Ok(next_free)
+        }
+    }
+
+    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
+        if idx < MAX_BREAKPOINTS {
+            self.breakpoints[idx].take().map(|_| ()).ok_or(())
+        } else {
+            Err(())
+        }
+    }
+
+    fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] {
+        self.breakpoints
+    }
+
+    // TODO: breakpoints and watchpoints look macroable
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+        if self.num_set_watchpoints == MAX_MEMORY_WATCHPOINTS {
+            Err(())
+        } else {
+            // Scan for the next open slot:
+            let mut next_free: usize = 0;
+
+            while let Some(_) = self.watchpoints[next_free] {
+                next_free += 1;
+            }
+
+            assert!(next_free < MAX_MEMORY_WATCHPOINTS, "Invariant violated.");
+
+            self.watchpoints[next_free] = Some((addr, self.read_word(addr)));
+            Ok(next_free)
+        }
+    }
+
+    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
+        if idx < MAX_MEMORY_WATCHPOINTS {
+            self.watchpoints[idx].take().map(|_| ()).ok_or(())
+        } else {
+            Err(())
+        }
+    }
+
+    fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS] {
+        self.watchpoints
+    }
+
+    fn run_until_event(&mut self) -> <Self as Control>::EventFuture {
+        //! Note: the same batching rules that apply to the shared state apply here (see
+        //! [`SharedStateState`]; basically `S` controls how this handles multiple
+        //! active `run_until_event` Futures and for now `SharedStateState` is what we
+        //! are using).
+        let s = self.shared_state.expect("The Simulator must be provided with a shared \
+            state instance if `run_until_event` is to be used.");
+
+        self.state = State::RunningUntilEvent;
+
+        s.add_new_future().expect("no new futures once a batch starts to resolve");
+
+        // println!("new sim future registered!");
+        EventFuture::new(s)
+    }
+
+    fn tick(&mut self) {
+        // We've got a tradeoff!
+        //
+        // Higher values for this constant will result in better throughput while
+        // lower values will improve response times.
+        const STEPS_IN_A_TICK: usize = 100; // TODO: tune!
+
+        use State::*;
+
+        if let RunningUntilEvent = self.get_state() {
+            // TODO: does this weird micro optimization help?
+            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
+                for _ in 0..STEPS_IN_A_TICK {
+                    // this is safe since overshooting (calling step when we have NOPs) is fine
+                    self.step();
+                }
+
+                return;
+            }
+
+            for _ in 0..STEPS_IN_A_TICK {
+                if let Some(e) = self.step() {
+                    // If we produced some event, we're no longer `RunningUntilEvent`.
+                    return;
+                }
+            }
+        }
+    }
+
+    fn step(&mut self) -> Option<Event> {
+        use State::*;
+        let current_machine_state = self.interp.step();
+        let (new_state, event) = (|m: MachineState| match m {
+            MachineState::Halted => {
+                // If we're halted, we can't have hit a breakpoint or a watchpoint.
+                (Halted, Some(Event::Halted))
+            }
+            MachineState::Running => {
+                // Check for breakpoints:
+                // (Note that if a breakpoint and a watchpoint occur at the same time,
+                // the breakpoint takes precedence)
+                if self.num_set_breakpoints > 0 {
+                    let pc = self.get_pc();
+                    if let Some(addr) = self.breakpoints.iter().filter_map(|b| *b).filter(|a| *a == pc).next() {
+                        return (Paused, Some(Event::Breakpoint { addr }));
+                    }
+                }
+
+                // And watchpoints:
+                if self.num_set_watchpoints > 0 {
+                    for i in 0..self.watchpoints.len() {
+                        if let Some((addr, old_val)) = self.watchpoints[i] {
+                            let data = self.read_word(addr);
+
+                            if data != old_val {
+                                self.watchpoints[i] = Some((addr, data));
+                                return (Paused, Some(Event::MemoryWatch { addr, data }));
+                            }
+                        }
+                    }
+
+                    // if let Some((addr, data)) = self.watchpoints.iter().filter_map(|w| *w).filter(|(addr, val)| {
+                    //     let current_val = self.read_word(*addr);
+                    //     if current_val != *val {
+                    //         *val = current_val;
+                    //         true
+                    //     } else { false }
+                    // }).next() {
+                    //     return (Paused, Some(Event::MemoryWatch { addr, data }));
+                    // }
+                }
+
+                // If we didn't hit a breakpoint/watchpoint, the state doesn't change.
+                // If we were running, we're still running.
+                // If we were halted before, we're still halted (handled above).
+                // If we were paused, we're still paused.
+                (self.get_state(), None)
+            }
+        })(current_machine_state);
+
+        let current_state = self.get_state();
+        match (current_state, new_state, event) {
+            // (RunningUntilEvent, RunningUntilEvent, Some(e)) => unreachable!(),
+            // (RunningUntilEvent, RunningUntilEvent, None) => regular,
+            // (RunningUntilEvent, Paused, Some(e)) => resolve,
+            // (RunningUntilEvent, Paused, None) => unreachable!(), // can't stop running without an event
+            // (RunningUntilEvent, Halted, Some(e)) => resolve,
+            // (RunningUntilEvent, Halted, None) => unreachable!(), // can't stop running without an event
+
+            // (Paused, RunningUntilEvent, Some(e)) => unreachable!(),    // can't start running until an event in this function
+            // (Paused, RunningUntilEvent, None) => unreachable!(),       // can't start running until an event in this function
+            // (Paused, Paused, Some(e)) => regular,
+            // (Paused, Paused, None) => regular,
+            // (Paused, Halted, Some(e)) => regular,
+            // (Paused, Halted, None) => unreachable!(), // this is fine but will never happen as impl'ed above
+
+            // (Halted, RunningUntilEvent, Some(e)) => unreachable!(),    // can't start running until an event in this function
+            // (Halted, RunningUntilEvent, None) => unreachable!(),       // can't start running until an event in this function
+            // (Halted, Paused, Some(e)) => unreachable!(),            // can't transition out of halted in this function
+            // (Halted, Paused, None) => unreachable!(),               // can't transition out of halted in this function
+            // (Halted, Halted, Some(e)) => regular,
+            // (Halted, Halted, None) => unreachable!(), // this is fine but will never happen as impl'ed above
+
+            (RunningUntilEvent, Paused, Some(e)) |
+            (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
+                // println!("resolving the device future");
+                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e);
+                self.state = new_state;
+                Some(e)
+            },
+
+            (RunningUntilEvent, RunningUntilEvent, e @ None) |
+            (Paused, Paused, e @ Some(_))                    |
+            (Paused, Paused, e @ None)                       |
+            (Paused, Halted, e @ Some(Event::Halted))        |
+            (Halted, Halted, e @ Some(Event::Halted)) => {
+                self.state = new_state;
+                e
+            }
+
+            (RunningUntilEvent, Halted, Some(_)) |
+            (Paused, Halted, Some(_))            |
+            (Halted, Halted, Some(_)) => unreachable!("Transitions to the `Halted` state must only produce halted events."),
+
+            (RunningUntilEvent, RunningUntilEvent, Some(_)) => unreachable!("Can't yield an event and not finish a `RunningUntilEvent`."),
+
+            (RunningUntilEvent, Paused, None) |
+            (RunningUntilEvent, Halted, None) => unreachable!("Can't finish a `RunningUntilEvent` without an event."),
+
+            (Paused, RunningUntilEvent, Some(_)) |
+            (Paused, RunningUntilEvent, None)    |
+            (Halted, RunningUntilEvent, Some(_)) |
+            (Halted, RunningUntilEvent, None) => unreachable!("Can't start a 'run until event' in this function."),
+
+            (Halted, Paused, Some(_)) |
+            (Halted, Paused, None) => unreachable!("Can't get out of the `Halted` state in this function."),
+
+            (Paused, Halted, None) |
+            (Halted, Halted, None) => unreachable!("Always produce an event when the next state is `Halted`."),
+        }
+    }
+
+    fn pause(&mut self) {
+        use State::*;
+
+        match self.get_state() {
+            Halted | Paused => {}, // Nothing changes!
+            State::RunningUntilEvent => {
+                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(Event::Interrupted);
+                self.state = Paused;
+            }
+        }
+    }
+
+    fn get_state(&self) -> State {
+        self.state
+    }
+
+    fn reset(&mut self) {
+        self.state = State::Paused;
+        InstructionInterpreter::reset(&mut self.interp);
+        self.shared_state.as_ref().map(|s| s.reset());
+    }
+
+    fn get_error(&self) -> Option<Error> {
+        unimplemented!()
+    }
+
+    fn get_gpio_states(&self) -> GpioPinArr<GpioState> {
+        Gpio::get_states(self.interp.get_peripherals())
+    }
+
+    fn get_gpio_readings(&self) -> GpioPinArr<Result<bool, GpioReadError>> {
+        Gpio::read_all(self.interp.get_peripherals())
+    }
+
+    fn get_adc_states(&self) -> AdcPinArr<AdcState> {
+        Adc::get_states(self.interp.get_peripherals())
+    }
+
+    fn get_adc_readings(&self) -> AdcPinArr<Result<u8, AdcReadError>> {
+        Adc::read_all(self.interp.get_peripherals())
+    }
+
+    fn get_timer_states(&self) -> TimerArr<TimerState> {
+        Timers::get_states(self.interp.get_peripherals())
+    }
+
+    fn get_timer_config(&self) -> TimerArr<Word> {
+        Timers::get_periods(self.interp.get_peripherals())
+    }
+
+    fn get_pwm_states(&self) -> PwmPinArr<PwmState> {
+        Pwm::get_states(self.interp.get_peripherals())
+    }
+
+    fn get_pwm_config(&self) -> PwmPinArr<u8> {
+        Pwm::get_duty_cycles(self.interp.get_peripherals())
+    }
+
+    fn get_clock(&self) -> Word {
+        Clock::get_milliseconds(self.interp.get_peripherals())
+    }
+
+    fn get_info(&self) -> DeviceInfo {
+        DeviceInfo::new(
+            self.interp.get_program_metadata(),
+            Default::default(), // TODO: when we add other capabilities
+            I::type_id(),
+            self.id(),
+            Default::default(), // no proxies (yet)
+        )
+    }
+
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata) {
+        self.interp.set_program_metadata(metadata)
+    }
+
+    fn id(&self) -> Identifier {
+        I::ID
+    }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use crate::isa::Instruction;
-//
-//    // Test that the instructions work
-//    // Test that the unimplemented instructions do <something>
-//
-//    fn interp_test_runner<'a, M: Memory, P: Peripherals<'a>>(
-//        insns: Vec<Instruction>,
-//        num_steps: Option<usize>,
-//        regs: [Option<Word>; 8],
-//        pc: Addr,
-//        memory_locations: Vec<(Addr, Word)>,
-//    ) {
-//        let mut interp = Simulator::<M, P>::default();
-//
-//        let mut addr = 0x3000;
-//        for insn in insns {
-//            interp.set_word(addr, insn.into());
-//            addr += 2;
-//        }
-//
-//        if let Some(num_steps) = num_steps {
-//            for _ in 0..num_steps {
-//                interp.step();
-//            }
-//        } else {
-//            // TODO! (run until halted)
-//        }
-//
-//        for (idx, r) in regs.iter().enumerate() {
-//            if let Some(reg_word) = r {
-//                assert_eq!(interp.get_register(idx.into()), *reg_word);
-//            }
-//        }
-//    }
-//
-//    #[test]
-//    fn nop() {
-//        interp_test_runner<MemoryShim, _>(
-//            vec![Instruction::Br { n: true, z: true, p: true, offset11: -1 }],
-//            1,
-//            [None, None, None, None, None, None, None, None],
-//            0x3000,
-//            vec![]
-//        )
-//    }
-//}
+// #[derive(Debug)]
+// pub struct SimFuture<'S, S: EventFutureSharedStatePorcelain>(&'s S);
+
+// impl<'s> Future for SimFuture<'s> {
+//     type Output = (Event, State);
+
+//     fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+
+//     }
+// }

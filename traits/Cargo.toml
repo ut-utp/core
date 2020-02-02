@@ -17,7 +17,6 @@ categories = ["no-std", "simulation"]
 
 license = "MPL-2.0"
 
-
 [badges]
 github-actions = { repository = "ut-utp/prototype", workflow = "traits" }
 codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
@@ -28,11 +27,23 @@ maintenance = { status = "actively-developed" }
 
 
 [dependencies]
-lc3-isa = { path = "../isa", version = "0.1.0" }
+lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
 lc3-macros = { path = "../macros", version = "0.1.0" }
+
+log = "0.4.8"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0.41", optional = true }
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"
 
 
 [features]
-default = []
-no_std = []
-std_functionality = []
+no_std = ["lc3-isa/no_std"]
+json_encoding_layer = ["serde_json"]
+
+
+[[example]]
+name = "control-demo"
+path = "examples/control-demo.rs"
+required-features = [""]

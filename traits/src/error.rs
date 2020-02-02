@@ -4,6 +4,10 @@ use super::peripherals::gpio::{
 };
 use lc3_isa::Word;
 
+use core::fmt::Display;
+
+use serde::{Serialize, Deserialize};
+
 // Lots of open questions here:
 //  - should this be implementation defined?
 //    + we do get some nice benefits from sticking this in the Control trait
@@ -13,6 +17,8 @@ use lc3_isa::Word;
 //    + but there are probably some errors we _do_ want to actually fire exceptions on (note: we'll need new exceptions!)
 //    + I'm warming to this idea, actually. The underlying infrastructure (peripherals, control) agree on a set of errors; how those
 //      errors make their way into LC-3 land is up to the interpreter. It's literally a matter of mapping these Errors into whatever.
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Error {
     InvalidGpioWrite(GpioWriteError),
     InvalidGpioWrites(GpioWriteErrors),
@@ -22,6 +28,15 @@ pub enum Error {
                                   // InvalidGpioInterruptRegistration(GpioInterruptRegisterError),
                                   ///// TODO: finish
 }
+
+impl Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // TODO
+        unimplemented!()
+    }
+}
+
+using_std! { impl std::error::Error for Error { } }
 
 // TODO: automate away with a proc macro (this is a common enough pattern...)
 // or at least a macro_rules macro
@@ -52,6 +67,7 @@ err!(GpioWriteError, Error::InvalidGpioWrite);
 ///
 /// TBD on whether this is impl-defined.
 /// Another thing to consider is that we may want different modes? Permissive and strict or something. Or maybe not.
+#[derive(Debug, Clone)]
 pub enum ErrorHandlingStrategy {
     DefaultValue(Word),
     Silent,
@@ -70,7 +86,7 @@ impl From<Error> for ErrorHandlingStrategy {
             InvalidGpioWrite(_) => Silent,
             InvalidGpioRead(_) => DefaultValue(0u16),
             InvalidGpioWrites(_) => Silent,
-            InvalidGpioReads(err) => {
+            InvalidGpioReads(_err) => {
                 unimplemented!()
                 // TODO: set all the mismatched bits to 0, etc.
             }

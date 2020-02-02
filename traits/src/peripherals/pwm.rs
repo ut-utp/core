@@ -4,10 +4,13 @@ use crate::peripheral_trait;
 use core::num::NonZeroU8;
 use core::ops::{Deref, Index, IndexMut};
 
+
+use serde::{Deserialize, Serialize};
 // TODO: Switch to enum for pins
 // TODO: Add Errors
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum PwmPin { P0, P1 }
 
 // TODO: remove once the derive macro happens...
@@ -31,12 +34,14 @@ pub const PWM_PINS: PwmPinArr<PwmPin> = {
 }; // TODO: save us, derive macro
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum PwmState {
     Enabled(NonZeroU8),
     Disabled,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub struct PwmPinArr<T>(pub [T; PwmPin::NUM_PINS]);
 
 // Once const fn is more stable:
@@ -88,8 +93,10 @@ pub trait Pwm: Default {
 
         states
     }
-
+    fn get_pin(&self, pin: PwmPin) -> bool; // TODO: should perhaps not be infallible (actually why does this even exist?)
     fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError>;
+
+    // TODO: why is this infallible?
     fn get_duty_cycle(&self, pin: PwmPin) -> u8; // This is u8 because u16 fractions seem excessive.
     fn get_duty_cycles(&self) -> PwmPinArr<u8> {
         let mut duty_cycles = PwmPinArr([0u8; PwmPin::NUM_PINS]);
@@ -114,6 +121,9 @@ using_std! {
 
         fn get_state(&self, pin: PwmPin) -> PwmState {
             RwLock::read(self).unwrap().get_state(pin)
+        }
+        fn get_pin(&self, pin: PwmPin) -> bool {
+            RwLock::read(self).unwrap().get_pin(pin)
         }
 
         fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError> {

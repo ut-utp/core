@@ -3,12 +3,16 @@
 use crate::peripheral_trait;
 use core::ops::{Deref, Index, IndexMut};
 
+use core::sync::atomic::AtomicBool;
 use lc3_isa::Word;
+
+use serde::{Deserialize, Serialize};
 
 // TODO: Add Errors
 // Timer periods: [0, core::u16::MAX)
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum TimerId {
     T0,
     T1,
@@ -34,6 +38,7 @@ pub const TIMERS: TimerArr<TimerId> = {
 };
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub struct TimerArr<T>(pub [T; TimerId::NUM_TIMERS]);
 
 // Once const fn is more stable:
@@ -66,6 +71,7 @@ impl<T> IndexMut<TimerId> for TimerArr<T> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub enum TimerState {
     Repeated,
     SingleShot,
@@ -74,8 +80,6 @@ pub enum TimerState {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct TimerMiscError;
-
-pub type TimerHandler<'a> = &'a (dyn Fn(TimerId) + Sync);
 
 pub type TimerStateMismatch = (TimerId, TimerState);
 
@@ -96,7 +100,7 @@ pub trait Timers<'a>: Default {
     // TODO: setting the period on an already running timer resets the timer, right?
     // TODO: period of zero? disabled, right?
     fn set_period(&mut self, timer: TimerId, ms: Word) -> Result<(), TimerMiscError>;  // Should this be infallible (TODO)
-    fn get_period(&self, timer: TimerId) -> Word;
+    fn get_period(&self, timer: TimerId) -> Word; // should be fallible? (i.e. what happens when we're disabled?)
     fn get_periods(&self) -> TimerArr<Word> {
         let mut periods = TimerArr([0u16; TimerId::NUM_TIMERS]);
 
@@ -107,12 +111,11 @@ pub trait Timers<'a>: Default {
         periods
     }
 
+    fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>);
+    fn interrupt_occurred(&self, timer: TimerId) -> bool;
+    fn reset_interrupt_flag(&mut self, timer: TimerId);
+    fn interrupts_enabled(&self, timer: TimerId) -> bool;
 
-    fn register_interrupt(
-        &mut self,
-        timer: TimerId,
-        handler: TimerHandler<'a>
-    ) -> Result<(), TimerMiscError>; // Should this be infallible (TODO)
 }}
 
 // TODO: Into Error stuff (see Gpio)
@@ -137,9 +140,22 @@ using_std! {
             RwLock::read(self).unwrap().get_period(timer)
         }
 
-        fn register_interrupt(&mut self, timer: TimerId, handler: TimerHandler<'a>) -> Result<(), TimerMiscError> {
-            RwLock::write(self).unwrap().register_interrupt(timer, handler)
+        fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
+            RwLock::write(self).unwrap().register_interrupt_flags(flags)
         }
+
+        fn interrupt_occurred(&self, timer: TimerId) -> bool {
+            RwLock::read(self).unwrap().interrupt_occurred(timer)
+        }
+
+        fn reset_interrupt_flag(&mut self, timer: TimerId) {
+            RwLock::write(self).unwrap().reset_interrupt_flag(timer)
+        }
+
+        fn interrupts_enabled(&self, timer: TimerId) -> bool {
+            RwLock::read(self).unwrap().interrupts_enabled(timer)
+        }
+
     }
 
 }
