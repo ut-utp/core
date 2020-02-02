@@ -1,14 +1,20 @@
 //! Messages used for proxying [Control trait](super::Control) functions.
 
-use crate::error::Error as Lc3Error;
-use crate::peripherals::{adc::AdcPinArr, gpio::GpioPinArr, pwm::PwmPinArr, timers::TimerArr}
-use crate::peripherals::{adc::AdcReadError, gpio::GpioReadError};
-use crate::memory::MemoryMiscError;
-use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
-use crate::control::metadata::{DeviceInfo, ProgramMetadata};
 use super::{State, Event};
+use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::{ProgramMetadata, DeviceInfo};
+use crate::error::Error as Lc3Error;
+use crate::memory::MemoryMiscError;
+use crate::peripherals::{
+    adc::{AdcPinArr, AdcState, AdcReadError},
+    gpio::{GpioPinArr, GpioState, GpioReadError},
+    pwm::{PwmPinArr, PwmState},
+    timers::{TimerArr, TimerState},
+};
 
 use lc3_isa::{Addr, Reg, Word};
+
+use serde::{Serialize, Deserialize};
 
 // TODO: auto gen (proc macro, probably) the types below from and the `Control`
 // trait.
@@ -96,7 +102,7 @@ static __RESP_SIZE_CHECK: () = {
     canary[s - 72] // panic if the size of ResponseMessage changes
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[deny(clippy::large_enum_variant)]
 pub enum ResponseMessage { // messages for everything but tick()
     GetPc(Addr),

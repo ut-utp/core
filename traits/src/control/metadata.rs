@@ -1,12 +1,13 @@
 //! TODO!
 
 use core::any::{Any, TypeId};
-use core::convert::AsRef;
+use core::convert::{AsRef, TryInto};
 use core::hash::{Hasher, Hash};
-use core::hash::SipHasher; // TODO: this is deprecated (but the replacement isn't available without std).
 use core::time::Duration;
+#[allow(deprecated)] use core::hash::SipHasher; // TODO: this is deprecated (but the replacement isn't available without std).
 
 use lc3_isa::util::MemoryDump;
+use lc3_isa::Word;
 
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +15,7 @@ use serde::{Deserialize, Serialize};
 // should spin off an lc3-program crate (or have an assembler crate) that has
 // everything in `isa/src/misc` and `ProgramID` + `ProgramMetadata`.
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ProgramId {
     Known { hash: u64 },
     Unknown,
@@ -29,6 +30,7 @@ impl Default for ProgramId {
 impl ProgramId {
     // Can't be const until const traits arrive (`Hasher`).
     pub /*const*/ fn new(program: &MemoryDump) -> Self {
+        #[allow(deprecated)]
         let mut hasher = SipHasher::new();
 
         // It'd be nice to do &[u16] -> &[u8] and call `hasher.write(...)` and
@@ -36,13 +38,13 @@ impl ProgramId {
         // program.for_each(|w| hasher.write_u16(w));
 
         // Actually, we can do this which I'll call good enough:
-        Word::hash_slice(program, &mut hasher);
+        Word::hash_slice(&**program, &mut hasher);
 
-        hasher.finish();
+        Self::Known { hash: hasher.finish() }
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct ProgramMetadata {
     pub id: ProgramId,
     /// Time the program was modified in seconds since the Unix epoch.
@@ -75,10 +77,10 @@ using_std! {
         pub fn now(mut self) -> Self {
             // SystemTime instead of Instant since we don't really care about
             // monotonicity.
-            use std::time::SystemTime::{self, UNIX_EPOCH};
+            use std::time::SystemTime;
 
             self.last_modified = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
+                .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("System time to be later than 1970-01-01 00:00:00 UTC")
                 .as_secs();
 
@@ -87,7 +89,7 @@ using_std! {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct Identifier([u8; 4]);
 
 impl Identifier {
@@ -113,10 +115,10 @@ impl Identifier {
         // `is_ascii` == `*c & 128 == 0`
         let canary: [(); 1] = [()];
 
-        canary[name[0] & 128];
-        canary[name[1] & 128];
-        canary[name[2] & 128];
-        canary[name[3] & 128];
+        canary[(name[0] & 128) as usize];
+        canary[(name[1] & 128) as usize];
+        canary[(name[2] & 128) as usize];
+        canary[(name[3] & 128) as usize];
 
         Self(name)
     }
@@ -150,14 +152,14 @@ impl AsRef<str> for Identifier {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 // extra, optional traits
 pub struct Capabilities {
     pub storage: bool,
     pub display: bool,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DeviceInfo {
     current_program_metadata: ProgramMetadata,
     capabilities: Capabilities,
@@ -178,10 +180,10 @@ impl DeviceInfo {
     }
 
     pub fn add_proxy(mut self, proxy: Identifier) -> Result<Self, Self> {
-        if let Some(idx) = self.proxies.iter().enumerate().filter(|(_, p)| p.is_none()).next() {
+        if let Some(idx) = self.proxies.iter().enumerate().filter(|(_, p)| p.is_none()).map(|(idx, _)| idx).next() {
             self.proxies[idx] = Some(proxy);
 
-            Some(self)
+            Ok(self)
         } else {
             Err(self)
         }

@@ -9,7 +9,6 @@ use core::future::Future;
 use core::pin::Pin;
 use core::cell::Cell;
 use core::num::NonZeroU8;
-use core::sync::atomic::{AtomicBool, Ordering};
 
 // TODO: for now, getting multiple futures at once (i.e. calling run_until_event
 // twice) is somewhat undefined: at least one of the futures will eventually
@@ -370,7 +369,7 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
 }
 
 #[derive(Debug)]
-pub struct EventFuture<'a, S: EventFutureSharedState>(&'a S);
+pub struct EventFuture<'a, S: EventFutureSharedState>(pub &'a S);
 
 impl<'a, S: EventFutureSharedStatePorcelain> EventFuture<'a, S> {
     pub /*const*/ fn new(inner: &'a S) -> Self {
@@ -388,7 +387,6 @@ impl<'a, S: EventFutureSharedStatePorcelain> Future for EventFuture<'a, S> {
 
 using_std! {
     use std::sync::RwLock;
-    use std::sync::mpsc::{Sender, Receiver, SendError};
 
     #[derive(Debug)]
     pub struct SyncEventFutureSharedState(RwLock<SharedStateState>);

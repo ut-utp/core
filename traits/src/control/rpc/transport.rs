@@ -4,6 +4,8 @@
 
 use crate::control::Identifier;
 
+use core::fmt::Debug;
+
 pub trait Transport<SendFormat, RecvFormat> {
     type Err: Debug;
     const ID: Identifier;
@@ -23,8 +25,8 @@ using_std! {
     }
 
     impl<Send: Debug, Recv: Debug> Transport<Send, Recv> for MpscTransport<Send, Recv> {
-        type Err = SendError<EncodedFormat>;
-        const ID = Identifer::new_from_str_that_crashes_on_invalid_inputs("MPSC");
+        type Err = SendError<Send>;
+        const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("MPSC");
 
         fn send(&self, message: Send) -> Result<(), Self::Err> {
             log::trace!("SENT: {:?}", message);
@@ -59,7 +61,7 @@ using_std! {
     }
 
     impl<S: Debug, R: Debug> MpscTransport<S, R> {
-        pub fn new() -> (MpscTransport<S, R>, MpscTransport<R, R>) {
+        pub fn new() -> (MpscTransport<S, R>, MpscTransport<R, S>) {
             mpsc_transport_pair()
         }
     }

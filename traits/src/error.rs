@@ -4,6 +4,8 @@ use super::peripherals::gpio::{
 };
 use lc3_isa::Word;
 
+use core::fmt::Display;
+
 use serde::{Serialize, Deserialize};
 
 // Lots of open questions here:
@@ -15,6 +17,7 @@ use serde::{Serialize, Deserialize};
 //    + but there are probably some errors we _do_ want to actually fire exceptions on (note: we'll need new exceptions!)
 //    + I'm warming to this idea, actually. The underlying infrastructure (peripherals, control) agree on a set of errors; how those
 //      errors make their way into LC-3 land is up to the interpreter. It's literally a matter of mapping these Errors into whatever.
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Error {
     InvalidGpioWrite(GpioWriteError),
@@ -27,7 +30,10 @@ pub enum Error {
 }
 
 impl Display for Error {
-    // TODO
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // TODO
+        unimplemented!()
+    }
 }
 
 using_std! { impl std::error::Error for Error { } }

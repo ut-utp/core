@@ -7,17 +7,27 @@
 
 use core::clone::Clone;
 use core::convert::Infallible;
+use core::fmt::{Debug, Display};
 
 // TODO
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SnapshotError {
     UnrecordableState,
     UninterruptableState,
     Other(&'static str),
 }
 
+impl From<Infallible> for SnapshotError {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
+    }
+}
+
 impl Display for SnapshotError {
-    // TODO!
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        // TODO
+        unimplemented!()
+    }
 }
 
 using_std! { impl std::error::Error for SnapshotError { } }
@@ -39,11 +49,13 @@ impl<T: Clone> Snapshot for T {
     type Snap = Self;
     type Err = Infallible;
 
-    fn record(&self) -> Self {
-        self.clone()
+    fn record(&self) -> Result<Self::Snap, Self::Err> {
+        Ok(self.clone())
     }
 
-    fn restore(&mut self, snap: Self) {
+    fn restore(&mut self, snap: Self) -> Result<(), Self::Err> {
         *self = snap;
+
+        Ok(())
     }
 }

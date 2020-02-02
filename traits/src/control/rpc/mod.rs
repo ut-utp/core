@@ -1,10 +1,10 @@
-//! RPC for thingss that implement the [Control trait](super::Control).
+//! RPC for things that implement the [Control trait](super::Control).
 //!
 //! (TODO!)
 
 //! For clarity, here's our whole picture:
 //!
-//! ```
+//! ```text
 //!   /----------------------------------------------------------------------\
 //!  |                    [Controller Side: i.e. Laptop]                      |
 //!  |                                                                        |
@@ -71,147 +71,182 @@ pub use controller::Controller;
 mod device;
 pub use device::Device;
 
+use core::fmt::Debug;
+
 pub fn new_pair<
     'a,
     'b,
-    Req: Into<RequestMessage>,
-    Resp: Into<ResponseMessage>,
+    Req: Debug,
+    Resp: Debug,
 
     // Controller:
     ReqEnc: Encode<Req>, // = Transparent,
     RespDec: Decode<Resp>, // = Transparent,
     // Sends Requests, Receives Responses:
-    ContTrans: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
-    S: EventFutureSharedState,
+    ContTrans: Transport<<ReqEnc as Encode<Req>>::Encoded, <RespDec as Decode<Resp>>::Encoded>,
+    S: EventFutureSharedStatePorcelain,
 
     // Device:
     ReqDec: Decode<Req>, // = Transparent,
     RespEnc: Encode<Resp>, // = Transparent,
     // Sends Responses, Receives Requests:
-    DevTrans: Transport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
+    DevTrans: Transport<<RespEnc as Encode<Resp>>::Encoded, <ReqDec as Decode<Req>>::Encoded>,
     C: Control,
 >(
-        req_enc: ReqEnc,
-        resp_dec: RespDec,
         cont_trans: ContTrans,
         state: &'a S,
 
-        req_dec: ReqDec,
-        resp_enc: RespEnc,
         dev_trans: DevTrans,
         _control_witness: Option<&'b C>,
 ) -> (
     Controller<
         'a,
+        ContTrans,
+        S,
         Req,
         Resp,
         ReqEnc,
         RespDec,
-        ContTrans,
-        S
     >,
     Device<
+        DevTrans,
+        C,
         Req,
         Resp,
         ReqDec,
         RespEnc,
-        DevTrans,
-        C
     >,
 )
+where
+    RequestMessage: Into<Req>,
+    Resp: Into<ResponseMessage>,
+
+    Req: Into<RequestMessage>,
+    ResponseMessage: Into<Resp>,
+
+    // Controller's inputs (encoded responses) must = Device's outputs (encoded responses)
+    RespDec: Decode<Resp, Encoded = <RespEnc as Encode<Resp>>::Encoded>,
+
+    // Devices's inputs (encoded requests) must = Controller's outputs (encoded requests)
+    ReqDec: Decode<Req, Encoded = <ReqEnc as Encode<Req>>::Encoded>,
 {
-    let controller = Controller::new(req_enc, resp_dec, cont_trans, state);
-    let device = Device::new(resp_enc, req_dec, dev_trans);
+    macro_rules! d { () => {Default::default()}; }
+
+    let controller = Controller::new(d!(), d!(), cont_trans, state);
+    let device = Device::new(d!(), d!(), dev_trans);
 
     (controller, device)
 }
 
 using_std! {
     use transport::MpscTransport;
+    use futures::SyncEventFutureSharedState;
+
 
     pub fn mpsc_pair<
         'a,
-        Req: Into<RequestMessage>,
-        Resp: Into<ResponseMessage>,
+        Req: Debug,
+        Resp: Debug,
 
         // Controller:
         ReqEnc: Encode<Req>, // = Transparent,
         RespDec: Decode<Resp>, // = Transparent,
-        S: EventFutureSharedState,
+        S: EventFutureSharedStatePorcelain,
 
         // Device:
         ReqDec: Decode<Req>, // = Transparent,
         RespEnc: Encode<Resp>, // = Transparent,
         C: Control,
     >(
-        req_enc: ReqEnc,
-        resp_dec: RespDec,
         state: &'a S,
-
-        req_dec: ReqDec,
-        resp_enc: RespEnc,
     ) -> (
         Controller<
             'a,
+            // Sends Requests, Receives Responses:
+            MpscTransport<<ReqEnc as Encode<Req>>::Encoded, <RespDec as Decode<Resp>>::Encoded>,
+            S,
             Req,
             Resp,
             ReqEnc,
             RespDec,
-            // Sends Requests, Receives Responses:
-            MpscTransport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
-            S
         >,
         Device<
+            // Sends Responses, Receives Requests:
+            MpscTransport<<RespEnc as Encode<Resp>>::Encoded, <ReqDec as Decode<Req>>::Encoded>,
+            C,
             Req,
             Resp,
             ReqDec,
             RespEnc,
-            // Sends Responses, Receives Requests:
-            MpscTransport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
-            C
+        >,
     )
+    where
+        RequestMessage: Into<Req>,
+        Resp: Into<ResponseMessage>,
+
+        Req: Into<RequestMessage>,
+        ResponseMessage: Into<Resp>,
+
+        // Controller's inputs (encoded responses) must = Device's outputs (encoded responses)
+        RespDec: Decode<Resp, Encoded = <RespEnc as Encode<Resp>>::Encoded>,
+
+        // Devices's inputs (encoded requests) must = Controller's outputs (encoded requests)
+        ReqDec: Decode<Req, Encoded = <ReqEnc as Encode<Req>>::Encoded>,
     {
         let (controller, device) = MpscTransport::new();
 
-        new_pair(req_enc, resp_dec, controller, state, req_dec, resp_enc, device)
+        new_pair(controller, state, device, None)
     }
 
-    pub fn mpsc_sync_default_pair<
+    pub fn mpsc_sync_pair<
         'a,
-        Req: Into<RequestMessage>,
-        Resp: Into<ResponseMessage>,
+        Req: Debug,
+        Resp: Debug,
 
         // Controller:
-        ReqEnc: Default + Encode<Req>, // = Transparent,
-        RespDec: Default + Decode<Resp>, // = Transparent,
+        ReqEnc: Encode<Req>, // = Transparent,
+        RespDec: Decode<Resp>, // = Transparent,
 
         // Device:
-        ReqDec: Default + Decode<Req>, // = Transparent,
-        RespEnc: Default + Encode<Resp>, // = Transparent,
+        ReqDec: Decode<Req>, // = Transparent,
+        RespEnc: Encode<Resp>, // = Transparent,
         C: Control,
     >(
             state: &'a SyncEventFutureSharedState
     ) -> (
         Controller<
             'a,
+            // Sends Requests, Receives Responses:
+            MpscTransport<<ReqEnc as Encode<Req>>::Encoded, <RespDec as Decode<Resp>>::Encoded>,
+            SyncEventFutureSharedState,
             Req,
             Resp,
             ReqEnc,
             RespDec,
-            // Sends Requests, Receives Responses:
-            MpscTransport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
-            S
         >,
         Device<
+            // Sends Responses, Receives Requests:
+            MpscTransport<<RespEnc as Encode<Resp>>::Encoded, <ReqDec as Decode<Req>>::Encoded>,
+            C,
             Req,
             Resp,
             ReqDec,
             RespEnc,
-            // Sends Responses, Receives Requests:
-            MpscTransport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
-            C
-    ) {
-        use Default::default as def;
-        mpsc_pair(def(), def(), state, def(), def())
+        >,
+    )
+    where
+        RequestMessage: Into<Req>,
+        Resp: Into<ResponseMessage>,
+
+        Req: Into<RequestMessage>,
+        ResponseMessage: Into<Resp>,
+
+        // Controller's inputs (encoded responses) must = Device's outputs (encoded responses)
+        RespDec: Decode<Resp, Encoded = <RespEnc as Encode<Resp>>::Encoded>,
+
+        // Devices's inputs (encoded requests) must = Controller's outputs (encoded requests)
+        ReqDec: Decode<Req, Encoded = <ReqEnc as Encode<Req>>::Encoded>,
+    {
+        mpsc_pair(state)
     }
 }
