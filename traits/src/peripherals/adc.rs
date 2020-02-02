@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[derive(Serialize, Deserialize)]
-pub enum AdcPin { A0, A1, A2, A3 }
+pub enum AdcPin { A0, A1, A2, A3 } // TODO: bump to 6
 
 impl AdcPin {
     pub const NUM_PINS: usize = 4;

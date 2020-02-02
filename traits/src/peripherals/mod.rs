@@ -20,7 +20,18 @@ pub use output::Output;
 pub mod stubs;
 
 use core::marker::PhantomData;
-// use core::ops::{Deref, DerefMut};
+
+// pub trait RunInContextRef<Wrapped = Self> {
+//     fn with_ref<R, F: FnOnce(&Wrapped) -> R>(&self, func: F) -> R;
+// }
+
+// pub trait RunInContextMut<Wrapped>: RunInContextRef<Wrapped>/* + NoInteriorMutability*/ {
+//     fn with_mut<R, F: FnOnce(&mut Wrapped) -> R>(&mut self, func: F) -> R;
+// }
+
+// pub trait RunInContextInteriorMut<Wrapped>: RunInContextMut<Wrapped> {
+//     fn with_mut<R, F: FnOnce(&mut Wrapped) -> R>(&self, func: F) -> R;
+// }
 
 pub trait Peripherals<'p>:
     Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output<'p>
@@ -370,6 +381,16 @@ where
     C: 'p + Snapshot + Clock,
     I: 'p + Snapshot + Input<'p>,
     O: 'p + Snapshot + Output<'p>,
+
+    // This shouldn't be needed since, in order to impl Snapshot your Err type has to
+    // implement Into<SnapshotError>.
+    SnapshotError: From<<G as Snapshot>::Err>,
+    SnapshotError: From<<A as Snapshot>::Err>,
+    SnapshotError: From<<P as Snapshot>::Err>,
+    SnapshotError: From<<T as Snapshot>::Err>,
+    SnapshotError: From<<C as Snapshot>::Err>,
+    SnapshotError: From<<I as Snapshot>::Err>,
+    SnapshotError: From<<O as Snapshot>::Err>,
 {
     type Snap = (
         <G as Snapshot>::Snap,
@@ -381,9 +402,9 @@ where
         <O as Snapshot>::Snap,
     );
 
-    type Error = SnapshotError; // TODO: report which thing failed? make it part of the SnapshotError type?
+    type Err = SnapshotError; // TODO: report which thing failed? make it part of the SnapshotError type?
 
-    fn record(&self) -> Result<Self::Snap, Self::Error> {
+    fn record(&self) -> Result<Self::Snap, Self::Err> {
         Ok((
             self.gpio.record()?,
             self.adc.record()?,
@@ -405,5 +426,7 @@ where
         self.clock.restore(c)?;
         self.input.restore(i)?;
         self.output.restore(o)?;
+
+        Ok(())
     }
 }
