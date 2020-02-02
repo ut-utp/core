@@ -131,6 +131,7 @@ impl Identifier {
         // `is_ascii` == `*c & 128 == 0`
         let canary: [(); 1] = [()];
 
+        // check that the high bit isn't set:
         canary[(name[0] & 128) as usize];
         canary[(name[1] & 128) as usize];
         canary[(name[2] & 128) as usize];
@@ -143,15 +144,10 @@ impl Identifier {
         let slice = name.as_bytes();
 
         let canary: [(); 1] = [()];
-        let input_too_long = canary;
-
-        // check that the input is *at most* 4 bytes long
-        input_too_long[slice.len() & 4];
-
-        let input_too_short = canary;
+        let input_length_is_not_four = canary;
 
         // check that the input length isn't anything other than 4
-        input_too_short[slice.len() ^ 4];
+        input_length_is_not_four[slice.len() ^ 4];
 
         Self::new_that_crashes_on_invalid_inputs([
             slice[0],
