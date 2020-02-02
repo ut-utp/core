@@ -15,4 +15,6 @@ pub trait Memory: Index<Addr, Output = Word> + IndexMut<Addr, Output = Word> {
         self[addr] = word;
     }
 
+    fn get_program_metadata(&self) -> ProgramMetadata;
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata);
 }
