@@ -6,7 +6,6 @@
 //! the [interp module](crate::interp).
 
 use crate::error::Error;
-use crate::memory::MemoryMiscError;
 use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
 use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
@@ -70,7 +69,6 @@ pub trait Control {
 
     fn read_word(&self, addr: Addr) -> Word;
     fn write_word(&mut self, addr: Addr, word: Word);
-    fn commit_memory(&mut self) -> Result<(), MemoryMiscError>;
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;

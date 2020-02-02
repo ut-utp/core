@@ -12,7 +12,6 @@ use super::futures::{EventFutureSharedStatePorcelain, EventFuture};
 use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
 use crate::control::{ProgramMetadata, DeviceInfo};
 use crate::error::Error as Lc3Error;
-use crate::memory::MemoryMiscError;
 use crate::peripherals::{
     adc::{AdcPinArr, AdcState, AdcReadError},
     gpio::{GpioPinArr, GpioState, GpioReadError},
@@ -181,9 +180,6 @@ where
 
     fn read_word(&self, addr: Addr) -> Word { ctrl!(self, ReadWord { addr }, R::ReadWord(w), w) }
     fn write_word(&mut self, addr: Addr, word: Word) { ctrl!(self, WriteWord { addr, word }, R::WriteWord) }
-    fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
-        ctrl!(self, CommitMemory, R::CommitMemory(r), r)
-    }
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
         ctrl!(self, SetBreakpoint { addr }, R::SetBreakpoint(r), r)

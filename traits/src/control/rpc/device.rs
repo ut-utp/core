@@ -320,8 +320,6 @@ where
                 (ReadWord { addr } => R::ReadWord(r)) with r = c.read_word(addr);
                 (WriteWord { addr, word } => R::WriteWord) with _ = c.write_word(addr, word);
 
-                (CommitMemory => R::CommitMemory(r)) with r = c.commit_memory();
-
                 (SetBreakpoint { addr } => R::SetBreakpoint(r)) with r= c.set_breakpoint(addr);
                 (UnsetBreakpoint { idx } => R::UnsetBreakpoint(r)) with r = c.unset_breakpoint(idx);
                 (GetBreakpoints => R::GetBreakpoints(r)) with r = c.get_breakpoints();

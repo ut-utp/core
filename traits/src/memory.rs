@@ -1,11 +1,10 @@
-use core::ops::{Index, IndexMut};
+//! TODO!
+
+use crate::control::metadata::ProgramMetadata;
+
 use lc3_isa::{Addr, Word};
 
-use serde::{Deserialize, Serialize};
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
-pub struct MemoryMiscError;
+use core::ops::{Index, IndexMut};
 
 pub trait Memory: Index<Addr, Output = Word> + IndexMut<Addr, Output = Word> {
     fn read_word(&self, addr: Addr) -> Word {
@@ -16,5 +15,4 @@ pub trait Memory: Index<Addr, Output = Word> + IndexMut<Addr, Output = Word> {
         self[addr] = word;
     }
 
-    fn commit(&mut self) -> Result<(), MemoryMiscError>;
 }
