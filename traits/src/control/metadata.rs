@@ -4,6 +4,7 @@ use core::any::{Any, TypeId};
 use core::convert::{AsRef, TryInto};
 use core::hash::{Hasher, Hash};
 use core::time::Duration;
+use core::fmt::Display;
 #[allow(deprecated)] use core::hash::SipHasher; // TODO: this is deprecated (but the replacement isn't available without std).
 
 use lc3_isa::util::MemoryDump;
@@ -158,6 +159,17 @@ impl Identifier {
     }
 }
 
+impl Display for Identifier {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "{}{}{}{}",
+            self.0[0] as char,
+            self.0[1] as char,
+            self.0[2] as char,
+            self.0[3] as char,
+        )
+    }
+}
+
 impl AsRef<str> for Identifier {
     fn as_ref(&self) -> &str {
         core::str::from_utf8(&self.0).unwrap()
@@ -173,11 +185,11 @@ pub struct Capabilities {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct DeviceInfo {
-    current_program_metadata: ProgramMetadata,
-    capabilities: Capabilities,
-    source_type_id: u64,
-    source_name: Identifier,
-    proxies: [Option<Identifier>; 5]
+    pub current_program_metadata: ProgramMetadata,
+    pub capabilities: Capabilities,
+    pub source_type_id: u64,
+    pub source_name: Identifier,
+    pub proxies: [Option<Identifier>; 5]
 }
 
 impl DeviceInfo {
