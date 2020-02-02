@@ -407,13 +407,33 @@ where
     Outer: Encode<A, Encoded = B>,
     Inner: Encode<B>,
 {
-    pub /*const*/ fn chain_detached<Z: Debug, NewOuter: Encode<Z, Encoded = A>>() -> ChainedEncode<Z, A, NewOuter, Self> {
+    pub /*const*/ fn chain_back_detached<Z: Debug, NewOuter: Encode<Z, Encoded = A>>() -> ChainedEncode<Z, A, NewOuter, Self> {
         Default::default()
     }
 
-    pub /*const*/ fn chain<Z: Debug, NewOuter: Encode<Z, Encoded = A>>(self, _new_outer: NewOuter) -> ChainedEncode<Z, A, NewOuter, Self> {
-        Self::chain_detached()
+    pub /*const*/ fn chain_back<Z: Debug, NewOuter: Encode<Z, Encoded = A>>(self, _new_outer: NewOuter) -> ChainedEncode<Z, A, NewOuter, Self> {
+        Self::chain_back_detached()
     }
+
+    pub fn chain_front_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+        Default::default()
+    }
+
+    pub fn chain_front<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, _new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+        Self::chain_front_detatched()
+    }
+
+    // an alias for chain_front_detatched
+    pub fn chain_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+        Self::chain_front_detatched()
+    }
+
+    // an alias for chain_front
+    pub fn chain<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, _new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+        Self::chain_detatched()
+    }
+
+
 }
 
 impl<A: Debug, B: Debug, Outer, Inner> Encode<A> for ChainedEncode<A, B, Outer, Inner>
@@ -478,19 +498,54 @@ where
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>, // These two should be
     <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>, // eq, but alas.
 {
-    pub /*const*/ fn chain_detached<Z: Debug, NewOuter: Decode<Z, Encoded = A>>() -> ChainedDecode<Z, A, NewOuter, Self>
+    pub /*const*/ fn chain_back_detached<Z: Debug, NewOuter: Decode<Z, Encoded = A>>() -> ChainedDecode<Z, A, NewOuter, Self>
     where
         <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>
     {
         Default::default()
     }
 
-    pub /*const*/ fn chain<Z: Debug, NewOuter: Decode<Z, Encoded = A>>(self, _new_outer: NewOuter) -> ChainedDecode<Z, A, NewOuter, Self>
+    pub /*const*/ fn chain_back<Z: Debug, NewOuter: Decode<Z, Encoded = A>>(self, _new_outer: NewOuter) -> ChainedDecode<Z, A, NewOuter, Self>
     where
         <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>
     {
-        Self::chain_detached()
+        Self::chain_back_detached()
     }
+
+    pub fn chain_front_detatched<Z: Debug, NewInner>() -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
+    {
+        Default::default()
+    }
+
+    pub fn chain_front<Z: Debug, NewInner>(self, _new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
+    {
+        Self::chain_front_detatched()
+    }
+
+    // an alias for chain_front_detatched
+    pub fn chain_detatched<Z: Debug, NewInner>() -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
+    {
+        Self::chain_front_detatched()
+    }
+
+    // an alias for chain_front
+    pub fn chain<Z: Debug, NewInner>(self, _new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
+    {
+        Self::chain_detatched()
+    }
+
 }
 
 impl<A: Debug, B: Debug, Outer, Inner> Decode<A> for ChainedDecode<A, B, Outer, Inner>
@@ -624,25 +679,78 @@ where
     A: Debug,
     B: Debug,
     Inner: Encode<B>,
-    Inner: Encoding<B, <Inner as Encode<B>>::Encoded>,
-    Outer: Encoding<A, B>,
+    Inner: Decode<B, Encoded = <Inner as Encode<B>>::Encoded>,
+    Outer: Decode<A, Encoded = B> + Encode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
 {
-    pub fn chain_detached<Z: Debug, NewOuter: Encoding<Z, A>>() -> ChainedEncoding<Z, A, NewOuter, Self>
+    pub fn chain_back_detached<Z, NewOuter>() -> ChainedEncoding<Z, A, NewOuter, Self>
     where
+        Z: Debug,
+        NewOuter: Encode<Z, Encoded = A>,
+        NewOuter: Decode<Z, Encoded = A>,
         <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>,
         <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
     {
         Default::default()
     }
 
-    pub fn chain<Z: Debug, NewOuter: Encoding<Z, A>>(self, _new_outer: NewOuter) -> ChainedEncoding<Z, A, NewOuter, Self>
+    pub fn chain_back<Z, NewOuter>(self, _new_outer: NewOuter) -> ChainedEncoding<Z, A, NewOuter, Self>
     where
+        Z: Debug,
+        NewOuter: Encode<Z, Encoded = A>,
+        NewOuter: Decode<Z, Encoded = A>,
         <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>,
         <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
     {
-        Self::chain_detached()
+        Self::chain_back_detached()
     }
+
+    pub fn chain_front_detatched<Z, NewInner>() -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    where
+        Z: Debug,
+        NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        NewInner: Decode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Encode<B>>::Encoded>>::Err>,
+    {
+        Default::default()
+    }
+
+    pub fn chain_front<Z, NewInner>(self, _new_inner: NewInner) -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    where
+        Z: Debug,
+        NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        NewInner: Decode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Encode<B>>::Encoded>>::Err>,
+    {
+        Self::chain_front_detatched()
+    }
+
+    // an alias for chain_front_detatched
+    pub fn chain_detatched<Z, NewInner>() -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    where
+        Z: Debug,
+        NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        NewInner: Decode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Encode<B>>::Encoded>>::Err>,
+    {
+        Self::chain_front_detatched()
+    }
+
+    // an alias for chain_front
+    pub fn chain<Z, NewInner>(self, _new_inner: NewInner) -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    where
+        Z: Debug,
+        NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        NewInner: Decode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Encode<B>>::Encoded>>::Err>,
+    {
+        Self::chain_detatched()
+    }
+
 }
 
 using_std! {
@@ -702,7 +810,7 @@ mod tests {
     fn transparent() {
         fn check<T: Debug + Clone + Eq>(inp: T) {
             assert_eq!(inp, Transparent::<T>::encode(inp.clone()));
-            assert_eq!(inp, Transparent::<T>::decode(&inp));
+            assert_eq!(inp, Transparent::<T>::decode(&inp).unwrap());
         }
 
         #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -726,10 +834,10 @@ mod tests {
         let a: u64 = ser::<_, U32ToU64>(a);
         let a: u128 = ser::<_, U64ToU128>(a);
 
-        let a: u64 = de::<_, U64ToU128>(a);
-        let a: u32 = de::<_, U32ToU64>(a);
-        let a: u16 = de::<_, U16ToU32>(a);
-        let a: u8 = de::<_, U8ToU16>(a);
+        let a: u64 = de::<_, U64ToU128>(a).unwrap();
+        let a: u32 = de::<_, U32ToU64>(a).unwrap();
+        let a: u16 = de::<_, U16ToU32>(a).unwrap();
+        let a: u8 = de::<_, U8ToU16>(a).unwrap();
 
         assert_eq!(255u8, a);
     }
@@ -750,6 +858,34 @@ mod tests {
         assert_eq!(Ok(255u8), de(chain, 255u128));
 
         assert_eq!(Ok(255u8), de(chain, ser(chain, 255u8)));
+    }
+
+    #[test]
+    // This really does nothing at run time; if this function compiles, the
+    // `ChainedEncode` types and functions work.
+    fn chained_back_encode() {
+        fn ser<M: Debug, E: Encode<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
+
+        let chain = ChainedEncode::new(U64ToU128)
+            .chain_back(U32ToU64)
+            .chain_back(U16ToU32)
+            .chain_back(U8ToU16);
+
+        assert_eq!(255u128, ser(chain, 255u8));
+    }
+
+    #[test]
+    // This really does nothing at run time; if this function compiles, the
+    // `ChainedDecode` types and functions work.
+    fn chained_back_decode() {
+        fn de<M: Debug, E: Decode<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+
+        let chain = ChainedDecode::new(U64ToU128)
+            .chain_back(U32ToU64)
+            .chain_back(U16ToU32)
+            .chain_back(U8ToU16);
+
+        assert_eq!(Ok(255u8), de(chain, 255u128));
     }
 
     #[test]
@@ -789,7 +925,7 @@ mod tests {
         fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> <E as Encode<M>>::Encoded { E::encode(m) }
         fn de<M: Debug, E: Encoding<M>>(_e: E, e: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { E::decode(&e) }
 
-        fn check<M: Debug + Eq, E: Encoding<M>>(chain: E, m: M) {
+        fn check<M: Debug + PartialEq, E: Encoding<M>>(chain: E, m: M) where <E as Decode<M>>::Err: PartialEq {
             assert_eq!(Ok(m), de(chain, ser(chain, m)));
         }
 
