@@ -32,7 +32,7 @@ static __REQ_SIZE_CHECK: () = {
     let s = core::mem::size_of::<RequestMessage>();
     let canary = [()];
 
-    canary[s - 64] // panic if the size of RequestMessage changes
+    canary[s - 32] // panic if the size of RequestMessage changes
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,7 +93,7 @@ static __RESP_SIZE_CHECK: () = {
     let s = core::mem::size_of::<ResponseMessage>();
     let canary = [()];
 
-    canary[s - 64] // panic if the size of ResponseMessage changes
+    canary[s - 72] // panic if the size of ResponseMessage changes
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, Debug)]
