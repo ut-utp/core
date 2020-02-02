@@ -1,10 +1,5 @@
-// use core::ops::Try;
-use core::convert::TryInto;
-use core::marker::PhantomData;
-use core::ops::{Index, IndexMut};
-use core::sync::atomic::AtomicBool;
-
-use core::ops::{Deref, DerefMut};
+//! TODO!
+use super::mem_mapped::{MemMapped, MemMappedSpecial /*, BSP, PSR*/, MCR};
 
 use lc3_isa::{
     Addr, Instruction,
@@ -14,12 +9,17 @@ use lc3_isa::{
     PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR, TRAP_VECTOR_TABLE_START_ADDR,
     USER_PROGRAM_START_ADDR,
 };
+use lc3_traits::control::metadata::{Identifier, ProgramMetadata};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
-
 use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
 
-use super::mem_mapped::{MemMapped, MemMappedSpecial /*, BSP, PSR*/, MCR};
+use core::any::TypeId;
+use core::convert::TryInto;
+use core::marker::PhantomData;
+use core::ops::{Index, IndexMut};
+use core::sync::atomic::AtomicBool;
+use core::ops::{Deref, DerefMut};
 
 // TODO: Break up this file!
 
@@ -49,8 +49,6 @@ where
         M::update(self, func)
     }
 
-    fn commit_memory(&mut self) -> Result<(), MemoryMiscError>;
-
     fn get_special_reg<M: MemMappedSpecial>(&self) -> M {
         M::from_special(self)
     }
@@ -67,6 +65,8 @@ where
 pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
 {
+    const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Insn");
+
     fn step(&mut self) -> MachineState;
 
     fn set_pc(&mut self, addr: Addr);
@@ -82,16 +82,19 @@ pub trait InstructionInterpreter:
     fn set_word_force_memory_backed(&mut self, addr: Addr, word: Word);
     fn get_word_force_memory_backed(&self, addr: Addr) -> Word;
 
-    fn get_register(&self, reg: Reg) -> Word {
-        self[reg]
-    }
-    fn set_register(&mut self, reg: Reg, word: Word) {
-        self[reg] = word;
-    }
+    fn get_register(&self, reg: Reg) -> Word { self[reg] }
+    fn set_register(&mut self, reg: Reg, word: Word) { self[reg] = word; }
 
     fn get_machine_state(&self) -> MachineState;
     fn reset(&mut self);
     fn halt(&mut self); // TODO: have the MCR set this, etc.
+
+    // Taken straight from Memory:
+    fn get_program_metadata(&self) -> ProgramMetadata;
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata);
+
+    // Until TypeId::of is a const function, this can't be an associated const:
+    fn type_id() -> TypeId { core::any::TypeId::of::<Instruction>() }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -544,11 +547,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> DerefMut for Interpreter<'a, M, P> {
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'a>
     for Interpreter<'a, M, P>
-{
-    fn commit_memory(&mut self) -> Result<(), MemoryMiscError> {
-        self.memory.commit()
-    }
-}
+{ }
+
 impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     pub fn init(&mut self, flags: &'a PeripheralInterruptFlags) {
         Gpio::<'a>::register_interrupt_flags(&mut self.peripherals, &flags.gpio);
@@ -846,9 +846,10 @@ use super::mem_mapped::{BSP, DDR, DSR, KBDR, KBSR, PSR};
 use super::mem_mapped::{
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
 };
-use lc3_traits::memory::MemoryMiscError;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
+    const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");
+
     fn step(&mut self) -> MachineState {
         if let state @ MachineState::Halted = self.get_machine_state() {
             return state;
@@ -987,6 +988,18 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
 
         self.state = MachineState::Halted;
+    }
+
+    fn get_program_metadata(&self) -> ProgramMetadata {
+        self.memory.get_program_metadata()
+    }
+
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata) {
+        self.memory.set_program_metadata(metadata)
+    }
+
+    fn type_id() -> TypeId {
+        TypeId::of::<Interpreter<'static, lc3_traits::memory::MemoryStub, lc3_traits::peripherals::stubs::PeripheralsStub<'static>>>()
     }
 }
 
