@@ -9,7 +9,7 @@ members = [
     "macros",
     "os",
 ]
-exclude = [ "misc/lc3-tm4c" ]
+exclude = [ "misc/lc3-tm4c", "misc/serial" ]
 
 # TODO: turn tui into a library and reference its bin target here
 
