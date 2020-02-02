@@ -25,7 +25,8 @@
 //!
 //! For `Encoded = Self`:
 //! ```rust
-//! trait Enc<Message: Debug> { fn encode(message: Message) -> Self }
+//! # use core::fmt::Debug;
+//! trait Enc<Message: Debug> { fn encode(message: Message) -> Self; }
 //! ```
 //! Observant readers may notice that the above is basically just `From`.
 //!
@@ -45,7 +46,8 @@
 //!
 //! For `Message = Self`:
 //! ```rust
-//! trait Enc<Encoded: Debug> { fn encode(message: Self) -> Encoded }
+//! # use core::fmt::Debug;
+//! trait Enc<Encoded: Debug> { fn encode(message: Self) -> Encoded; }
 //! ```
 //! This time ^ is basically just `Into`.
 //!
@@ -61,13 +63,16 @@
 //! So, ultimately, the below is what we settled on. Marker types (that
 //! implementors presumably own) let us get around the orphan impl rules.
 //!
+//! Also note that marker types should implement Default, Copy, and Clone. And
+//! also probably the other types in `core` that are derivable.
+//!
 //! IIRC, this ends up looking kind of sort of superficially similar to
 //! `Serializer`/`Deserializer` from `serde` except `serde` is extremely clever
 //! and introduces another layer (the `Serialize` and `Deserialize` traits which
 //! are for unserialized types — a.k.a what we call `Message` in the above).
 //! This is useful for a couple reasons; both of which you can see below:
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! // In this crate (A)
 //! pub trait Enc<M: Debug> { type Encd: Debug; fn enc(m: M) -> Self::Encd }
 //! pub enum ControlResponse { ... }
@@ -184,6 +189,7 @@ pub trait Decode<Message: Debug>: Default {
 // In a softer world:
 use core::convert::TryFrom;
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CoreConvert<T>(PhantomData<T>);
 
 impl<T> Default for CoreConvert<T> {
@@ -246,14 +252,14 @@ where
 
     // These, when named encode/decode, cause inference problems and require
     // the user to use FQS!
-    fn symmetric_encode(message: Message) -> <Self as Encode<Message>>::Encoded {
-        <Self as Encode<Message>>::encode(message)
-    }
+    // fn symmetric_encode(message: Message) -> <Self as Encode<Message>>::Encoded {
+    //     <Self as Encode<Message>>::encode(message)
+    // }
 
-    fn symmetric_decode(encoded: &<Self as Decode<Message>>::Encoded)
-            -> Result<Message, <Self as Decode<Message>>::Err> {
-        <Self as Decode<Message>>::decode(encoded)
-    }
+    // fn symmetric_decode(encoded: &<Self as Decode<Message>>::Encoded)
+    //         -> Result<Message, <Self as Decode<Message>>::Err> {
+    //     <Self as Decode<Message>>::decode(encoded)
+    // }
 }
 
 // impl<T, Message: Debug> Encoding<Message> for Pair<Message>
@@ -333,7 +339,7 @@ where
     Enc: Encode<Message>,
     Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
 {
-    pub /*const*/ fn with(enc: Enc, dec: Dec) -> Self {
+    pub /*const*/ fn with(_enc: Enc, _dec: Dec) -> Self {
         Default::default()
     }
 }
@@ -782,7 +788,7 @@ mod tests {
 
     macro_rules! impl_enc_dec {
         ($unit:ident: $src:ty => $dest:ty) => {
-            #[derive(Debug, Default)]
+            #[derive(Debug, Copy, Clone, Default)]
             struct $unit;
 
             impl Encode<$src> for $unit {
@@ -925,7 +931,7 @@ mod tests {
         fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> <E as Encode<M>>::Encoded { E::encode(m) }
         fn de<M: Debug, E: Encoding<M>>(_e: E, e: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { E::decode(&e) }
 
-        fn check<M: Debug + PartialEq, E: Encoding<M>>(chain: E, m: M) where <E as Decode<M>>::Err: PartialEq {
+        fn check<M: Debug + Copy + PartialEq, E: Copy + Encoding<M>>(chain: E, m: M) where <E as Decode<M>>::Err: PartialEq {
             assert_eq!(Ok(m), de(chain, ser(chain, m)));
         }
 
