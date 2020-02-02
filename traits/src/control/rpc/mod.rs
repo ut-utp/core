@@ -71,6 +71,8 @@ pub use controller::Controller;
 mod device;
 pub use device::Device;
 
+mod fault_tolerance; // Just for the docs (when built with private docs).
+
 use core::fmt::Debug;
 
 pub fn new_pair<
