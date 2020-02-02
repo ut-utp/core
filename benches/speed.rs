@@ -88,9 +88,9 @@ use lc3_baseline_sim::interp::{
     InstructionInterpreter, Interpreter, InterpreterBuilder, PeripheralInterruptFlags,
 };
 use lc3_isa::util::MemoryDump;
-use lc3_shims::{memory::MemoryShim, peripherals::PeripheralsShim};
+use lc3_shims::{memory::MemoryShim};
 use lc3_traits::control::{
-    rpc::{Controller, Device, Encoding, TransparentEncoding, Transport},
+    rpc::{Controller, Device, Transport, Decode, Encode},
     Control,
 };
 use lc3_traits::peripherals::stubs::PeripheralsStub;
@@ -131,13 +131,14 @@ pub fn simulator<'a>(program: MemoryDump, flags: &'a PeripheralInterruptFlags) -
 use std::thread::Builder as ThreadBuilder;
 
 static FLAGS: PeripheralInterruptFlags = PeripheralInterruptFlags::new();
-fn device_thread<Enc: 'static, Transp: 'static>(
+fn device_thread<ReqDec: 'static, RespEnc: 'static, Transp: 'static>(
     rx: Receiver<()>,
-    mut device: Device<Enc, Transp, Sim<'static>>,
+    mut device: Device<Transp, Sim<'static>, RequestMessage, ResponseMessage, ReqDec, RespEnc>,
     program: MemoryDump,
 ) where
-    Enc: Encoding + Send,
-    Transp: Transport<Enc::Encoded> + Send,
+    ReqDec: Decode<RequestMessage> + Send,
+    RespEnc: Encode<ResponseMessage> + Send,
+    Transp: Transport<RespEnc::Encoded, ReqDec::Encoded> + Send,
 {
     ThreadBuilder::new()
         .name("Device Thread".to_string())
@@ -161,18 +162,19 @@ lazy_static! {
     static ref RPC_STATE: SyncEventFutureSharedState = SyncEventFutureSharedState::new();
 }
 
-use lc3_traits::control::rpc::{mpsc_sync_pair, MpscTransport, ControlMessage};
+use lc3_traits::control::rpc::{mpsc_sync_pair, MpscTransport, ResponseMessage, RequestMessage};
+use lc3_traits::control::rpc::encoding::Transparent;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 // TODO: test spin vs. sleep
-pub fn remote_simulator/*<C: Control>*/(program: MemoryDump) -> (Sender<()>, Controller<'static, TransparentEncoding, MpscTransport<ControlMessage>, SyncEventFutureSharedState>)
+pub fn remote_simulator/*<C: Control>*/(program: MemoryDump) -> (Sender<()>, Controller<'static, MpscTransport<RequestMessage, ResponseMessage>, SyncEventFutureSharedState>)
 // where
 //     <C as Control>::EventFuture: Sync + Send,
 {
-    let (controller, device) = mpsc_sync_pair(&RPC_STATE);
+    let (controller, device) = mpsc_sync_pair::<_, _, _, _, Transparent<_>, Transparent<_>, _>(&RPC_STATE);
     let (tx, rx) = channel();
 
-    device_thread::<TransparentEncoding, _>(rx, device, program);
+    device_thread(rx, device, program);
 
     (tx, controller)
 }
@@ -215,7 +217,7 @@ where
     (halt_or_fut, halt, next)
 }
 
-use lc3_traits::control::rpc::RW_CLONE;
+use lc3_traits::control::rpc::device::RW_CLONE;
 use std::task::{Context, Waker, Poll};
 use std::pin::Pin;
 use std::future::Future;
