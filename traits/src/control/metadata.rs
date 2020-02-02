@@ -62,9 +62,17 @@ impl ProgramMetadata {
     pub /*const*/ fn from<P: Into<MemoryDump>>(program: P, modified: Duration) -> Self {
         Self::new(&program.into(), modified)
     }
+
+    pub fn set_last_modified(&mut self, modified: Duration) {
+        self.last_modified = modified.as_secs()
+    }
 }
 
 using_std! {
+    // SystemTime instead of Instant since we don't really care about
+    // monotonicity.
+    use std::time::SystemTime;
+
     impl ProgramMetadata {
         pub /*const*/ fn new_modified_now(program: &MemoryDump) -> Self {
             Self::new(program, Duration::from_secs(0)).now()
@@ -75,16 +83,22 @@ using_std! {
         }
 
         pub fn now(mut self) -> Self {
-            // SystemTime instead of Instant since we don't really care about
-            // monotonicity.
-            use std::time::SystemTime;
+            self.updated_now();
+            self
+        }
 
+        pub fn updated_now(&mut self) {
             self.last_modified = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("System time to be later than 1970-01-01 00:00:00 UTC")
                 .as_secs();
+        }
 
-            self
+        pub fn modified_on(&mut self, time: SystemTime) {
+            self.last_modified = time
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("System time to be later than 1970-01-01 00:00:00 UTC")
+                .as_secs();
         }
     }
 }
