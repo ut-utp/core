@@ -227,11 +227,9 @@ where
 //      \-------/
 //
 // Never implement this manually.
-pub trait Encoding<Message: Debug, Encoded: Debug>: Encode<Message> + Decode<Message>
+pub trait Encoding<Message: Debug>: Encode<Message> + Decode<Message>
 where
-    // Self: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>,
-    Self: Encode<Message, Encoded = Encoded>,
-    Self: Decode<Message, Encoded = Encoded>,
+    Self: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>,
 {
     // This only exists for convenience.
     // You should never implement this trait manually but if you do, you're not
@@ -259,7 +257,7 @@ where
 }
 
 // impl<T, Message: Debug> Encoding<Message> for Pair<Message>
-impl<T, Message: Debug> Encoding<Message, <T as Encode<Message>>::Encoded> for T
+impl<T, Message: Debug> Encoding<Message> for T
 where
     T: Decode<Message>,
     T: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>,
@@ -536,8 +534,8 @@ where
 pub struct ChainedEncoding<A: Debug, B: Debug, Outer, Inner>(PhantomData<(A, Outer)>, PhantomData<(B, Inner)>)
 where
     Inner: Encode<B>,
-    Inner: Encoding<B, <Inner as Encode<B>>::Encoded>,
-    Outer: Encoding<A, B>,
+    Inner: Decode<B, Encoded = <Inner as Encode<B>>::Encoded>,
+    Outer: Decode<A, Encoded = B> + Encode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>;
 
 impl<A, B, Outer, Inner> Default for ChainedEncoding<A, B, Outer, Inner>
@@ -545,9 +543,8 @@ where
     A: Debug,
     B: Debug,
     Inner: Encode<B>,
-    Inner: Encoding<B, <Inner as Encode<B>>::Encoded>,
-    Outer: Encoding<A, B>,
-
+    Inner: Decode<B, Encoded = <Inner as Encode<B>>::Encoded>,
+    Outer: Decode<A, Encoded = B> + Encode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
 {
     fn default() -> Self {
@@ -573,9 +570,8 @@ where
     A: Debug,
     B: Debug,
     Inner: Encode<B>,
-    Inner: Encoding<B, <Inner as Encode<B>>::Encoded>,
-    Outer: Encoding<A, B>,
-
+    Inner: Decode<B, Encoded = <Inner as Encode<B>>::Encoded>,
+    Outer: Decode<A, Encoded = B> + Encode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
 {
     type Encoded = <Inner as Encode<B>>::Encoded;
@@ -591,9 +587,10 @@ where
     A: Debug,
     B: Debug,
     Inner: Encode<B>,
-    Inner: Encoding<B, <Inner as Encode<B>>::Encoded>,
-    Outer: Encoding<A, B>,
+    Inner: Decode<B, Encoded = <Inner as Encode<B>>::Encoded>,
+    Outer: Decode<A, Encoded = B> + Encode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
+    <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>, // redundant!
 {
     type Encoded = <Inner as Encode<B>>::Encoded;
     type Err = <Outer as Decode<A>>::Err;
@@ -607,8 +604,7 @@ where
 impl<A, Outer> ChainedEncoding<A, <Outer as Encode<A>>::Encoded, Outer, Transparent<<Outer as Encode<A>>::Encoded>>
 where
     A: Debug,
-    Outer: Encode<A>,
-    Outer: Encoding<A, <Outer as Encode<A>>::Encoded>,
+    Outer: Encoding<A>,
     <Outer as Encode<A>>::Encoded: Clone, // Required by Transparent!
     <Outer as Decode<A>>::Err: From<Infallible>,
     // !: Into<<Outer as Encoding<A>>::Err>,
