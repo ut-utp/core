@@ -156,12 +156,14 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::convert::Infallible;
 
+// TODO: fix all the stuff with `Default`
+
 // Implementors provide:
 //   - T -> Encoded (Infallible)
 //
 // Encoding is assumed to be an infallible process so there is no associated
 // error type on this trait.
-pub trait Encode<Message: Debug> {
+pub trait Encode<Message: Debug>: Default {
     type Encoded: Debug;
 
     fn encode(message: Message) -> Self::Encoded;
@@ -172,18 +174,25 @@ pub trait Encode<Message: Debug> {
 //
 // Decoding is assumed to be _fallible_ so this trait has an associated error
 // type (`Err`).
-pub trait Decode<Message: Debug> {
+pub trait Decode<Message: Debug>: Default {
     type Encoded: Debug;
     type Err: Debug;
 
-    fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err;
+    fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err>;
 }
 
 // In a softer world:
 use core::convert::TryFrom;
 
-pub struct CoreConvert;
-impl<Encoded, Message> Encode<Message> for CoreConvert
+pub struct CoreConvert<T>(PhantomData<T>);
+
+impl<T> Default for CoreConvert<T> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<Encoded, Message> Encode<Message> for CoreConvert<Encoded>
 where
     Encoded: Debug,
     Message: Debug + Into<Encoded>,
@@ -192,15 +201,17 @@ where
     fn encode(message: Message) -> Self::Encoded { message.into() }
 }
 
-impl<Encoded, Message> Decode<Message> for CoreConvert
+impl<Encoded, Message> Decode<Message> for CoreConvert<Encoded>
 where
     Encoded: Debug + Clone,
     Message: Debug + TryFrom<Encoded>,
+    <Message as TryFrom<Encoded>>::Error: Debug,
 {
     type Encoded = Encoded;
-    type Err = <Message as TryFrom<Encoded>>::Err;
+    type Err = <Message as TryFrom<Encoded>>::Error;
+
     fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err> {
-        TryFrom::try_from(encoded)
+        TryFrom::try_from(encoded.clone())
     }
 }
 
@@ -218,40 +229,54 @@ where
 // Never implement this manually.
 pub trait Encoding<Message: Debug>: Encode<Message> + Decode<Message>
 where
-    Self: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>
+    Self: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>,
 {
     // This only exists for convenience.
     // You should never implement this trait manually but if you do, you're not
-    // allowed to set this associated type.
-    type Encoded = <Self as Encode<Message>>::Encoded;
+    // allowed to set this associated type to anything but the below:
+    // type Encoded = <Self as Encode<Message>>::Encoded;
+    type Encoded: Debug;
 
     // Same as above for this type.
-    type Err = <Self as Decode<Message>>::Err;
+    // type Err = <Self as Decode<Message>>::Err;
+    type Err: Debug;
 
-    fn encode(message: Message) -> <Self as Encode<Message>>::Encoded {
+    // These, when named encode/decode, cause inference problems and require
+    // the user to use FQS!
+    fn symmetric_encode(message: Message) -> <Self as Encode<Message>>::Encoded {
         <Self as Encode<Message>>::encode(message)
     }
 
-    fn decode(encoded: &<Self as Decode<Message>>::Encoded)
+    fn symmetric_decode(encoded: &<Self as Decode<Message>>::Encoded)
             -> Result<Message, <Self as Decode<Message>>::Err> {
         <Self as Decode<Message>>::decode(encoded)
     }
 }
 
-impl<Message: Debug, Encoding> EncodingPair<Message> for Encoding
+// impl<T, Message: Debug> Encoding<Message> for Pair<Message>
+impl<T, Message: Debug> Encoding<Message> for T
 where
-    Self: Decode<Message>,
-    Self: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>,
-{ }
+    T: Decode<Message>,
+    T: Encode<Message, Encoded = <Self as Decode<Message>>::Encoded>,
+{
+    type Encoded = <Self as Encode<Message>>::Encoded;
+    type Err = <Self as Decode<Message>>::Err;
+}
 
 // Now some type level encoding combinators:
 
 // First, transparent (our "base case").
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // Essentially a type for which, `Encoded` == `Message`. Provides a no-op encode
 // and a no-op decode.
 pub struct Transparent<T: Debug>(PhantomData<T>);
+
+impl<T: Debug> Default for Transparent<T> {
+    fn default() -> Self {
+        Transparent(PhantomData)
+    }
+}
 
 impl<Message: Debug> Encode<Message> for Transparent<Message> {
     type Encoded = Message;
@@ -272,7 +297,7 @@ impl<Message: Debug + Clone> Decode<Message> for Transparent<Message> {
 
 // Next, Pair to put together a decode with its symmetric encode.
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // This is for symmetric encodes and decodes.
 //
 // Implementors provide:
@@ -285,15 +310,25 @@ impl<Message: Debug + Clone> Decode<Message> for Transparent<Message> {
 //      \-------/
 //
 // Note that this should get an impl of `Encoding` for free.
-pub struct Pair<Message: Debug, Enc, Dec>(PhantomData<(Enc, Dec)>)
+pub struct Pair<Message: Debug, Enc, Dec>(PhantomData<(Message, Enc, Dec)>)
 where
     Enc: Encode<Message>,
-    Dec: Decode<Message, Encoded = <Enc as Encode<T>>::Encoded>;
+    Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>;
+
+impl<Message: Debug, Enc, Dec> Default for Pair<Message, Enc, Dec>
+where
+    Enc: Encode<Message>,
+    Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
+{
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
 
 impl<Message: Debug, Enc, Dec> Pair<Message, Enc, Dec>
 where
     Enc: Encode<Message>,
-    Dec: Decode<Message, Encoded = <Enc as Encode<T>>::Encoded>
+    Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
 {
     pub /*const*/ fn with(enc: Enc, dec: Dec) -> Self {
         Default::default()
@@ -301,34 +336,34 @@ where
 }
 
 
-impl<Message: Debug, Enc, Dec> Encode<Message> Pair<Message, Enc, Dec>
+impl<Message: Debug, Enc, Dec> Encode<Message> for Pair<Message, Enc, Dec>
 where
     Enc: Encode<Message>,
-    Dec: Decode<Message, Encoded = <Enc as Encoded<T>>::Encoded>
+    Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
 {
-    type Encoded = Message;
+    type Encoded = <Enc as Encode<Message>>::Encoded;
 
     fn encode(message: Message) -> Self::Encoded {
-        <Enc as Encode<Message, Encoded = Self::Encoded>>::encode(message)
+        <Enc as Encode<Message>>::encode(message)
     }
 }
 
-impl<Message: Debug, Enc, Dec> Decode<Message> Pair<Message, Enc, Dec>
+impl<Message: Debug, Enc, Dec> Decode<Message> for Pair<Message, Enc, Dec>
 where
     Enc: Encode<Message>,
-    Dec: Decode<Message, Encoded = <Enc as Encoded<T>>::Encoded>
+    Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
 {
-    type Encoded = Message;
+    type Encoded = <Enc as Encode<Message>>::Encoded;
     type Err = <Dec as Decode<Message>>::Err;
 
     fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err> {
-        <Dec as Decode<B, Encoded = Self::Encoded, Err = Self::Err>>::decode(encoded)
+        <Dec as Decode<Message>>::decode(encoded)
     }
 }
 
 // Now, chained (where we "recurse").
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // Outer provides:
 //   - A -> Outer::Encoded
 //
@@ -340,12 +375,22 @@ where
 //
 // Which we can squish into one encode:
 //   [A] -> [Inner::Encoded]
-pub struct ChainedEncode<A: Debug, B: Debug, Outer, Inner>(PhantomData<(Outer, Inner)>)
+pub struct ChainedEncode<A: Debug, B: Debug, Outer, Inner>(PhantomData<(A, B, Outer, Inner)>)
 where
     Outer: Encode<A, Encoded = B>,
     Inner: Encode<B>;
 
-impl<A, Outer> ChainedEncode<A, <Outer as Encode<A>>::Encoded, Outer, TransparentEncoding<<Outer as Encode<A>>::Encoded>>
+impl<A: Debug, B: Debug, Outer, Inner> Default for ChainedEncode<A, B, Outer, Inner>
+where
+    Outer: Encode<A, Encoded = B>,
+    Inner: Encode<B>,
+{
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<A, Outer> ChainedEncode<A, <Outer as Encode<A>>::Encoded, Outer, Transparent<<Outer as Encode<A>>::Encoded>>
 where
     A: Debug,
     Outer: Encode<A>,
@@ -368,7 +413,7 @@ where
     }
 }
 
-impl<A: Debug, B: Debug, Outer, Inner> Encode for ChainedEncode<A, B, Outer, Inner>
+impl<A: Debug, B: Debug, Outer, Inner> Encode<A> for ChainedEncode<A, B, Outer, Inner>
 where
     Outer: Encode<A, Encoded = B>,
     Inner: Encode<B>,
@@ -376,12 +421,12 @@ where
     type Encoded = <Inner as Encode<B>>::Encoded;
 
     fn encode(message: A) -> Self::Encoded {
-        let b = <Outer as Encode<A, Encoding = B>>::encode(message);
-        <Inner as Encode<B, Encoding = Self::Encoding>>::encode(b)
+        let b: B = <Outer as Encode<A>>::encode(message);
+        <Inner as Encode<B>>::encode(b)
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // Inner provides:
 //   - Inner::Encoded -> B
 //
@@ -393,17 +438,29 @@ where
 //
 // Which we can squish into one decode:
 //   [Inner::Encoded] -> [A]
-pub struct ChainedDecode<A: Debug, B: Debug, Outer, Inner>(PhantomData<(Outer, Inner)>)
+pub struct ChainedDecode<A: Debug, B: Debug, Outer, Inner>(PhantomData<(A, B, Outer, Inner)>)
 where
     Inner: Decode<B>,
     Outer: Decode<A, Encoded = B>,
-    <Inner as Decode<B>>::Err: Into<<Outer as Encoding<A>>::Err;
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>;
 
-impl<A, Outer> ChainedDecode<A, <Outer as Decode<A>>::Encoded, Outer, TransparentEncoding<<Outer as Decode<A>>::Encoded>>
+impl<A: Debug, B: Debug, Outer, Inner> Default for ChainedDecode<A, B, Outer, Inner>
+where
+    Inner: Decode<B>,
+    Outer: Decode<A, Encoded = B>,
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
+{
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<A, Outer> ChainedDecode<A, <Outer as Decode<A>>::Encoded, Outer, Transparent<<Outer as Decode<A>>::Encoded>>
 where
     A: Debug,
+    <Outer as Decode<A>>::Encoded: Clone, // Needed to use a transparent encoding!
     Outer: Decode<A>,
-    <TransparentEncoding<<Outer as Decode<A>>::Encoded> as Decode<<Outer as Decode<A>>::Encoded>>::Err: Into<<Outer as Decode<A>>::Err>,
+    <Transparent<<Outer as Decode<A>>::Encoded> as Decode<<Outer as Decode<A>>::Encoded>>::Err: Into<<Outer as Decode<A>>::Err>,
     // Infallible: Into<<Outer as Decode<A>>::Err>,
     // !: Into<<Outer as Decode<A>>::Err>,
 {
@@ -415,7 +472,8 @@ impl<A: Debug, B: Debug, Outer, Inner> ChainedDecode<A, B, Outer, Inner>
 where
     Inner: Decode<B>,
     Outer: Decode<A, Encoded = B>,
-    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>, // These two should be
+    <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>, // eq, but alas.
 {
     pub /*const*/ fn chain_detached<Z: Debug, NewOuter: Decode<Z, Encoded = A>>() -> ChainedDecode<Z, A, NewOuter, Self>
     where
@@ -432,23 +490,24 @@ where
     }
 }
 
-impl<A: Debug, B: Debug, Outer, Inner> Encode for ChainedDecode<A, B, Outer, Inner>
+impl<A: Debug, B: Debug, Outer, Inner> Decode<A> for ChainedDecode<A, B, Outer, Inner>
 where
     Inner: Decode<B>,
     Outer: Decode<A, Encoded = B>,
-    <Inner as Decode<B>>::Err: Into<<Outer as Encoding<A>>::Err>,
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>, // These two should be
+    <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>, // eq, but alas.
 {
-    type Encoded = A;
-    type Err = <Outer as Encoding<A>>::Err;
+    type Encoded = <Inner as Decode<B>>::Encoded;
+    type Err = <Outer as Decode<A>>::Err;
 
     fn decode(encoded: &Self::Encoded) -> Result<A, Self::Err> {
-        let b = <Inner as Decode<B, Encoded = Self::Encoded, Err = Self::Err>>::decode(encoded)?;
-        <Outer as Decode<A, Encoded = B>>::decode(b)
+        let b: B = <Inner as Decode<B>>::decode(encoded)?;
+        <Outer as Decode<A>>::decode(&b)
     }
 }
 
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 // This is for _chained_ symmetric encodes and decodes.
 //
 // Outer provides:
@@ -469,38 +528,78 @@ where
 //   [A] -> [Inner::Encoded]
 //    ^            |
 //     \----------/
-pub struct ChainedEncoding<A: Debug, B: Debug, Outer: Encoding<A>, Inner: Encoding<B>>(PhantomData<Outer>, PhantomData<Inner>)
+pub struct ChainedEncoding<A: Debug, B: Debug, Outer: Encoding<A>, Inner: Encoding<B>>(PhantomData<(A, Outer)>, PhantomData<(B, Inner)>)
 where
     Outer: Encoding<A, Encoded = B>,
     <Inner as Encoding<B>>::Err: Into<<Outer as Encoding<A>>::Err>;
 
-
-impl<A, B, Outer, Inner> Encoding<A> for ChainedEncoding<A, B, Outer, Inner>
+impl<A, B, Outer, Inner> Default for ChainedEncoding<A, B, Outer, Inner>
 where
     A: Debug,
     B: Debug,
-    Outer: Encoding<A, Encoded = B>,
     Inner: Encoding<B>,
-    <Inner as Encoding<B>>::Err: Into<<Outer as Encoding<A>>::Err>
+    Outer: Encoding<A, Encoded = B>,
+    <Inner as Encoding<B>>::Err: Into<<Outer as Encoding<A>>::Err>,
+{
+    fn default() -> Self {
+        Self(PhantomData, PhantomData)
+    }
+}
+
+// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!! this should be a coherence error
+// impl<A, B, Outer, Inner> Encoding<A> for ChainedEncoding<A, B, Outer, Inner>
+// where
+//     A: Debug,
+//     B: Debug,
+//     Outer: Encoding<A, Encoded = B>,
+//     Inner: Encoding<B>,
+//     <Inner as Encoding<B>>::Err: Into<<Outer as Encoding<A>>::Err>
+// {
+//     type Encoded = <Inner as Encoding<B>>::Encoded;
+//     type Err = <Outer as Encoding<A>>::Err;
+// }
+
+impl<A, B, Outer, Inner> Encode<A> for ChainedEncoding<A, B, Outer, Inner>
+where
+    A: Debug,
+    B: Debug,
+    Outer: Encoding<A, Encoded = B> + Encode<A, Encoded = B>,
+    Inner: Encoding<B> + Encode<B>,
+    <Inner as Encoding<B>>::Err: Into<<Outer as Encoding<A>>::Err>,
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
+{
+    type Encoded = <Inner as Encode<B>>::Encoded;
+
+    fn encode(message: A) -> <Inner as Encode<B>>::Encoded {
+        let b: B = <Outer as Encode<A>>::encode(message);
+        <Inner as Encode<B>>::encode(b)
+    }
+}
+
+impl<A, B, Outer, Inner> Decode<A> for ChainedEncoding<A, B, Outer, Inner>
+where
+    A: Debug,
+    B: Debug,
+    Outer: Encoding<A, Encoded = B> + Decode<A, Encoded = B>,
+    Inner: Encoding<B>,
+    <Inner as Encoding<B>>::Err: Into<<Outer as Encoding<A>>::Err>,
+    <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
 {
     type Encoded = <Inner as Encoding<B>>::Encoded;
     type Err = <Outer as Encoding<A>>::Err;
 
-    fn encode(message: A) -> Self::Encoded {
-        let b: B = <Outer as Encoding<A>>::encode(message);
-        <Inner as Encoding<B>>::encode(b)
-    }
-
-    fn decode(message: &Self::Encoded) -> Result<A, Self::Err> {
-        let b: B = <Inner as Encoding<B>>::decode(message)?;
-        <Outer as Encoding<A>>::decode(b)
+    fn decode(message: &<Inner as Decode<B>>::Encoded) -> Result<A, <Outer as Decode<A>>::Err> {
+        let b: B = <Inner as Decode<B>>::decode(message)?;
+        <Outer as Decode<A>>::decode(&b)
     }
 }
 
-impl<A, Outer> ChainedEncoding<A, <Outer as Encoding<A>>::Encoded, Outer, TransparentEncoding<<Outer as Encoding<A>>::Encoded>>
+impl<A, Outer> ChainedEncoding<A, <Outer as Encoding<A>>::Encoded, Outer, Transparent<<Outer as Encoding<A>>::Encoded>>
 where
     A: Debug,
     Outer: Encoding<A>,
+    <Outer as Encoding<A>>::Encoded: Clone, // Required by Transparent!
+    <Outer as Encoding<A>>::Err: From<Infallible>,
     // !: Into<<Outer as Encoding<A>>::Err>,
 {
     pub fn new_detached() -> Self {
@@ -523,14 +622,16 @@ where
 {
     pub fn chain_detached<Z: Debug, NewOuter: Encoding<Z, Encoded = A>>() -> ChainedEncoding<Z, A, NewOuter, Self>
     where
-        <Outer as Encoding<A>>::Err: Into<<NewOuter as Encoding<Z>>::Err>
+        <Outer as Encoding<A>>::Err: Into<<NewOuter as Encoding<Z>>::Err>,
+        <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
     {
         Default::default()
     }
 
     pub fn chain<Z: Debug, NewOuter: Encoding<Z, Encoded = A>>(self, _new_outer: NewOuter) -> ChainedEncoding<Z, A, NewOuter, Self>
     where
-        <Outer as Encoding<A>>::Err: Into<<NewOuter as Encoding<Z>>::Err>
+        <Outer as Encoding<A>>::Err: Into<<NewOuter as Encoding<Z>>::Err>,
+        <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>,
     {
         Self::chain_detached()
     }
@@ -564,19 +665,20 @@ mod tests {
     use super::*;
 
     macro_rules! impl_enc_dec {
-        ($unit:ty: $src:ty => $dest:ty) => {
+        ($unit:ident: $src:ty => $dest:ty) => {
+            #[derive(Debug, Default)]
             struct $unit;
 
             impl Encode<$src> for $unit {
                 type Encoded = $dest;
-                fn encode(m: $src) -> $dst { m as $dst }
+                fn encode(m: $src) -> $dest { m as $dest }
             }
 
             impl Decode<$src> for $unit {
                 type Encoded = $dest;
                 type Err = core::num::TryFromIntError;
 
-                fn decode(e: &$dst) -> Result<$src, Self::Err> {
+                fn decode(e: &$dest) -> Result<$src, Self::Err> {
                     core::convert::TryInto::try_into(*e)
                 }
             }
@@ -607,8 +709,8 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // blanket impl works.
     fn encoding_blanket_impl() {
-        fn ser<M: Debug, E: Encoding<M>>(m: M) -> E::Encoded { E::encode(m) }
-        fn de<M: Debug, E: Encoding<M>>(e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+        fn ser<M: Debug, E: Encoding<M>>(m: M) -> <E as Encoding<M>>::Encoded { E::encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(e: <E as Encoding<M>>::Encoded) -> Result<M, <E as Encoding<M>>::Err> { E::decode(&e) }
 
 
         let a: u16 = ser::<_, U8ToU16>(255u8);
@@ -628,8 +730,8 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // `ChainedEncoding` types and functions work.
     fn chained_encoding() {
-        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
-        fn de<M: Debug, E: Encoding<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> <E as Encoding<M>>::Encoded { E::encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(_e: E, e: <E as Encoding<M>>::Encoded) -> Result<M, <E as Encoding<M>>::Err> { E::decode(&e) }
 
         let chain = ChainedEncoding::new(U8ToU16)
             .chain(U16ToU32)
@@ -676,10 +778,10 @@ mod tests {
     fn pair() {
         // This is basically the same test as `chained_encoding` except we
         // assemble the encode pipeline and the decode pipeline ourselves.
-        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
-        fn de<M: Debug, E: Encoding<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> <E as Encoding<M>>::Encoded { E::encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(_e: E, e: <E as Encoding<M>>::Encoded) -> Result<M, <E as Encoding<M>>::Err> { E::decode(&e) }
 
-        fn check<M: Debug + Eq, E: Encoding<M>>(_e: E, m: M) {
+        fn check<M: Debug + Eq, E: Encoding<M>>(chain: E, m: M) {
             assert_eq!(Ok(m), de(chain, ser(chain, m)));
         }
 
@@ -698,7 +800,7 @@ mod tests {
 
         // Of note is that we don't have to be perfectly symmetric here; only
         // the inputs and outputs have to be symmetric. For example:
-        impl_enc_dec(U8ToU128: u8 => u128);
+        impl_enc_dec!(U8ToU128: u8 => u128);
         check(Pair::with(U8ToU128, U8ToU128), 254u8);
         check(U8ToU128, 253u8);
 
