@@ -91,7 +91,6 @@ where
     <I as Deref>::Target: Peripherals<'a>,
 {
     type EventFuture = EventFuture<'s, S>;
-    const ID: Identifier = I::ID;
 
     fn get_pc(&self) -> Addr {
         self.interp.get_pc()
@@ -409,13 +408,17 @@ where
             self.interp.get_program_metadata(),
             Default::default(), // TODO: when we add other capabilities
             I::type_id(),
-            Self::ID,
+            self.id(),
             Default::default(), // no proxies (yet)
         )
     }
 
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) {
         self.interp.set_program_metadata(metadata)
+    }
+
+    fn id(&self) -> Identifier {
+        I::ID
     }
 }
 

@@ -48,7 +48,6 @@ pub enum State {
 
 pub trait Control {
     type EventFuture: Future<Output = Event>;
-    const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("????");
 
     fn get_pc(&self) -> Addr;
     fn set_pc(&mut self, addr: Addr); // Should be infallible.
@@ -140,10 +139,19 @@ pub trait Control {
             ProgramMetadata::default(),
             Capabilities::default(),
             core::any::TypeId::of::<()>(),
-            Self::ID,
+            self.id(),
             Default::default() // (no proxies by default)
         )
     }
 
     fn set_program_metadata(&mut self, metadata: ProgramMetadata);
+
+    // Should actually be an associated constant but isn't because of object
+    // safety.
+    //
+    // As such, this function isn't proxied.
+    #[doc(hidden)]
+    fn id(&self) -> Identifier {
+        Identifier::new_from_str_that_crashes_on_invalid_inputs("????")
+    }
 }

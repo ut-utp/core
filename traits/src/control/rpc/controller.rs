@@ -267,4 +267,8 @@ where
 
     fn get_info(&self) -> DeviceInfo { ctrl!(self, GetInfo, R::GetInfo(r), r) }
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) { ctrl!(self, SetProgramMetadata { metadata }, R::SetProgramMetadata) }
+
+    fn id(&self) -> crate::control::metadata::Identifier {
+        crate::control::metadata::Identifier::new_from_str_that_crashes_on_invalid_inputs("PROX")
+    }
 }
