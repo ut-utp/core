@@ -142,7 +142,7 @@ pub trait Control {
         DeviceInfo::new(
             ProgramMetadata::default(),
             Capabilities::default(),
-            core::any::TypeId::of::<Self>(),
+            core::any::TypeId::of::<()>(),
             Self::ID,
             Default::default() // (no proxies by default)
         )
