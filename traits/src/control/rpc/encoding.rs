@@ -786,6 +786,8 @@ using_std! {
 mod tests {
     use super::*;
 
+    use pretty_assertions::assert_eq;
+
     macro_rules! impl_enc_dec {
         ($unit:ident: $src:ty => $dest:ty) => {
             #[derive(Debug, Copy, Clone, Default)]

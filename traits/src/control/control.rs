@@ -49,7 +49,6 @@ pub enum State {
 
 pub trait Control {
     type EventFuture: Future<Output = Event>;
-    // const ID: Identifier = Identifier::new_that_crashes_on_invalid_inputs(['?', '?', '?', '?']);
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("????");
 
     fn get_pc(&self) -> Addr;

@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 // should spin off an lc3-program crate (or have an assembler crate) that has
 // everything in `isa/src/misc` and `ProgramID` + `ProgramMetadata`.
 
+// TODO: Identifier should probably move too, but I'm not sure to where.
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum ProgramId {
     Known { hash: u64 },

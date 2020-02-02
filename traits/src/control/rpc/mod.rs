@@ -65,10 +65,10 @@ pub use transport::Transport;
 pub mod futures;
 pub use futures::{EventFutureSharedState, EventFutureSharedStatePorcelain, SimpleEventFutureSharedState, EventFuture};
 
-mod controller;
+pub mod controller;
 pub use controller::Controller;
 
-mod device;
+pub mod device;
 pub use device::Device;
 
 mod fault_tolerance; // Just for the docs (when built with private docs).
@@ -141,8 +141,8 @@ where
 }
 
 using_std! {
-    use transport::MpscTransport;
-    use futures::SyncEventFutureSharedState;
+    pub use transport::MpscTransport;
+    pub use futures::SyncEventFutureSharedState;
 
 
     pub fn mpsc_pair<
