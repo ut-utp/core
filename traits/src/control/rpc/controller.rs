@@ -5,9 +5,10 @@
 // TODO: auto gen (proc macro, probably) the crimes below from the `Control`
 // trait.
 
-use super::{EventFutureSharedState, Control, Transport};
+use super::{State, Event, Control, Transport};
 use super::messages::{RequestMessage, ResponseMessage};
-use super::encoding::{Encode, Deocde, Transparent};
+use super::encoding::{Encode, Decode, Transparent};
+use super::futures::{EventFutureSharedStatePorcelain, EventFuture};
 use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
 use crate::control::{ProgramMetadata, DeviceInfo};
 use crate::error::Error as Lc3Error;
@@ -18,11 +19,12 @@ use crate::peripherals::{
     pwm::{PwmPinArr, PwmState},
     timers::{TimerArr, TimerState},
 };
+
 use lc3_isa::{Reg, Addr, Word};
 
 use core::marker::PhantomData;
 use core::sync::atomic::{AtomicBool, Ordering};
-
+use core::fmt::Debug;
 
 // Converts calls on the control interface to messages and sends said messages.
 //
@@ -33,26 +35,28 @@ use core::sync::atomic::{AtomicBool, Ordering};
 // experiment with their own message types. This is probably a moot point since
 // you can already do this by defining an encoding layer that does the
 // conversion for you. The only thing the below buys you is being able to use
-// message types that don't implement Debug. (TODO)
-#[derive(Debug, Default)]
+// message types that don't implement Debug. Update: this is no longer true. (TODO)
+#[derive(Debug)]
 pub struct Controller<
     'a,
+    T,
+    S,
     Req = RequestMessage,
     Resp = ResponseMessage,
-    ReqEnc = Transparent,
-    RespDec = Transparent,
-    T,
-    S
+    ReqEnc = Transparent<RequestMessage>,
+    RespDec = Transparent<ResponseMessage>,
 >
 where
-    Req: Into<RequestMessage>,
+    Req: Debug,
+    Resp: Debug,
+    RequestMessage: Into<Req>,
     Resp: Into<ResponseMessage>,
     ReqEnc: Encode<Req>,
     RespDec: Decode<Resp>,
-    T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
-    S: EventFutureSharedState,
+    T: Transport<<ReqEnc as Encode<Req>>::Encoded, <RespDec as Decode<Resp>>::Encoded>,
+    S: EventFutureSharedStatePorcelain,
 {
-    encoding: PhantomData<(ReqEnc, RespDec)>,
+    encoding: PhantomData<(Req, Resp, ReqEnc, RespDec)>,
     pub transport: T,
     // pending_messages: Cell<[Option<ControlMessage>; 2]>,
     // pending_messages: [Option<ControlMessage>; 2],
@@ -63,14 +67,16 @@ where
 
 // TODO: make a builder!
 
-impl<'a, Req, Resp, E, D, T, S> Controller<'a, Req, Resp, E, D, T, S>
+impl<'a, Req, Resp, E, D, T, S> Controller<'a, T, S, Req, Resp, E, D>
 where
-    Req: Into<RequestMessage>,
+    Req: Debug,
+    Resp: Debug,
+    RequestMessage: Into<Req>,
     Resp: Into<ResponseMessage>,
     E: Encode<Req>,
     D: Decode<Resp>,
-    T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
-    S: EventFutureSharedState,
+    T: Transport<<E as Encode<Req>>::Encoded, <D as Decode<Resp>>::Encoded>,
+    S: EventFutureSharedStatePorcelain,
 {
     // When const functions can be in blanket impls, this can be made `const`.
     //
@@ -91,23 +97,25 @@ where
     }
 }
 
-impl<'a, Req, Resp, E, D, T, S> Controller<'a, Req, Resp, E, D, T, S>
+impl<'a, Req, Resp, E, D, T, S> Controller<'a, T, S, Req, Resp, E, D>
 where
-    Req: Into<RequestMessage>,
+    Req: Debug,
+    Resp: Debug,
+    RequestMessage: Into<Req>,
     Resp: Into<ResponseMessage>,
-    ReqEnc: Encode<Req>,
-    RespDec: Decode<Resp>,
-    T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
-    S: EventFutureSharedState,
+    E: Encode<Req>,
+    D: Decode<Resp>,
+    T: Transport<<E as Encode<Req>>::Encoded, <D as Decode<Resp>>::Encoded>,
+    S: EventFutureSharedStatePorcelain,
 {
     // For now, we're going to assume sequential consistency (we receive
     // responses to messages in the same order we filed the requests). (TODO)
     //
     // Responses to our one non-blocking call (`run_until_event`) are the only
     // thing that could interrupt this.
-    fn tick(&self) -> Option<Responses> {
+    fn tick(&self) -> Option<ResponseMessage> {
         let encoded_message = self.transport.get()?;
-        let message = E::decode(&encoded_message).unwrap(); // TODO: don't panic;
+        let message = D::decode(&encoded_message).unwrap(); // TODO: don't panic;
         let message = message.into();
 
         if let ResponseMessage::RunUntilEvent(event) = message {
@@ -133,7 +141,7 @@ macro_rules! ctrl {
     ($s:ident, $req:expr, $resp:pat$(, $ret:expr)?) => {{
         use RequestMessage::*;
         use ResponseMessage as R;
-        $s.transport.send(E::encode($req.into()).unwrap()).unwrap(); // TODO: don't panic
+        $s.transport.send(E::encode($req.into())).unwrap(); // TODO: don't panic
 
         loop {
             if let Some(m) = Controller::tick($s) {
@@ -148,14 +156,16 @@ macro_rules! ctrl {
 }
 
 #[forbid(irrefutable_let_patterns)]
-impl<'a, Req, Resp, E, D, T, S> Control for Controller<'a, Req, Resp, E, D, T, S>
+impl<'a, Req, Resp, E, D, T, S> Control for Controller<'a, T, S, Req, Resp, E, D>
 where
-    Req: Into<RequestMessage>,
+    Req: Debug,
+    Resp: Debug,
+    RequestMessage: Into<Req>,
     Resp: Into<ResponseMessage>,
-    ReqEnc: Encode<Req>,
-    RespDec: Decode<Resp>,
-    T: Transport<<ReqEnc as Encode>::Encoded, <RespDec as Decode>::Encoded>,
-    S: EventFutureSharedState,
+    E: Encode<Req>,
+    D: Decode<Resp>,
+    T: Transport<<E as Encode<Req>>::Encoded, <D as Decode<Resp>>::Encoded>,
+    S: EventFutureSharedStatePorcelain,
 {
     type EventFuture = EventFuture<'a, S>;
 
@@ -201,7 +211,7 @@ where
         // If we're already waiting for an event, don't bother sending the
         // request along again:
         if !self.waiting_for_event.load(Ordering::SeqCst) {
-            self.transport.send(E::encode(/*RequestMessage::*/RunUntilEvent.into()).unwrap()).unwrap();
+            self.transport.send(E::encode(RequestMessage::RunUntilEvent.into())).unwrap();
 
             // Wait for the acknowledge:
             loop {
@@ -260,5 +270,5 @@ where
     fn get_clock(&self) -> Word { ctrl!(self, GetClock, R::GetClock(r), r) }
 
     fn get_info(&self) -> DeviceInfo { ctrl!(self, GetInfo, R::GetInfo(r), r) }
-    fn set_program_metadata(&mut self, metadata: ProgramMetadata) { ctrl!(self, ProgramMetadata { metadata }, R::ProgramMetadata) }
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata) { ctrl!(self, SetProgramMetadata { metadata }, R::SetProgramMetadata) }
 }

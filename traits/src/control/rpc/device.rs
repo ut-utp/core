@@ -13,7 +13,7 @@ use core::marker::PhantomData;
 use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
 use core::future::Future;
 use core::pin::Pin;
-
+use core::fmt::Debug;
 
 // Check for messages and execute them on something that implements the [`Control`]
 // interface.
@@ -26,23 +26,25 @@ use core::pin::Pin;
 // the docs in `controller.rs` for more info.
 #[derive(Debug, Default)]
 pub struct Device<
-    Req = RequestMessage,
-    Resp = ResponseMessage,
-    ReqDec = Transparent,
-    RespEnc = Transparent,
     T,
     C,
+    Req = RequestMessage,
+    Resp = ResponseMessage,
+    ReqDec = Transparent<RequestMessage>,
+    RespEnc = Transparent<ResponseMessage>,
 >
 where
+    Req: Debug,
+    Resp: Debug,
     Req: Into<RequestMessage>,
-    Resp: Into<ResponseMessage>,
+    ResponseMessage: Into<Resp>,
     ReqDec: Decode<Req>,
     RespEnc: Encode<Resp>,
-    T: Transport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
+    T: Transport<<RespEnc as Encode<Resp>>::Encoded, <ReqDec as Decode<Req>>::Encoded>,
     C: Control,
     // <C as Control>::EventFuture: Unpin,
 {
-    _encoding: PhantomData<(ReqDec, RespEnc)>,
+    _encoding: PhantomData<(Req, Resp, ReqDec, RespEnc)>,
     _control_impl: PhantomData<C>,
     pub transport: T,
     // pending_event_future: Option<Pin<C::EventFuture>>,
@@ -51,13 +53,15 @@ where
 
 // TODO: make a builder!
 
-impl<Req, Resp, D, E, T, C> Device<Req, Resp, E, D, T, C>
+impl<Req, Resp, D, E, T, C> Device<T, C, Req, Resp, D, E>
 where
+    Req: Debug,
+    Resp: Debug,
     Req: Into<RequestMessage>,
-    Resp: Into<ResponseMessage>,
+    ResponseMessage: Into<Resp>,
     D: Decode<Req>,
     E: Encode<Resp>,
-    T: Transport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
+    T: Transport<<E as Encode<Resp>>::Encoded, <D as Decode<Req>>::Encoded>,
     C: Control,
     // <C as Control>::EventFuture: Unpin,
 {
@@ -226,13 +230,15 @@ static RW_WAKE: fn(*const ()) = |_| { };
 static RW_WAKE_BY_REF: fn(*const ()) = |_| { };
 static RW_DROP: fn(*const ()) = |_| { };
 
-impl<Req, Resp, D, E, T, C> Device<Req, Resp, E, D, T, C>
+impl<Req, Resp, D, E, T, C> Device<T, C, Req, Resp, D, E>
 where
+    Req: Debug,
+    Resp: Debug,
     Req: Into<RequestMessage>,
-    Resp: Into<ResponseMessage>,
+    ResponseMessage: Into<Resp>,
     D: Decode<Req>,
     E: Encode<Resp>,
-    T: Transport<<RespEnc as Encode>::Encoded, <ReqDec as Decode>::Encoded>,
+    T: Transport<<E as Encode<Resp>>::Encoded, <D as Decode<Req>>::Encoded>,
     C: Control,
     <C as Control>::EventFuture: Unpin, // TODO: use `pin_utils::pin_mut!` and relax this requirement.
     // <C as Control>::EventFuture: Deref<Target = <C as Control>::EventFuture>,
@@ -270,12 +276,12 @@ where
                 // println!("device future is done!");
                 self.pending_event_future = None;
 
-                let enc = E::encode(R::RunUntilEvent(event).into()).unwrap(); // TODO: don't panic?
+                let enc = E::encode(R::RunUntilEvent(event).into());
                 self.transport.send(enc).unwrap(); // TODO: don't panic?
             }
         }
 
-        while let Some(m) = self.transport.get().map(|enc| E::decode(&enc).unwrap().into()) {
+        while let Some(m) = self.transport.get().map(|enc| D::decode(&enc).unwrap().into()) {
             num_processed_messages += 1;
 
             macro_rules! dev {
@@ -347,7 +353,7 @@ where
 
                 (GetClock => R::GetClock(r)) with r = c.get_clock();
 
-                (GetInfo => R::GetInfo(r)) with r = c.get_info().add_proxy(T::ID);
+                (GetInfo => R::GetInfo(r)) with r = c.get_info().add_proxy(T::ID).expect("too many proxies");
 
                 (SetProgramMetadata { metadata } => R::SetProgramMetadata) with _ = c.set_program_metadata(metadata);
             };
