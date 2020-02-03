@@ -807,6 +807,7 @@ fn os() -> AssembledProgram {
         // R1 = mode to set
         @TRAP_SET_GPIO_MODE
             LD R2, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
+            AND R0, R0, #0x0007;            // Mask first three bits of R0 (7 GPIO pins)
             ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R2, R3;                 // R4 contains address of pin number in R0
             STR R1, R4, #0;                 // Write GPIO mode to control register
