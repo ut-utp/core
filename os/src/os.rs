@@ -637,6 +637,7 @@ fn os() -> AssembledProgram {
         @TRAP_OUT_R1 .FILL #0;
         @TRAP_IN_R7 .FILL #0;
 
+        @OS_GPIO_BASE_ADDR .FILL #0xFE07;
 
         //// TRAP Routines ////
 
@@ -800,6 +801,16 @@ fn os() -> AssembledProgram {
             LEA R0, @UNKNOWN_TRAP_MSG;
             PUTS;
             HALT;
+
+        // Sets mode of GPIO pin
+        // R0 = GPIO pin to set mode of
+        // R1 = mode to set
+        @TRAP_SET_GPIO_MODE
+            LD R2, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
+            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R2, R3;                 // R4 contains address of pin number in R0
+            STR R1, R4, #0;                 // Write GPIO mode to control register
+            RTI;
 
 
         //// Exception Handlers ////
