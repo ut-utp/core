@@ -21,29 +21,29 @@ pub const G6CR_ADDR: Addr = 0xFE13;
 pub const G6DR_ADDR: Addr = 0xFE14;
 pub const G7CR_ADDR: Addr = 0xFE15;
 pub const G7DR_ADDR: Addr = 0xFE16;
-pub const GPIOCR_ADDR: Addr = 0xFE17;
-pub const GPIODR_ADDR: Addr = 0xFE18;
 
-pub const A0CR_ADDR: Addr = 0xFE19;
-pub const A0DR_ADDR: Addr = 0xFE1A;
-pub const A1CR_ADDR: Addr = 0xFE1B;
-pub const A1DR_ADDR: Addr = 0xFE1C;
-pub const A2CR_ADDR: Addr = 0xFE1D;
-pub const A2DR_ADDR: Addr = 0xFE1E;
-pub const A3CR_ADDR: Addr = 0xFE1F;
-pub const A3DR_ADDR: Addr = 0xFE20;
+pub const GPIODR_ADDR: Addr = 0xFE17;
 
-pub const CLKR_ADDR: Addr = 0xFE21;
+pub const A0CR_ADDR: Addr = 0xFE18;
+pub const A0DR_ADDR: Addr = 0xFE19;
+pub const A1CR_ADDR: Addr = 0xFE1A;
+pub const A1DR_ADDR: Addr = 0xFE1B;
+pub const A2CR_ADDR: Addr = 0xFE1C;
+pub const A2DR_ADDR: Addr = 0xFE1D;
+pub const A3CR_ADDR: Addr = 0xFE1E;
+pub const A3DR_ADDR: Addr = 0xFE2F;
 
-pub const P0CR_ADDR: Addr = 0xFE22;
-pub const P0DR_ADDR: Addr = 0xFE23;
-pub const P1CR_ADDR: Addr = 0xFE24;
-pub const P1DR_ADDR: Addr = 0xFE25;
+pub const CLKR_ADDR: Addr = 0xFE20;
 
-pub const T0CR_ADDR: Addr = 0xFE26;
-pub const T0DR_ADDR: Addr = 0xFE27;
-pub const T1CR_ADDR: Addr = 0xFE28;
-pub const T1DR_ADDR: Addr = 0xFE29;
+pub const P0CR_ADDR: Addr = 0xFE21;
+pub const P0DR_ADDR: Addr = 0xFE22;
+pub const P1CR_ADDR: Addr = 0xFE23;
+pub const P1DR_ADDR: Addr = 0xFE24;
+
+pub const T0CR_ADDR: Addr = 0xFE25;
+pub const T0DR_ADDR: Addr = 0xFE26;
+pub const T1CR_ADDR: Addr = 0xFE27;
+pub const T1DR_ADDR: Addr = 0xFE28;
 
 pub const BSP_ADDR: Addr = 0xFFFA;
 
@@ -519,7 +519,7 @@ macro_rules! gpio_mem_mapped {
     };
 }
 
-use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*};
+use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*, GpioPinArr, GpioPin, GPIO_PINS};
 
 gpio_mem_mapped!(G0, "G0", G0CR, G0DR, G0CR_ADDR, G0DR_ADDR);
 gpio_mem_mapped!(G1, "G1", G1CR, G1DR, G1CR_ADDR, G1DR_ADDR);
@@ -529,6 +529,59 @@ gpio_mem_mapped!(G4, "G4", G4CR, G4DR, G4CR_ADDR, G4DR_ADDR);
 gpio_mem_mapped!(G5, "G5", G5CR, G5DR, G5CR_ADDR, G5DR_ADDR);
 gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR);
 gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR);
+
+pub struct GPIODR(Word);
+
+impl Deref for GPIODR {
+    type Target = Word;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl MemMapped for GPIODR {
+    const ADDR: Addr = GPIODR_ADDR;
+
+    fn with_value(value: Word) -> Self { Self(value) }
+
+    fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        let readings = Gpio::read_all(interp.get_peripherals());
+
+        let mut word: Word = readings
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, r)| r.map(|b| (idx, b as Word)).ok())
+            .fold(0, |acc, (idx, r)| acc | (r << idx as Word));
+
+        if readings.iter().any(|r| r.is_err()) {
+            word = word | 0x8000;
+        }
+
+        Ok(Self::with_value(word))
+    }
+
+    fn set<'a, I> (interp: &mut I, value: Word) -> WriteAttempt
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        let mut values = GpioPinArr([false; GpioPin::NUM_PINS]);
+
+        GPIO_PINS
+            .iter()
+            .enumerate()
+            .for_each(|(idx, pin)| {
+                values[*pin] = value.bit(idx as u32);
+            });
+
+        Gpio::write_all(interp.get_peripherals_mut(), values);
+
+        Ok(())
+    }
+}
 
 // Idk how to coerce the state of all pins into a word
 //#[doc="GPIO Control Register, all pins"]
