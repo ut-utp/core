@@ -807,10 +807,42 @@ fn os() -> AssembledProgram {
         // R1 = mode to set
         @TRAP_SET_GPIO_MODE
             LD R2, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
-            AND R0, R0, #0x0007;            // Mask first three bits of R0 (7 GPIO pins)
+//            AND R0, R0, #0x0007;            // Mask first three bits of R0 (7 GPIO pins)
             ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R4, R2, R3;                 // R4 contains address of pin number in R0
+            ADD R4, R2, R3;                 // R4 contains control address of pin number in R0
             STR R1, R4, #0;                 // Write GPIO mode to control register
+            RTI;
+
+        // Reads and returns mode of GPIO pin
+        // R0 = GPIO pin to read from
+        // -> R0 = mode of GPIO pin
+        @TRAP_READ_GPIO_MODE
+            LD R1, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains data address of pin number in R0
+            LDR R0, R3, #0;                 // Reads mode from pin into R0
+            RTI;
+
+        // Writes data to GPIO pin
+        // R0 = GPIO pin to write to
+        // R1 = data to write
+        @TRAP_WRITE_GPIO_DATA
+            LD R2, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
+            ADD R2, R2, 1;                  // Offset by 1 to get GPIO0 data register
+            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R2, R3;                 // R4 contains data address of pin number in R0
+            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
+            RTI;
+
+        // Reads and returns data from GPIO pin
+        // R0 = GPIO pin to read from
+        // -> R0 = data in GPIO pin
+        @TRAP_READ_GPIO_DATA
+            LD R1, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R1
+            ADD R1, R1, 1;                  // Offset by 1 to get GPIO0 data register
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains data address of pin number in R0
+            LDR R0, R3, #0;                 // Reads data from pin into R0
             RTI;
 
 
