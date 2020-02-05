@@ -638,6 +638,7 @@ fn os() -> AssembledProgram {
         @TRAP_IN_R7 .FILL #0;
 
         @OS_GPIO_BASE_ADDR .FILL #0xFE07;
+        @OS_ADC_BASE_ADDR .FILL #0xFE18;
 
         //// TRAP Routines ////
 
@@ -836,7 +837,7 @@ fn os() -> AssembledProgram {
 
         // Reads and returns data from GPIO pin
         // R0 = GPIO pin to read from
-        // -> R0 = data in GPIO pin
+        // -> R0 = data from GPIO pin
         @TRAP_READ_GPIO_DATA
             LD R1, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R1
             ADD R1, R1, 1;                  // Offset by 1 to get GPIO0 data register
@@ -845,6 +846,36 @@ fn os() -> AssembledProgram {
             LDR R0, R3, #0;                 // Reads data from pin into R0
             RTI;
 
+        // Sets mode of ADC pin
+        // R0 = ADC pin to set mode of
+        // R1 = mode to set
+        @TRAP_SET_ADC_MODE
+            LD R2, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
+            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R2, R3;                 // R4 contains control address of pin number in R0
+            STR R1, R4, #0;                 // Writes ADC mode to control register
+            RTI;
+
+        // Reads and returns mode of ADC pin
+        // R0 = ADC pin to read from
+        // -> R0 = mode of ADC pin
+        @TRAP_READ_ADC_MODE
+            LD R1, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains control address of pin number in R0
+            LDR R0, R3, #0;                 // Reads mode from pin into R0
+            RTI;
+
+        // Reads and returns data from ADC pin
+        // R0 = ADC pin to read from
+        // -> R0 = data from ADC pin
+        @TRAP_READ_ADC_DATA
+            LD R1, @OS_ADC_BASE_ADDR;       // Load ADC base address into R1
+            ADD R1, R1, #1;                 // Offset by 1 to get ADC data register
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains data address of pin number in R0
+            LDR R0, R3, #0;                 // Reads data from pin in R0
+            RTI;
 
         //// Exception Handlers ////
 
