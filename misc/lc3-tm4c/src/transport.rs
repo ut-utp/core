@@ -1,111 +1,11 @@
+//! TODO!
+
 enum State {
     WaitingForMessageType,
     ControlMessageLengthUnknown,
     ConsoleInputLengthUnknown,
     ReadingControlMessage(u16),
     ReadingConsoleInput(u16),
-}
-
-pub struct Fifo<T> {
-    data: [T; Self::CAPACITY], // Pick this so that we can read in the largest message. Also have compile time asserts that check that all the messages fit within a buffer of this size! (TODO) (shouldn't be too bad since we have one message...)
-    length: usize,
-    starting: Self::Cur,
-    ending: Self::Cur,   // Points to the next empty slot.
-}
-
-impl<T> Fifo<T> {
-    const CAPACITY: usize = 256; // TODO: compile time assert that this is in [1, Self::Cur::MAX].
-    type Cur = u16;
-
-    pub const fn new() -> Self {
-        Self {
-            data: [0; Self::CAPACITY],
-            length: 0,
-            starting: 0,
-            ending: 0,
-        }
-    }
-
-    pub fn is_empty(&self) -> bool { self.length == 0 }
-    pub fn is_full(&self) -> bool { self.length == Self::CAPACITY }
-
-    pub fn length(&self) -> usize { self.length }
-    pub fn remaining(&self) -> usize { Self::CAPACITY - self.length }
-
-    // fn increment(pos: Self::Cur) -> Self::Cur {
-    //     if pos == ((Self::CAPACITY - 1) as Self::Cur) {
-    //         0
-    //     } else {
-    //         pos + 1
-    //     }
-    // }
-
-    fn add(pos: Self::Cur, num: Self::Cur) -> Self::Cur {
-        (((pos as usize) + (num as usize)) % Self::CAPACITY) as Self::Cur
-    }
-
-    pub fn push(&mut self, datum: T) -> Result<(), ()> {
-        if self.is_full() {
-            Err(())
-        } else {
-            self.length += 1;
-            self.data[self.ending as usize] = datum;
-            self.ending = self.add(self.ending, 1);
-
-            Ok(())
-        }
-    }
-
-    pub fn peek(&self) -> Result<T, ()> {
-        if self.is_empty() {
-            Err(())
-        } else {
-            Ok(self.data[self.starting as usize])
-        }
-    }
-
-    pub fn pop(&mut self) -> Result<T, ()> {
-        let datum = self.peek()?;
-
-        self.advance(1);
-        Ok(datum)
-    }
-
-    pub fn bytes(&self) -> &[T] {
-        // starting == ending can either mean a full fifo or an empty one
-        if self.is_empty() {
-            &[]
-        } else {
-            if self.ending > self.starting {
-                self.data[(self.starting as usize)..(self.ending as usize)]
-            } else if self.ending <= self.starting {
-                // Gotta do it in two parts then.
-                self.data[(self.starting as usize)..]
-            }
-        }
-    }
-
-    fn advance(&mut self, num: Self::Cur) -> Result<(), ()> {
-        assert!(num <= self.length);
-
-        self.length -= num;
-        self.starting = self.add(self.starting, num);
-    }
-}
-
-impl Buf for Fifo<u8> {
-    fn remaining(&self) -> usize {
-        self.remaining()
-    }
-
-    fn bytes(&self) -> &[u8] {
-        self.bytes()
-    }
-
-    fn advance(&mut self, count: usize) {
-        use core::convert::TryInto;
-        self.advance(count.try_into::<Self::Cur>().unwrap());
-    }
 }
 
 static RX: Mutex<RefCell<Rx<_>>> = ..;

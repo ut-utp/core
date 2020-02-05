@@ -36,7 +36,7 @@ use lc3_traits::memory::{Memory, MemoryMiscError};
 /// 24 of these pages will occupy 12KiB of RAM, which we should be able to
 /// handle.
 ///
-struct Tm4cMemory {
+pub struct Tm4cMemory {
     pages: [[Word; Self::PAGE_SIZE]; 24],
     zero: Word,
     void: Word,

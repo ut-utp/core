@@ -1,94 +1,94 @@
+//! Peripheral Trait impls for the LC-3. (TODO!)
+//!
+//! ## Mappings
+//! Gonna do this for pins for now:
+//!
+//! ```
+//!          [For reference]            |              [Assignments]           |
+//!                                     |                                      |
+//!    J1    J3           J2    J4      |     J1    J3           J2    J4      |
+//!  ┏━━━━━┯━━━━━┓      ┏━━━━━┯━━━━━┓   |   ┏━━━━━┯━━━━━┓      ┏━━━━━┯━━━━━┓   |
+//!  ┃ 3.3 │ 5.0 ┃      ┃ PF2 │ GND ┃   |   ┃ 3.3 │ 5.0 ┃      ┃  P0 │ GND ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PB5 │ GND ┃      ┃ PF3 │ PB2 ┃   |   ┃  G5 │ GND ┃      ┃  P1 │  G2 ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PB0 │ PD0 ┃      ┃ PB3 │ PE0 ┃   |   ┃  G0 │ XXX ┃      ┃  G3 │  A0 ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PB1 │ PD1 ┃      ┃ PC4 │ PF0 ┃   |   ┃  G1 │ XXX ┃      ┃ PC4 │  Px ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PE4 │ PD2 ┃      ┃ PC5 │ RST ┃   |   ┃  A4 │ PD2 ┃      ┃ PC5 │ RST ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PE5 │ PD3 ┃      ┃ PC6 │ PB7 ┃   |   ┃  A5 │ PD3 ┃      ┃ PC6 │  G7 ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PB4 │ PE1 ┃      ┃ PC7 │ PB6 ┃   |   ┃  G4 │  A1 ┃      ┃ PC7 │  G6 ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PA5 │ PE2 ┃      ┃ PD6 │ PA4 ┃   |   ┃ PA5 │  A2 ┃      ┃ PD6 │ PA4 ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PA6 │ PE3 ┃      ┃ PD7 │ PA3 ┃   |   ┃ PA6 │  A3 ┃      ┃ PD7 │ PA3 ┃   |
+//!  ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
+//!  ┃ PA7 │ PF1 ┃      ┃ PF4 │ PA2 ┃   |   ┃ PA7 │  Px ┃      ┃ PF4 │ PA2 ┃   |
+//!  ┗━━━━━┷━━━━━┛      ┗━━━━━┷━━━━━┛   |   ┗━━━━━┷━━━━━┛      ┗━━━━━┷━━━━━┛   |
+//!        ┏━━━━━┓      ┏━━━━━┓         |         ┏━━━━━┓      ┏━━━━━┓         |
+//!        ┃ GND ┃      ┃ GND ┃         |         ┃ GND ┃      ┃ GND ┃         |
+//!        ┠─────┨      ┠─────┨         |         ┠─────┨      ┠─────┨         |
+//!        ┃ GND ┃      ┃ GND ┃         |         ┃ GND ┃      ┃ GND ┃         |
+//!        ┠─────┨      ┠─────┨         |         ┠─────┨      ┠─────┨         |
+//!        ┃ 5.0 ┃      ┃ 3.3 ┃         |         ┃ 5.0 ┃      ┃ 3.3 ┃         |
+//!        ┗━━━━━┛      ┗━━━━━┛         |         ┗━━━━━┛      ┗━━━━━┛         |
+//!  ┏━━━━━┯━━━━━┓      ┏━━━━━┓         |   ┏━━━━━┯━━━━━┓      ┏━━━━━┓         |
+//!  ┃ PD0<->PB6 ┃      ┃D7^VD┃         |   ┃ PD0<->PB6 ┃      ┃D7^VD┃         |
+//!  ┠─────┼─────┨      ┗━━━━━┛         |   ┠─────┼─────┨      ┗━━━━━┛         |
+//!  ┃ PD1<->PB7 ┃                      |   ┃ PD1<->PB7 ┃                      |
+//!  ┗━━━━━┷━━━━━┛                      |   ┗━━━━━┷━━━━━┛                      |
+//!                                     |                                      |
+//!-------------------------------------|--------------------------------------|
+//!```
+//!
+//! For GPIO:
+//!   - We want a full port so that `write_all` is easier.
+//!      + Port A is out because A0 and A1 are UART.
+//!      + Port C is out because C0 - C3 are used for debugging.
+//!      + Port E and F are out because they don't have 8 exposed pins.
+//!      + Port D's PD4 and PD5 are connected to USB and not connected to pins.
+//!      + This leaves Port B. We'll be sure to disable PD0 and PD1 so board
+//!        with the shunt resistors still work.
+//!  - Another way to go about this would be to assign pin mappings based on the
+//!    physical location of pins (i.e. take all of J1 to be GPIO).
+//!      + For now, we won't do this.
+//!  - Another consideration is that it would be nice for the two buttons (PF0
+//!    and PF4) to be mapped to GPIO pins so users can use the buttons as an
+//!    input source.
+//!      + Whether this is more desirable than having a unified port is a
+//!        question for another time.
+//!
+//! For ADC:
+//!  - We need 6 pins.
+//!  - Our options are all of Port E (6 pins), 2 pins in Port B, and PD0 to PD3.
+//!  - Again, we'll opt for matching the numbering (Port E).
+//!
+//! For PWM:
+//!  - We need 2 pins.
+//!  - We've got lots of options (Ports B, C, D, F).
+//!  - Ultimately, I think it makes sense to go with Port F's LED pins so that
+//!    users can use them.
+//!  - We'll reserve Red for indicating hard faults so PF2 and PF3 it is!
+//!     + If we choose to have 4 PWM pins in the future we can do PF0 to PF3.
+//!
+//! This configuration leaves I2C, SPI, UART, QEI, and USB pins unused such that
+//! those peripherals can still be used, which is a nice bonus.
+
 use core::cell::Cell;
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use lc3_traits::peripherals::{Gpio, Adc, Pwm, Timers, Clock, Input, Output};
+use cortex_m::asm;
 
+use lc3_isa::{Word, Addr};
+
+use lc3_traits::peripherals::{Gpio, Adc, Pwm, Timers, Clock, Input, Output};
 use lc3_traits::peripherals::gpio::{GpioPin, GpioState, GpioPinArr, GpioReadError, GpioWriteError, GpioMiscError};
 
-// Gonna do this for pins for now:
-//
-//           [For reference]            |              [Assignments]           |
-//                                      |                                      |
-//     J1    J3           J2    J4      |     J1    J3           J2    J4      |
-//   ┏━━━━━┯━━━━━┓      ┏━━━━━┯━━━━━┓   |   ┏━━━━━┯━━━━━┓      ┏━━━━━┯━━━━━┓   |
-//   ┃ 3.3 │ 5.0 ┃      ┃ PF2 │ GND ┃   |   ┃ 3.3 │ 5.0 ┃      ┃  P0 │ GND ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PB5 │ GND ┃      ┃ PF3 │ PB2 ┃   |   ┃  G5 │ GND ┃      ┃  P1 │  G2 ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PB0 │ PD0 ┃      ┃ PB3 │ PE0 ┃   |   ┃  G0 │ XXX ┃      ┃  G3 │  A0 ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PB1 │ PD1 ┃      ┃ PC4 │ PF0 ┃   |   ┃  G1 │ XXX ┃      ┃ PC4 │  Px ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PE4 │ PD2 ┃      ┃ PC5 │ RST ┃   |   ┃  A4 │ PD2 ┃      ┃ PC5 │ RST ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PE5 │ PD3 ┃      ┃ PC6 │ PB7 ┃   |   ┃  A5 │ PD3 ┃      ┃ PC6 │  G7 ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PB4 │ PE1 ┃      ┃ PC7 │ PB6 ┃   |   ┃  G4 │  A1 ┃      ┃ PC7 │  G6 ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PA5 │ PE2 ┃      ┃ PD6 │ PA4 ┃   |   ┃ PA5 │  A2 ┃      ┃ PD6 │ PA4 ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PA6 │ PE3 ┃      ┃ PD7 │ PA3 ┃   |   ┃ PA6 │  A3 ┃      ┃ PD7 │ PA3 ┃   |
-//   ┠─────┼─────┨      ┠─────┼─────┨   |   ┠─────┼─────┨      ┠─────┼─────┨   |
-//   ┃ PA7 │ PF1 ┃      ┃ PF4 │ PA2 ┃   |   ┃ PA7 │  Px ┃      ┃ PF4 │ PA2 ┃   |
-//   ┗━━━━━┷━━━━━┛      ┗━━━━━┷━━━━━┛   |   ┗━━━━━┷━━━━━┛      ┗━━━━━┷━━━━━┛   |
-//         ┏━━━━━┓      ┏━━━━━┓         |         ┏━━━━━┓      ┏━━━━━┓         |
-//         ┃ GND ┃      ┃ GND ┃         |         ┃ GND ┃      ┃ GND ┃         |
-//         ┠─────┨      ┠─────┨         |         ┠─────┨      ┠─────┨         |
-//         ┃ GND ┃      ┃ GND ┃         |         ┃ GND ┃      ┃ GND ┃         |
-//         ┠─────┨      ┠─────┨         |         ┠─────┨      ┠─────┨         |
-//         ┃ 5.0 ┃      ┃ 3.3 ┃         |         ┃ 5.0 ┃      ┃ 3.3 ┃         |
-//         ┗━━━━━┛      ┗━━━━━┛         |         ┗━━━━━┛      ┗━━━━━┛         |
-//   ┏━━━━━┯━━━━━┓      ┏━━━━━┓         |   ┏━━━━━┯━━━━━┓      ┏━━━━━┓         |
-//   ┃ PD0<->PB6 ┃      ┃D7^VD┃         |   ┃ PD0<->PB6 ┃      ┃D7^VD┃         |
-//   ┠─────┼─────┨      ┗━━━━━┛         |   ┠─────┼─────┨      ┗━━━━━┛         |
-//   ┃ PD1<->PB7 ┃                      |   ┃ PD1<->PB7 ┃                      |
-//   ┗━━━━━┷━━━━━┛                      |   ┗━━━━━┷━━━━━┛                      |
-//                                      |                                      |
-//--------------------------------------|--------------------------------------|
-//
-// For GPIO:
-//   - We want a full port so that `write_all` is easier.
-//      + Port A is out because A0 and A1 are UART.
-//      + Port C is out because C0 - C3 are used for debugging.
-//      + Port E and F are out because they don't have 8 exposed pins.
-//      + Port D's PD4 and PD5 are connected to USB and not connected to pins.
-//      + This leaves Port B. We'll be sure to disable PD0 and PD1 so board with
-//        the shunt resistors still work.
-//  - Another way to go about this would be to assign pin mappings based on the
-//    physical location of pins (i.e. take all of J1 to be GPIO).
-//      + For now, we won't do this.
-//  - Another consideration is that it would be nice for the two buttons (PF0
-//    and PF4) to be mapped to GPIO pins so users can use the buttons as an
-//    input source.
-//      + Whether this is more desirable than having a unified port is a
-//        question for another time.
-//
-// For ADC:
-//  - We need 6 pins.
-//  - Our options are all of Port E (6 pins), 2 pins in Port B, and PD0 to PD3.
-//  - Again, we'll opt for matching the numbering (Port E).
-// // - Our options are Port B, Port F, Port C, and Port D.
-// // - We just used Port B, Port F has only 5 exposed pins, Port C has 4, and D
-// //   conveniently has 6 usable pins. So Port D, right?
-// //    + Unfortunately, no. As mentioned above we can't actually use PD0 and PD1
-// //      so we're at 4 usable pins for Port D and Port C.
-// //    + Since we can't have matching number, we'll settle for matching physical
-// //      locations: { A0..A5 } -> { C4, C5, C6, C7, D6, D7 }
-// //    + Conveniently, the numbering isn't too awful either.
-//
-// For PWM:
-//  - We need 2 pins.
-//  - We've got lots of options (Ports B, C, D, F).
-//  - Ultimately, I think it makes sense to go with Port F's LED pins so that
-//    users can use them.
-//  - We'll reserve Red for indicating hard faults so PF2 and PF3 it is!
-//     + If we choose to have 4 PWM pins in the future we can do PF0 to PF3.
-//
-// This configuration leaves I2C, SPI, UART, QEI, and USB pins unused such that
-// those peripherals can still be used, which is a nice bonus.
-// // The Quadrature Encoder peripherals' pins don't share the same fate but alas.
 
-struct Tm4cGpio<'a> {
+pub struct Tm4cGpio<'a> {
     flags: Option<&'a GpioPinArr<AtomicBool>>,
 }
 
@@ -136,7 +136,7 @@ impl<'a> Default for Tm4cGpio<'a> {
 
 use lc3_traits::peripherals::adc::{AdcPin, AdcState, AdcReadError/* , AdcPinArr */};
 
-struct Tm4cAdc {
+pub struct Tm4cAdc {
 
 }
 
@@ -160,7 +160,7 @@ impl Default for Tm4cAdc {
 
 use lc3_traits::peripherals::pwm::{PwmState, PwmPin, PwmSetPeriodError, PwmSetDutyError, PwmPinArr};
 
-struct Tm4cPwm {
+pub struct Tm4cPwm {
 
 }
 
@@ -192,7 +192,7 @@ impl Default for Tm4cPwm {
 
 use lc3_traits::peripherals::timers::{TimerId, TimerMiscError, TimerState, TimerArr};
 
-struct Tm4cTimers<'a> {
+pub struct Tm4cTimers<'a> {
     flags: Option<&'a TimerArr<AtomicBool>>,
 }
 
@@ -238,7 +238,7 @@ impl<'a> Default for Tm4cTimers<'a> {
     }
 }
 
-struct Tm4cClock {
+pub struct Tm4cClock {
 
 }
 
@@ -258,7 +258,7 @@ impl Default for Tm4cClock {
 
 use lc3_traits::peripherals::input::InputError;
 
-struct Tm4cInput<'a> {
+pub struct Tm4cInput<'a> {
     flag: Option<&'a AtomicBool>,
     interrupts_enabled: bool,
     current_char: Cell<Option<u8>>,
@@ -319,7 +319,8 @@ impl<'a> Default for Tm4cInput<'a> {
 
 use lc3_traits::peripherals::output::OutputError;
 
-struct Tm4cOutput<'a> {
+pub struct Tm4cOutput<'a> {
+    // tx:
     flag: Option<&'a AtomicBool>,
     interrupts_enabled: bool,
 }
