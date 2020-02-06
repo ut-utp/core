@@ -604,7 +604,6 @@ fn os() -> AssembledProgram {
 
         @KBSR .FILL #0xFE00;    // TODO: Use constant from <somewhere>
         @KBDR .FILL #0xFE02;    // TODO: Use constant from <somewhere>
-
         @DSR .FILL #0xFE04;     // TODO: Use constant from <somewhere>
         @DDR .FILL #0xFE06;     // TODO: Use constant from <somewhere>
 
@@ -639,6 +638,9 @@ fn os() -> AssembledProgram {
 
         @OS_GPIO_BASE_ADDR .FILL #0xFE07;
         @OS_ADC_BASE_ADDR .FILL #0xFE18;
+        @OS_CLOCK_BASE_ADDR .FILL #0xFE21;
+        @OS_TIMER_BASE_ADDR .FILL #0xFE26;
+        @OS_PWM_BASE_ADDR .FILL #0xFE22;
 
         //// TRAP Routines ////
 
@@ -812,6 +814,111 @@ fn os() -> AssembledProgram {
             ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R2, R3;                 // R4 contains control address of pin number in R0
             STR R1, R4, #0;                 // Write GPIO mode to control register
+            RTI;
+
+        // PWM Pin Set
+        // R0= PWM Pin to set mode of
+        // R1= mode to be set
+        @TRAP_SET_PWM_MODE
+            LD R2, @OS_PWM_BASE_ADDR;
+            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R2, R3;                 // R4 contains address of pin number in R0
+            STR R1, R4, #0;                 // Write GPIO mode to control register
+            RTI;
+
+        // Reads and returns mode of PWM pin
+        // R0 = PWM pin to read from
+        // -> R0 = mode of PWM pin
+        @TRAP_READ_PWM_MODE
+            LD R1, @OS_PWM_BASE_ADDR;
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains control address of pin number in R0
+            LDR R0, R3, #0;                 // Reads mode from pin into R0
+            RTI;
+
+        // Writes data to PWM pin
+        // R0 = PWM pin to write to
+        // R1 = data to write
+        @TRAP_WRITE_PWM_DATA
+            LD R2, @OS_PWM_BASE_ADDR;
+            ADD R2, R2, 1;                  // Offset by 1 to get GPIO0 data register
+            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R2, R3;                 // R4 contains data address of pin number in R0
+            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
+            RTI;
+
+        // Reads and returns data from PWM pin
+        // R0 = PWM pin to read from
+        // -> R0 = data from PWM pin
+        @TRAP_READ_PWM_DATA
+            LD R1, @OS_PWM_BASE_ADDR;
+            ADD R1, R1, 1;                  // Offset by 1 to get GPIO0 data register
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains data address of pin number in R0
+            LDR R0, R3, #0;                 // Reads data from pin into R0
+            RTI;
+            
+        // Timer Pin Set
+        // R0= Timer Pin to set mode of
+        // R1= mode to be set
+        @TRAP_SET_TIMER_MODE
+            LD R2, @OS_TIMER_BASE_ADDR;
+            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R2, R3;                 // R4 contains address of pin number in R0
+            STR R1, R4, #0;
+            RTI;
+
+        // Reads and returns mode of Timer pin
+        // R0 = Timer pin to read from
+        // -> R0 = mode of Timer pin
+        @TRAP_READ_TIMER_MODE
+            LD R1, @OS_TIMER_BASE_ADDR;
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains control address of pin number in R0
+            LDR R0, R3, #0;                 // Reads mode from pin into R0
+            RTI;
+
+        // Writes data to TIMER pin
+        // R0 = TIMER pin to write to
+        // R1 = data to write
+        @TRAP_WRITE_TIMER_DATA
+            LD R2, @OS_TIMER_BASE_ADDR;
+            ADD R2, R2, 1;                  // Offset by 1
+            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R2, R3;                 // R4 contains data address of pin number in R0
+            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
+            RTI;
+
+        // Reads and returns data from PWM pin
+        // R0 = TIMER pin to read from
+        // -> R0 = data from TIMER pin
+        @TRAP_READ_TIMER_DATA
+            LD R1, @OS_TIMER_BASE_ADDR;
+            ADD R1, R1, 1;                  // Offset by 1
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains data address of pin number in R0
+            LDR R0, R3, #0;                 // Reads data from pin into R0
+            RTI;
+
+        // Clock Pin Set
+        // R0= Clock Pin to set
+        // R1= data to be set
+        @TRAP_SET_CLOCK
+            LD R2, @OS_CLOCK_BASE_ADDR;      // Load GPIO base address into R2
+            ADD R3, R0, R0
+            ADD R4, R2, R3;                 // R4 contains address of pin number in R0
+            STR R1, R4, #0;                 // Write GPIO mode to control register
+            RTI;
+
+
+        // Reads and returns mode of ADC pin
+        // R0 = clock pin to read from
+        // R0 = clock data
+        @TRAP_READ_CLOCK
+            LD R1, @OS_CLOCK_BASE_ADDR;
+            ADD R2, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R3, R1, R2;                 // R3 contains control address of pin number in R0
+            LDR R0, R3, #0;                 // Reads mode from pin into R0
             RTI;
 
         // Reads and returns mode of GPIO pin
