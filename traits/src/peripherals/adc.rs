@@ -10,15 +10,15 @@ use serde::{Deserialize, Serialize};
 #[rustfmt::skip]
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[derive(Serialize, Deserialize)]
-pub enum AdcPin { A0, A1, A2, A3 } // TODO: bump to 6
+pub enum AdcPin { A0, A1, A2, A3, A4, A5 }
 
 impl AdcPin {
-    pub const NUM_PINS: usize = 4;
+    pub const NUM_PINS: usize = 6;
 }
 
 pub const ADC_PINS: AdcPinArr<AdcPin> = {
     use AdcPin::*;
-    AdcPinArr([A0, A1, A2, A3])
+    AdcPinArr([A0, A1, A2, A3, A4, A5])
 }; // TODO: once we get the derive macro, get rid of this.
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -36,6 +36,8 @@ impl From<AdcPin> for usize {
             A1 => 1,
             A2 => 2,
             A3 => 3,
+            A4 => 4,
+            A5 => 5,
         }
     }
 }
