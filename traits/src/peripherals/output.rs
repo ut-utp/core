@@ -3,6 +3,8 @@ use crate::peripheral_trait;
 
 use core::sync::atomic::AtomicBool;
 
+use serde::{Deserialize, Serialize};
+
 peripheral_trait! {output,
 pub trait Output<'a>: Default {
     fn write_data(&mut self, c: u8) -> Result<(), OutputError>;
@@ -19,7 +21,7 @@ pub trait Output<'a>: Default {
     fn interrupts_enabled(&self) -> bool;
 }}
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct OutputError;
 
 using_std! {

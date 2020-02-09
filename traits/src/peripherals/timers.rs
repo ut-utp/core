@@ -11,8 +11,7 @@ use serde::{Deserialize, Serialize};
 // TODO: Add Errors
 // Timer periods: [0, core::u16::MAX)
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum TimerId {
     T0,
     T1,
@@ -37,8 +36,7 @@ pub const TIMERS: TimerArr<TimerId> = {
     TimerArr([T0, T1])
 };
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TimerArr<T>(pub [T; TimerId::NUM_TIMERS]);
 
 // Once const fn is more stable:
@@ -70,15 +68,14 @@ impl<T> IndexMut<TimerId> for TimerArr<T> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TimerState {
     Repeated,
     SingleShot,
     Disabled,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TimerMiscError;
 
 pub type TimerStateMismatch = (TimerId, TimerState);

@@ -8,8 +8,7 @@ use serde::{Deserialize, Serialize};
 // TODO: Add Errors
 
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum AdcPin { A0, A1, A2, A3, A4, A5 }
 
 impl AdcPin {
@@ -21,8 +20,7 @@ pub const ADC_PINS: AdcPinArr<AdcPin> = {
     AdcPinArr([A0, A1, A2, A3, A4, A5])
 }; // TODO: once we get the derive macro, get rid of this.
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AdcState {
     Enabled,
     Disabled,
@@ -42,8 +40,7 @@ impl From<AdcPin> for usize {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdcPinArr<T>(pub [T; AdcPin::NUM_PINS]);
 
 // Once const fn is more stable:
@@ -105,13 +102,12 @@ pub trait Adc: Default {
 
 }}
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdcMiscError;
 
 pub type AdcStateMismatch = (AdcPin, AdcState);
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdcReadError(pub AdcStateMismatch);
 
 // TODO: Into Error stuff (see Gpio)

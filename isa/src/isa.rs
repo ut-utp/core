@@ -6,7 +6,7 @@ use core::ops::Range;
 use serde::{Deserialize, Serialize};
 
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PriorityLevel { PL0, PL1, PL2, PL3, PL4, PL5, PL6, PL7 }
 
 // TODO: ditch the next four things once the macro is written:
@@ -81,8 +81,7 @@ impl Ord for PriorityLevel {
 }
 
 #[rustfmt::skip]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Reg { R0, R1, R2, R3, R4, R5, R6, R7 }
 
 // TODO: ditch these next four things once we write the macro...
@@ -214,7 +213,7 @@ impl Reg {
 type Sw = SignedWord;
 
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Copy, Clone, Hash, Serialize, Deserialize)]
 // TODO: docs!
 // Give the full name of the instruction, the pseudo code, whether it sets
 // condition codes, the bit format, and some examples.

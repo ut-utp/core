@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 // TODO: Switch to enum for pins
 // TODO: Add Errors
 #[rustfmt::skip]
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum PwmPin { P0, P1 }
 
 // TODO: remove once the derive macro happens...
@@ -33,15 +32,13 @@ pub const PWM_PINS: PwmPinArr<PwmPin> = {
     PwmPinArr([P0, P1])
 }; // TODO: save us, derive macro
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PwmState {
     Enabled(NonZeroU8),
     Disabled,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PwmPinArr<T>(pub [T; PwmPin::NUM_PINS]);
 
 // Once const fn is more stable:
@@ -74,10 +71,10 @@ impl<T> IndexMut<PwmPin> for PwmPinArr<T> {
 }
 
 // I have no idea why these operations wouldn't be infallible, tbh:
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PwmSetPeriodError(pub PwmPin); // TODO: review
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PwmSetDutyError(pub PwmPin); // TODO: review
 
 peripheral_trait! {pwm,
