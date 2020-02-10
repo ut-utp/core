@@ -26,7 +26,7 @@ lc3-traits = { path = "traits", version = "0.1.0", default-features = false, fea
 lc3-os = { path = "os", version = "0.1.0" }
 
 criterion = "0.3.0"
-async-std = "1.4.0"
+async-std = "1.5.0"
 lazy_static = "1.4.0"
 
 
