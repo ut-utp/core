@@ -1,21 +1,22 @@
 //! [`Timers` trait](Timers) and related types.
 
 use crate::peripheral_trait;
-use core::ops::{Deref, Index, IndexMut};
 
-use core::sync::atomic::AtomicBool;
 use lc3_isa::Word;
+use lc3_macros::DisplayUsingDebug;
+
+use core::ops::{Deref, Index, IndexMut};
+use core::sync::atomic::AtomicBool;
 
 use serde::{Deserialize, Serialize};
 
 // TODO: Add Errors
 // Timer periods: [0, core::u16::MAX)
 
+#[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum TimerId {
-    T0,
-    T1,
-}
+#[derive(DisplayUsingDebug)]
+pub enum TimerId { T0, T1, }
 
 impl TimerId {
     pub const NUM_TIMERS: usize = 2;

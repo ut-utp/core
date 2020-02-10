@@ -1,9 +1,11 @@
 //! [`Gpio` trait](Gpio) and friends.
 
+use crate::peripheral_trait;
+
+use lc3_macros::DisplayUsingDebug;
+
 use core::convert::TryFrom;
 use core::ops::{Deref, Index, IndexMut};
-
-use crate::peripheral_trait;
 use core::sync::atomic::AtomicBool;
 
 use serde::{Deserialize, Serialize};
@@ -22,6 +24,7 @@ use serde::{Deserialize, Serialize};
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
 
 impl GpioPin {

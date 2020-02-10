@@ -1,14 +1,17 @@
 //! [`Adc` trait](Adc) and associated types.
 
 use crate::peripheral_trait;
-use core::ops::{Deref, Index, IndexMut};
 
+use lc3_macros::DisplayUsingDebug;
+
+use core::ops::{Deref, Index, IndexMut};
 
 use serde::{Deserialize, Serialize};
 // TODO: Add Errors
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum AdcPin { A0, A1, A2, A3, A4, A5 }
 
 impl AdcPin {

@@ -1,12 +1,16 @@
 use super::{SignedWord, Word};
 
+use lc3_macros::DisplayUsingDebug;
+
 use core::cmp::Ordering;
 use core::convert::{TryFrom, TryInto};
 use core::ops::Range;
+
 use serde::{Deserialize, Serialize};
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum PriorityLevel { PL0, PL1, PL2, PL3, PL4, PL5, PL6, PL7 }
 
 // TODO: ditch the next four things once the macro is written:
@@ -82,6 +86,7 @@ impl Ord for PriorityLevel {
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum Reg { R0, R1, R2, R3, R4, R5, R6, R7 }
 
 // TODO: ditch these next four things once we write the macro...

@@ -1,15 +1,18 @@
 //! [`Pwm` trait](Pwm) and helpers.
 
 use crate::peripheral_trait;
+
+use lc3_macros::DisplayUsingDebug;
+
 use core::num::NonZeroU8;
 use core::ops::{Deref, Index, IndexMut};
-
 
 use serde::{Deserialize, Serialize};
 // TODO: Switch to enum for pins
 // TODO: Add Errors
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum PwmPin { P0, P1 }
 
 // TODO: remove once the derive macro happens...
