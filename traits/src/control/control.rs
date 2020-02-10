@@ -69,6 +69,9 @@ pub trait Control {
     fn read_word(&self, addr: Addr) -> Word;
     fn write_word(&mut self, addr: Addr, word: Word);
 
+    fn start_write_page(&mut self, _token: FlashToken<()>, page: Page, checksum: u64) -> Result<FlashToken<Page>, StartPageWriteError>;
+    fn send_page_chunk(&mut self, _token: FlashToken, address: Addr, chunk: [Word; 8]) -> Result<(), PageChunkError>;
+    fn finish_page_write(&mut self, _token: FlashToken, page: u8) -> Result<(), FinishPageWriteError>;
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS];
