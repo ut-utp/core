@@ -16,6 +16,7 @@ log_files/
 
 ### IntelliJ and friends ###
 .idea
+*.iml
 
 # OS Specific things (courtesy of gitignore.io):
 
