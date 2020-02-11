@@ -60,6 +60,10 @@ pub type Word = u16;
 /// Signed counterpart of the [`Word`] type.
 pub type SignedWord = i16;
 
+// Offer utility function for verifying bit lengths.
+// Currently used for assembler.
+pub use isa::check_signed_imm;
+
 // Make sure our `Word` and `SignedWord` types are counterparts:
 sa::const_assert!(size_of::<Word>() == size_of::<SignedWord>());
 
