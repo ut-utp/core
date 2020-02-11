@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="RUST_MODULE" version="4">
+  <component name="NewModuleRootManager" inherit-compiler-output="true">
+    <exclude-output />
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/shims/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/shims/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/shims/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/shims/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/isa/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/isa/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/isa/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/isa/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/macros/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/macros/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/macros/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/macros/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/traits/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/traits/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/traits/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/traits/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/baseline-sim/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/baseline-sim/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/baseline-sim/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/baseline-sim/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/tui/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tui/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tui/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/tui/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/os/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/os/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/os/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/os/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/lc3-tm4c/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/lc3-tm4c/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/lc3-tm4c/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/lc3-tm4c/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/assembler/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/assembler/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/assembler/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/misc/assembler/benches" isTestSource="true" />
+      <excludeFolder url="file://$MODULE_DIR$/baseline-sim/target" />
+      <excludeFolder url="file://$MODULE_DIR$/isa/target" />
+      <excludeFolder url="file://$MODULE_DIR$/macros/target" />
+      <excludeFolder url="file://$MODULE_DIR$/misc/assembler/target" />
+      <excludeFolder url="file://$MODULE_DIR$/misc/lc3-tm4c/target" />
+      <excludeFolder url="file://$MODULE_DIR$/os/target" />
+      <excludeFolder url="file://$MODULE_DIR$/shims/target" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+      <excludeFolder url="file://$MODULE_DIR$/traits/target" />
+      <excludeFolder url="file://$MODULE_DIR$/tui/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

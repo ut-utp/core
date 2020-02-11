@@ -262,7 +262,7 @@ const fn pow_of_two(power: u32) -> SignedWord {
     1 << power
 }
 
-const fn check_signed_imm(imm: SignedWord, num_bits: u32) -> bool {
+pub const fn check_signed_imm(imm: SignedWord, num_bits: u32) -> bool {
     // A 2's comp number of N bits must be in [-(2 ** (N - 1))¸ (2 ** (N - 1))).
     // sa::const_assert!()
 
