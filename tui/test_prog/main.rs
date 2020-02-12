@@ -207,7 +207,7 @@ fn test_interpreter(){
 
     //let iterator = global_vec_mem.iter();
     //iterator.
-
+    println!("{:?}{:?}", lc3tools_registers, lc3tools_memory);
 
 
 //    //println!("{:?}", registers4567);
@@ -238,10 +238,10 @@ fn test_interpreter(){
 
    //let mut lc3tools_memory: HashMap<&str, &str> = HashMap::new();
     
-    for (key, value) in lc3tools_memory.into_iter() {
-            println!("{} / {}", key, value);
+    // for (key, value) in lc3tools_memory.into_iter() {
+    //         println!("{} / {}", key, value);
 
-    }
+    // }
     
 
 
