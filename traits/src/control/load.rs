@@ -311,3 +311,48 @@ impl Progress {
         }
     }
 }
+
+using_std! {
+    // use std::sync::{Arc, Mutex, RwLock};
+    use std::time::{SystemTime, SystemTimeError};
+
+    // impl<P: LoadMemoryProgressSource> LoadMemoryProgressSource for Arc<Mutex<P>> {}
+    // impl<P: LoadMemoryProgress> LoadMemoryProgress for Arc<Mutex<P>> {}
+
+    // impl<P: LoadMemoryProgressSource> LoadMemoryProgressSource for Arc<RwLock<P>> {}
+    // impl<P: LoadMemoryProgress> LoadMemoryProgress for Arc<RwLock<P>> {}
+
+    impl Progress {
+        pub fn new_with_time() -> Result<Progress, SystemTimeError> {
+            let time = SystemTime::now();
+            let time = time.duration_since(SystemTime::UNIX_EPOCH)?;
+
+            Ok(Progress {
+                start_time: Some(time),
+                ..Self::new()
+            })
+        }
+
+        // TODO: we could offer no_std Duration based versions of these
+        // functions, but does anyone care? Would anyone need them?
+
+        pub fn time_elapsed(&self) -> Option<Duration> {
+            let start = self.start_time?;
+            let start = SystemTime::UNIX_EPOCH.checked_add(start)?;
+
+            start.elapsed().ok()
+        }
+
+        pub fn estimate_time_remaining(&self) -> Option<Duration> {
+            // no hysteresis for now, just simple scaling
+            // (progress / 1) = (elapsed / total time)
+            // ((1 / progress) * (elapsed)) - elapsed
+
+            let progress = self.progress();
+            let elapsed = self.time_elapsed()?;
+
+            Some(elapsed.mul_f32(1f32 / progress) - elapsed)
+        }
+    }
+}
+
