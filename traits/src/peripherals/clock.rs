@@ -1,6 +1,7 @@
 //! [`Clock` trait](Clock).
 
 use crate::peripheral_trait;
+
 use lc3_isa::Word;
 
 // Just 1 Clock! (millisecond units)

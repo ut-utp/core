@@ -18,7 +18,7 @@ use serde::{Serialize, Deserialize};
 //    + I'm warming to this idea, actually. The underlying infrastructure (peripherals, control) agree on a set of errors; how those
 //      errors make their way into LC-3 land is up to the interpreter. It's literally a matter of mapping these Errors into whatever.
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Error {
     InvalidGpioWrite(GpioWriteError),
     InvalidGpioWrites(GpioWriteErrors),
@@ -67,7 +67,7 @@ err!(GpioWriteError, Error::InvalidGpioWrite);
 ///
 /// TBD on whether this is impl-defined.
 /// Another thing to consider is that we may want different modes? Permissive and strict or something. Or maybe not.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ErrorHandlingStrategy {
     DefaultValue(Word),
     Silent,

@@ -101,3 +101,25 @@ pub fn create_label(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream 
 
     proc_macro::TokenStream::from(quote!(let #ident: Addr = #tree;))
 }
+
+use syn::DeriveInput;
+
+// TODO: this should eventually become the macro we've waiting for, for ordered enums
+// with variants that have no associated data. It should bestow upon such enums:
+//  - an associated const specifying the number of enums
+//  - optionally, to and from impls for the variant's number (i.e. 0 -> R0, R0 -> 0)
+//  - optionally, an array type w/Deref+Index impls
+//  - a display impl (indep of Debug? not sure)
+#[proc_macro_derive(DisplayUsingDebug)]
+pub fn derive_display_from_debug(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let item = parse_macro_input!(item as DeriveInput);
+    let ty_name = item.ident;
+
+    quote! (
+        impl core::fmt::Display for #ty_name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                <Self as core::fmt::Debug>::fmt(self, f)
+            }
+        }
+    ).into()
+}

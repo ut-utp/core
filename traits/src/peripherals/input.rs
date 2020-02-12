@@ -3,6 +3,8 @@ use crate::peripheral_trait;
 
 use core::sync::atomic::AtomicBool;
 
+use serde::{Deserialize, Serialize};
+
 peripheral_trait! {input,
 pub trait Input<'a>: Default {
     // Warning! This is stateful!! It marks the current data as read.
@@ -24,7 +26,7 @@ pub trait Input<'a>: Default {
     fn interrupts_enabled(&self) -> bool;
 }}
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct InputError;
 
 // TODO: roll this into the macro

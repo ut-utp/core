@@ -1,9 +1,11 @@
 //! [`Gpio` trait](Gpio) and friends.
 
+use crate::peripheral_trait;
+
+use lc3_macros::DisplayUsingDebug;
+
 use core::convert::TryFrom;
 use core::ops::{Deref, Index, IndexMut};
-
-use crate::peripheral_trait;
 use core::sync::atomic::AtomicBool;
 
 use serde::{Deserialize, Serialize};
@@ -22,6 +24,7 @@ use serde::{Deserialize, Serialize};
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum GpioPin { G0, G1, G2, G3, G4, G5, G6, G7 }
 
 impl GpioPin {
@@ -51,7 +54,7 @@ impl From<GpioPin> for usize {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum GpioState {
     Input,
     Output,
@@ -65,7 +68,7 @@ pub enum GpioState {
     Disabled,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioPinArr<T>(pub [T; GpioPin::NUM_PINS]);
 
 // For when we have const functions:
@@ -106,23 +109,23 @@ impl<T> IndexMut<GpioPin> for GpioPinArr<T> {
 
 // pub type GpioPinArr<T> = [T; GpioPin::NUM_PINS];
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioMiscError;
 
 type GpioStateMismatch = (GpioPin, GpioState);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioReadError(pub GpioStateMismatch);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioWriteError(pub GpioStateMismatch);
 
 pub type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioReadErrors(pub GpioStateMismatches);
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
 
 // #[derive(Copy, Clone)]

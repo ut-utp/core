@@ -298,10 +298,11 @@ pub fn __() -> () {}
 pub mod util {
     /// Associated types and other weird bits for the LC-3 ISA.
     use crate::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS};
+
     use core::ops::{Deref, DerefMut};
 
     // Newtype
-    #[derive(Clone)]
+    #[derive(Clone)] // TODO: impl Debug + PartialEq/Eq + Ser/De + Hash
     pub struct MemoryDump(pub [Word; ADDR_SPACE_SIZE_IN_WORDS]);
     impl Deref for MemoryDump {
         type Target = [Word; ADDR_SPACE_SIZE_IN_WORDS];
@@ -359,7 +360,7 @@ pub mod util {
     }
 
     // Newtype
-    #[derive(Clone)]
+    #[derive(Clone)] // TODO: impl Debug + PartialEq/Eq + Ser/De + Hash
     pub struct AssembledProgram(pub [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS]);
     impl Deref for AssembledProgram {
         type Target = AssembledProgramInner;
