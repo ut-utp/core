@@ -8,19 +8,21 @@ use std::ops::{Index, IndexMut};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_BYTES, ADDR_SPACE_SIZE_IN_WORDS};
+use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_BYTES, ADDR_SPACE_SIZE_IN_WORDS, MEM_MAPPED_START_ADDR};
 use lc3_isa::util::MemoryDump;
 use lc3_traits::memory::Memory;
 use lc3_traits::control::metadata::ProgramMetadata;
+use lc3_traits::control::load::{PageIndex, Index as PIdx, PageAccess, PAGE_SIZE_IN_WORDS};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use super::error::MemoryShimError;
 
 pub struct FileBackedMemoryShim {
-    path: PathBuf,
-    memory: [Word; ADDR_SPACE_SIZE_IN_WORDS],
-    metadata: ProgramMetadata,
+    pub path: PathBuf,
+    pub mem: [Word; ADDR_SPACE_SIZE_IN_WORDS],
+    pub current: [Word; ADDR_SPACE_SIZE_IN_WORDS],
+    pub metadata: ProgramMetadata,
 }
 
 impl Default for FileBackedMemoryShim {
@@ -36,7 +38,8 @@ impl FileBackedMemoryShim {
     ) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
-            memory: *memory,
+            mem: *memory.clone(),
+            current: *memory,
             metadata: ProgramMetadata::new_modified_now(&memory),
         }
     }
@@ -55,8 +58,17 @@ impl FileBackedMemoryShim {
         Self::with_initialized_memory(path, [0u16; ADDR_SPACE_SIZE_IN_WORDS].into())
     }
 
-    pub fn flush(&mut self) -> Result<(), MemoryShimError> {
-        write_to_file(&self.path, &self.memory)?;
+    // Note: this writes the changes in the 'temporary' copy of memory and
+    // completely ignores the persistent copy!
+    //
+    // If you wish to make changes to the persistent copy, use the commit_page
+    // function that's part of the memory trait.
+    //
+    // In flushing the changes, this will also replace the persistent copy
+    // with the temporary copy (as well as write it into the file).
+    pub fn flush_all_changes(&mut self) -> Result<(), MemoryShimError> {
+        self.mem = self.current.clone();
+        write_to_file(&self.path, &self.mem)?;
         self.metadata.updated_now();
 
         Ok(())
@@ -69,7 +81,7 @@ impl FileBackedMemoryShim {
 
 impl From<FileBackedMemoryShim> for MemoryDump {
     fn from(mem: FileBackedMemoryShim) -> MemoryDump {
-        mem.memory.into()
+        mem.mem.into()
     }
 }
 
@@ -77,17 +89,41 @@ impl Index<Addr> for FileBackedMemoryShim {
     type Output = Word;
 
     fn index(&self, addr: Addr) -> &Self::Output {
-        &self.memory[TryInto::<usize>::try_into(addr).unwrap()]
+        &self.current[TryInto::<usize>::try_into(addr).unwrap()]
     }
 }
 
 impl IndexMut<Addr> for FileBackedMemoryShim {
     fn index_mut(&mut self, addr: Addr) -> &mut Self::Output {
-        &mut self.memory[TryInto::<usize>::try_into(addr).unwrap()]
+        &mut self.current[TryInto::<usize>::try_into(addr).unwrap()]
     }
 }
 
 impl Memory for FileBackedMemoryShim {
+    // Note: doesn't wipe out the corresponding page from the temporary memory.
+    // Must call reset for that to happen.
+    fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
+        assert!(page_idx < MEM_MAPPED_START_ADDR.page_idx());
+
+        // TODO: right now we have three copies: the file, the in memory
+        // persistent copy, and the in memory temporary copy. We only actually
+        // need two; the file and the in memory persistent copy should be the
+        // same which makes the in memory persistent copy redundant.
+        //
+        // Once we figure out how to write to only a page of memory in a file
+        // (and how to account for edge cases like the file changing underneath
+        // us), we can get rid of the in memory persistent copy (`self.mem`).
+        self.mem[PIdx(page_idx).as_index_range()].copy_from_slice(page);
+
+        write_to_file(&self.path, &self.mem).unwrap(); // note: crashes
+        self.metadata.updated_now();
+    }
+
+    fn reset(&mut self) {
+        // TODO: once we do the above this will become a file read call
+        self.current = self.mem.clone();
+    }
+
     fn get_program_metadata(&self) -> ProgramMetadata {
         self.metadata.clone()
     }
