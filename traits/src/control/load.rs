@@ -243,6 +243,60 @@ impl LoadMemoryProgressSource for Progress {
         self.sent_unique_chunks.store(self.sent_unique_chunks.load(Relaxed) + (num_successful_chunks as usize), Relaxed);
     }
 }
+impl LoadMemoryProgress for Progress {
+    fn progress(&self) -> f32 {
+        // We have options here.
+
+        // An easy one is just:
+        // `(1f32 - (self.remaining_pages / self.total_pages))`
+
+        // A pessimistic one is:
+        // ```
+        // let remaining_chunks = self.remaining_pages * CHUNKS_IN_A_PAGE;
+        // let total_chunks = remaining_chunks + self.sent_unique_chunks;
+        // (1f32 - (remaining_chunks / total_chunks))
+        // ```
+
+        // One that updates as we send chunks (not just as we send pages) and
+        // also tries to factor in the ratio of failed chunks:
+        // let sent_unique_chunks = self.sent_unique_chunks.load(Relaxed);
+        // let success_ratio: f32 = (sent_chunks as f32) / (sent_unique_chunks as f32);
+
+        let remaining_pages = self.remaining_pages.load(Relaxed);
+        let total_pages = self.total_pages.load(Relaxed);
+        let successfully_sent_pages = total_pages - remaining_pages;
+        let base: f32 = successfully_sent_pages as f32 / total_pages as f32;
+        // let base: f32 = 1f32 - ((remaining_pages as f32) / (total_pages as f32));
+
+        // Alternative ratio:
+        // let sent_pages = self.sent_pages.load(Relaxed);
+        // let chunks_per_page = ((sent_pages as f32) / (successfully_sent_pages as f32)) * (CHUNKS_IN_A_PAGE as f32);
+
+        // Ratio:
+        let sent_chunks = self.sent_chunks.load(Relaxed);
+        let chunks_per_page: f32 = (sent_chunks as f32) / (successfully_sent_pages as f32);
+        // ^ factors in the success ratio for chunks and assumes that the
+        // non-zero data density is the same across all pages (a flawed
+        // assumption, probably)
+
+        // Based on the above ratio and the number of chunks we are into the
+        // current page, estimate our progress *for the current page*:
+        let chunks_into_current_page = self.sent_chunks_for_page.load(Relaxed);
+        let current_page_progress: f32 = chunks_into_current_page as f32 / chunks_per_page;
+        let current_page_progress = current_page_progress.max(1.0);
+
+        // Scale it and add to the total percentage:
+        base + (current_page_progress / (total_pages as f32))
+    }
+
+    fn success_rate(&self) -> f32 {
+        // (num successful chunks) / (num total sent chunks)
+        let successful = self.sent_unique_chunks.load(Relaxed);
+        let total_sent = self.sent_chunks.load(Relaxed);
+
+        (successful as f32) / (total_sent as f32)
+    }
+}
 
 impl Progress {
     pub const fn new() -> Progress {
