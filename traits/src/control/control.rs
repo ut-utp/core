@@ -76,7 +76,7 @@ pub trait Control {
     //
     // Note: you can 'end' a session by calling this without any real warning..
     // Update: no longer.
-    fn start_write_page(&mut self, page: LoadApiSession<PageWriteStart>, checksum: u64) -> Result<LoadApiSession<PageIndex>, StartPageWriteError>;
+    fn start_page_write(&mut self, page: LoadApiSession<PageWriteStart>, checksum: u64) -> Result<LoadApiSession<PageIndex>, StartPageWriteError>;
 
     // We debated a bit on whether the address here should be a u8 (page offset)
     // or a Word (full address).
@@ -105,7 +105,7 @@ pub trait Control {
     //
     // So, we'll take a chunk that must have 8 specified Words and we'll error
     // if the chunk spans the correct page and another page.
-    fn send_page_chunk(&mut self, offset: LoadApiSession<Offset>, chunk: &[Word; CHUNK_SIZE_IN_WORDS as usize]) -> Result<(), PageChunkError>;
+    fn send_page_chunk(&mut self, offset: LoadApiSession<Offset>, chunk: [Word; CHUNK_SIZE_IN_WORDS as usize]) -> Result<(), PageChunkError>;
 
     // moves the value making it impossible to call send_page_chunk again without calling start_page_write
     // checksum mismatch is the only remaining possible error

@@ -412,7 +412,7 @@ pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &M
                 let page = unsafe { LoadApiSession::new(p_idx as PageIndex) }.unwrap();
 
                 p!(p -> p.page_attempt());
-                match sim.start_write_page(page, checksum) {
+                match sim.start_page_write(page, checksum) {
                     Ok(token) => token,
                     Err(StartPageWriteError::InvalidPage { .. }) => unreachable!(),
                     Err(StartPageWriteError::UnfinishedSessionExists { unfinished_page }) => {
