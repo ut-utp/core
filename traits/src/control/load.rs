@@ -356,3 +356,51 @@ using_std! {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LoadMemoryDumpError {
+    MemMappedPagesNotEmpty,
+    ExistingUnfinishedSession { unfinished_page: PageIndex },
+}
+
+#[inline]
+pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, previous: Option<&MemoryDump>, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
+    // Because this takes a mutable reference to the Control impl, we're
+    // basically guaranteeing exclusive access to the Control impl so we can
+    // ensure that there are no calls to other functions on the Control trait
+    // once we start a session (allowing us to be sure that we're maintaining
+    // the invariant required to make constructing and using a
+    // LoadApiSession<PageWriteStart> safe).
+
+    macro_rules! p {
+        ($p:ident -> $($all:tt)*) => { if let Some($p) = progress { $($all)* }};
+    }
+
+    let mut num_to_write: usize = NUM_PAGES - NUM_MEM_MAPPED_PAGES;
+    let mut write_or_not = [true; NUM_PAGES - NUM_MEM_MAPPED_PAGES]; // : [bool; NUM_PAGES - NUM_MEM_MAPPED_PAGES]
+
+    // First, let's check that we're not being told to write to the mem mapped
+    // area (which we can't do):
+    if (MEM_MAPPED_START_ADDR..=ADDR_MAX_VAL).map(|addr| dump[addr as usize]).any(|v| v != 0) {
+        return Err(LoadMemoryDumpError::MemMappedPagesNotEmpty)
+    }
+    // for addr in MEM_MAPPED_START_ADDR..=ADDR_MAX_VAL {
+    //     if dump[addr] != 0 { return Err(LoadMemoryDumpError::MemMappedPagesNotEmpty) }
+    // }
+
+    // Next, if we were given a previous MemoryDump to diff against, do that:
+    // (mark unmodified pages as being the same)
+    if let Some(previous) = previous {
+        for p_idx in 0..(MEM_MAPPED_START_ADDR.page_idx()) {
+            write_or_not[p_idx as usize] = (0..=PAGE_SIZE_IN_WORDS)
+                .map(|offset| Index(p_idx).with_offset(offset as PageOffset) as usize)
+                .any(|addr| dump[addr] != previous[addr]);
+
+            if !write_or_not[p_idx as usize] { num_to_write -= 1; }
+        }
+    }
+
+    p!(p -> p.total_number_of_pages_to_send(num_to_write));
+
+    Ok(())
+}
+
