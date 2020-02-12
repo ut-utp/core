@@ -230,7 +230,7 @@ pub enum Instruction {
     AndImm { dr: Reg, sr1: Reg, imm5: Sw },         // RR5
     Br { n: bool, z: bool, p: bool, offset9: Sw },  // nzp9
     Jmp { base: Reg },                              // B
-    Jsr { offset11: Sw },                           // a
+    Jsr { offset11: Sw },                           // b
     Jsrr { base: Reg },                             // B
     Ld { dr: Reg, offset9: Sw },                    // R9
     Ldi { dr: Reg, offset9: Sw },                   // R9
@@ -622,12 +622,12 @@ pub trait Bits: Sized + Copy {
     fn bits(self, range: Range<u32>) -> usize;
 
     fn u8(self, range: Range<u32>) -> u8 {
-        assert!(range.end - range.start <= 8);
+        assert!(range.end - range.start < 8);
         self.bits(range) as u8
     }
 
     fn i8(self, range: Range<u32>) -> i8 {
-        assert!(range.end - range.start <= 8);
+        assert!(range.end - range.start < 8);
 
         (if self.bit(range.end) {
             core::u8::MAX << (range.end - range.start)
@@ -637,7 +637,7 @@ pub trait Bits: Sized + Copy {
     }
 
     fn u16(self, range: Range<u32>) -> u16 {
-        assert!(range.end - range.start <= 16);
+        assert!(range.end - range.start < 16);
         self.bits(range) as u16
     }
 
@@ -651,7 +651,7 @@ pub trait Bits: Sized + Copy {
     }
 
     fn i16(self, range: Range<u32>) -> i16 {
-        assert!(range.end - range.start <= 16);
+        assert!(range.end - range.start < 16);
 
         (if self.bit(range.end) {
             core::u16::MAX << (range.end - range.start)
@@ -661,12 +661,12 @@ pub trait Bits: Sized + Copy {
     }
 
     fn u32(self, range: Range<u32>) -> u32 {
-        assert!(range.end - range.start <= 32);
+        assert!(range.end - range.start < 32);
         self.bits(range) as u32
     }
 
     fn i32(self, range: Range<u32>) -> i32 {
-        assert!(range.end - range.start <= 32);
+        assert!(range.end - range.start < 32);
 
         (if self.bit(range.end) {
             core::u32::MAX << (range.end - range.start)
