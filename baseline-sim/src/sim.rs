@@ -255,26 +255,34 @@ where
     }
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
-        if self.num_set_breakpoints == MAX_BREAKPOINTS {
-            Err(())
-        } else {
-            // Scan for the next open slot:
-            let mut next_free: usize = 0;
-
-            while let Some(_) = self.breakpoints[next_free] {
-                next_free += 1;
+        // Scan for the next open slot:
+        for (idx, bp) in self.breakpoints.iter_mut().enumerate() {
+            if let Some(a) = bp {
+                // For each set breakpoint, check if it's already the one we
+                // want:
+                // (note that this doesn't increment the number of set
+                // breakpoints since it's not adding a new one)
+                if addr == *a {
+                    return Ok(idx)
+                }
+            } else {
+                // If we reach an empty slot, use it.
+                self.num_set_breakpoints += 1;
+                *bp = Some(addr);
+                return Ok(idx)
             }
-
-            assert!(next_free < MAX_BREAKPOINTS, "Invariant violated.");
-
-            self.breakpoints[next_free] = Some(addr);
-            Ok(next_free)
         }
+
+        Err(())
     }
 
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
         if idx < MAX_BREAKPOINTS {
-            self.breakpoints[idx].take().map(|_| ()).ok_or(())
+            self.breakpoints[idx].take().map(|_| {
+                // If we actually removed a breakpoint, subtract the count:
+                self.num_set_breakpoints -= 1;
+                ()
+            }).ok_or(())
         } else {
             Err(())
         }
@@ -286,26 +294,35 @@ where
 
     // TODO: breakpoints and watchpoints look macroable
     fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
-        if self.num_set_watchpoints == MAX_MEMORY_WATCHPOINTS {
-            Err(())
-        } else {
-            // Scan for the next open slot:
-            let mut next_free: usize = 0;
+        let current_val = self.read_word(addr); // TODO: is read_word okay? What if this is a mem mapped address.
+        // TODO: maybe move this into the right spot and fix the borrow checker issues.
 
-            while let Some(_) = self.watchpoints[next_free] {
-                next_free += 1;
+        // Scan for the next open slot:
+        for (idx, wp) in self.watchpoints.iter_mut().enumerate() {
+            if let Some((a, _)) = wp {
+                // For each watchpoint, check if it's already for the memory
+                // location we want (note: doesn't increment the count):
+                if addr == *a {
+                    return Ok(idx)
+                }
+            } else {
+                // If we reach an empty slot, use it.
+                self.num_set_watchpoints += 1;
+                *wp = Some((addr, current_val));
+                return Ok(idx)
             }
-
-            assert!(next_free < MAX_MEMORY_WATCHPOINTS, "Invariant violated.");
-
-            self.watchpoints[next_free] = Some((addr, self.read_word(addr)));
-            Ok(next_free)
         }
+
+        Err(())
     }
 
     fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
         if idx < MAX_MEMORY_WATCHPOINTS {
-            self.watchpoints[idx].take().map(|_| ()).ok_or(())
+            self.watchpoints[idx].take().map(|_| {
+                // If we actually removed a watchpoint, subtract the count:
+                self.num_set_watchpoints -= 1;
+                ()
+            }).ok_or(())
         } else {
             Err(())
         }
