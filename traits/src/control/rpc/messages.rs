@@ -44,7 +44,8 @@ static __REQ_SIZE_CHECK: () = {
     canary[s - 32] // panic if the size of RequestMessage changes
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum RequestMessage { // messages for everything but tick()
     GetPc,
@@ -108,7 +109,8 @@ static __RESP_SIZE_CHECK: () = {
     canary[s - 72] // panic if the size of ResponseMessage changes
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum ResponseMessage { // messages for everything but tick()
     GetPc(Addr),
