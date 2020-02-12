@@ -79,3 +79,37 @@ pub struct PageWriteStart(pub PageIndex);
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoadApiSession<State>(State);
 
+// The order goes:
+//
+// -> LoadApiSession<PageWriteStart> -> Result<LoadApiSession<Index>, _>
+//                       /----------------------->  |
+//                      /                           v
+//             LoadApiSession<Offset>  <--  LoadApiSession<Index>
+//                      |                           |
+//                      v                           v
+//     send_page_chunk(...) /* moves */     finish(...) /* _consumes_ */
+
+// Alternatively, to make it so that you can't start a new session without the
+// old one being finished (this is a Trade Off):
+//
+// static TOKEN: Cell<Option<LoadApiSession<Empty>>> = Cell::new(Some(...));
+//
+//             LoadApiSession<Empty>
+//                      |
+//                      v
+// LoadApiSession::new(..., page: PageIndex) -> Result<LoadApiSession<PageWriteStart>, _>
+//                                                                 |
+// /---------------------------------------------------------------/
+// |
+// \-> LoadApiSession<PageWriteStart> -> Result<LoadApiSession<Index>, _>
+//                        /----------------------->  |
+//                       /                           v
+//              LoadApiSession<Offset>  <--  LoadApiSession<Index>
+//                       |                           |
+//                       v                           v  /* _consumes_ */
+//      send_page_chunk(...) /* moves */     finish(...) -> Result<LoadApiSession<Empty>, LoadApiSession<Empty>>
+//                                                                          |                    |
+//                                                                          v                    V
+//                                         (can be used to start a new session)    (return the same on error
+//                                                                                    so you can start again)
+//
