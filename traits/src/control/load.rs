@@ -464,3 +464,14 @@ pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &M
     Ok(())
 }
 
+pub fn load_whole_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
+    load_memory_dump(sim, dump, None, progress)
+}
+
+pub fn load_memory_dump_without_progress<C: Control>(sim: &mut C, dump: &MemoryDump, previous: &MemoryDump) -> Result<(), LoadMemoryDumpError> {
+    load_memory_dump::<_, Progress>(sim, dump, Some(previous), None)
+}
+
+pub fn load_whole_memory_dump_without_progress<C: Control>(sim: &mut C, dump: &MemoryDump) -> Result<(), LoadMemoryDumpError> {
+    load_whole_memory_dump::<_, Progress>(sim, dump, None)
+}
