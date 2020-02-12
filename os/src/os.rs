@@ -1096,7 +1096,7 @@ fn os() -> AssembledProgram {
         // Sets mode of ADC pin
         // R0 = ADC pin to set mode of
         // R1 = mode to set
-        @TRAP_SET_ADC_MODE
+        @SET_ADC_MODE
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
@@ -1112,6 +1112,33 @@ fn os() -> AssembledProgram {
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
+
+        // Disables the ADC by setting R1 to 1, which calls the SET_ADC_MODE
+        // and disables ADC
+        // Preserves values of R7, R0
+
+        @SET_ADC_DISABLE
+           ST R0, @OS_R0_SUB;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
+           JSR @SET_ADC_MODE;
+           LD R0, OS_R0_SUB;
+           LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
+           RTI;
+
+        // Enables the ADC by setting R1 to 1, which calls the SET_ADC_MODE
+        // and enables ADC
+        // Preserves values of R7, R0
+
+        @SET_ADC_ENABLE
+           ST R0, @OS_R0_SUB;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0; //sets mode to 1, to enable ADC
+           ADD R1, R1, #1;
+           JSR @SET_ADC_MODE;
+           LD R0, @OS_R0_SUB;
+           LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
+           RTI;
 
         // Reads and returns mode of ADC pin
         // R0 = ADC pin to read from
