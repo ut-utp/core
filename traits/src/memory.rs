@@ -43,6 +43,10 @@ impl IndexMut<Addr> for MemoryStub {
 }
 
 impl Memory for MemoryStub {
+    fn commit_page(&mut self, _page_idx: PageIndex, _page: &[Word; PAGE_SIZE_IN_WORDS as usize]) { }
+
+    fn reset(&mut self) { self.0 = 0 }
+
     fn get_program_metadata(&self) -> ProgramMetadata {
         ProgramMetadata::default()
     }
