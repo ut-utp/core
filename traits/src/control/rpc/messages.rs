@@ -2,6 +2,10 @@
 
 use super::{State, Event};
 use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::load::{
+    LoadApiSession, CHUNK_SIZE_IN_WORDS, PageWriteStart, PageIndex, Offset,
+    StartPageWriteError, PageChunkError, FinishPageWriteError
+};
 use crate::control::{ProgramMetadata, DeviceInfo};
 use crate::error::Error as Lc3Error;
 use crate::peripherals::{
@@ -55,6 +59,10 @@ pub enum RequestMessage { // messages for everything but tick()
 
     ReadWord { addr: Addr },
     WriteWord { addr: Addr, word: Word },
+
+    StartPageWrite { page: LoadApiSession<PageWriteStart>, checksum: u64 },
+    SendPageChunk { offset: LoadApiSession<Offset>, chunk: [Word; CHUNK_SIZE_IN_WORDS as usize] },
+    FinishPageWrite { page: LoadApiSession<PageIndex> },
 
     SetBreakpoint { addr: Addr },
     UnsetBreakpoint { idx: usize },
@@ -115,6 +123,10 @@ pub enum ResponseMessage { // messages for everything but tick()
 
     ReadWord(Word),
     WriteWord,
+
+    StartPageWrite(Result<LoadApiSession<PageIndex>, StartPageWriteError>),
+    SendPageChunk(Result<(), PageChunkError>),
+    FinishPageWrite(Result<(), FinishPageWriteError>),
 
     SetBreakpoint(Result<usize, ()>),
     UnsetBreakpoint(Result<(), ()>),
