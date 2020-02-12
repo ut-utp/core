@@ -10,6 +10,7 @@ use lc3_isa::{
     USER_PROGRAM_START_ADDR,
 };
 use lc3_traits::control::metadata::{Identifier, ProgramMetadata};
+use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
@@ -90,6 +91,8 @@ pub trait InstructionInterpreter:
     fn halt(&mut self); // TODO: have the MCR set this, etc.
 
     // Taken straight from Memory:
+    fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
+
     fn get_program_metadata(&self) -> ProgramMetadata;
     fn set_program_metadata(&mut self, metadata: ProgramMetadata);
 
@@ -988,6 +991,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
 
         self.state = MachineState::Halted;
+    }
+
+    fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
+        self.memory.commit_page(page_idx, page)
     }
 
     fn get_program_metadata(&self) -> ProgramMetadata {
