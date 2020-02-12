@@ -192,6 +192,36 @@ impl LoadApiSession<PageWriteStart> {
            Ok(LoadApiSession(PageWriteStart(page)))
         }
     }
+
+    // The device side version of the above.
+    //
+    // Ideally this would be a private function that only things within this
+    // module can call, thereby ensuring that 'user code' can't construct a
+    // `LoadApiSession<Index>` and circumvent the steps in the Control
+    // interface.
+    //
+    // Unfortunately, if we made this private all implementors would have to
+    // live in this module (or this crate) which is unacceptable.
+    //
+    // What we really want is some way for users of this function to prove to
+    // us that they are a Control interface implementor (this is still
+    // problematic since users could go and have a 'fake' Control impl for the
+    // purpose of circumventing the steps) which we have no way to do.
+    //
+    // So for now, we just mark this function as unsafe. Control interface
+    // implementors can safely this with no problems.
+    #[allow(unsafe_code)]
+    pub unsafe fn approve(self) -> Result<LoadApiSession<PageIndex>, StartPageWriteError> {
+        // If they managed to construct a `LoadApiSession<PageIndex>`, the page
+        // is valid, but it never hurts to check again:
+        let page = self.get().0;
+
+        if page >= MEM_MAPPED_START_ADDR.page_idx() {
+            Err(StartPageWriteError::InvalidPage { page })
+        } else {
+            Ok(LoadApiSession(page))
+        }
+    }
 }
 
 impl LoadApiSession<PageIndex> {

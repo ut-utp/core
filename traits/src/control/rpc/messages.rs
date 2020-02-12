@@ -99,6 +99,8 @@ pub enum RequestMessage { // messages for everything but tick()
 
     GetInfo,
     SetProgramMetadata { metadata: ProgramMetadata },
+
+    // no id!
 }
 
 #[allow(dead_code)]
@@ -164,4 +166,6 @@ pub enum ResponseMessage { // messages for everything but tick()
 
     GetInfo(DeviceInfo),
     SetProgramMetadata,
+
+    // no id!
 }
