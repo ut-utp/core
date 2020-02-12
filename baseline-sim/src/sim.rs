@@ -1,12 +1,20 @@
 //! TODO!
 
 use crate::interp::{InstructionInterpreter, InstructionInterpreterPeripheralAccess, MachineState};
+use crate::mem_mapped::{MemMapped, KBDR};
 
 use lc3_isa::{Addr, Reg, Word};
 use lc3_traits::control::{Control, Event, State};
 use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
 use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo};
-use lc3_traits::control::rpc::{EventFutureSharedStatePorcelain, SimpleEventFutureSharedState, EventFuture};
+use lc3_traits::control::load::{
+    PageIndex, PageWriteStart, StartPageWriteError, PageChunkError,
+    FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS,
+    PAGE_SIZE_IN_WORDS, Index, hash_page, PageAccess,
+};
+use lc3_traits::control::rpc::{
+    EventFutureSharedStatePorcelain, SimpleEventFutureSharedState, EventFuture
+};
 use lc3_traits::error::Error;
 use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcReadError, AdcState};
 use lc3_traits::peripherals::clock::Clock;
@@ -15,13 +23,41 @@ use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
 use lc3_traits::peripherals::timers::{TimerArr, TimerState, Timers};
 use lc3_traits::peripherals::Peripherals;
 
-use crate::mem_mapped::{MemMapped, KBDR};
-
 // use core::future::Future;
 use core::marker::PhantomData;
 use core::ops::Deref;
+use core::fmt::{self, Debug};
 // use core::pin::Pin;
 // use core::task::{Context, Poll};
+
+#[derive(Clone)]
+enum LoadApiState {
+    NoSession,
+    Session {
+        checksum: u64,
+        page_idx: PageIndex,
+        page: [Word; PAGE_SIZE_IN_WORDS as usize],
+    }
+}
+
+impl Default for LoadApiState {
+    fn default() -> Self { Self::NoSession }
+}
+
+impl Debug for LoadApiState {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LoadApiState::NoSession => write!(fmt, "LoadApiState::NoSession"),
+            LoadApiState::Session { checksum, page_idx, .. } => {
+                write!(fmt,
+                    "LoadApiState::Session {{ checksum: {:?}, page_idx: {:?}, page: [ ... ] }}",
+                    checksum,
+                    page_idx
+                )
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Simulator<'a, 's, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain = SimpleEventFutureSharedState>
@@ -35,6 +71,7 @@ where
     num_set_watchpoints: usize,
     state: State,
     shared_state: Option<&'s S>,
+    load_api_state: LoadApiState,
     _i: PhantomData<&'a ()>,
 }
 
@@ -61,6 +98,7 @@ where
             num_set_watchpoints: 0,
             state: State::Paused,
             shared_state: None,
+            load_api_state: LoadApiState::default(),
             _i: PhantomData,
         }
     }
@@ -108,10 +146,6 @@ where
         self.interp.set_register(reg, data)
     }
 
-    fn write_word(&mut self, addr: Addr, word: Word) {
-        self.interp.set_word_unchecked(addr, word)
-    }
-
     fn read_word(&self, addr: Addr) -> Word {
         // Our one stateful read
         // TODO: banish this from the codebase
@@ -120,6 +154,104 @@ where
         }
 
         self.interp.get_word_unchecked(addr)
+    }
+
+    fn write_word(&mut self, addr: Addr, word: Word) {
+        self.interp.set_word_unchecked(addr, word)
+    }
+
+    fn start_page_write(
+        &mut self,
+        page: LoadApiSession<PageWriteStart>,
+        checksum: u64,
+    ) -> Result<LoadApiSession<PageIndex>, StartPageWriteError> {
+        use {LoadApiState::*, StartPageWriteError::*};
+        match self.load_api_state {
+            NoSession => {
+                #[allow(unsafe_code)]
+                let ret = unsafe { page.approve() }?;
+
+                // If we're still here, set things up for the session:
+                self.load_api_state = Session {
+                    page_idx: ret.get(),
+                    checksum,
+                    page: [0; PAGE_SIZE_IN_WORDS as usize],
+                };
+
+                Ok(ret)
+            },
+            Session { page_idx, .. } => {
+                Err(UnfinishedSessionExists { unfinished_page: page_idx })
+            }
+        }
+    }
+
+    fn send_page_chunk(
+        &mut self,
+        offset: LoadApiSession<Offset>,
+        chunk: [Word; CHUNK_SIZE_IN_WORDS as usize],
+    ) -> Result<(), PageChunkError> {
+        use {LoadApiState::*, PageChunkError::*};
+        match self.load_api_state {
+            NoSession => Err(NoCurrentSession),
+            Session { page_idx, ref mut page, .. } => {
+                let start_addr = Index(page_idx).with_offset(offset.get().0);
+                let end_addr = start_addr
+                    .checked_add((CHUNK_SIZE_IN_WORDS - 1) as Addr)
+                    .filter(|e| start_addr.page_idx() == e.page_idx())
+                    .ok_or(ChunkCrossesPageBoundary { page: page_idx, received_address: start_addr })?;
+
+                // let end_addr = if let Some(end_addr) = start_addr.checked_add((CHUNK_SIZE_IN_WORDS - 1) as Addr) {
+                //     if start_addr.page_idx() != end_addr.page_idx()
+                // } else {
+                //     return Err(ChunkCrossesPageBoundary { page: page_idx, received_addr: start_addr })
+                // }
+
+                page[(start_addr.page_offset() as usize)..=(end_addr.page_offset() as usize)]
+                    .copy_from_slice(&chunk);
+
+                Ok(())
+            }
+        }
+
+    }
+
+    fn finish_page_write(
+        &mut self,
+        page_token: LoadApiSession<PageIndex>,
+    ) -> Result<(), FinishPageWriteError> {
+        use {LoadApiState::*, FinishPageWriteError::*};
+        match self.load_api_state {
+            NoSession => Err(NoCurrentSession),
+            Session { page_idx, checksum, page } => {
+                let res = (|| {
+                    let page_idx_given = page_token.get();
+                    if page_idx != page_idx_given {
+                        return Err(SessionMismatch {
+                            current_session_page: page_idx,
+                            received_page: page_idx_given,
+                        })
+                    }
+
+                    let computed_checksum = hash_page(&page);
+                    if checksum != computed_checksum {
+                        return Err(ChecksumMismatch {
+                            page: page_idx,
+                            given_checksum: checksum,
+                            computed_checksum,
+                        })
+                    }
+
+                    self.interp.commit_page(page_idx, &page);
+                    Ok(())
+                })();
+
+                // No matter what (if we succeeded or we failed) this ends the
+                // current session:
+                self.load_api_state = NoSession;
+                res
+            }
+        }
     }
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
@@ -346,7 +478,7 @@ where
 
         match self.get_state() {
             Halted | Paused => {}, // Nothing changes!
-            State::RunningUntilEvent => {
+            RunningUntilEvent => {
                 self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(Event::Interrupted);
                 self.state = Paused;
             }
