@@ -13,6 +13,7 @@ use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
 use crate::peripherals::timers::{TimerArr, TimerState};
 use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier};
+use super::load::{PageIndex, PageWriteStart, StartPageWriteError, PageChunkError, FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS};
 
 use lc3_isa::{Addr, Reg, Word, PSR};
 
@@ -48,77 +49,6 @@ pub enum State {
 //     fn make_progress(&mut self);
 // }
 
-pub type PageIndex = u8;
-pub type PageOffset = u8;
-
-// TODO!
-// sa::assert_eq!(size_of::<PageIndex>() + size_of::<PageOffset>(), size_of::<Word>());
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Index(PageIndex);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Offset(PageOffset);
-// pub struct Page(u8);
-
-pub struct PageWriteStart(PageIndex);
-
-// private field so users can't construct this
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FlashToken<T>(T);
-
-const CHUNK_SIZE: PageOffset = 8;
-
-impl FlashToken<PageWriteStart> {
-    pub unsafe fn new(page: PageIndex) -> FlashToken<PageWriteStart> { FlashToken(PageWriteStart(page)) }
-}
-
-impl FlashToken<PageIndex> {
-    // NoCurrentSession isn't possible since you can only get the parent type
-    // from a successfully started session.
-    pub fn with_offset(&self, addr: Addr) -> Result<FlashToken<Offset>, PageChunkError> {
-        if /*addr.to_le_bytes()[1]*/ (addr >> 8) as PageIndex == self.0 {
-            if let Some(v) = addr.checked_add((CHUNK_SIZE - 1) as Word) {
-                if (addr >> 8) == (v >> 8) {
-                    Ok(FlashToken(Offset(addr as PageOffset)))
-                } else {
-                    Err(PageChunkError::ChunkCrossesPageBoundary { page: self.0, received_address: addr })
-                }
-            } else {
-                Err(PageChunkError::ChunkCrossesPageBoundary { page: self.0, received_address: addr })
-            }
-        } else {
-            Err(PageChunkError::WrongPage { expected_page: self.0, received_address: addr })
-        }
-    }
-}
-
-// impl FlashToken<()> {
-//     #[allow(unsafe_code)]
-//     pub unsafe fn new() -> FlashToken<()> { FlashToken(()) }
-// }
-
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PageChunkError {
-    NoCurrentSession,
-    WrongPage { expected_page: u8, received_address: Addr, },
-    ChunkCrossesPageBoundary { page: u8, received_address: Addr, },
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum StartPageWriteError {
-    InvalidPage { page: u8 }, // Only the mem-mapped page should be invalid...
-    UnfinishedSessionExists { unfinished_page: u8 },
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum FinishPageWriteError {
-    NoCurrentSession,
-    SessionMismatch { current_session_page: u8, received_page: u8 },
-    ChecksumMismatch { page: u8, given_checksum: u64, computed_checksum: u64 },
-}
-
 pub trait Control {
     type EventFuture: Future<Output = Event>;
 
@@ -146,7 +76,7 @@ pub trait Control {
     //
     // Note: you can 'end' a session by calling this without any real warning..
     // Update: no longer.
-    fn start_write_page(&mut self, page: FlashToken<PageWriteStart>, checksum: u64) -> Result<FlashToken<PageIndex>, StartPageWriteError>;
+    fn start_write_page(&mut self, page: LoadApiSession<PageWriteStart>, checksum: u64) -> Result<LoadApiSession<PageIndex>, StartPageWriteError>;
 
     // We debated a bit on whether the address here should be a u8 (page offset)
     // or a Word (full address).
@@ -175,18 +105,16 @@ pub trait Control {
     //
     // So, we'll take a chunk that must have 8 specified Words and we'll error
     // if the chunk spans the correct page and another page.
-    fn send_page_chunk(&mut self, offset: FlashToken<Offset>, chunk: [Word; CHUNK_SIZE as usize]) -> Result<(), PageChunkError>;
+    fn send_page_chunk(&mut self, offset: LoadApiSession<Offset>, chunk: &[Word; CHUNK_SIZE_IN_WORDS as usize]) -> Result<(), PageChunkError>;
 
     // moves the value making it impossible to call send_page_chunk again without calling start_page_write
-    //
     // checksum mismatch is the only remaining possible error
 
     // NOTE: this function must dump any resident (i.e. modified) copies of this
-    // page!
-    // Actually nevermind. This doesn't work in the case where we don't send
-    // 'unmodified' pages. So, to complete a flash (or have it actually take
-    // effect) you should call reset.
-    fn finish_page_write(&mut self, page: FlashToken<PageIndex>) -> Result<(), FinishPageWriteError>;
+    // page! Actually nevermind. This doesn't work in the case where we don't
+    // send 'unmodified' pages. So, to complete a flash (or have it actually
+    // take effect) you should call reset.
+    fn finish_page_write(&mut self, page: LoadApiSession<PageIndex>) -> Result<(), FinishPageWriteError>;
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;

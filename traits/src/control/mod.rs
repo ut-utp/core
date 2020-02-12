@@ -2,6 +2,9 @@
 pub mod control;
 pub use control::{Control, Event, State};
 
+pub mod load;
+pub use load::load_memory_dump;
+
 pub mod metadata;
 pub use metadata::{
     AnyExt, Capabilities, DeviceInfo, Identifier, ProgramId, ProgramMetadata, TypeIdExt,
