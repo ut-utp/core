@@ -113,3 +113,53 @@ pub struct LoadApiSession<State>(State);
 //                                         (can be used to start a new session)    (return the same on error
 //                                                                                    so you can start again)
 //
+impl LoadApiSession<PageWriteStart> {
+    /// This is still unsafe since there's one major error case that we don't
+    /// try to detect or report: calling other functions whilst in the middle of
+    /// a load session.
+    ///
+    /// We still recommend that you just use [the porcelain](load_memory_dump) but if you
+    /// want to do things manually, you must ensure that you do not call any
+    /// other functions on [`Control`](crate::control::Control). If this
+    /// invariant is not upheld, while memory safety issues will *not* occur
+    /// (there is no _real_ unsafe code anywhere here), we make no guarantees
+    /// about the data in [`Memory`](crate::memory::Memory).
+    ///
+    /// Additionally, we recommend you use [`load_memory_dump`] so you don't
+    /// have to do the hashes yourself though note that computing the hashes
+    /// wrong on the client side isn't an issue the way the previous thing
+    /// (calling other functions during a load) is. At worst, you'll end up with
+    /// the wrong data in the current page and not know it.
+    #[allow(unsafe_code)]
+    pub unsafe fn new(page: PageIndex) -> Result<LoadApiSession<PageWriteStart>, StartPageWriteError> {
+        if page >= MEM_MAPPED_START_ADDR.page_idx() {
+            Err(StartPageWriteError::InvalidPage { page })
+        } else {
+           Ok(LoadApiSession(PageWriteStart(page)))
+        }
+    }
+}
+
+impl LoadApiSession<PageIndex> {
+    // NoCurrentSession isn't possible since you can only get the parent type
+    // from a successfully started session.
+    pub fn with_offset(&self, addr: Addr) -> Result<LoadApiSession<Offset>, PageChunkError> {
+        if addr.page_idx() == self.0 {
+            if let Some(last) = addr.checked_add((CHUNK_SIZE_IN_WORDS - 1) as Word) {
+                if addr.page_idx() == last.page_idx() {
+                    Ok(LoadApiSession(Offset(addr.page_offset())))
+                } else {
+                    Err(PageChunkError::ChunkCrossesPageBoundary { page: self.0, received_address: addr })
+                }
+            } else {
+                // This should never happens since we don't allow writes to the
+                // end of the address space (i.e. mem mapped space) anyways and
+                // don't give you a `LoadApiSession<PageIndex>` if you try to do
+                // this.
+                unreachable!("Attempted to write past the end of the address space!");
+            }
+        } else {
+            Err(PageChunkError::WrongPage { expected_page: self.0, received_address: addr })
+        }
+    }
+}
