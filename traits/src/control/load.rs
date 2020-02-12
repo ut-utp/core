@@ -13,8 +13,10 @@ use core::hash::{Hash, Hasher};
 use core::sync::atomic::{AtomicUsize, Ordering::{SeqCst, Relaxed}};
 use core::time::Duration;
 use core::convert::TryInto;
+use core::ops::Range;
 
 use serde::{Deserialize, Serialize};
+
 
 pub type PageIndex = u8;
 pub type PageOffset = u8;
@@ -39,16 +41,24 @@ pub fn hash_page(page: &[Word]) -> u64 {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Index(PageIndex);
+pub struct Index(pub PageIndex);
 
 impl Index {
     pub const fn with_offset(&self, offset: PageOffset) -> Addr {
         (self.0 as Addr) << 8 + (offset as Addr)
     }
+
+    pub const fn as_index(&self) -> usize {
+        (self.0 as usize) << 8
+    }
+
+    pub const fn as_index_range(&self) -> Range<usize> {
+        self.as_index()..(Self(self.0 + 1).as_index())
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct Offset(PageOffset);
+pub struct Offset(pub PageOffset);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum StartPageWriteError {
@@ -78,6 +88,8 @@ pub struct PageWriteStart(pub PageIndex);
 // Private field so users can't construct this manually.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoadApiSession<State>(State);
+
+impl<T: Copy> LoadApiSession<T> { pub fn get(&self) -> T { self.0 } }
 
 // The order goes:
 //
