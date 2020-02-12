@@ -310,7 +310,7 @@ impl Deref for KBSR {
 }
 
 impl MemMapped for KBSR {
-    const ADDR: Addr = KBSR_ADDR; // TODO: Constants into ISA
+    const ADDR: Addr = KBSR_ADDR;
 
     fn with_value(value: Word) -> Self {
         Self(value)
@@ -510,7 +510,8 @@ macro_rules! gpio_mem_mapped {
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
-            {                let bit: bool = value.bit(0);
+            {
+                let bit: bool = value.bit(0);
                 Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
 
                 Ok(())
@@ -732,7 +733,7 @@ impl MemMapped for CLKR {
     {
         Clock::set_milliseconds(interp.get_peripherals_mut(), value);
 
-        Ok(()) // TODO: Ignore writes to ADC data register?
+        Ok(())
     }
 }
 
