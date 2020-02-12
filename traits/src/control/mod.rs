@@ -3,7 +3,7 @@ pub mod control;
 pub use control::{Control, Event, State};
 
 pub mod load;
-pub use load::load_memory_dump;
+pub use load::{load_memory_dump, Progress};
 
 pub mod metadata;
 pub use metadata::{

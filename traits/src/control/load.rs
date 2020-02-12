@@ -243,6 +243,7 @@ impl LoadMemoryProgressSource for Progress {
         self.sent_unique_chunks.store(self.sent_unique_chunks.load(Relaxed) + (num_successful_chunks as usize), Relaxed);
     }
 }
+
 impl LoadMemoryProgress for Progress {
     fn progress(&self) -> f32 {
         // We have options here.
@@ -310,17 +311,17 @@ impl Progress {
             total_pages: AtomicUsize::new(0),
         }
     }
+
+    // Delegate to `LoadMemoryProgress::progress` (since inherent functions
+    // have priority over trait functions, this won't cause name resolution
+    // problems and will make it so users don't have to `use` the trait).
+    pub fn progress(&self) -> f32 {
+        <Self as LoadMemoryProgress>::progress(self)
+    }
 }
 
 using_std! {
-    // use std::sync::{Arc, Mutex, RwLock};
     use std::time::{SystemTime, SystemTimeError};
-
-    // impl<P: LoadMemoryProgressSource> LoadMemoryProgressSource for Arc<Mutex<P>> {}
-    // impl<P: LoadMemoryProgress> LoadMemoryProgress for Arc<Mutex<P>> {}
-
-    // impl<P: LoadMemoryProgressSource> LoadMemoryProgressSource for Arc<RwLock<P>> {}
-    // impl<P: LoadMemoryProgress> LoadMemoryProgress for Arc<RwLock<P>> {}
 
     impl Progress {
         pub fn new_with_time() -> Result<Progress, SystemTimeError> {
@@ -383,9 +384,6 @@ pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &M
     if (MEM_MAPPED_START_ADDR..=ADDR_MAX_VAL).map(|addr| dump[addr as usize]).any(|v| v != 0) {
         return Err(LoadMemoryDumpError::MemMappedPagesNotEmpty)
     }
-    // for addr in MEM_MAPPED_START_ADDR..=ADDR_MAX_VAL {
-    //     if dump[addr] != 0 { return Err(LoadMemoryDumpError::MemMappedPagesNotEmpty) }
-    // }
 
     // Next, if we were given a previous MemoryDump to diff against, do that:
     // (mark unmodified pages as being the same)
