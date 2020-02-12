@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 // TODO: Identifier should probably move too, but I'm not sure to where.
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProgramId {
     Known { hash: u64 },
     Unknown,
@@ -47,7 +47,7 @@ impl ProgramId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct ProgramMetadata {
     pub id: ProgramId,
     /// Time the program was modified in seconds since the Unix epoch.
@@ -106,7 +106,7 @@ using_std! {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Identifier([u8; 4]);
 
 impl Identifier {
@@ -176,14 +176,14 @@ impl AsRef<str> for Identifier {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 // extra, optional traits
 pub struct Capabilities {
     pub storage: bool,
     pub display: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeviceInfo {
     pub current_program_metadata: ProgramMetadata,
     pub capabilities: Capabilities,

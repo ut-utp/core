@@ -189,7 +189,7 @@ pub trait Decode<Message: Debug>: Default {
 // In a softer world:
 use core::convert::TryFrom;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct CoreConvert<T>(PhantomData<T>);
 
 impl<T> Default for CoreConvert<T> {
@@ -276,7 +276,7 @@ where
 
 // First, transparent (our "base case").
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 // Essentially a type for which, `Encoded` == `Message`. Provides a no-op encode
 // and a no-op decode.
 pub struct Transparent<T: Debug>(PhantomData<T>);
@@ -306,7 +306,7 @@ impl<Message: Debug + Clone> Decode<Message> for Transparent<Message> {
 
 // Next, Pair to put together a decode with its symmetric encode.
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 // This is for symmetric encodes and decodes.
 //
 // Implementors provide:
