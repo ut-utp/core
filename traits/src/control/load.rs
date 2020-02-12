@@ -113,6 +113,17 @@ pub struct LoadApiSession<State>(State);
 //                                         (can be used to start a new session)    (return the same on error
 //                                                                                    so you can start again)
 //
+
+pub trait PageAccess {
+    fn page_idx(self) -> PageIndex;
+    fn page_offset(self) -> PageOffset;
+}
+
+impl PageAccess for Addr {
+    fn page_idx(self) -> PageIndex { self.u8(8..15) }
+    fn page_offset(self) -> PageOffset { self.u8(0..7) }
+}
+
 impl LoadApiSession<PageWriteStart> {
     /// This is still unsafe since there's one major error case that we don't
     /// try to detect or report: calling other functions whilst in the middle of
@@ -160,6 +171,89 @@ impl LoadApiSession<PageIndex> {
             }
         } else {
             Err(PageChunkError::WrongPage { expected_page: self.0, received_address: addr })
+        }
+    }
+}
+
+mod private {
+    pub(crate) trait LoadMemoryProgressSource {
+        fn total_number_of_pages_to_send(&self, pages: usize);
+
+        fn page_attempt(&self);
+        // fn page_success(&self);
+
+        fn chunk_attempt(&self);
+        // fn successful_chunks(&self, num_chunks: super::PageOffset); // should be < CHUNKS_IN_A_PAGE
+
+        fn page_success(&self, num_successful_chunks: super::PageOffset); // should be < CHUNKS_IN_A_PAGE
+    }
+}
+
+use private::LoadMemoryProgressSource;
+
+pub trait LoadMemoryProgress: LoadMemoryProgressSource {
+    fn progress(&self) -> f32;
+    fn success_rate(&self) -> f32;
+}
+
+pub struct Progress {
+    /// Duration between start time and the Unix Epoch
+    pub start_time: Option<Duration>,
+    /// Number of chunks sent, including failures
+    pub sent_chunks: AtomicUsize/*usize*/,
+    /// Number of chunks sent (including failures) since the last successful
+    /// page write
+    pub sent_chunks_for_page: AtomicUsize,
+    /// Number of unique chunks sent (each chunk is counted only once even if it
+    /// had to be sent multiple times due to failures)
+    pub sent_unique_chunks: AtomicUsize/*usize*/,
+    /// Number of pages sent, including empties and failures
+    pub sent_pages: AtomicUsize/*usize*/,
+    /// Number of pages remaining, including empties
+    pub remaining_pages: AtomicUsize/*usize*/,
+    /// Number of total pages to be sent: the a priori estimate
+    pub total_pages: AtomicUsize,
+}
+
+impl LoadMemoryProgressSource for Progress {
+    fn total_number_of_pages_to_send(&self, pages: usize) {
+        self.total_pages.store(pages, SeqCst);
+        self.remaining_pages.store(pages, SeqCst);
+
+        self.sent_chunks.store(0, SeqCst);
+        self.sent_chunks_for_page.store(0, SeqCst);
+        self.sent_unique_chunks.store(0, SeqCst);
+        self.sent_pages.store(0, SeqCst);
+    }
+
+    fn page_attempt(&self) {
+        self.sent_pages.store(self.sent_pages.load(Relaxed) + 1, Relaxed);
+    }
+
+    fn chunk_attempt(&self) {
+        self.sent_chunks.store(self.sent_chunks.load(Relaxed) + 1, Relaxed);
+        self.sent_chunks_for_page.store(self.sent_chunks_for_page.load(Relaxed) + 1, Relaxed);
+    }
+
+    // should be < CHUNKS_IN_A_PAGE
+    fn page_success(&self, num_successful_chunks: PageOffset) {
+        self.remaining_pages.store(self.remaining_pages.load(Relaxed) - 1, Relaxed);
+        self.sent_chunks_for_page.store(0, Relaxed);
+
+        self.sent_unique_chunks.store(self.sent_unique_chunks.load(Relaxed) + (num_successful_chunks as usize), Relaxed);
+    }
+}
+
+impl Progress {
+    pub const fn new() -> Progress {
+        Progress {
+            start_time: None,
+            sent_chunks: AtomicUsize::new(0),
+            sent_chunks_for_page: AtomicUsize::new(0),
+            sent_unique_chunks: AtomicUsize::new(0),
+            sent_pages: AtomicUsize::new(0),
+            remaining_pages: AtomicUsize::new(0),
+            total_pages: AtomicUsize::new(0),
         }
     }
 }
