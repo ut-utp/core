@@ -147,7 +147,7 @@ pub trait Control {
 
     fn get_state(&self) -> State;
 
-    fn reset(&mut self); // TODO: needs to reset memory!
+    fn reset(&mut self); // Note: needs to reset memory!
 
     // TBD whether this is literally just an error for the last step or if it's the last error encountered.
     // If it's the latter, we should return the PC value when the error was encountered.
