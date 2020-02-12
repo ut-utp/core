@@ -401,6 +401,66 @@ pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &M
 
     p!(p -> p.total_number_of_pages_to_send(num_to_write));
 
+    // Now, go and send all the marked pages:
+    for (p_idx, _) in write_or_not.iter().enumerate().filter(|(_, to_write)| **to_write) {
+        let page = &dump[(p_idx * (PAGE_SIZE_IN_WORDS as usize))..((p_idx + 1) * (PAGE_SIZE_IN_WORDS as usize))];
+        let checksum = hash_page(page); // We'll use a hash of the page as our checksum for now.
+
+        loop {
+            // Start the page write:
+            let token = /*loop*/ {
+                // (this is safe; see the blurb at the top of this function)
+                #[allow(unsafe_code)]
+                let page = unsafe { LoadApiSession::new(p_idx as PageIndex) }.unwrap();
+
+                p!(p -> p.page_attempt());
+                match sim.start_write_page(page, checksum) {
+                    Ok(token) => token,
+                    Err(StartPageWriteError::InvalidPage { .. }) => unreachable!(),
+                    Err(StartPageWriteError::UnfinishedSessionExists { unfinished_page }) => {
+                        // Bail:
+                        return Err(LoadMemoryDumpError::ExistingUnfinishedSession { unfinished_page })
+                    }
+                }
+            };
+
+            let mut non_empty_pages = 0;
+
+            // Now try to go write all the (non-empty) pages:
+            for (idx, chunk) in page.chunks_exact(CHUNK_SIZE_IN_WORDS as usize).enumerate() {
+                if chunk.iter().any(|w| *w != 0) {
+                    non_empty_pages += 1;
+
+                    let offset = token.with_offset(Index(p_idx as PageIndex).with_offset(idx as PageOffset * CHUNK_SIZE_IN_WORDS)).unwrap();
+                    let chunk = chunk.try_into().unwrap();
+
+                    p!(p -> p.chunk_attempt());
+                    match sim.send_page_chunk(offset, chunk) {
+                        Ok(()) => { },
+                        Err(PageChunkError::ChunkCrossesPageBoundary { .. }) |
+                        Err(PageChunkError::NoCurrentSession) |
+                        Err(PageChunkError::WrongPage { .. }) => unreachable!(),
+                    }
+                }
+            }
+
+            // Finally, finish the page:
+            match sim.finish_page_write(token) {
+                Ok(()) => { p!(p -> p.page_success(non_empty_pages)); break; }
+                Err(FinishPageWriteError::NoCurrentSession) |
+                Err(FinishPageWriteError::SessionMismatch { .. }) => unreachable!(),
+                Err(FinishPageWriteError::ChecksumMismatch { page, given_checksum, computed_checksum }) => {
+                    assert_eq!(page, p_idx as u8);
+                    assert_eq!(checksum, given_checksum);
+                    assert_ne!(checksum, computed_checksum);
+
+                    // We'll try again...
+                }
+            }
+        }
+    }
+
+    sim.reset();
     Ok(())
 }
 
