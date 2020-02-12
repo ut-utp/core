@@ -3,6 +3,12 @@
 //!
 //! TODO!
 
+// TODO: as with the types in metadata.rs, the stuff in this file should
+// probably eventually move out of control but I'm not sure to where. We seem to
+// be accumulating an increasing amount of stuff that is fairly basic
+// foundational stuff (which is what the `isa` crate is for) but very much has
+// nothing to do with the ISA.
+
 use super::Control;
 
 use lc3_isa::{Addr, Word, Bits, util::MemoryDump, MEM_MAPPED_START_ADDR, ADDR_MAX_VAL, ADDR_SPACE_SIZE_IN_WORDS};
@@ -26,13 +32,20 @@ pub const PAGE_SIZE_IN_WORDS: Addr = (PageOffset::max_value() as Addr) + 1;
 pub const NUM_PAGES: usize = (ADDR_SPACE_SIZE_IN_WORDS) / (PAGE_SIZE_IN_WORDS as usize);
 pub const NUM_MEM_MAPPED_PAGES: usize = (PageIndex::max_value() - (MEM_MAPPED_START_ADDR >> 8) as PageIndex) as usize + 1;
 
+// The number of words in a chunk must be picked such that there are a whole
+// number of chunks in a page.
 pub const CHUNK_SIZE_IN_WORDS: PageOffset = 8;
 pub const CHUNKS_IN_A_PAGE: usize = (PAGE_SIZE_IN_WORDS as usize) / (CHUNK_SIZE_IN_WORDS as usize);
+sa::const_assert_eq!(CHUNKS_IN_A_PAGE * (CHUNK_SIZE_IN_WORDS as usize), (PAGE_SIZE_IN_WORDS as usize));
 
-// TODO: Ideally this would take a reference to an array and not a slice, but alas
+// TODO: Ideally this would take a reference to an array and not a slice, but
+// alas; since we can't easily go from, for example, a slice of a memory dump
+// to [Word; PAGE_SIZE_IN_WORDS as usize], we're just taking a size instead.
 //
 // TODO: perhaps switch to something better suited to being a checksum
 pub fn hash_page(page: &[Word]) -> u64 {
+    assert_eq!(page.len(), PAGE_SIZE_IN_WORDS as usize);
+
     #[allow(deprecated)]
     let mut hasher = SipHasher::new(); // TODO: deprecated but what can we do...
 
@@ -61,12 +74,14 @@ impl Index {
 pub struct Offset(pub PageOffset);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(lc3_macros::DisplayUsingDebug)] // TODO: do better
 pub enum StartPageWriteError {
-    InvalidPage { page: u8 }, // Only the mem-mapped page should be invalid...
+    InvalidPage { page: PageIndex }, // Only the mem-mapped page should be invalid...
     UnfinishedSessionExists { unfinished_page: PageIndex },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(lc3_macros::DisplayUsingDebug)] // TODO: do better
 pub enum PageChunkError {
     NoCurrentSession,
     WrongPage { expected_page: PageIndex, received_address: Addr, },
@@ -74,10 +89,17 @@ pub enum PageChunkError {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(lc3_macros::DisplayUsingDebug)] // TODO: do better
 pub enum FinishPageWriteError {
     NoCurrentSession,
     SessionMismatch { current_session_page: PageIndex, received_page: PageIndex },
     ChecksumMismatch { page: PageIndex, given_checksum: u64, computed_checksum: u64 },
+}
+
+using_std! {
+    impl std::error::Error for StartPageWriteError { }
+    impl std::error::Error for PageChunkError { }
+    impl std::error::Error for FinishPageWriteError { }
 }
 
 // Need this newtype to have `LoadApiSession<Index>` be different than
@@ -168,7 +190,7 @@ impl LoadApiSession<PageIndex> {
     // from a successfully started session.
     pub fn with_offset(&self, addr: Addr) -> Result<LoadApiSession<Offset>, PageChunkError> {
         if addr.page_idx() == self.0 {
-            if let Some(last) = addr.checked_add((CHUNK_SIZE_IN_WORDS - 1) as Word) {
+            if let Some(last) = addr.checked_add((CHUNK_SIZE_IN_WORDS - 1) as Addr) {
                 if addr.page_idx() == last.page_idx() {
                     Ok(LoadApiSession(Offset(addr.page_offset())))
                 } else {
@@ -188,15 +210,12 @@ impl LoadApiSession<PageIndex> {
 }
 
 mod private {
-    pub(crate) trait LoadMemoryProgressSource {
+    pub trait LoadMemoryProgressSource {
         fn total_number_of_pages_to_send(&self, pages: usize);
 
-        fn page_attempt(&self);
-        // fn page_success(&self);
-
         fn chunk_attempt(&self);
-        // fn successful_chunks(&self, num_chunks: super::PageOffset); // should be < CHUNKS_IN_A_PAGE
 
+        fn page_attempt(&self);
         fn page_success(&self, num_successful_chunks: super::PageOffset); // should be < CHUNKS_IN_A_PAGE
     }
 }
@@ -238,13 +257,13 @@ impl LoadMemoryProgressSource for Progress {
         self.sent_pages.store(0, SeqCst);
     }
 
-    fn page_attempt(&self) {
-        self.sent_pages.store(self.sent_pages.load(Relaxed) + 1, Relaxed);
-    }
-
     fn chunk_attempt(&self) {
         self.sent_chunks.store(self.sent_chunks.load(Relaxed) + 1, Relaxed);
         self.sent_chunks_for_page.store(self.sent_chunks_for_page.load(Relaxed) + 1, Relaxed);
+    }
+
+    fn page_attempt(&self) {
+        self.sent_pages.store(self.sent_pages.load(Relaxed) + 1, Relaxed);
     }
 
     // should be < CHUNKS_IN_A_PAGE
@@ -370,10 +389,18 @@ using_std! {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(lc3_macros::DisplayUsingDebug)] // TODO: do better
 pub enum LoadMemoryDumpError {
     MemMappedPagesNotEmpty,
     ExistingUnfinishedSession { unfinished_page: PageIndex },
 }
+
+using_std! {
+    impl std::error::Error for LoadMemoryDumpError { }
+}
+
+// TODO: somewhere, functions that take a Program or a FileBackedMemoryShim
+// that call the below + set the ProgramMetadata!
 
 #[inline]
 pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, previous: Option<&MemoryDump>, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
