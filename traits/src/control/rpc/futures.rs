@@ -20,13 +20,13 @@ use core::num::NonZeroU8;
 /// implementation.
 ///
 /// This trait does not require that implementors be Sync (a requirement imposed
-/// on Futures by certain executors) but some implementations will be (TODO).
+/// on Futures by certain executors) but some implementations will be.
 ///
 /// Implementors are encouraged to provide a const-fn constructor so that
 /// instances of the implementation can be put into `static` variables and
-/// therefore be `'static' (this is desirable since most executors - at least
+/// therefore be `'static` (this is desirable since most executors - at least
 /// those that don't use scoped thread pools - require that the futures they
-/// execute be static).
+/// execute be `'static`).
 ///
 /// Here's how the flow is supposed to go.
 ///
@@ -245,10 +245,10 @@ impl SharedStateState {
     fn get_event(&mut self) -> Option<Event> {
         use SharedStateState::*;
 
-        let ret = match self {
+        match self {
             Errored | Dormant => panic!("Unregistered future polled the state! {:?}", self),
             WaitingForFuturesToResolve { waker: Some(_), .. } => panic!("Waker persisted after batch was sealed!"),
-            s @ WaitingForAnEvent { .. } => None,
+            WaitingForAnEvent { .. } => None,
             WaitingForFuturesToResolve { event, waker: None, count } => {
                 if count.get() == 1 {
                     let event = *event;
@@ -259,15 +259,13 @@ impl SharedStateState {
                     Some(*event)
                 }
             },
-        };
-
-        ret
+        }
     }
 
     fn increment(&mut self) -> u8 {
         use SharedStateState::*;
 
-        let ret = match self {
+        match self {
             Errored => unreachable!(),
             WaitingForFuturesToResolve { .. } => panic!("Attempted to add a future to a sealed batch!"),
             Dormant => {
@@ -279,9 +277,7 @@ impl SharedStateState {
                 *count = NonZeroU8::new(count.get().checked_add(1).unwrap()).unwrap();
                 count.get()
             }
-        };
-
-        ret
+        }
     }
 
     fn batch_sealed(&self) -> bool {

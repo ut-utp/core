@@ -454,7 +454,7 @@ where
             (RunningUntilEvent, Paused, Some(e)) |
             (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
                 // println!("resolving the device future");
-                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e);
+                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e).unwrap();
                 self.state = new_state;
                 Some(e)
             },
