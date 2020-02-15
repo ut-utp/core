@@ -135,6 +135,48 @@ pub trait EventFutureSharedState {
     /// Note: this is no practical use for this function.
     fn is_clean(&self) -> bool;
 
+    /// Reset is tricky. We have no way to 'drop' or forget a future from our
+    /// end so if this function is called before all the futures have resolved,
+    /// it should panic.
+    ///
+    /// Implementors will need to ensure that as part of resetting, all pending
+    /// futures are resolved.
+    //
+    // TODO: This is problematic since the way to 'drop' a Future from the
+    // client side is to simply stop polling it: when this happens we will not
+    // be notified. Instead, users will either be unable to call reset or will
+    // encounter a panic when they try to call reset after dropping a
+    // RunUntilEvent future.
+    //
+    // A better system would be to have every batch have a number. Each future
+    // would hold this number in addition to a reference to the
+    // EventFutureSharedState instance. When futures that aren't in the current
+    // batch try to poll, they should error out. The edge case that exists is
+    // that if the batch number loops around, it's possible that a very old
+    // future comes along and takes the place of a new future.
+    //
+    // An alternative solution is to use `Drop` to have futures that aren't
+    // being used anymore signal to us that they're dead by calling a function
+    // on us decrementing the count. A side-effect of this approach is that we
+    // won't know whether the waker we currently have a reference to belongs
+    // to the future that just told us that it's dead. So, we can't unregister
+    // the current (if we have one) waker that we know about.
+    //
+    // As a result any waker that gets used with an `EventFutureSharedState`
+    // backed Future must be able to handle being called on a future is no
+    // longer around.
+    //
+    // Actually, this has an issue: `Drop` is called eventually even when the
+    // future resolves. In these cases, the count will be decremented twice:
+    // once through the `get_event` function and once through the `decrement`
+    // function (when `Drop` occurs).
+    //
+    // We could just not decrement the count in `get_event` but then we'd have
+    // to assume that executors go and `Drop` their futures as soon as they
+    // resolve (a reasonable assumption but not required -- afaik the invariant
+    // they must uphold is not _polling_ Futures once they've resolved).
+    //
+    // So, this won't work.
     fn reset(&self); // TODO!
 }
 
