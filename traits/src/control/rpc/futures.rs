@@ -301,7 +301,9 @@ impl SharedStateState {
     }
 
     fn reset(&mut self) {
-        *self =  SharedStateState::Dormant; // TODO: currently pending futures!
+        assert!(self.is_clean(), "Tried to reset before all Futures resolved!");
+
+        *self = SharedStateState::Dormant;
     }
 }
 

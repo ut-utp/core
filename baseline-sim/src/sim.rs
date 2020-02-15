@@ -509,7 +509,22 @@ where
     fn reset(&mut self) {
         self.state = State::Paused;
         InstructionInterpreter::reset(&mut self.interp);
-        self.shared_state.as_ref().map(|s| s.reset());
+        self.state = State::Paused;
+
+        // // As mentioned in control/rpc/controller.rs: For now, we're handling
+        // // this by having the controller block until all current futures resolve
+        // // themselves. See the comment in rpc/futures.rs on
+        // // `EventFutureSharedState::reset` for more details.
+        // //
+        // // Real implementors of `Control::reset` should call pause before
+        // // calling reset! Otherwise this spin lock will never exit.
+        // if let Some(shared_state) = self.shared_state.as_ref() {
+        //     while !shared_state.is_clean() {
+        //         core::sync::atomic::spin_loop_hint();
+        //     }
+
+        //     shared_state.reset();
+        // }
     }
 
     fn get_error(&self) -> Option<Error> {

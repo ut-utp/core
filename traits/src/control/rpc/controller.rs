@@ -261,7 +261,16 @@ where
     fn reset(&mut self) {
         // Drop all pending futures:
         // (if one of these futures is polled again, bad bad things will happen; TODO)
-        self.shared_state.reset();
+
+        // For now, we're handling this by having the controller block until all
+        // current futures resolve themselves. See the comment in rpc/futures.rs
+        // on `EventFutureSharedState::reset` for more details.
+        //
+        // Real implementors of `Control::reset` should call pause before
+        // calling reset! Otherwise this spin lock will never exit.
+        // while !self.shared_state.is_clean() { core::sync::atomic::spin_loop_hint(); }
+
+        // self.shared_state.reset();
 
         ctrl!(self, Reset, R::Reset)
     }
