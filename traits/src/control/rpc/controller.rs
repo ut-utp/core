@@ -242,7 +242,7 @@ where
         EventFuture(self.shared_state)
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self) -> usize {
         // Because we basically call tick() on every other function call here, we could
         // probably get away with just doing nothing here in practice.
         // But, checking here as well doesn't hurt.
@@ -251,6 +251,10 @@ where
         // handled within `Self::tick()`) though.
         // Self::tick(self).unwrap_none(); // when this goes stable, use this, maybe (TODO)
         if Self::tick(self).is_some() { panic!("Controller received a message in tick!") }
+
+        // This function can (probably, TODO) be safely _not_ called so we
+        // return 0:
+        0
     }
 
     fn step(&mut self) -> Option<Event> { ctrl!(self, Step, R::Step(r), r) }
