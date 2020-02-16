@@ -37,11 +37,13 @@ use serde::{Serialize, Deserialize};
 // without adding more message related overhead to these "convenience calls".
 
 #[allow(dead_code)]
+// We're not using static_assertions here so that we can get an error that tells
+// us how much we're off by.
 static __REQ_SIZE_CHECK: () = {
     let s = core::mem::size_of::<RequestMessage>();
     let canary = [()];
 
-    canary[s - 32] // panic if the size of RequestMessage changes
+    canary[s - 40] // panic if the size of RequestMessage changes
 };
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]

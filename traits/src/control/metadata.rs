@@ -241,11 +241,13 @@ pub struct DeviceInfo {
     pub capabilities: Capabilities,
     pub source_type_id: u64,
     pub source_name: Identifier,
-    pub proxies: [Option<Identifier>; 5]
+    pub proxies: [Option<Identifier>; 3]
 }
 
 impl DeviceInfo {
-    pub fn new(metadata: ProgramMetadata, capabilities: Capabilities, type_id: TypeId, name: Identifier, proxies: [Option<Identifier>; 5]) -> Self {
+    const MAX_NUM_PROXIES: usize = 3;
+
+    pub fn new(metadata: ProgramMetadata, capabilities: Capabilities, type_id: TypeId, name: Identifier, proxies: [Option<Identifier>; Self::MAX_NUM_PROXIES]) -> Self {
         Self {
             current_program_metadata: metadata,
             capabilities,
