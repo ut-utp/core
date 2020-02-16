@@ -56,15 +56,16 @@ pub struct ProgramMetadata {
 }
 
 impl ProgramMetadata {
-    pub /*const*/ fn new(program: &MemoryDump, modified: Duration) -> Self {
+    pub /*const*/ fn new(name: LongIdentifier, program: &MemoryDump, modified: Duration) -> Self {
         Self {
+            name,
             id: ProgramId::new(program),
             last_modified: modified.as_secs()
         }
     }
 
-    pub /*const*/ fn from<P: Into<MemoryDump>>(program: P, modified: Duration) -> Self {
-        Self::new(&program.into(), modified)
+    pub /*const*/ fn from<P: Into<MemoryDump>>(name: LongIdentifier, program: P, modified: Duration) -> Self {
+        Self::new(name, &program.into(), modified)
     }
 
     pub fn set_last_modified(&mut self, modified: Duration) {
@@ -78,12 +79,12 @@ using_std! {
     use std::time::SystemTime;
 
     impl ProgramMetadata {
-        pub /*const*/ fn new_modified_now(program: &MemoryDump) -> Self {
-            Self::new(program, Duration::from_secs(0)).now()
+        pub /*const*/ fn new_modified_now(name: LongIdentifier, program: &MemoryDump) -> Self {
+            Self::new(name, program, Duration::from_secs(0)).now()
         }
 
-        pub /*const*/ fn from_modified_now<P: Into<MemoryDump>>(program: P) -> Self {
-            Self::from(program, Duration::from_secs(0)).now()
+        pub /*const*/ fn from_modified_now<P: Into<MemoryDump>>(name: LongIdentifier, program: P) -> Self {
+            Self::from(name, program, Duration::from_secs(0)).now()
         }
 
         pub fn now(mut self) -> Self {
@@ -112,7 +113,8 @@ using_std! {
 // const functions — mainly just loops and ranges) we wouldn't need two
 // separate types here.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct LongIdentifier([u8; 12]);
+#[repr(transparent)]
+pub struct LongIdentifier([u8; 8]);
 
 impl Default for LongIdentifier {
     fn default() -> Self {
@@ -121,7 +123,7 @@ impl Default for LongIdentifier {
 }
 
 impl LongIdentifier {
-    pub fn new(name: [u8; 12]) -> Result<Self, ()> {
+    pub fn new(name: [u8; 8]) -> Result<Self, ()> {
         if !name.iter().all(|c| c.is_ascii()) {
             Err(())
         } else {
@@ -134,14 +136,17 @@ impl LongIdentifier {
     }
 
     pub fn new_truncated_padded(name: &str) -> Result<Self, ()> {
-        // let a: [u8; 12] = name.chars().chain(core::iter::repeat(' ')).take(12).collect();
-        // let arr = [' ' as u8; 12];
+        let mut arr = [0; 8];
 
-        // Self::new_from_str()
+        for (idx, c) in name.chars().take(8).enumerate() {
+            if !c.is_ascii() {
+                return Err(())
+            }
 
-        // Err(())
+            arr[idx] = c as u8;
+        }
 
-        if let
+        Ok(Self(arr))
     }
 }
 
@@ -158,6 +163,7 @@ impl AsRef<str> for LongIdentifier {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct Identifier([u8; 4]);
 
 impl Identifier {
