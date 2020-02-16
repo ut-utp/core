@@ -72,49 +72,53 @@ pub trait Control {
     fn read_word(&self, addr: Addr) -> Word;
     fn write_word(&mut self, addr: Addr, word: Word);
 
-    // 256 address pages; 65536 / 256 -> 256
-    //
-    // Note: you can 'end' a session by calling this without any real warning..
-    // Update: no longer.
-    fn start_page_write(&mut self, page: LoadApiSession<PageWriteStart>, checksum: u64) -> Result<LoadApiSession<PageIndex>, StartPageWriteError>;
+    /// The start function for a Load API Session.
+    ///
+    /// Calling this is effectively unsafe since you need to call [an unsafe
+    /// function](crate::control::load::LoadApiSession<PageWriteStart>::new) to
+    /// construct the `page` token.
+    ///
+    /// Unless you have a special use case, you should use
+    /// [`load_memory_dump`](crate::control::load::load_memory_dump) and its
+    /// fellow functions in the [`load` module](crate::control::load) or the
+    /// [`load` function](lc3_shims::memory::FileBackedMemoryShim::load) on the
+    /// [file backed `Memory` shim](lc3_shims::memory::FileBackedMemoryShim).
+    fn start_page_write(
+        &mut self,
+        page: LoadApiSession<PageWriteStart>,
+        checksum: u64,
+    ) -> Result<LoadApiSession<PageIndex>, StartPageWriteError>;
 
-    // We debated a bit on whether the address here should be a u8 (page offset)
-    // or a Word (full address).
-    //
-    // The argument for having a page offset is smaller messages and being able
-    // to avoid another error case.
-    //
-    // The argument for full address is additional safety; in case the host
-    // unwittingly sends a Word from another page, we'll catch it.
-    //
-    // Another consideration is how to handle non-aligned `Word`s. One way to do
-    // this is to just discard them. Another is represent the chunk as an array
-    // of Options (downside is message size). Yet another is to error on any
-    // unaligned calls. And finally, we could error only on those unaligned
-    // calls that result in us crossing a page boundary.
-    //
-    // Ultimately, we really do expect this to only be used for flashing so
-    // we don't really care all that much that it's hard to write to pieces of
-    // memory smaller than a chunk (to preserve the contents that are already
-    // in, for example, 6 of the 8 Words in a chunk, you'd have to read those
-    // memory locations first — this kind of situation never arises when
-    // flashing a program). Additionally since the semantics of these calls are
-    // that the page is assumed to be empty when `start_write_page` is called,
-    // the only users might want to have persist is data that was sent since
-    // the last `start_write_page` call; i.e. data that the user just sent us!
-    //
-    // So, we'll take a chunk that must have 8 specified Words and we'll error
-    // if the chunk spans the correct page and another page.
-    fn send_page_chunk(&mut self, offset: LoadApiSession<Offset>, chunk: [Word; CHUNK_SIZE_IN_WORDS as usize]) -> Result<(), PageChunkError>;
+    /// The workhorse of the Load API. Sends a [single chunk](chunk).
+    ///
+    /// Note that this only takes an offset into the current session's page
+    /// instead of a full address; because the only (sans unsafe) way to
+    /// construct this offset is to use the [`with_offset` function](wo_func) on
+    /// the `LoadApiSession<PageIndex>` returned by the
+    /// [start_page_write function](start).
+    ///
+    /// [chunk]: crate::control::load::CHUNK_SIZE_IN_WORDS
+    /// [wo_func]: crate::control::load::LoadApiSession<PageIndex>::with_offset
+    /// [start]: crate::control::control::Control::start_page_write
+    fn send_page_chunk(
+        &mut self,
+        offset: LoadApiSession<Offset>,
+        chunk: [Word; CHUNK_SIZE_IN_WORDS as usize],
+    ) -> Result<(), PageChunkError>;
 
-    // moves the value making it impossible to call send_page_chunk again without calling start_page_write
-    // checksum mismatch is the only remaining possible error
-
-    // NOTE: this function must dump any resident (i.e. modified) copies of this
-    // page! Actually nevermind. This doesn't work in the case where we don't
-    // send 'unmodified' pages. So, to complete a flash (or have it actually
-    // take effect) you should call reset.
-    fn finish_page_write(&mut self, page: LoadApiSession<PageIndex>) -> Result<(), FinishPageWriteError>;
+    /// The finish function for a Load API Session.
+    ///
+    /// Consumes the `LoadApiSession<PageIndex>` returned by
+    /// [`start_page_write`](start) and makes it impossible to call
+    /// [`send_page_chunk`](send) again without starting a new session, thus
+    /// ending the session.
+    ///
+    /// [start]: crate::control::control::Control::start_page_write
+    /// [send]: crate::control::control::Control::send_page_chunk
+    fn finish_page_write(
+        &mut self,
+        page: LoadApiSession<PageIndex>,
+    ) -> Result<(), FinishPageWriteError>;
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
