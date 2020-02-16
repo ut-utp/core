@@ -19,6 +19,8 @@ use lc3_os::OS_IMAGE;
 
 use lazy_static::lazy_static;
 
+use std::cell::RefCell;
+
 // TODO: new macro that basically does the below + sets the orig hook
 // TODO: have obj conv set the orig hook
 
@@ -155,7 +157,7 @@ fn device_thread<ReqDec: 'static, RespEnc: 'static, Transp: 'static>(
                     }
                 }
             }
-        });
+        }).unwrap();
 }
 
 lazy_static! {
@@ -181,7 +183,7 @@ pub fn remote_simulator/*<C: Control>*/(program: MemoryDump) -> (Sender<()>, Con
 
 //// Benches ////
 
-use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, PlotConfiguration, AxisScale};
+use criterion::{BatchSize, BenchmarkId, Criterion, Throughput, PlotConfiguration, AxisScale, black_box};
 use lc3_baseline_sim::interp::MachineState;
 
 // const ITERS: [Word; 10] = [1, 10, 100, 500, 1000, 5000, 10000, 25000, 50000, 65535];
@@ -236,11 +238,16 @@ fn bench_fib(c: &mut Criterion) {
             *num_iter,
         )));
 
+        // let image = black_box(build_fib_memory_image(*num_iter)); // this causes rustc to hang on `free_global_ctxt`
+        let image = build_fib_memory_image(*num_iter);
+
+        let int = RefCell::new(bare_interpreter(image.clone(), &flags));
         group.bench_with_input(
             BenchmarkId::new("Bare Interpreter - step", *num_iter),
-            num_iter,
-            |b, num| {
-                let mut int = bare_interpreter(build_fib_memory_image(*num), &flags);
+            &int,
+            |b, int| {
+                let mut int = int.borrow_mut();
+
                 b.iter(|| {
                     int.reset();
                     while let MachineState::Running = int.step() {}
@@ -248,11 +255,13 @@ fn bench_fib(c: &mut Criterion) {
             },
         );
 
+        let sim = RefCell::new(simulator(image.clone(), &flags));
         group.bench_with_input(
             BenchmarkId::new("Simulator - step", *num_iter),
-            num_iter,
-            |b, num| {
-                let mut sim = simulator(build_fib_memory_image(*num), &flags);
+            &sim,
+            |b, sim| {
+                let mut sim = sim.borrow_mut();
+
                 b.iter(|| {
                     sim.reset();
 
@@ -264,13 +273,12 @@ fn bench_fib(c: &mut Criterion) {
             },
         );
 
+        let sim = simulator(image.clone(), &FLAGS);
+        let (chan, halt, next) = executor_thread(sim);
         group.bench_with_input(
             BenchmarkId::new("Simulator - run_until_event", *num_iter),
-            num_iter,
-            |b, num| {
-                let sim = simulator(build_fib_memory_image(*num), &FLAGS);
-                let (chan, halt, next) = executor_thread(sim);
-
+            &(chan, halt, next),
+            |b, (chan, halt, next)| {
                 b.iter(|| {
                     async_std::task::block_on(next(&chan));
                 });
@@ -279,11 +287,14 @@ fn bench_fib(c: &mut Criterion) {
             },
         );
 
+        let (halt, sim) = remote_simulator(image.clone());
+        let sim = RefCell::new(sim);
         group.bench_with_input(
             BenchmarkId::new("Remote Simulator - step: mpsc, transparent", *num_iter),
-            num_iter,
-            |b, num| {
-                let (halt, mut sim) = remote_simulator(build_fib_memory_image(*num));
+            &(halt, sim),
+            |b, (halt, sim)| {
+                let mut sim = sim.borrow_mut();
+
                 b.iter(|| {
                     sim.reset();
                     while let None = sim.step() {}
@@ -293,12 +304,13 @@ fn bench_fib(c: &mut Criterion) {
             },
         );
 
+
+        let (halt_dev, sim) = remote_simulator(image.clone());
+        let (chan, halt_exec, next) = executor_thread(sim);
         group.bench_with_input(
             BenchmarkId::new("Remote Simulator - run_until_event: mpsc, transparent", *num_iter),
-            num_iter,
-            |b, num| {
-                let (halt_dev, sim) = remote_simulator(build_fib_memory_image(*num));
-                let (chan, halt_exec, next) = executor_thread(sim);
+            &(halt_dev, chan, halt_exec, next),
+            |b, (halt_dev, chan, halt_exec, next)| {
 
                 // let (halt_or_fut, rx_halt_or_fut) = channel();
                 // let (tx_fut, rx_fut) = channel();
@@ -328,11 +340,13 @@ fn bench_fib(c: &mut Criterion) {
             },
         );
 
+        let (halt_dev, sim) = remote_simulator(image.clone());
+        let sim = RefCell::new(sim);
         group.bench_with_input(
             BenchmarkId::new("Remote Simulator - run_until_event [no separate thread]: mpsc, transparent", *num_iter),
-            num_iter,
-            |b, num| {
-                let (halt_dev, mut sim) = remote_simulator(build_fib_memory_image(*num));
+            &(halt_dev, sim),
+            |b, (halt_dev, sim)| {
+                let mut sim = sim.borrow_mut();
 
                 b.iter(|| {
                     sim.reset();
@@ -351,11 +365,12 @@ fn bench_fib(c: &mut Criterion) {
             },
         );
 
+        let sim = RefCell::new(simulator(image, &FLAGS));
         group.bench_with_input(
             BenchmarkId::new("Simulator - run_until_event [no separate thread]", *num_iter),
-            num_iter,
-            |b, num| {
-                let mut sim = simulator(build_fib_memory_image(*num), &FLAGS);
+            &sim,
+            |b, sim| {
+                let mut sim = sim.borrow_mut();
 
                 b.iter(|| {
                     sim.reset();
