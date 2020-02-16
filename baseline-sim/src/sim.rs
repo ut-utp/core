@@ -348,7 +348,7 @@ where
         EventFuture::new(s)
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self) -> usize {
         // We've got a tradeoff!
         //
         // Higher values for this constant will result in better throughput while
@@ -365,16 +365,18 @@ where
                     self.step();
                 }
 
-                return;
+                return STEPS_IN_A_TICK;
             }
 
             for _ in 0..STEPS_IN_A_TICK {
                 if let Some(e) = self.step() {
                     // If we produced some event, we're no longer `RunningUntilEvent`.
-                    return;
+                    return STEPS_IN_A_TICK; // this is not accurate but this is allowed
                 }
             }
         }
+
+        0
     }
 
     fn step(&mut self) -> Option<Event> {

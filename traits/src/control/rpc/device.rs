@@ -248,13 +248,15 @@ where
     // <<C as Control>::EventFuture as Deref>::Target: Unpin,
 {
     #[allow(unsafe_code)]
-    pub fn step(&mut self, c: &mut C) -> usize {
+    // Returns the number of instructions executed and the number of messages processed.
+    pub fn step(&mut self, c: &mut C) -> (usize, usize) {
         use RequestMessage::*;
         use ResponseMessage as R;
         let mut num_processed_messages = 0;
+        let num_executed_instructions;
 
         // Make some progress:
-        c.tick();
+        num_executed_instructions = c.tick();
 
         if let Some(ref mut f) = self.pending_event_future {
             // println!("polling the device future");
@@ -361,6 +363,6 @@ where
             };
         }
 
-        num_processed_messages
+        (num_processed_messages, num_executed_instructions)
     }
 }

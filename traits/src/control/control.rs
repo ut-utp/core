@@ -144,7 +144,15 @@ pub trait Control {
     // called periodically.
     //
     // Also, this function will *not* be proxied.
-    fn tick(&mut self); // The function to call so that the simulator can do some work.
+    //
+    // Returns the number of instructions executed. This will be used to know whether
+    // or not it is critical that this function is still called regularly.
+    //
+    // This is allowed to be an estimate, so long as the following invariant is
+    // maintained:
+    //   - if one or more instructions was executed, this must return a number greater
+    //     than 0.
+    fn tick(&mut self) -> usize; // The function to call so that the simulator can do some work.
 
     fn step(&mut self) -> Option<Event>;
     fn pause(&mut self); // TODO: should we respond saying whether or not the pause actually did anything (i.e. if we were already paused... it did not).
