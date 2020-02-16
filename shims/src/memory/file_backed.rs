@@ -12,7 +12,7 @@ use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_BYTES, ADDR_SPACE_SIZE_IN_WORDS, ME
 use lc3_isa::util::MemoryDump;
 use lc3_traits::memory::Memory;
 use lc3_traits::control::Control;
-use lc3_traits::control::metadata::ProgramMetadata;
+use lc3_traits::control::metadata::{LongIdentifier, ProgramMetadata};
 use lc3_traits::control::load::{PageIndex, Index as PIdx, PageAccess, PAGE_SIZE_IN_WORDS, LoadMemoryProgress, LoadMemoryDumpError, load_whole_memory_dump};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -37,11 +37,17 @@ impl FileBackedMemoryShim {
         path: P,
         memory: MemoryDump,
     ) -> Self {
+        let path = path.as_ref().to_path_buf();
+        let name = path.file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| LongIdentifier::new_truncated_padded(n).ok())
+            .unwrap_or_default();
+
         Self {
-            path: path.as_ref().to_path_buf(),
+            path,
             mem: *memory.clone(),
             current: *memory,
-            metadata: ProgramMetadata::new_modified_now(&memory),
+            metadata: ProgramMetadata::new_modified_now(name, &memory),
         }
     }
 

@@ -38,7 +38,7 @@ impl MemoryShim {
     pub fn new(mem: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
 
         let dump = mem.into();
-        let metadata = ProgramMetadata::new_modified_now(&dump);
+        let metadata = ProgramMetadata::new_modified_now(Default::default(), &dump);
 
         Self {
             mem,
