@@ -438,9 +438,6 @@ using_std! {
     impl std::error::Error for LoadMemoryDumpError { }
 }
 
-// TODO: somewhere, functions that take a Program or a FileBackedMemoryShim
-// that call the below + set the ProgramMetadata!
-
 #[inline]
 pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, previous: Option<&MemoryDump>, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
     // Because this takes a mutable reference to the Control impl, we're

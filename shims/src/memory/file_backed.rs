@@ -11,8 +11,9 @@ use std::time::SystemTime;
 use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_BYTES, ADDR_SPACE_SIZE_IN_WORDS, MEM_MAPPED_START_ADDR};
 use lc3_isa::util::MemoryDump;
 use lc3_traits::memory::Memory;
+use lc3_traits::control::Control;
 use lc3_traits::control::metadata::ProgramMetadata;
-use lc3_traits::control::load::{PageIndex, Index as PIdx, PageAccess, PAGE_SIZE_IN_WORDS};
+use lc3_traits::control::load::{PageIndex, Index as PIdx, PageAccess, PAGE_SIZE_IN_WORDS, LoadMemoryProgress, LoadMemoryDumpError, load_whole_memory_dump};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -115,7 +116,7 @@ impl Memory for FileBackedMemoryShim {
         // us), we can get rid of the in memory persistent copy (`self.mem`).
         self.mem[PIdx(page_idx).as_index_range()].copy_from_slice(page);
 
-        write_to_file(&self.path, &self.mem).unwrap(); // note: crashes
+        write_to_file(&self.path, &self.mem).unwrap(); // note: crashes (TODO?)
         self.metadata.updated_now();
     }
 
@@ -161,4 +162,14 @@ pub(super) fn write_to_file<P: AsRef<Path>>(
 
     file.sync_all()?;
     Ok(())
+}
+
+impl FileBackedMemoryShim {
+    // Note: loads the persistent copy (mem) and not the staging copy or the file.
+    pub fn load<C: Control, P: LoadMemoryProgress>(&self, sim: &mut C, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
+        load_whole_memory_dump(sim, &self.mem.into(), progress)?;
+        sim.set_program_metadata(self.metadata.clone());
+
+        Ok(())
+    }
 }
