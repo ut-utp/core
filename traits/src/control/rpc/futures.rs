@@ -144,22 +144,7 @@ pub trait EventFutureSharedState {
     ///
     /// [issue-48]: https://github.com/ut-utp/prototype/issues/48
     fn reset(&self) { /* TODO!! */ }
-
-    // /// Decrements the count of the number of futures that are out and using
-    // /// this instance to poll for the next event, regardless of whether the
-    // /// event they are waiting for has occurred or not.
-    // ///
-    // /// Panics if the count is 0.
-    // fn decrement(&self);
 }
-
-// pub struct EventFutureSharedStateHandle<'e, E: EventFutureSharedState>(&'e E);
-
-// impl<'e, E: EventFutureSharedState> Drop for EventFutureSharedStateHandle<'e, E> {
-//     fn drop(&mut self) {
-
-//     }
-// }
 
 pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     /// To be called by Futures.
