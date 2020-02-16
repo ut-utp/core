@@ -139,47 +139,27 @@ pub trait EventFutureSharedState {
     /// end so if this function is called before all the futures have resolved,
     /// it should panic.
     ///
-    /// Implementors will need to ensure that as part of resetting, all pending
-    /// futures are resolved.
-    //
-    // TODO: This is problematic since the way to 'drop' a Future from the
-    // client side is to simply stop polling it: when this happens we will not
-    // be notified. Instead, users will either be unable to call reset or will
-    // encounter a panic when they try to call reset after dropping a
-    // RunUntilEvent future.
-    //
-    // A better system would be to have every batch have a number. Each future
-    // would hold this number in addition to a reference to the
-    // EventFutureSharedState instance. When futures that aren't in the current
-    // batch try to poll, they should error out. The edge case that exists is
-    // that if the batch number loops around, it's possible that a very old
-    // future comes along and takes the place of a new future.
-    //
-    // An alternative solution is to use `Drop` to have futures that aren't
-    // being used anymore signal to us that they're dead by calling a function
-    // on us decrementing the count. A side-effect of this approach is that we
-    // won't know whether the waker we currently have a reference to belongs
-    // to the future that just told us that it's dead. So, we can't unregister
-    // the current (if we have one) waker that we know about.
-    //
-    // As a result any waker that gets used with an `EventFutureSharedState`
-    // backed Future must be able to handle being called on a future is no
-    // longer around.
-    //
-    // Actually, this has an issue: `Drop` is called eventually even when the
-    // future resolves. In these cases, the count will be decremented twice:
-    // once through the `get_event` function and once through the `decrement`
-    // function (when `Drop` occurs).
-    //
-    // We could just not decrement the count in `get_event` but then we'd have
-    // to assume that executors go and `Drop` their futures as soon as they
-    // resolve (a reasonable assumption but not required -- afaik the invariant
-    // they must uphold is not _polling_ Futures once they've resolved).
-    //
-    // So, this won't work.
-    fn reset(&self); // TODO!
+    /// Eventually when we have batches, reset should mean "advance the batch
+    /// count". For now, it'll mean nothing. See [this](issue-48) for details.
+    ///
+    /// [issue-48]: https://github.com/ut-utp/prototype/issues/48
+    fn reset(&self) { /* TODO!! */ }
+
+    // /// Decrements the count of the number of futures that are out and using
+    // /// this instance to poll for the next event, regardless of whether the
+    // /// event they are waiting for has occurred or not.
+    // ///
+    // /// Panics if the count is 0.
+    // fn decrement(&self);
 }
 
+// pub struct EventFutureSharedStateHandle<'e, E: EventFutureSharedState>(&'e E);
+
+// impl<'e, E: EventFutureSharedState> Drop for EventFutureSharedStateHandle<'e, E> {
+//     fn drop(&mut self) {
+
+//     }
+// }
 
 pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     /// To be called by Futures.
@@ -197,7 +177,7 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
         if self.batch_sealed() {
             Err(())
         } else {
-            self.increment();
+            let _ = self.increment();
             Ok(self)
         }
     }
@@ -217,7 +197,7 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
 
 // We don't provide this blanket impl because the default implementation of the
 // porcelain trait makes multiple calls on `EventFutureSharedState`; for implementations
-// of `EventFutureSharedState` that accquire locks this can be problematic.
+// of `EventFutureSharedState` that acquire locks this can be problematic.
 // impl<E: EventFutureSharedState> EventFutureSharedStatePorcelain for E { }
 
 #[derive(Debug, Clone)]
@@ -338,11 +318,11 @@ impl SharedStateState {
         }
     }
 
-    fn reset(&mut self) {
+    /*fn reset(&mut self) {
         assert!(self.is_clean(), "Tried to reset before all Futures resolved!");
 
         *self = SharedStateState::Dormant;
-    }
+    }*/
 }
 
 pub struct SimpleEventFutureSharedState {
@@ -403,9 +383,10 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
         self.update(|s| s.is_clean())
     }
 
-    fn reset(&self) {
+    // See the note on `EventFutureSharedState::reset`.
+    /*fn reset(&self) {
         self.update(|s| s.reset())
-    }
+    }*/
 }
 
 #[derive(Debug)]
@@ -505,8 +486,9 @@ using_std! {
             self.0.read().unwrap().is_clean()
         }
 
-        fn reset(&self) {
+        // See the note on `EventFutureSharedState::reset`.
+        /*fn reset(&self) {
             self.0.write().unwrap().reset();
-        }
+        }*/
     }
 }
