@@ -49,6 +49,7 @@ impl ProgramId {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct ProgramMetadata {
+    pub name: LongIdentifier,
     pub id: ProgramId,
     /// Time the program was modified in seconds since the Unix epoch.
     pub last_modified: u64,
@@ -103,6 +104,56 @@ using_std! {
                 .expect("System time to be later than 1970-01-01 00:00:00 UTC")
                 .as_secs();
         }
+    }
+}
+
+
+// If we had better const functions (+ typenum) or const generics (and better
+// const functions — mainly just loops and ranges) we wouldn't need two
+// separate types here.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LongIdentifier([u8; 12]);
+
+impl Default for LongIdentifier {
+    fn default() -> Self {
+        Self::new_from_str("unknown!").unwrap()
+    }
+}
+
+impl LongIdentifier {
+    pub fn new(name: [u8; 12]) -> Result<Self, ()> {
+        if !name.iter().all(|c| c.is_ascii()) {
+            Err(())
+        } else {
+            Ok(Self(name))
+        }
+    }
+
+    pub fn new_from_str(name: &str) -> Result<Self, ()> {
+        Self::new(name.as_bytes().try_into().map_err(|_| ())?)
+    }
+
+    pub fn new_truncated_padded(name: &str) -> Result<Self, ()> {
+        // let a: [u8; 12] = name.chars().chain(core::iter::repeat(' ')).take(12).collect();
+        // let arr = [' ' as u8; 12];
+
+        // Self::new_from_str()
+
+        // Err(())
+
+        if let
+    }
+}
+
+impl Display for LongIdentifier {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for LongIdentifier {
+    fn as_ref(&self) -> &str {
+        core::str::from_utf8(&self.0).unwrap()
     }
 }
 
@@ -161,12 +212,7 @@ impl Identifier {
 
 impl Display for Identifier {
     fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(fmt, "{}{}{}{}",
-            self.0[0] as char,
-            self.0[1] as char,
-            self.0[2] as char,
-            self.0[3] as char,
-        )
+        write!(fmt, "{}", self.as_ref())
     }
 }
 
