@@ -201,7 +201,7 @@ where
     std::thread::spawn(move || {
         loop {
             match rx_halt_or_fut.try_recv() {
-                Err(_) => dev.tick(),
+                Err(_) => { dev.tick(); },
                 Ok(None) => break,
                 Ok(Some(())) => {
                     dev.reset();
