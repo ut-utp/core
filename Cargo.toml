@@ -3,13 +3,14 @@
 members = [
     "isa",
     "traits",
-    "shims",
-    "tui",
     "baseline-sim",
+    "shims",
     "macros",
     "os",
+    "tui", # TODO: spin off
+    "device-support" # TODO: spin off
 ]
-exclude = [ "misc/lc3-tm4c", "misc/serial" ]
+exclude = [ "misc/lc3-tm4c", "misc/serial" ] # TODO: remove
 
 # TODO: turn tui into a library and reference its bin target here
 

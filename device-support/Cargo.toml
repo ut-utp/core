@@ -1,0 +1,45 @@
+[package]
+name = "lc3-device-support"
+version = "0.1.0"
+authors = ["UT UTP <ut.utp.group@gmail.com>"]
+edition = "2018"
+
+workspace = ".."
+
+description = "Supporting materials for devices running the UTP LC-3 Simulator."
+homepage = "https://ut-utp.github.io"
+repository = "http://github.com/ut-utp/prototype"
+
+readme = "README.md"
+
+keywords = ["lc-3", "peripherals", "embedded-hal", "utp"]
+categories = ["no-std", "embedded", "simulation"]
+
+license = "MPL-2.0"
+
+
+[badges]
+github-actions = { repository = "ut-utp/prototype", workflow = "device-support" }
+codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
+
+is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }
+is-it-maintained-open-issues = { repository = "ut-utp/prototype" }
+maintenance = { status = "actively-developed" }
+
+
+[dependencies]
+lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
+lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
+
+serde = { version = "1.0", default-features = false }
+postcard = "0.4.3"
+embedded-hal = "0.2.3"
+static_assertions = "1.1.0"
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"
+
+
+[features]
+default = ["no_std"]
+no_std = ["lc3-isa/no_std", "lc3-traits/no_std"]

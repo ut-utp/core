@@ -23,8 +23,17 @@ Currently, the platform consists of these pieces:
  - A barebones OS that is virtually identical to [the one used in lc3tools](https://github.com/chiragsakhuja/lc3tools/blob/b5d7245aabc33a05f28cc124202fd1532b1d9609/backend/lc3os.cpp#L12-L673).
      + Lives in the [`lc3-os` crate](os).
  - A shiny TUI that uses all the other pieces.
-     + Lives in the [`lc3-tui` crate].
+     + Lives in the [`lc3-tui` crate](tui).
      + Unlike the other things on this list, this is an application (you can run it).
+     + TODO: move out of this repo!
+ - A device support crate.
+     + This contains macros and pieces that aid in implementing the peripheral traits and running the simulator on devices with [embedded-hal](https://docs.rs/embedded-hal/) support. This includes:
+         * the uart transport layer
+         * the `#![no_std]` compatible encoding layer (based on [`postcard`](https://github.com/jamesmunns/postcard))
+         * (eventually (TODO)) the macros that, provided with `embedded-hal` compliant pins, provides you with peripheral trait impls
+         * miscellaneous things necessary for the above like a simple FIFO
+     + Lives in the [`lc3-device-support` crate](device-support).
+     + TODO: move out of this repo!
 
 TODO:
  - [ ] crate and doc badges on each crate
