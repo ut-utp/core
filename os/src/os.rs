@@ -1108,19 +1108,11 @@ fn os() -> AssembledProgram {
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
-        //R3 contains the period info to be set when timer mode is changed,
-        // the period will be changed
-        @SET_TIMER_PERIOD
-            LD R4, @OS_TIMER_BASE_ADDR;      // Load GPIO base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and adding 1
-            ADD R4, R4, R0;                 // R4 contains data address of pin number in R0
-            STR R1, R4, #0;
 
 
         // R0 = TIMER pin to write to
         // R1 = period to be set
-        @SET_TIMER_REPEAT
+        @TRAP_SET_TIMER_REPEAT
            ST R0, @OS_R0;
            ST R1, @OS_R1;
            ST R7, @OS_R7_SUB;
@@ -1137,7 +1129,7 @@ fn os() -> AssembledProgram {
            LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
            RTI;
 
-        @SET_TIMER_DISABLE
+        @TRAP_SET_TIMER_DISABLE
            ST R0, @OS_R0;
            ST R7, @OS_R7_SUB;
            AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
@@ -1146,7 +1138,9 @@ fn os() -> AssembledProgram {
            LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
            RTI;
 
-        @SET_TIMER_SINGLESHOT
+        // R0 = TIMER pin to write to
+        // R1 = period to be set
+        @TRAP_SET_TIMER_SINGLESHOT
            ST R0, @OS_R0;
            ST R1, @OS_R1;
            ST R7, @OS_R7_SUB;
@@ -1263,7 +1257,7 @@ fn os() -> AssembledProgram {
         // and disables ADC
         // Preserves values of R7, R0
 
-        @SET_ADC_DISABLE
+        @TRAP_SET_ADC_DISABLE
            ST R0, @OS_R0_SUB;
            ST R7, @OS_R7_SUB;
            AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
@@ -1276,7 +1270,7 @@ fn os() -> AssembledProgram {
         // and enables ADC
         // Preserves values of R7, R0
 
-        @SET_ADC_ENABLE
+        @TRAP_SET_ADC_ENABLE
            ST R0, @OS_R0_SUB;
            ST R7, @OS_R7_SUB;
            AND R1, R1, #0; //sets mode to 1, to enable ADC
