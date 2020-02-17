@@ -1026,6 +1026,7 @@ fn os() -> AssembledProgram {
             ADD R4, R4, R0;                 // R4 contains data address of pin number in R0
             STR R1, R4, #0;
 
+
         // R0 = TIMER pin to write to
         // R1 = period to be set
         @SET_TIMER_REPEAT
