@@ -75,28 +75,28 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x2D
         .FILL @UNKNOWN_TRAP; // 0x2E
         .FILL @UNKNOWN_TRAP; // 0x2F
-        .FILL @TRAP_SET_GPIO_MODE; // 0x30
-        .FILL @TRAP_READ_GPIO_MODE; // 0x31
-        .FILL @TRAP_WRITE_GPIO_DATA; // 0x32
-        .FILL @TRAP_READ_GPIO_DATA; // 0x33
-        .FILL @TRAP_SET_ADC_MODE; // 0x34
-        .FILL @TRAP_READ_ADC_MODE; // 0x35
-        .FILL @TRAP_READ_ADC_DATA; // 0x36
-        .FILL @TRAP_SET_PWM; // 0x37
-        .FILL @TRAP_READ_PWM_MODE; // 0x38
-        .FILL @TRAP_READ_PWM_DUTY_CYCLE; // 0x39
-        .FILL @TRAP_SET_TIMER_MODE; // 0x3A
-        .FILL @TRAP_READ_TIMER_MODE; // 0x3B
-        .FILL @TRAP_WRITE_TIMER_DATA; // 0x3C
-        .FILL @TRAP_READ_TIMER_DATA; // 0x3D
-        .FILL @TRAP_SET_CLOCK; // 0x3E
-        .FILL @TRAP_READ_CLOCK; // 0x3F
-        .FILL @UNKNOWN_TRAP; // 0x40
-        .FILL @UNKNOWN_TRAP; // 0x41
-        .FILL @UNKNOWN_TRAP; // 0x42
-        .FILL @UNKNOWN_TRAP; // 0x43
-        .FILL @UNKNOWN_TRAP; // 0x44
-        .FILL @UNKNOWN_TRAP; // 0x45
+        .FILL @TRAP_SET_GPIO_INPUT; // 0x30
+        .FILL @TRAP_SET_GPIO_OUTPUT; // 0x31
+        .FILL @TRAP_SET_GPIO_INTERRUPT; // 0x32
+        .FILL @TRAP_SET_GPIO_DISABLED; // 0x33
+        .FILL @TRAP_READ_GPIO_MODE; // 0x34
+        .FILL @TRAP_WRITE_GPIO_DATA; // 0x35
+        .FILL @TRAP_READ_GPIO_DATA; // 0x36
+        .FILL @TRAP_SET_ADC_ENABLE; // 0x37
+        .FILL @TRAP_SET_ADC_DISABLE; // 0x38
+        .FILL @TRAP_READ_ADC_MODE; // 0x39
+        .FILL @TRAP_READ_ADC_DATA; // 0x3A
+        .FILL @TRAP_SET_PWM; // 0x3B
+        .FILL @TRAP_DISABLE_PWM; // 0x3C
+        .FILL @TRAP_READ_PWM_MODE; // 0x3D
+        .FILL @TRAP_READ_PWM_DUTY_CYCLE; // 0x3E
+        .FILL @TRAP_SET_TIMER_SINGLESHOT; // 0x3F
+        .FILL @TRAP_SET_TIMER_REPEAT; // 0x40
+        .FILL @TRAP_SET_TIMER_DISABLE; // 0x41
+        .FILL @TRAP_READ_TIMER_MODE; // 0x42
+        .FILL @TRAP_READ_TIMER_DATA; // 0x43
+        .FILL @TRAP_SET_CLOCK; // 0x44
+        .FILL @TRAP_READ_CLOCK; // 0x45
         .FILL @UNKNOWN_TRAP; // 0x46
         .FILL @UNKNOWN_TRAP; // 0x47
         .FILL @UNKNOWN_TRAP; // 0x48
@@ -851,18 +851,6 @@ fn os() -> AssembledProgram {
             LD R7, @OS_R7;
             RTI;
 
-        // Sets GPIO pin to output mode
-        // R0 = GPIO pin to set
-        @TRAP_SET_GPIO_OUTPUT
-            ST R1, @OS_R1;
-            ST R7, @OS_R7_SUB;
-            AND R1, R1, #0;                 // Set R1 to 1 (Output)
-            ADD R1, R1, #1;
-            JSR @SET_GPIO_MODE;
-            LD R1, @OS_R1;
-            LD R7, @OS_R7_SUB;
-            RTI;
-
         // Sets GPIO pin to input mode
         // R0 = GPIO pin to set
         @TRAP_SET_GPIO_INPUT
@@ -875,22 +863,23 @@ fn os() -> AssembledProgram {
             LD R7, @OS_R7_SUB;
             RTI;
 
-        // Sets GPIO pin to disabled
+        // Sets GPIO pin to output mode
         // R0 = GPIO pin to set
-        @TRAP_SET_GPIO_DISABLED
+        @TRAP_SET_GPIO_OUTPUT
             ST R1, @OS_R1;
             ST R7, @OS_R7_SUB;
-            AND R1, R1, #0;                 // Set R1 to 0 (Disabled)
+            AND R1, R1, #0;                 // Set R1 to 1 (Output)
+            ADD R1, R1, #1;
             JSR @SET_GPIO_MODE;
             LD R1, @OS_R1;
             LD R7, @OS_R7_SUB;
             RTI;
 
-        // Sets GPIO pin to interrupt mode
+        // Sets GPIO pin to interrupt mode and sets ISR address in IVT
         // R0 = GPIO pin to set
         // R1 = Address of interrupt service routine
         @TRAP_SET_GPIO_INTERRUPT
-            ST R0, @OS_R0;                  // TODO: This checks if R0 in in range twice, think of something better
+            ST R0, @OS_R0;
             ST R1, @OS_R1;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
@@ -914,6 +903,17 @@ fn os() -> AssembledProgram {
             LD R1, @OS_R1;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
+            RTI;
+
+        // Sets GPIO pin to disabled
+        // R0 = GPIO pin to set
+        @TRAP_SET_GPIO_DISABLED
+            ST R1, @OS_R1;
+            ST R7, @OS_R7_SUB;
+            AND R1, R1, #0;                 // Set R1 to 0 (Disabled)
+            JSR @SET_GPIO_MODE;
+            LD R1, @OS_R1;
+            LD R7, @OS_R7_SUB;
             RTI;
 
         // Reads and returns mode of GPIO pin
@@ -980,24 +980,92 @@ fn os() -> AssembledProgram {
             LD R7, @OS_R7;
             RTI;
 
-        // PWM disable
-        // R0 = PWM to disable
-        @TRAP_DISABLE_PWM
+        // Sets mode of ADC pin
+        // R0 = ADC pin to set mode of
+        // R1 = mode to set
+        @SET_ADC_MODE
+            ST R0, @OS_R0;
+            ST R1, @OS_R1;
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of ADC pins
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_SET_ADC_MODE;
+
+            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
+            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
+            STR R1, R4, #0;                 // Writes ADC mode to control register
+        @SKIP_SET_ADC_MODE
+            LD R0, @OS_R0;
+            LD R1, @OS_R1;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Sets mode of ADC pin to Enabled
+        // R0 = ADC pin to enable
+        @TRAP_SET_ADC_ENABLE
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0;                  // Sets mode to 1, to enable ADC
+           ADD R1, R1, #1;
+           JSR @SET_ADC_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;               // Restores values from JSR and the subroutine
+           RTI;
+
+        // Sets mode of ADC pin to Disabled
+        // R0 = ADC pin to disable
+        @TRAP_SET_ADC_DISABLE
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0;                  // Sets mode to 0, which is mode to disable ADC
+           JSR @SET_ADC_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;               // Restores values from JSR and the subroutine
+           RTI;
+
+        // Reads and returns mode of ADC pin
+        // R0 = ADC pin to read from
+        // -> R0 = mode of ADC pin
+        @TRAP_READ_ADC_MODE
             ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
-            AND R4, R4, #0;                 // Set R4 to # of PWM pins
-            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
+            AND R4, R4, #0;                 // Set R4 to # of ADC pins
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_DISABLE_PWM;
+            BRn @SKIP_READ_ADC_MODE;
 
-            LD R4, @OS_PWM_BASE_ADDR;
+            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
             ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R4, R4, R0;                 // R4 contains address of period control register
-            AND R0, R0, #0;
-            STR R0, R4, #0;                 // Disable PWM (period = 0)
-        @SKIP_DISABLE_PWM
+            ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
+            LDR R0, R4, #0;                 // Reads mode from pin into R0
+        @SKIP_READ_ADC_MODE
             LD R0, @OS_R0;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Reads and returns data from ADC pin
+        // R0 = ADC pin to read from
+        // -> R0 = data from ADC pin
+        @TRAP_READ_ADC_DATA
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of ADC pins
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_ADC_DATA;
+
+            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R1
+            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R0, R0, #1;                 // and add 1
+            ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
+            LDR R0, R4, #0;                 // Reads data from pin in R0
+        @SKIP_READ_ADC_DATA
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -1025,28 +1093,27 @@ fn os() -> AssembledProgram {
             LD R7, @OS_R7;
             RTI;
 
-//        // PWM Pin Set
-//        // R0 = PWM Pin to set mode of
-//        // R1 = mode to be set
-//        @TRAP_SET_PWM_MODE
-//            LD R2, @OS_PWM_BASE_ADDR;
-//            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
-//            ADD R4, R2, R3;                 // R4 contains address of pin number in R0
-//            STR R1, R4, #0;                 // Write PWM mode to control register
-//        @SKIP_SET_PWM_MODE
-//            RTI;
+        // PWM disable
+        // R0 = PWM to disable
+        @TRAP_DISABLE_PWM
+            ST R0, @OS_R0;
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of PWM pins
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_DISABLE_PWM;
 
-//        // Writes data to PWM pin
-//        // R0 = PWM pin to write to
-//        // R1 = data to write
-//        @TRAP_WRITE_PWM_DUTY_CYCLE
-//            LD R2, @OS_PWM_BASE_ADDR;
-//            ADD R2, R2, #1;                 // Offset by 1 to get GPIO0 data register
-//            ADD R3, R0, R0;                 // Calculate pin address offset by doubling pin number
-//            ADD R4, R2, R3;                 // R4 contains data address of pin number in R0
-//            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
-//        @SKIP_READ_PWM_MODE
-//            RTI;
+            LD R4, @OS_PWM_BASE_ADDR;
+            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains address of period control register
+            AND R0, R0, #0;
+            STR R0, R4, #0;                 // Disable PWM (period = 0)
+        @SKIP_DISABLE_PWM
+            LD R0, @OS_R0;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
 
         // Reads and returns mode of PWM pin
         // R0 = PWM pin to read from
@@ -1092,7 +1159,8 @@ fn os() -> AssembledProgram {
         // Timer Pin Set
         // R0= Timer Pin to set mode of
         // R1= mode to be set
-        @TRAP_SET_TIMER_MODE
+        @SET_TIMER_MODE
+            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
@@ -1105,57 +1173,73 @@ fn os() -> AssembledProgram {
             ADD R4, R4, R0;                 // R4 contains address of pin number in R0
             STR R1, R4, #0;
         @SKIP_SET_TIMER_MODE
+            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
 
-
+        // Writes data to TIMER pin
         // R0 = TIMER pin to write to
-        // R1 = period to be set
-        @TRAP_SET_TIMER_REPEAT
-           ST R0, @OS_R0;
-           ST R1, @OS_R1;
-           ST R7, @OS_R7_SUB;
-           JSR @TRAP_WRITE_TIMER_DATA;
-           LD R0, @OS_R0;
-           LD R1, @OS_R1;
-           LD R7, @OS_R7_SUB;
+        // R1 = data to write
+        @WRITE_TIMER_DATA
+            ST R0, @OS_R0;
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of timers
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_WRITE_TIMER_DATA;
 
-           AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
-           ADD R1, R1, #1;
-           JSR @SET_TIMER_MODE;
-           LD R0, @OS_R0;
-           LD R1, @OS_R1;
-           LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
-           RTI;
+            LD R4, @OS_TIMER_BASE_ADDR;
+            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R0, R0, #1;                 // and adding 1
+            ADD R4, R4, R0;                 // R4 contains data address of pin number in R0
+            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
+        @SKIP_WRITE_TIMER_DATA
+            LD R0, @OS_R0;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
 
-        @TRAP_SET_TIMER_DISABLE
-           ST R0, @OS_R0;
-           ST R7, @OS_R7_SUB;
-           AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
-           JSR @SET_TIMER_MODE;
-           LD R0, @OS_R0;
-           LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
-           RTI;
-
-
+        // Sets timer to SingleShot mode with period
         // R0 = TIMER pin to write to
         // R1 = period to be set
         @TRAP_SET_TIMER_SINGLESHOT
-           ST R0, @OS_R0;
            ST R1, @OS_R1;
            ST R7, @OS_R7_SUB;
-           JSR @TRAP_WRITE_TIMER_DATA;
-           LD R0, @OS_R0;
-           LD R1, @OS_R1;
-           LD R7, @OS_R7_SUB;
+           JSR @WRITE_TIMER_DATA;
 
            AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
            ADD R1, R1, #2;
            JSR @SET_TIMER_MODE;
-           LD R0, @OS_R0;
            LD R1, @OS_R1;
            LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
+           RTI;
+
+        // Sets timer to Repeated mode with period
+        // R0 = Timer pin to write to
+        // R1 = period to be set
+        @TRAP_SET_TIMER_REPEAT
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           JSR @WRITE_TIMER_DATA;
+
+           AND R1, R1, #0;                  // sets mode to 0, which is mode to disable ADC
+           ADD R1, R1, #1;
+           JSR @SET_TIMER_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;               // restores values from JSR and the subroutine
+           RTI;
+
+        // Sets timer to Disabled mode
+        // R0 = Timer pin to disable
+        @TRAP_SET_TIMER_DISABLE
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0;                  // sets mode to 0, which is mode to disable ADC
+           JSR @SET_TIMER_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;               // restores values from JSR and the subroutine
            RTI;
 
         // Reads and returns mode of Timer pin
@@ -1174,27 +1258,6 @@ fn os() -> AssembledProgram {
             ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_TIMER_MODE
-            LD R4, @OS_R4;
-            LD R7, @OS_R7;
-            RTI;
-
-        // Writes data to TIMER pin
-        // R0 = TIMER pin to write to
-        // R1 = data to write
-        @TRAP_WRITE_TIMER_DATA
-            ST R4, @OS_R4;
-            ST R7, @OS_R7;
-            AND R4, R4, #0;                 // Set R4 to # of timers
-            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
-            JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_WRITE_TIMER_DATA;
-
-            LD R4, @OS_TIMER_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and adding 1
-            ADD R4, R4, R0;                 // R4 contains data address of pin number in R0
-            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
-        @SKIP_WRITE_TIMER_DATA
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -1232,95 +1295,6 @@ fn os() -> AssembledProgram {
         @TRAP_READ_CLOCK
             LD R1, @OS_CLOCK_BASE_ADDR;     // Load clock base address into R1
             LDR R0, R1, #0;                 // Read data from clock
-            RTI;
-
-        // Sets mode of ADC pin
-        // R0 = ADC pin to set mode of
-        // R1 = mode to set
-        @SET_ADC_MODE
-            ST R4, @OS_R4;
-            ST R7, @OS_R7;
-            AND R4, R4, #0;                 // Set R4 to # of ADC pins
-            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
-            JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_SET_ADC_MODE;
-
-            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
-            STR R1, R4, #0;                 // Writes ADC mode to control register
-        @SKIP_SET_ADC_MODE
-            LD R4, @OS_R4;
-            LD R7, @OS_R7;
-            RTI;
-
-        // Disables the ADC by setting R1 to 1, which calls the SET_ADC_MODE
-        // and disables ADC
-        // Preserves values of R7, R0
-
-        @TRAP_SET_ADC_DISABLE
-           ST R0, @OS_R0_SUB;
-           ST R7, @OS_R7_SUB;
-           AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
-           JSR @SET_ADC_MODE;
-           LD R0, @OS_R0_SUB;
-           LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
-           RTI;
-
-        // Enables the ADC by setting R1 to 1, which calls the SET_ADC_MODE
-        // and enables ADC
-        // Preserves values of R7, R0
-
-        @TRAP_SET_ADC_ENABLE
-           ST R0, @OS_R0_SUB;
-           ST R7, @OS_R7_SUB;
-           AND R1, R1, #0; //sets mode to 1, to enable ADC
-           ADD R1, R1, #1;
-           JSR @SET_ADC_MODE;
-           LD R0, @OS_R0_SUB;
-           LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
-           RTI;
-
-        // Reads and returns mode of ADC pin
-        // R0 = ADC pin to read from
-        // -> R0 = mode of ADC pin
-        @TRAP_READ_ADC_MODE
-            ST R4, @OS_R4;
-            ST R7, @OS_R7;
-            AND R4, R4, #0;                 // Set R4 to # of ADC pins
-            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
-            JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_READ_ADC_MODE;
-
-            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
-            LDR R0, R4, #0;                 // Reads mode from pin into R0
-
-        @SKIP_READ_ADC_MODE
-            LD R4, @OS_R4;
-            LD R7, @OS_R7;
-            RTI;
-
-        // Reads and returns data from ADC pin
-        // R0 = ADC pin to read from
-        // -> R0 = data from ADC pin
-        @TRAP_READ_ADC_DATA
-            ST R4, @OS_R4;
-            ST R7, @OS_R7;
-            AND R4, R4, #0;                 // Set R4 to # of ADC pins
-            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
-            JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_READ_ADC_DATA;
-
-            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R1
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and add 1
-            ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
-            LDR R0, R4, #0;                 // Reads data from pin in R0
-        @SKIP_READ_ADC_DATA
-            LD R4, @OS_R4;
-            LD R7, @OS_R7;
             RTI;
 
         //// Exception Handlers ////
