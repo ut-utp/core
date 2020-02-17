@@ -24,6 +24,15 @@ pub const G7DR_ADDR: Addr = 0xFE16;
 
 pub const GPIODR_ADDR: Addr = 0xFE17;
 
+pub const G0_INTVEC: u8 = 0x90;
+pub const G1_INTVEC: u8 = 0x91;
+pub const G2_INTVEC: u8 = 0x92;
+pub const G3_INTVEC: u8 = 0x93;
+pub const G4_INTVEC: u8 = 0x94;
+pub const G5_INTVEC: u8 = 0x95;
+pub const G6_INTVEC: u8 = 0x96;
+pub const G7_INTVEC: u8 = 0x97;
+
 pub const A0CR_ADDR: Addr = 0xFE18;
 pub const A0DR_ADDR: Addr = 0xFE19;
 pub const A1CR_ADDR: Addr = 0xFE1A;
@@ -425,7 +434,7 @@ impl MemMapped for DDR {
 }
 
 macro_rules! gpio_mem_mapped {
-    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr) => {
+    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr, $int_vec:expr) => {
         #[doc=$pin_name]
         #[doc="GPIO Pin Control Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -480,6 +489,29 @@ macro_rules! gpio_mem_mapped {
             }
         }
 
+        impl Interrupt for $cr {
+            const INT_VEC: u8 = $int_vec;
+            const PRIORITY: u8 = 4;     // TODO: don't hard code
+
+            fn interrupt_ready<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                Gpio::interrupt_occurred(interp.get_peripherals(), $pin)
+                // TODO: When to reset interrupt occurred flag?
+            }
+
+            fn interrupt_enabled<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>
+            {
+                Gpio::interrupts_enabled(interp.get_peripherals(), $pin)
+            }
+
+        }
+
         #[doc=$pin_name]
         #[doc="GPIO Pin Data Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -522,14 +554,14 @@ macro_rules! gpio_mem_mapped {
 
 use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*, GpioPinArr, GpioPin, GPIO_PINS};
 
-gpio_mem_mapped!(G0, "G0", G0CR, G0DR, G0CR_ADDR, G0DR_ADDR);
-gpio_mem_mapped!(G1, "G1", G1CR, G1DR, G1CR_ADDR, G1DR_ADDR);
-gpio_mem_mapped!(G2, "G2", G2CR, G2DR, G2CR_ADDR, G2DR_ADDR);
-gpio_mem_mapped!(G3, "G3", G3CR, G3DR, G3CR_ADDR, G3DR_ADDR);
-gpio_mem_mapped!(G4, "G4", G4CR, G4DR, G4CR_ADDR, G4DR_ADDR);
-gpio_mem_mapped!(G5, "G5", G5CR, G5DR, G5CR_ADDR, G5DR_ADDR);
-gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR);
-gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR);
+gpio_mem_mapped!(G0, "G0", G0CR, G0DR, G0CR_ADDR, G0DR_ADDR, G0_INTVEC);
+gpio_mem_mapped!(G1, "G1", G1CR, G1DR, G1CR_ADDR, G1DR_ADDR, G1_INTVEC);
+gpio_mem_mapped!(G2, "G2", G2CR, G2DR, G2CR_ADDR, G2DR_ADDR, G2_INTVEC);
+gpio_mem_mapped!(G3, "G3", G3CR, G3DR, G3CR_ADDR, G3DR_ADDR, G3_INTVEC);
+gpio_mem_mapped!(G4, "G4", G4CR, G4DR, G4CR_ADDR, G4DR_ADDR, G4_INTVEC);
+gpio_mem_mapped!(G5, "G5", G5CR, G5DR, G5CR_ADDR, G5DR_ADDR, G5_INTVEC);
+gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR, G6_INTVEC);
+gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR, G7_INTVEC);
 
 pub struct GPIODR(Word);
 

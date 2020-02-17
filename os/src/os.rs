@@ -644,6 +644,8 @@ fn os() -> AssembledProgram {
         @OS_TIMER_BASE_ADDR .FILL #0xFE26;
         @OS_PWM_BASE_ADDR .FILL #0xFE22;
 
+        @OS_GPIO_BASE_INTVEC .FILL #0x0190;
+
         //// TRAP Routines ////
 
         // GETC: Gets a single character.
@@ -807,7 +809,7 @@ fn os() -> AssembledProgram {
             PUTS;
             HALT;
 
-        // Checks if R0 is within range of 0 to R1
+        // Checks if R0 is within range of 0 to R4
         // R0 = value to check
         // R4 = max value
         // -> cc = n if out of bounds
@@ -827,16 +829,15 @@ fn os() -> AssembledProgram {
         @OUT_OF_BOUNDS_RET
             RET;
 
-        // Sets mode of GPIO pin
-        // R0 = GPIO pin to set mode of
+        // Enables GPIO pin
+        // R0 = GPIO pin to enable
         // R1 = mode to set
-        //
-        // Only looks at lowest two bits of R1
-        @TRAP_SET_GPIO_MODE
+        @SET_GPIO_MODE
+            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
-            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_SET_GPIO_MODE;
 
@@ -845,6 +846,72 @@ fn os() -> AssembledProgram {
             ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
             STR R1, R4, #0;                 // Write GPIO mode to control register
         @SKIP_SET_GPIO_MODE
+            LD R0, @OS_R0;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Sets GPIO pin to output mode
+        // R0 = GPIO pin to set
+        @TRAP_SET_GPIO_OUTPUT
+            ST R1, @OS_R1;
+            ST R7, @OS_R7_SUB;
+            AND R1, R1, #0;                 // Set R1 to 1 (Output)
+            ADD R1, R1, #1;
+            JSR @SET_GPIO_MODE;
+            LD R1, @OS_R1;
+            LD R7, @OS_R7_SUB;
+            RTI;
+
+        // Sets GPIO pin to input mode
+        // R0 = GPIO pin to set
+        @TRAP_SET_GPIO_INPUT
+            ST R1, @OS_R1;
+            ST R7, @OS_R7_SUB;
+            AND R1, R1, #0;                 // Set R1 to 2 (Input)
+            ADD R1, R1, #2;
+            JSR @SET_GPIO_MODE;
+            LD R1, @OS_R1;
+            LD R7, @OS_R7_SUB;
+            RTI;
+
+        // Sets GPIO pin to disabled
+        // R0 = GPIO pin to set
+        @TRAP_SET_GPIO_DISABLED
+            ST R1, @OS_R1;
+            ST R7, @OS_R7_SUB;
+            AND R1, R1, #0;                 // Set R1 to 0 (Disabled)
+            JSR @SET_GPIO_MODE;
+            LD R1, @OS_R1;
+            LD R7, @OS_R7_SUB;
+            RTI;
+
+        // Sets GPIO pin to interrupt mode
+        // R0 = GPIO pin to set
+        // R1 = Address of interrupt service routine
+        @TRAP_SET_GPIO_INTERRUPT
+            ST R0, @OS_R0;                  // TODO: This checks if R0 in in range twice, think of something better
+            ST R1, @OS_R1;
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of GPIO pins
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_SET_GPIO_INTERRUPT;
+
+            LD R4, @OS_GPIO_BASE_INTVEC;    // Load GPIO base interrupt vector address
+            ADD R4, R4, R0;                 // R4 contains address of pin in R0
+            STR R1, R4, #0;                 // Load service routine address into vector table
+
+            LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R4
+            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
+            AND R1, R1, #0;                 // Set R1 to 3 (Interrupt)
+            ADD R1, R1, #3;
+            STR R1, R4, #0;                 // Write GPIO mode to control register
+        @SKIP_SET_GPIO_INTERRUPT
+            LD R0, @OS_R0;
+            LD R1, @OS_R1;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -856,7 +923,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
-            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_GPIO_MODE;
 
@@ -873,10 +940,11 @@ fn os() -> AssembledProgram {
         // R0 = GPIO pin to write to
         // R1 = data to write
         @TRAP_WRITE_GPIO_DATA
+            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
-            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_WRITE_GPIO_DATA;
 
@@ -886,6 +954,7 @@ fn os() -> AssembledProgram {
             ADD R4, R4, R0;                 // R4 contains data address of pin number in R0
             STR R1, R4, #0;                 // Writes data from R1 to pin in R0
         @SKIP_WRITE_GPIO_DATA
+            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -897,7 +966,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
-            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_GPIO_DATA;
 
@@ -911,6 +980,28 @@ fn os() -> AssembledProgram {
             LD R7, @OS_R7;
             RTI;
 
+        // PWM disable
+        // R0 = PWM to disable
+        @TRAP_DISABLE_PWM
+            ST R0, @OS_R0;
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of PWM pins
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_DISABLE_PWM;
+
+            LD R4, @OS_PWM_BASE_ADDR;
+            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains address of period control register
+            AND R0, R0, #0;
+            STR R0, R4, #0;                 // Disable PWM (period = 0)
+        @SKIP_DISABLE_PWM
+            LD R0, @OS_R0;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
         // PWM set
         // R0 = PWM to set
         // R1 = period to set
@@ -919,7 +1010,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
-            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_SET_PWM;
 
@@ -964,7 +1055,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
-            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_PWM_MODE;
 
@@ -984,7 +1075,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
-            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_PWM_DUTY_CYCLE;
 
@@ -1005,7 +1096,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
-            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS;
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_SET_TIMER_MODE;
 
@@ -1079,7 +1170,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
-            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS;
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_TIMER_MODE;
 
@@ -1099,7 +1190,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
-            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS;
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_WRITE_TIMER_DATA;
 
@@ -1120,7 +1211,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
-            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS;
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_TIMER_DATA;
 
@@ -1155,7 +1246,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
-            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_SET_ADC_MODE;
 
@@ -1202,7 +1293,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
-            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_ADC_MODE;
 
@@ -1223,7 +1314,7 @@ fn os() -> AssembledProgram {
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
-            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS;
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
             BRn @SKIP_READ_ADC_DATA;
 
