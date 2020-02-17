@@ -1138,6 +1138,7 @@ fn os() -> AssembledProgram {
            LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
            RTI;
 
+
         // R0 = TIMER pin to write to
         // R1 = period to be set
         @TRAP_SET_TIMER_SINGLESHOT
