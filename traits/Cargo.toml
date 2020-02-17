@@ -17,6 +17,7 @@ categories = ["no-std", "simulation"]
 
 license = "MPL-2.0"
 
+
 [badges]
 github-actions = { repository = "ut-utp/prototype", workflow = "traits" }
 codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
