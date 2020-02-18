@@ -833,7 +833,6 @@ fn os() -> AssembledProgram {
         // R0 = GPIO pin to enable
         // R1 = mode to set
         @SET_GPIO_MODE
-            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
@@ -842,11 +841,10 @@ fn os() -> AssembledProgram {
             BRn @SKIP_SET_GPIO_MODE;
 
             LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
             STR R1, R4, #0;                 // Write GPIO mode to control register
         @SKIP_SET_GPIO_MODE
-            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -879,7 +877,6 @@ fn os() -> AssembledProgram {
         // R0 = GPIO pin to set
         // R1 = Address of interrupt service routine
         @TRAP_SET_GPIO_INTERRUPT
-            ST R0, @OS_R0;
             ST R1, @OS_R1;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
@@ -893,13 +890,12 @@ fn os() -> AssembledProgram {
             STR R1, R4, #0;                 // Load service routine address into vector table
 
             LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R4
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
             AND R1, R1, #0;                 // Set R1 to 3 (Interrupt)
             ADD R1, R1, #3;
             STR R1, R4, #0;                 // Write GPIO mode to control register
         @SKIP_SET_GPIO_INTERRUPT
-            LD R0, @OS_R0;
             LD R1, @OS_R1;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
@@ -928,7 +924,7 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_GPIO_MODE;
 
             LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_GPIO_MODE
@@ -940,7 +936,6 @@ fn os() -> AssembledProgram {
         // R0 = GPIO pin to write to
         // R1 = data to write
         @TRAP_WRITE_GPIO_DATA
-            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
@@ -949,12 +944,11 @@ fn os() -> AssembledProgram {
             BRn @SKIP_WRITE_GPIO_DATA;
 
             LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and adding 1
-            ADD R4, R4, R0;                 // R4 contains data address of pin number in R0
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
             STR R1, R4, #0;                 // Writes data from R1 to pin in R0
         @SKIP_WRITE_GPIO_DATA
-            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -971,9 +965,9 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_GPIO_DATA;
 
             LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R1
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and adding 1
-            ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R3 contains data address of pin number in R0
             LDR R0, R4, #0;                 // Reads data from pin into R0
         @SKIP_READ_GPIO_DATA
             LD R4, @OS_R4;
@@ -984,7 +978,6 @@ fn os() -> AssembledProgram {
         // R0 = ADC pin to set mode of
         // R1 = mode to set
         @SET_ADC_MODE
-            ST R0, @OS_R0;
             ST R1, @OS_R1;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
@@ -994,11 +987,10 @@ fn os() -> AssembledProgram {
             BRn @SKIP_SET_ADC_MODE;
 
             LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
             STR R1, R4, #0;                 // Writes ADC mode to control register
         @SKIP_SET_ADC_MODE
-            LD R0, @OS_R0;
             LD R1, @OS_R1;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
@@ -1031,7 +1023,6 @@ fn os() -> AssembledProgram {
         // R0 = ADC pin to read from
         // -> R0 = mode of ADC pin
         @TRAP_READ_ADC_MODE
-            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
@@ -1040,11 +1031,10 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_ADC_MODE;
 
             LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_ADC_MODE
-            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -1061,9 +1051,9 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_ADC_DATA;
 
             LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R1
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and add 1
-            ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and add 1
+            ADD R4, R4, #1;                 // R3 contains data address of pin number in R0
             LDR R0, R4, #0;                 // Reads data from pin in R0
         @SKIP_READ_ADC_DATA
             LD R4, @OS_R4;
@@ -1083,7 +1073,7 @@ fn os() -> AssembledProgram {
             BRn @SKIP_SET_PWM;
 
             LD R4, @OS_PWM_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R4 contains address of period control register
             STR R1, R4, #0;                 // Write period to PWM
             ADD R4, R4, #1;                 // R4 contains address of duty cycle register
@@ -1096,7 +1086,6 @@ fn os() -> AssembledProgram {
         // PWM disable
         // R0 = PWM to disable
         @TRAP_DISABLE_PWM
-            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
@@ -1105,12 +1094,11 @@ fn os() -> AssembledProgram {
             BRn @SKIP_DISABLE_PWM;
 
             LD R4, @OS_PWM_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R4 contains address of period control register
-            AND R0, R0, #0;
-            STR R0, R4, #0;                 // Disable PWM (period = 0)
+            AND R7, R7, #0;
+            STR R7, R4, #0;                 // Disable PWM (period = 0)
         @SKIP_DISABLE_PWM
-            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -1127,7 +1115,7 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_PWM_MODE;
 
             LD R4, @OS_PWM_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_PWM_MODE
@@ -1147,9 +1135,9 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_PWM_DUTY_CYCLE;
 
             LD R4, @OS_PWM_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and adding 1
-            ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R3 contains data address of pin number in R0
             LDR R0, R4, #0;                 // Reads data from pin into R0
         @SKIP_READ_PWM_DUTY_CYCLE
             LD R4, @OS_R4;
@@ -1160,7 +1148,6 @@ fn os() -> AssembledProgram {
         // R0= Timer Pin to set mode of
         // R1= mode to be set
         @SET_TIMER_MODE
-            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
@@ -1169,11 +1156,10 @@ fn os() -> AssembledProgram {
             BRn @SKIP_SET_TIMER_MODE;
 
             LD R4, @OS_TIMER_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R4 contains address of pin number in R0
             STR R1, R4, #0;
         @SKIP_SET_TIMER_MODE
-            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -1182,7 +1168,6 @@ fn os() -> AssembledProgram {
         // R0 = TIMER pin to write to
         // R1 = data to write
         @WRITE_TIMER_DATA
-            ST R0, @OS_R0;
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
@@ -1191,12 +1176,11 @@ fn os() -> AssembledProgram {
             BRn @SKIP_WRITE_TIMER_DATA;
 
             LD R4, @OS_TIMER_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, #1;                 // and adding 1
-            ADD R4, R4, R0;                 // R4 contains data address of pin number in R0
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
             STR R1, R4, #0;                 // Writes data from R1 to pin in R0
         @SKIP_WRITE_TIMER_DATA
-            LD R0, @OS_R0;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -1254,8 +1238,8 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_TIMER_MODE;
 
             LD R4, @OS_TIMER_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_TIMER_MODE
             LD R4, @OS_R4;
@@ -1274,9 +1258,9 @@ fn os() -> AssembledProgram {
             BRn @SKIP_READ_TIMER_DATA;
 
             LD R4, @OS_TIMER_BASE_ADDR;
-            ADD R0, R0, R0;                 // Calculate pin address offset by doubling pin number
-            ADD R0, R0, R1;                 // and adding 1
-            ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
             LDR R0, R4, #0;                 // Reads data from pin into R0
         @SKIP_READ_TIMER_DATA
             LD R4, @OS_R4;
@@ -1286,15 +1270,17 @@ fn os() -> AssembledProgram {
         // Sets clock
         // R0 = data to set
         @TRAP_SET_CLOCK
+            ST R1, @OS_R1;
             LD R1, @OS_CLOCK_BASE_ADDR;     // Load clock base address into R1
             STR R0, R1, #0;                 // Write data in R0 to clock
+            LD R1, @OS_R1;
             RTI;
 
         // Reads clock
         // -> R0 = data read from clock
         @TRAP_READ_CLOCK
-            LD R1, @OS_CLOCK_BASE_ADDR;     // Load clock base address into R1
-            LDR R0, R1, #0;                 // Read data from clock
+            LD R0, @OS_CLOCK_BASE_ADDR;     // Load clock base address into R1
+            LDR R0, R0, #0;                 // Read data from clock
             RTI;
 
         //// Exception Handlers ////
