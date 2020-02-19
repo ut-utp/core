@@ -847,7 +847,7 @@ fn os() -> AssembledProgram {
         @SKIP_SET_GPIO_MODE
             LD R4, @OS_R4;
             LD R7, @OS_R7;
-            RTI;
+            RET;
 
         // Sets GPIO pin to input mode
         // R0 = GPIO pin to set
@@ -994,7 +994,7 @@ fn os() -> AssembledProgram {
             LD R1, @OS_R1;
             LD R4, @OS_R4;
             LD R7, @OS_R7;
-            RTI;
+            RET;
 
         // Sets mode of ADC pin to Enabled
         // R0 = ADC pin to enable
@@ -1162,7 +1162,7 @@ fn os() -> AssembledProgram {
         @SKIP_SET_TIMER_MODE
             LD R4, @OS_R4;
             LD R7, @OS_R7;
-            RTI;
+            RET;
 
         // Writes data to TIMER pin
         // R0 = TIMER pin to write to
@@ -1183,7 +1183,7 @@ fn os() -> AssembledProgram {
         @SKIP_WRITE_TIMER_DATA
             LD R4, @OS_R4;
             LD R7, @OS_R7;
-            RTI;
+            RET;
 
         // Sets timer to SingleShot mode with period
         // R0 = TIMER pin to write to
