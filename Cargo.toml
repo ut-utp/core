@@ -8,6 +8,7 @@ members = [
     "baseline-sim",
     "macros",
     "os",
+    "application-support",
 ]
 exclude = [ "misc/lc3-tm4c", "misc/serial" ]
 

@@ -22,6 +22,9 @@ Currently, the platform consists of these pieces:
      + This also isn't `#![no_std]` but it doesn't really count.
  - A barebones OS that is virtually identical to [the one used in lc3tools](https://github.com/chiragsakhuja/lc3tools/blob/b5d7245aabc33a05f28cc124202fd1532b1d9609/backend/lc3os.cpp#L12-L673).
      + Lives in the [`lc3-os` crate](os).
+ - Bits and bobs useful to _applications_ (things that interact with simulator implementations).
+     + Lives in the [`lc3-application-support` crate](application-support).
+     + [Currently has](application-support/README.md) a wrapper type for shims and an Input/Output peripheral abstraction for impls that are backed by a host.
  - A shiny TUI that uses all the other pieces.
      + Lives in the [`lc3-tui` crate].
      + Unlike the other things on this list, this is an application (you can run it).

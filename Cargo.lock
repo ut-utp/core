@@ -613,6 +613,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "lc3-application-support"
+version = "0.1.0"
+dependencies = [
+ "lc3-shims",
+ "lc3-traits",
+ "pretty_assertions",
+]
+
+[[package]]
 name = "lc3-baseline-sim"
 version = "0.1.0"
 dependencies = [
@@ -690,6 +699,7 @@ dependencies = [
  "flexi_logger",
  "futures-executor",
  "lazy_static",
+ "lc3-application-support",
  "lc3-baseline-sim",
  "lc3-isa",
  "lc3-macros",
