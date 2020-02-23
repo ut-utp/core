@@ -8,12 +8,14 @@ use std::io::{stdin, Read};
 use std::sync::Mutex;
 
 /// The source from which Inputs will read characters.
+///
 /// Generally expected to behave as a one-character buffer holding the latest
 /// character input to the peripheral.
 pub trait Source {
     /// THIS FUNCTION MUST NOT TAKE SIGNIFICANT TIME (BLOCK).
     /// Returns None if the last character has already been read.
-    /// Returns Some(last char input) if this function hasn't previously returned that input.
+    /// Returns Some(last char input) if this function hasn't previously
+    /// returned that input.
     /// If this function isn't called before a new character is input
     /// (which is unlikely, as this function is called every simulator cycle),
     /// only the newest character is expected to be returned

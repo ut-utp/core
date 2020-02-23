@@ -19,6 +19,8 @@ pub trait Sink {
 }
 
 impl<W: Write> Sink for Mutex<W> {
+    // TODO: update this for `char` when the time comes and be sure not to
+    // release the lock until all the bytes in the char have been written.
     fn put_char(&self, c: u8) -> IoResult<usize> {
         self.lock().unwrap().write(&[c])
     }
