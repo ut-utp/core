@@ -72,16 +72,16 @@ pub trait InputSink {
 /// [`Sink`]: `lc3_shims::peripherals::Sink`
 /// [`Read`]: `std::io::Read`
 /// [`Write`]: `std::io::Write`
-pub trait OutputSource {
+pub trait OutputSource<'o, 's: 'o>: 's {
     // Note: probably only ASCII for now.
     //
     // Should return `None` when no characters are available.
-    fn get_chars(&self) -> Option<String>;
+    fn get_chars(&'o self) -> Option<String>;
 }
 
 
 // This is fine!
-impl InputSink for &SourceShim {
+impl InputSink for SourceShim {
     fn put_char(&self, c: char) -> Option<()> {
         self.push(c);
         Some(())
@@ -90,23 +90,36 @@ impl InputSink for &SourceShim {
 
 // Mirrors the blanket impl that `Sink` has but also requires `Read` support so
 // that we can actually implement OutputSource.
-impl<W: Write> OutputSource for Mutex<W>
+impl<'o, 'm: 'o, W: Write> OutputSource<'o, 'm> for Mutex<W>
 where
-    Mutex<W>: Sink, // This is really guaranteed.
+    Mutex<W>: Sink + 'm, // This is really guaranteed.
     W: DerefMut,
-    <W as Deref>::Target: Read,
+    <W as Deref>::Target: 'o,
+    &'o <W as Deref>::Target: Read,
 {
-    fn get_chars(&self) -> Option<String> {
+    fn get_chars(&'o self) -> Option<String> {
         let mut s = String::new();
-        let mut source = self.lock().unwrap();
+        let mut source: std::sync::MutexGuard<'_, _> = self.lock().unwrap();
 
-        // This will just not pull characters into the output string if we
-        // encounter non-utf8 characters (see the docs for
-        // `Read::read_to_string`).
-        // TODO: maybe handle non-utf8 chars differently.
-        source.deref_mut()
-            .read_to_string(&mut s)
-            .ok()
-            .and_then(|n| if n > 0 { Some(s) } else { None })
+
+        let mut a: &<W as Deref>::Target = source.deref();
+        let mut b = &mut a;
+
+        Read::read_to_string(b, &mut s);
+        // a.read_to_string(&mut s);
+
+        // // This will just not pull characters into the output string if we
+        // // encounter non-utf8 characters (see the docs for
+        // // `Read::read_to_string`).
+        // // TODO: maybe handle non-utf8 chars differently.
+        // let mut a: &<W as Deref>::Target = source.deref();
+        //     a
+        //     .read_to_string(&mut s)
+        //     .ok()
+        //     .and_then(|n| if n > 0 { Some(s) } else { None })
+
+        Some(s)
     }
 }
+
+struct CompileFail<'a, T: 'a + OutputSource<'a, 'a> = Mutex<Vec<u8>>>(&'a T);

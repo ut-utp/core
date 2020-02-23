@@ -8,12 +8,12 @@ use lc3_shims::peripherals::{GpioShim, AdcShim, PwmShim, TimersShim, ClockShim, 
 
 use std::sync::{Arc, Mutex, RwLock};
 
-pub(crate) struct Shims<'a> {
-    pub(crate) gpio: Arc<RwLock<GpioShim<'a>>>,
-    pub(crate) adc: Arc<RwLock<AdcShim>>,
-    pub(crate) pwm: Arc<RwLock<PwmShim>>,
-    pub(crate) timers: Arc<RwLock<TimersShim<'a>>>,
-    pub(crate) clock: Arc<RwLock<ClockShim>>,
+pub struct Shims<'a> {
+    pub gpio: Arc<RwLock<GpioShim<'a>>>,
+    pub adc: Arc<RwLock<AdcShim>>,
+    pub pwm: Arc<RwLock<PwmShim>>,
+    pub timers: Arc<RwLock<TimersShim<'a>>>,
+    pub clock: Arc<RwLock<ClockShim>>,
 }
 
 pub type ShimPeripheralSet<'a> = PeripheralSet<
@@ -28,10 +28,10 @@ pub type ShimPeripheralSet<'a> = PeripheralSet<
 >;
 
 pub fn new_shim_peripherals_set<'a, I, O>(input: &'a I, output: &'a O)
-        -> (ShimPeripheralSet<'a>, &'a impl InputSink, &'a impl OutputSource)
+        -> (ShimPeripheralSet<'a>, &'a impl InputSink, &'a impl OutputSource<'a, 'a>)
 where
     I: InputSink + Source + Send + Sync + 'a,
-    O: OutputSource + Sink + Send + Sync + 'a,
+    O: OutputSource<'a, 'a> + Sink + Send + Sync + 'a,
 {
     let gpio_shim = Arc::new(RwLock::new(GpioShim::default()));
     let adc_shim = Arc::new(RwLock::new(AdcShim::default()));
