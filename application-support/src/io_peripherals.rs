@@ -7,6 +7,7 @@
 use lc3_shims::peripherals::{Sink, SourceShim};
 
 use std::io::{Read, Write};
+use std::ops::{DerefMut, Deref};
 use std::sync::Mutex;
 
 /// A trait for [`Input`] Peripherals that lets us, a controller, supply the
@@ -53,14 +54,14 @@ pub trait InputSink {
 ///
 /// Note that this is already implemented for the default output source
 /// (a `Mutex<Vec<u8>>`) used by the output shim ([`OutputShim`]) as well as
-/// every `Mutex` based [`Sink`] whose inner type implements both [`Read`] and
-/// [`Write`].
+/// every `Mutex` based [`Sink`] whose inner type derefs (mutably) into
+/// something that implements [`Read`].
 ///
-/// In the unlikely event that you find yourself creating your own output sink
-/// that you implement [`Sink`] for (or if your `Mutex` based sink's inner type
-/// supports [`Write`] but not [`Read`]), be sure to implement this trait for it
-/// as well if you wish to use your input source with a controller application
-/// (like the tui).
+/// In the event that you find yourself creating your own output sink that you
+/// implement [`Sink`] for (or if your `Mutex` based sink's inner type supports
+/// [`Write`] but doesn't `deref_mut` into a [`Read`] implementor), be sure to
+/// implement this trait for it as well if you wish to use your input source
+/// with a controller application (like the tui).
 ///
 /// Note that this is not a super trait for [`Sink`] because it is possible to
 /// have [`Output`] implementations that are not the [`OutputShim`] communicate
@@ -87,42 +88,25 @@ impl InputSink for &SourceShim {
     }
 }
 
-// This is less fine.. (should maybe be as generic as the Sink trait, but that
-// is not trivial) (TODO)
-impl OutputSource for Mutex<Vec<u8>> {
-    fn get_chars(&self) -> Option<String> {
-        // This is bad, maybe:
-        let mut vec = self.lock().unwrap();
-        if !vec.is_empty() {
-            let v = std::mem::replace(vec.deref_mut(), Vec::new());
-
-            // TODO: maybe handle non-utf8 char better than this.
-            String::from_utf8(v).ok()
-        } else {
-            None
-        }
-    }
-}
-
 // Mirrors the blanket impl that `Sink` has but also requires `Read` support so
 // that we can actually implement OutputSource.
-impl<W: Read + Write> OutputSource for Mutex<W>
+impl<W: Write> OutputSource for Mutex<W>
 where
-    Mutex<W>: Sink // This is really guaranteed.
+    Mutex<W>: Sink, // This is really guaranteed.
+    W: DerefMut,
+    <W as Deref>::Target: Read,
 {
     fn get_chars(&self) -> Option<String> {
-        let mut buf = Vec::new();
+        let mut s = String::new();
         let mut source = self.lock().unwrap();
 
-        if let Some(n) = source.read_to_end(&mut buf) {
-            if n > 0 {
-                // TODO: maybe handle non-utf8 chars better than this.
-                String::from_utf8(buf).ok()
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        // This will just not pull characters into the output string if we
+        // encounter non-utf8 characters (see the docs for
+        // `Read::read_to_string`).
+        // TODO: maybe handle non-utf8 chars differently.
+        source.deref_mut()
+            .read_to_string(&mut s)
+            .ok()
+            .and_then(|n| if n > 0 { Some(s) } else { None })
     }
 }
