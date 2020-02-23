@@ -28,10 +28,10 @@ pub type ShimPeripheralSet<'a> = PeripheralSet<
 >;
 
 pub fn new_shim_peripherals_set<'a, I, O>(input: &'a I, output: &'a O)
-        -> (ShimPeripheralSet<'a>, &'a impl InputSink, &'a impl OutputSource<'a, 'a>)
+        -> (ShimPeripheralSet<'a>, &'a impl InputSink, &'a impl OutputSource)
 where
     I: InputSink + Source + Send + Sync + 'a,
-    O: OutputSource<'a, 'a> + Sink + Send + Sync + 'a,
+    O: OutputSource + Sink + Send + Sync + 'a,
 {
     let gpio_shim = Arc::new(RwLock::new(GpioShim::default()));
     let adc_shim = Arc::new(RwLock::new(AdcShim::default()));
@@ -49,7 +49,7 @@ where
 }
 
 impl<'a> Shims<'a> {
-    pub(crate) fn from_peripheral_set(p: &ShimPeripheralSet<'a>) -> Self {
+    pub fn from_peripheral_set(p: &ShimPeripheralSet<'a>) -> Self {
         Self {
             gpio: p.gpio.clone(),
             adc: p.adc.clone(),
