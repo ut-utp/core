@@ -1,0 +1,117 @@
+on:
+  push:
+    paths:
+      - 'application-support/**'
+
+name: application-support
+
+jobs:
+  check:
+    name: Check + test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [ lc3-application-support ]
+        os: [ windows-latest, ubuntu-latest, macOS-latest ]
+        rust:
+          - stable
+          - beta
+          - nightly
+          - 1.38.0
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@master
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -p ${{ matrix.crate }}
+
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p ${{ matrix.crate }} --  --include-ignored
+
+  wasm:
+    name: Check + test for WebAssembly
+
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [ lc3-application-support ]
+        target: [ wasm32-unknown-unknown, wasm32-wasi ]
+        rust:
+          - stable
+          - beta
+          - nightly
+          - 1.38.0
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          target: ${{ matrix.target }}
+          override: true
+
+      - name: Run cargo check
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          target: ${{ matrix.target }}
+          args: -p ${{ matrix.crate }} --target ${{ matrix.target }}
+
+      # This will not work; eventually we should look at `wasm-bindgen-test`
+      # (TODO)
+      # - name: Run cargo test
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     target: ${{ matrix.target }}
+      #     args: -p ${{ matrix.crate }} --target ${{ matrix.target }} --  --include-ignored
+
+  lint:
+    name: Format + run clippy
+
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [ lc3-application-support ]
+        os: [ ubuntu-latest ]
+        rust: [ stable, nightly ]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@master
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: rustfmt, clippy
+
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -p ${{ matrix.crate }} -- --check
+
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -p ${{ matrix.crate }} -- -D warnings

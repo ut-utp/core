@@ -1,3 +1,5 @@
+//! Supporting materials for devices running the UTP LC-3 Simulator.
+//!
 //! TODO!
 
 // TODO: forbid
@@ -40,10 +42,8 @@
 #![doc(test(attr(deny(rust_2018_idioms, warnings))))]
 #![doc(html_logo_url = "")] // TODO!
 
-// Mark the crate as no_std if the `no_std` feature is enabled.
-#![cfg_attr(feature = "no_std", no_std)]
+#[allow(unused_extern_crates)]
+extern crate core; // makes rls actually look into the standard library (hack)
 
-mod widgets;
-
-mod tui;
-pub use crate::tui::*;
+pub mod shim_support;
+pub mod io_peripherals;
