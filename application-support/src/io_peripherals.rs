@@ -7,7 +7,7 @@
 use lc3_shims::peripherals::{Sink, SourceShim};
 
 use std::io::{Read, Write};
-use std::ops::{DerefMut, Deref};
+use std::ops::Deref;
 use std::sync::Mutex;
 
 /// A trait for [`Input`] Peripherals that lets us, a controller, supply the
@@ -108,6 +108,7 @@ where
         <W as Deref>::deref(&source)
             .read_to_string(&mut s)
             .ok()
-            .and_then(|n| if n > 0 { Some(s) } else { None })
+            .filter(|n| *n > 0)
+            .map(|_| s)
     }
 }
