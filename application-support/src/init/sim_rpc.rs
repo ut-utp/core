@@ -1,17 +1,18 @@
 //! TODO!
 
-use super::{Init, BlackBox};
-use super::sim::new_sim;
-use crate::shim_support::{new_shim_peripherals_set, Shims};
-use crate::event_loop::Backoff;
-
+use super::{sim::new_sim, BlackBox, Init};
+use crate::{
+    event_loop::Backoff,
+    shim_support::{new_shim_peripherals_set, Shims},
+};
 
 use lc3_shims::peripherals::SourceShim;
-use lc3_traits::control::rpc::futures::SyncEventFutureSharedState;
-use lc3_traits::control::rpc::{Controller, MpscTransport, RequestMessage, ResponseMessage, encoding::Transparent, mpsc_sync_pair};
+use lc3_traits::control::rpc::{
+    encoding::Transparent, futures::SyncEventFutureSharedState, mpsc_sync_pair,
+    Controller, MpscTransport, RequestMessage, ResponseMessage,
+};
 
-use std::sync::Mutex;
-use std::thread::Builder as ThreadBuilder;
+use std::{sync::Mutex, thread::Builder as ThreadBuilder};
 
 // Static data that we need:
 lazy_static::lazy_static! {
@@ -19,7 +20,8 @@ lazy_static::lazy_static! {
         SyncEventFutureSharedState::new();
 }
 
-type Cont<'ss> = Controller<'ss,
+type Cont<'ss> = Controller<
+    'ss,
     MpscTransport<RequestMessage, ResponseMessage>,
     SyncEventFutureSharedState,
     RequestMessage,
@@ -32,9 +34,7 @@ pub struct SimWithRpcDevice<'ss> {
     controller: Cont<'ss>,
 }
 
-impl SimWithRpcDevice<'static> {
-
-}
+impl SimWithRpcDevice<'static> {}
 
 impl<'s> Init<'s> for SimWithRpcDevice<'static> {
     type Config = ();
@@ -51,7 +51,7 @@ impl<'s> Init<'s> for SimWithRpcDevice<'static> {
         Option<&'s Self::Input>,
         Option<&'s Self::Output>,
     ) {
-        // About half of this is lifted verbatim from `src/init/sim.rs`:
+        // Some of this is lifted verbatim from `src/init/sim.rs`:
         let input: &'static SourceShim = Box::leak(Box::new(SourceShim::new()));
         let output: &'static Mutex<Vec<u8>> =
             Box::leak(Box::new(Mutex::new(Vec::new())));
@@ -67,7 +67,7 @@ impl<'s> Init<'s> for SimWithRpcDevice<'static> {
             Transparent<_>,
             Transparent<_>,
             Transparent<_>,
-            _
+            _,
         >(&EVENT_FUTURE_SHARED_STATE_CONT);
 
         let _ = ThreadBuilder::new()
@@ -80,9 +80,7 @@ impl<'s> Init<'s> for SimWithRpcDevice<'static> {
             })
             .unwrap();
 
-        let storage: &'s mut _ = b.put(SimWithRpcDevice {
-            controller
-        });
+        let storage: &'s mut _ = b.put(SimWithRpcDevice { controller });
 
         (
             &mut storage.controller,

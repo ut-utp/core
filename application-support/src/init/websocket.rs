@@ -1,12 +1,10 @@
 //! TODO!
 
-use super::{Init, BlackBox};
+use super::{BlackBox, Init};
 use crate::shim_support::Shims;
 
 #[derive(Debug)]
-pub struct WebSocketDevice {
-
-}
+pub struct WebSocketDevice {}
 
 // impl<'s> Init<'s> for WebSocketDevice {
 //     type Config = ();
