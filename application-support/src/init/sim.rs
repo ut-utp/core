@@ -28,10 +28,30 @@ static FLAGS: PeripheralInterruptFlags = PeripheralInterruptFlags::new();
 
 type Interp<'io> =
     Interpreter<'static, MemoryShim, ShimPeripheralSet<'static, 'io>>;
-type Sim<'io> =
+pub(crate) type Sim<'io> =
     Simulator<'static, 'static, Interp<'io>, SyncEventFutureSharedState>;
 
-pub struct SimStorage<'io> {
+pub(crate) fn new_sim<'io>(shims: ShimPeripheralSet<'static, 'io>) -> Sim<'io> {
+    let mut interp: Interpreter<'_, _, _> = InterpreterBuilder::new()
+        .with_interrupt_flags_by_ref(&FLAGS)
+        .with_peripherals(shims)
+        .with_default_memory()
+        .with_default_regs()
+        .with_default_pc()
+        .with_default_state()
+        .build();
+
+    interp.reset();
+    interp.init(&FLAGS);
+
+    let mut sim: Sim<'io> =
+        Simulator::new_with_state(interp, &*EVENT_FUTURE_SHARED_STATE);
+    sim.reset();
+
+    sim
+}
+
+pub struct SimDevice<'io> {
     sim: Option<Sim<'io>>,
     input: Option<SourceShim>,
     output: Option<Mutex<Vec<u8>>>,
@@ -42,7 +62,7 @@ pub struct SimStorage<'io> {
 //
 // This basically means leaking memory which actually isn't too terrible in this
 // case.
-impl<'s> Init<'s> for SimStorage<'static> {
+impl<'s> Init<'s> for SimDevice<'static> {
     type Config = ();
 
     type ControlImpl = Sim<'static>;
@@ -53,7 +73,7 @@ impl<'s> Init<'s> for SimStorage<'static> {
         b: &'s mut BlackBox,
     ) -> (
         &'s mut Self::ControlImpl,
-        Option<Shims</* 'b */ 'static>>,
+        Option<Shims<'static>>,
         Option<&'s Self::Input>,
         Option<&'s Self::Output>,
     ) {
@@ -80,7 +100,7 @@ impl<'s> Init<'s> for SimStorage<'static> {
 
         // Meanwhile, this is safe but leaks memory 🙁.
         /*  */
-        let storage: &'s mut _ = b.put(SimStorage {
+        let storage: &'s mut _ = b.put(SimDevice {
             sim: None,
             input: None,
             output: None,
@@ -98,23 +118,7 @@ impl<'s> Init<'s> for SimStorage<'static> {
             new_shim_peripherals_set::<'static, 'static, _, _>(input, output);
         let shim_copy = Shims::from_peripheral_set(&shims);
 
-        let mut interp: Interpreter<'_, _, _> = InterpreterBuilder::new()
-            .with_interrupt_flags_by_ref(&FLAGS)
-            .with_peripherals(shims)
-            .with_default_memory()
-            .with_default_regs()
-            .with_default_pc()
-            .with_default_state()
-            .build();
-
-        interp.reset();
-        interp.init(&FLAGS);
-
-        let mut sim: Sim<'static> =
-            Simulator::new_with_state(interp, &*EVENT_FUTURE_SHARED_STATE);
-        sim.reset();
-
-        storage.sim = Some(sim);
+        storage.sim = Some(new_sim(shims));
 
         (
             storage.sim.as_mut().unwrap(),
