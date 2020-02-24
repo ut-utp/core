@@ -27,8 +27,10 @@
 //!
 //! TODO!
 
-use crate::io_peripherals::{InputSink, OutputSource};
-use crate::shim_support::Shims;
+use crate::{
+    io_peripherals::{InputSink, OutputSource},
+    shim_support::Shims,
+};
 
 use lc3_traits::control::Control;
 
@@ -39,10 +41,17 @@ pub mod sim;
 pub mod sim_rpc;
 pub mod websocket;
 
-
 #[derive(Debug)]
 pub struct BlackBox {
-    inner: Box<dyn Any>
+    inner: Box<dyn Any>,
+}
+
+impl BlackBox {
+    fn new() -> Self {
+        Self {
+            inner: Box::new(())
+        }
+    }
 }
 
 impl BlackBox {
@@ -83,13 +92,25 @@ pub trait Init<'s> {
     type Input: InputSink + ?Sized + 's;
     type Output: OutputSource + ?Sized + 's;
 
-    fn init(b: &'s mut BlackBox)
-        -> (&'s mut Self::ControlImpl, Option<Shims<'static>>, Option<&'s Self::Input>, Option<&'s Self::Output>);
+    fn init(
+        b: &'s mut BlackBox,
+    ) -> (
+        &'s mut Self::ControlImpl,
+        Option<Shims<'static>>,
+        Option<&'s Self::Input>,
+        Option<&'s Self::Output>,
+    );
 
     // By default, there are no configuration options.
-    fn init_with_config(b: &'s mut BlackBox, _config: Self::Config)
-            -> (&'s mut Self::ControlImpl, Option<Shims<'static>>, Option<&'s Self::Input>, Option<&'s Self::Output>) {
+    fn init_with_config(
+        b: &'s mut BlackBox,
+        _config: Self::Config,
+    ) -> (
+        &'s mut Self::ControlImpl,
+        Option<Shims<'static>>,
+        Option<&'s Self::Input>,
+        Option<&'s Self::Output>,
+    ) {
         Self::init(b)
     }
-
 }
