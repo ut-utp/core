@@ -60,9 +60,9 @@ impl Debug for LoadApiState {
 }
 
 #[derive(Debug, Clone)]
-pub struct Simulator<'a, 's, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain = SimpleEventFutureSharedState>
+pub struct Simulator<'int, 'ss, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'int>, S: EventFutureSharedStatePorcelain = SimpleEventFutureSharedState>
 where
-    <I as Deref>::Target: Peripherals<'a>,
+    <I as Deref>::Target: Peripherals<'int>,
 {
     interp: I,
     breakpoints: [Option<Addr>; MAX_BREAKPOINTS],
@@ -70,9 +70,9 @@ where
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
     state: State,
-    shared_state: Option<&'s S>,
+    shared_state: Option<&'ss S>,
     load_api_state: LoadApiState,
-    _i: PhantomData<&'a ()>,
+    _i: PhantomData<&'int ()>,
 }
 
 impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a> + Default, S: EventFutureSharedStatePorcelain> Default for Simulator<'a, 's, I, S>
