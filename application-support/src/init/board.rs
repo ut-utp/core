@@ -1,12 +1,10 @@
 //! TODO!
 
-use super::{Init, BlackBox};
+use super::{BlackBox, Init};
 use crate::shim_support::Shims;
 
 #[derive(Debug)]
-pub struct BoardDevice {
-
-}
+pub struct BoardDevice {}
 
 // impl<'s> Init<'s> for BoardDevice {
 //     type Config = ();
