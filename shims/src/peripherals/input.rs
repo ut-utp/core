@@ -57,9 +57,9 @@ impl Source for SourceShim {
 }
 
 // #[derive(Clone)] // TODO: Debug
-pub struct InputShim<'a, 'b> { // TODO: don't actually need two lifetimes
-    source: OwnedOrRef<'a, dyn Source + Send + Sync + 'a>,
-    flag: Option<&'b AtomicBool>,
+pub struct InputShim<'i, 'int> {
+    source: OwnedOrRef<'i, dyn Source + Send + Sync + 'i>,
+    flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
     data: Cell<Option<u8>>,
 }
@@ -86,12 +86,12 @@ impl Default for InputShim<'_, '_> {
     }
 }
 
-impl<'a> InputShim<'a, '_> {
+impl<'int, 'i> InputShim<'i, 'int> {
     fn new() -> Self {
         Self::default()
     }
 
-    fn sourced_from(source: OwnedOrRef<'a, dyn Source + Send + Sync + 'a>) -> Self {
+    fn sourced_from(source: OwnedOrRef<'i, dyn Source + Send + Sync + 'i>) -> Self {
         Self {
             source,
             interrupt_enable_bit: false,
@@ -100,11 +100,11 @@ impl<'a> InputShim<'a, '_> {
         }
     }
 
-    pub fn using(source: Box<dyn Source + Send + Sync + 'a>) -> Self {
+    pub fn using(source: Box<dyn Source + Send + Sync + 'i>) -> Self {
         InputShim::sourced_from(OwnedOrRef::Owned(source))
     }
 
-    pub fn with_ref(source: &'a (dyn Source + Send + Sync + 'a)) -> Self {
+    pub fn with_ref(source: &'i (dyn Source + Send + Sync + 'i)) -> Self {
         InputShim::sourced_from(OwnedOrRef::Ref(source))
     }
 
@@ -120,8 +120,8 @@ impl<'a> InputShim<'a, '_> {
     }
 }
 
-impl<'b> Input<'b> for InputShim<'_, 'b> {
-    fn register_interrupt_flag(&mut self, flag: &'b AtomicBool) {
+impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
+    fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
             Some(_) => unreachable!(),

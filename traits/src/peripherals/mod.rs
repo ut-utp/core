@@ -33,21 +33,21 @@ use core::marker::PhantomData;
 //     fn with_mut<R, F: FnOnce(&mut Wrapped) -> R>(&self, func: F) -> R;
 // }
 
-pub trait Peripherals<'p>:
-    Gpio<'p> + Adc + Pwm + Timers<'p> + Clock + Input<'p> + Output<'p>
+pub trait Peripherals<'int>:
+    Gpio<'int> + Adc + Pwm + Timers<'int> + Clock + Input<'int> + Output<'int>
 {
     fn init(&mut self);
 }
 
-pub struct PeripheralSet<'p, G, A, P, T, C, I, O/*, GW, AW, PW, TW, CW, IW, OW*/>
+pub struct PeripheralSet<'int, G, A, P, T, C, I, O/*, GW, AW, PW, TW, CW, IW, OW*/>
 where
-    G: Gpio<'p>,
+    G: Gpio<'int>,
     A: Adc,
     P: Pwm,
-    T: Timers<'p>,
+    T: Timers<'int>,
     C: Clock,
-    I: Input<'p>,
-    O: Output<'p>,
+    I: Input<'int>,
+    O: Output<'int>,
     // GW: 'p + DerefOrOwned<G>,
     // AW: 'p + DerefOrOwned<A>,
     // PW: 'p + DerefOrOwned<P>,
@@ -63,14 +63,14 @@ where
     // clock: CW,
     // input: IW,
     // output: OW,
-    pub gpio: G,
-    pub adc: A,
-    pub pwm: P,
-    pub timers: T,
-    pub clock: C,
-    pub input: I,
-    pub output: O,
-    _marker: PhantomData<&'p ()>,
+    gpio: G,
+    adc: A,
+    pwm: P,
+    timers: T,
+    clock: C,
+    input: I,
+    output: O,
+    _marker: PhantomData<&'int ()>,
 }
 
 // TODO: is default a supertrait requirement or just an additional bound here
@@ -238,13 +238,13 @@ macro_rules! peripheral_set_impl {
         impl<$($lifetime,)? 'p, G, A, P, T, C, I, O> $trait for $crate::peripherals::PeripheralSet<'p, G, A, P, T, C, I, O/*, G, A, P, T, C, I, O*/>
         where
             $($lifetime: 'p,)?
-            G: 'p + $crate::peripherals::gpio::Gpio<'p>,
-            A: 'p + $crate::peripherals::adc::Adc,
-            P: 'p + $crate::peripherals::pwm::Pwm,
-            T: 'p + $crate::peripherals::timers::Timers<'p>,
-            C: 'p + $crate::peripherals::clock::Clock,
-            I: 'p + $crate::peripherals::input::Input<'p>,
-            O: 'p + $crate::peripherals::output::Output<'p>,
+            G: $crate::peripherals::gpio::Gpio<'p>,
+            A: $crate::peripherals::adc::Adc,
+            P: $crate::peripherals::pwm::Pwm,
+            T: $crate::peripherals::timers::Timers<'p>,
+            C: $crate::peripherals::clock::Clock,
+            I: $crate::peripherals::input::Input<'p>,
+            O: $crate::peripherals::output::Output<'p>,
         { $($rest)* }
     };
 }
@@ -359,13 +359,13 @@ macro_rules! func_sig {
 
 impl<'p, G, A, P, T, C, I, O> Peripherals<'p> for PeripheralSet<'p, G, A, P, T, C, I, O/*, G, A, P, T, C, I, O*/>
 where
-    G: 'p + Gpio<'p>,
-    A: 'p + Adc,
-    P: 'p + Pwm,
-    T: 'p + Timers<'p>,
-    C: 'p + Clock,
-    I: 'p + Input<'p>,
-    O: 'p + Output<'p>,
+    G: Gpio<'p>,
+    A: Adc,
+    P: Pwm,
+    T: Timers<'p>,
+    C: Clock,
+    I: Input<'p>,
+    O: Output<'p>,
 {
     fn init(&mut self) {}
 }
@@ -374,13 +374,13 @@ use crate::control::{Snapshot, SnapshotError};
 
 impl<'p, G, A, P, T, C, I, O> Snapshot for PeripheralSet<'p, G, A, P, T, C, I, O>
 where
-    G: 'p + Snapshot + Gpio<'p>,
-    A: 'p + Snapshot + Adc,
-    P: 'p + Snapshot + Pwm,
-    T: 'p + Snapshot + Timers<'p>,
-    C: 'p + Snapshot + Clock,
-    I: 'p + Snapshot + Input<'p>,
-    O: 'p + Snapshot + Output<'p>,
+    G: Snapshot + Gpio<'p>,
+    A: Snapshot + Adc,
+    P: Snapshot + Pwm,
+    T: Snapshot + Timers<'p>,
+    C: Snapshot + Clock,
+    I: Snapshot + Input<'p>,
+    O: Snapshot + Output<'p>,
 
     // This shouldn't be needed since, in order to impl Snapshot your Err type has to
     // implement Into<SnapshotError>.

@@ -51,11 +51,11 @@ where
 impl<'a> Shims<'a> {
     pub fn from_peripheral_set(p: &ShimPeripheralSet<'a>) -> Self {
         Self {
-            gpio: p.gpio.clone(),
-            adc: p.adc.clone(),
-            pwm: p.pwm.clone(),
-            timers: p.timers.clone(),
-            clock: p.clock.clone(),
+            gpio: p.get_gpio().clone(),
+            adc: p.get_adc().clone(),
+            pwm: p.get_pwm().clone(),
+            timers: p.get_timers().clone(),
+            clock: p.get_clock().clone(),
         }
     }
 }
