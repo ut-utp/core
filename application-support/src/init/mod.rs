@@ -76,19 +76,19 @@ impl BlackBox {
 /// [`Interpreter`]: `lc3_baseline_sim::interp::Interpreter`
 /// [`Init`]: `Init`
 /// [`ControlImpl`]: `Init::ControlImpl`
-pub trait Init {
+pub trait Init<'s> {
     type Config: Default; // Once associated type defaults are stable: `= ()`
 
-    type ControlImpl: Control + ?Sized;
-    type Input: InputSink + ?Sized;
-    type Output: OutputSource + ?Sized;
+    type ControlImpl: Control + ?Sized + 's;
+    type Input: InputSink + ?Sized + 's;
+    type Output: OutputSource + ?Sized + 's;
 
-    fn init<'a, 'b: 'a>(b: &'a mut BlackBox)
-        -> (&'a mut Self::ControlImpl, Option<Shims<'b>>, Option<&'a Self::Input>, Option<&'a Self::Output>);
+    fn init(b: &'s mut BlackBox)
+        -> (&'s mut Self::ControlImpl, Option<Shims<'static>>, Option<&'s Self::Input>, Option<&'s Self::Output>);
 
     // By default, there are no configuration options.
-    fn init_with_config<'a, 'b: 'a>(b: &'a mut BlackBox, config: Self::Config)
-            -> (&'a mut Self::ControlImpl, Option<Shims<'b>>, Option<&'a Self::Input>, Option<&'a Self::Output>) {
+    fn init_with_config(b: &'s mut BlackBox, _config: Self::Config)
+            -> (&'s mut Self::ControlImpl, Option<Shims<'static>>, Option<&'s Self::Input>, Option<&'s Self::Output>) {
         Self::init(b)
     }
 
