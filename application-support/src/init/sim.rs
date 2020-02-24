@@ -25,8 +25,8 @@ type Sim<'io> = Simulator<'static, 'static, Interp<'io>, SyncEventFutureSharedSt
 
 pub struct SimStorage<'io> {
     sim: Option<Sim<'io>>,
-    input: SourceShim,
-    output: Mutex<Vec<u8>>,
+    input: Option<SourceShim>,
+    output: Option<Mutex<Vec<u8>>>,
 }
 
 // Ultimately, because we can't do self referential structs in safe Rust, we have to
@@ -40,13 +40,8 @@ impl<'s> Init<'s> for SimStorage<'static> {
     type Input = SourceShim;
     type Output = Mutex<Vec<u8>>;
 
-    // fn init<'a/*, 'b*/>(b: &'a mut BlackBox)
     fn init(b: &'s mut BlackBox)
             -> (&'s mut Self::ControlImpl, Option<Shims</*'b*/'static>>, Option<&'s Self::Input>, Option<&'s Self::Output>) {
-        let input = SourceShim::new();
-        let output = Mutex::new(Vec::new());
-        let storage: &'s mut _ = b.put::<_>(SimStorage { sim: None, input, output });
-
         // This is extremely unsafe and almost certainly UB.
         //
         // Even though input and output do live as long as the simulator (since
@@ -56,11 +51,29 @@ impl<'s> Init<'s> for SimStorage<'static> {
         //
         // Even if it is, faking a 'static reference here might be UB for other
         // reasons.
-        let input = unsafe { core::mem::transmute::<&'s _, &'static Self::Input>(&storage.input) };
-        let output = unsafe { core::mem::transmute::<&'s _, &'static Self::Output>(&storage.output) };
+/*
+        let input = Some(SourceShim::new());
+        let output = Some(Mutex::new(Vec::new()));
+        let storage: &'s mut _ = b.put::<_>(SimStorage { sim: None, input, output });
+
+        let inp = storage.input.as_ref().unwrap();
+        let out = storage.output.as_ref().unwrap();
+
+        let input = unsafe { core::mem::transmute::<&'s Self::Input, &'static Self::Input>(inp) };
+        let output = unsafe { core::mem::transmute::<&'s Self::Output, &'static Self::Output>(out) };
+*/
+        // Meanwhile, this is safe but leaks memory 🙁.
+/**/
+        let storage: &'s mut _ = b.put(SimStorage { sim: None, input: None, output: None });
+
+        let inp: &'static SourceShim = Box::leak(Box::new(SourceShim::new()));
+        let out: &'static Mutex<Vec<u8>> = Box::leak(Box::new(Mutex::new(Vec::new())));
+
+        let input = inp;
+        let output = out;
+/**/
 
         let (shims, _, _) = new_shim_peripherals_set::<'static, 'static, _, _>(input, output);
-        // let (shims, _, _) = new_shim_peripherals_set::<'static, 's, _, _>(&storage.input, &storage.output);
         let shim_copy = Shims::from_peripheral_set(&shims);
 
         let mut interp: Interpreter<'_, _, _> = InterpreterBuilder::new()
@@ -80,7 +93,6 @@ impl<'s> Init<'s> for SimStorage<'static> {
 
         storage.sim = Some(sim);
 
-        (storage.sim.as_mut().unwrap(), Some(shim_copy), Some(&storage.input), Some(&storage.output))
-        // (storage.sim.as_mut().unwrap(), None, Some(&storage.input), Some(&storage.output))
+        (storage.sim.as_mut().unwrap(), Some(shim_copy), Some(inp), Some(out))
     }
 }
