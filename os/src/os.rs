@@ -820,6 +820,7 @@ fn os() -> AssembledProgram {
             ADD R0, R0, #0;                 // Check if R0 is negative
             BRn @OUT_OF_BOUNDS_RET;
             NOT R4, R4;                     // Negate R4
+            ADD R4, R4, #1;
             ADD R4, R0, R4;                 // Check if R0 is less than R4
             BRp @OUT_OF_BOUNDS;
             ADD R0, R0, #0;                 // If not, set cc to p
