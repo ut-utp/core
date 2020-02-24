@@ -8,30 +8,30 @@ use lc3_shims::peripherals::{GpioShim, AdcShim, PwmShim, TimersShim, ClockShim, 
 
 use std::sync::{Arc, Mutex, RwLock};
 
-pub struct Shims<'a> {
-    pub gpio: Arc<RwLock<GpioShim<'a>>>,
+pub struct Shims<'int> {
+    pub gpio: Arc<RwLock<GpioShim<'int>>>,
     pub adc: Arc<RwLock<AdcShim>>,
     pub pwm: Arc<RwLock<PwmShim>>,
-    pub timers: Arc<RwLock<TimersShim<'a>>>,
+    pub timers: Arc<RwLock<TimersShim<'int>>>,
     pub clock: Arc<RwLock<ClockShim>>,
 }
 
-pub type ShimPeripheralSet<'a> = PeripheralSet<
-    'a,
-    Arc<RwLock<GpioShim<'a>>>,
+pub type ShimPeripheralSet<'int: 'io, 'io> = PeripheralSet<
+    'int,
+    Arc<RwLock<GpioShim<'int>>>,
     Arc<RwLock<AdcShim>>,
     Arc<RwLock<PwmShim>>,
-    Arc<RwLock<TimersShim<'a>>>,
+    Arc<RwLock<TimersShim<'int>>>,
     Arc<RwLock<ClockShim>>,
-    Arc<Mutex<InputShim<'a, 'a>>>,
-    Arc<Mutex<OutputShim<'a, 'a>>>,
+    Arc<Mutex<InputShim<'io, 'int>>>,
+    Arc<Mutex<OutputShim<'io, 'int>>>,
 >;
 
-pub fn new_shim_peripherals_set<'a, I, O>(input: &'a I, output: &'a O)
-        -> (ShimPeripheralSet<'a>, &'a impl InputSink, &'a impl OutputSource)
+pub fn new_shim_peripherals_set<'int: 'io, 'io, I, O>(input: &'io I, output: &'io O)
+        -> (ShimPeripheralSet<'int, 'io>, &'io impl InputSink, &'io impl OutputSource)
 where
-    I: InputSink + Source + Send + Sync + 'a,
-    O: OutputSource + Sink + Send + Sync + 'a,
+    I: InputSink + Source + Send + Sync + 'io,
+    O: OutputSource + Sink + Send + Sync + 'io,
 {
     let gpio_shim = Arc::new(RwLock::new(GpioShim::default()));
     let adc_shim = Arc::new(RwLock::new(AdcShim::default()));
@@ -48,8 +48,11 @@ where
     )
 }
 
-impl<'a> Shims<'a> {
-    pub fn from_peripheral_set(p: &ShimPeripheralSet<'a>) -> Self {
+impl<'int> Shims<'int> {
+    pub fn from_peripheral_set<'io>(p: &ShimPeripheralSet<'int, 'io>) -> Self
+    where
+        'int: 'io
+    {
         Self {
             gpio: p.get_gpio().clone(),
             adc: p.get_adc().clone(),
