@@ -1,9 +1,14 @@
-
 pub const KBSR_ADDR: Addr = 0xFE00;
 pub const KBDR_ADDR: Addr = 0xFE02;
 
+pub const KB_INTVEC: u8 = 0x8E;
+pub const KB_PRIORITY: u8 = 4;
+
 pub const DSR_ADDR: Addr = 0xFE04;
 pub const DDR_ADDR: Addr = 0xFE06;
+
+pub const D_INTVEC: u8 = 0x8F;
+pub const D_PRIORITY: u8 = 4;
 
 pub const G0CR_ADDR: Addr = 0xFE07;
 pub const G0DR_ADDR: Addr = 0xFE08;
@@ -32,6 +37,7 @@ pub const G4_INTVEC: u8 = 0x94;
 pub const G5_INTVEC: u8 = 0x95;
 pub const G6_INTVEC: u8 = 0x96;
 pub const G7_INTVEC: u8 = 0x97;
+pub const GPIO_PRIORITY: u8 = 4;
 
 pub const A0CR_ADDR: Addr = 0xFE18;
 pub const A0DR_ADDR: Addr = 0xFE19;
@@ -53,6 +59,10 @@ pub const T0CR_ADDR: Addr = 0xFE25;
 pub const T0DR_ADDR: Addr = 0xFE26;
 pub const T1CR_ADDR: Addr = 0xFE27;
 pub const T1DR_ADDR: Addr = 0xFE28;
+
+pub const T0_INTVEC: u8 = 0x98;
+pub const T1_INTVEC: u8 = 0x99;
+pub const T_PRIORITY: u8 = 4;
 
 pub const BSP_ADDR: Addr = 0xFFFA;
 
@@ -353,6 +363,27 @@ impl MemMapped for KBSR {
     }
 }
 
+impl Interrupt for KBSR {
+    const INT_VEC: u8 = KB_INTVEC;
+    const PRIORITY: u8 = KB_PRIORITY;
+
+    fn interrupt_ready<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Input::interrupt_occurred(interp.get_peripherals())
+    }
+
+    fn interrupt_enabled<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        Input::interrupts_enabled(interp.get_peripherals())
+    }
+}
+
 // impl KBSR {
 //     pub fn
 // }
@@ -395,6 +426,27 @@ impl MemMapped for DSR {
     {
         Output::set_interrupt_enable_bit(interp.get_peripherals_mut(), value.bit(1));
         Ok(())
+    }
+}
+
+impl Interrupt for DSR {
+    const INT_VEC: u8 = D_INTVEC;
+    const PRIORITY: u8 = D_PRIORITY;
+
+    fn interrupt_ready<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Output::interrupt_occurred(interp.get_peripherals())
+    }
+
+    fn interrupt_enabled<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        Output::interrupts_enabled(interp.get_peripherals())
     }
 }
 
@@ -491,7 +543,7 @@ macro_rules! gpio_mem_mapped {
 
         impl Interrupt for $cr {
             const INT_VEC: u8 = $int_vec;
-            const PRIORITY: u8 = 4;     // TODO: don't hard code
+            const PRIORITY: u8 = GPIO_PRIORITY;
 
             fn interrupt_ready<'a, I>(interp: &I) -> bool
             where
@@ -869,7 +921,7 @@ pwm_mem_mapped!(P0, "P0", P0CR, P0DR, P0CR_ADDR, P0DR_ADDR);
 pwm_mem_mapped!(P1, "P1", P1CR, P1DR, P1CR_ADDR, P1DR_ADDR);
 
 macro_rules! timer_mem_mapped {
-    ($id:expr, $id_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr) => {
+    ($id:expr, $id_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr, $int_vec:expr) => {
         #[doc=$id_name]
         #[doc="Timer Control Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -923,6 +975,27 @@ macro_rules! timer_mem_mapped {
             }
         }
 
+        impl Interrupt for $cr {
+            const INT_VEC: u8 = $int_vec;
+            const PRIORITY: u8 = T_PRIORITY;
+
+            fn interrupt_ready<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                Timers::interrupt_occurred(interp.get_peripherals(), $id)
+            }
+
+            fn interrupt_enabled<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>
+            {
+                Timers::interrupts_enabled(interp.get_peripherals(), $id)
+            }
+        }
+
         #[doc=$id_name]
         #[doc="Timer Period Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -964,8 +1037,8 @@ macro_rules! timer_mem_mapped {
 
 use lc3_traits::peripherals::timers::{Timers, TimerId::*};
 
-timer_mem_mapped!(T0, "T0", T0CR, T0DR, T0CR_ADDR, T0DR_ADDR);
-timer_mem_mapped!(T1, "T1", T1CR, T1DR, T1CR_ADDR, T1DR_ADDR);
+timer_mem_mapped!(T0, "T0", T0CR, T0DR, T0CR_ADDR, T0DR_ADDR, T0_INTVEC);
+timer_mem_mapped!(T1, "T1", T1CR, T1DR, T1CR_ADDR, T1DR_ADDR, T1_INTVEC);
 
 mem_mapped!(special: BSP, BSP_ADDR, "Backup Stack Pointer.");
 
