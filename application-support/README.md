@@ -11,3 +11,8 @@ This contains a few things useful to things (applications) that communicate with
     * Shim support:
         - A type (`Shims`) for applications to use when dealing with a simulator that uses the shims
         - And a constructor function for said type
+    * Control impl + Input/Output + Shims initialization abstractions
+        - The `Init` trait and the `BlackBox` type.
+            + The [`init` module docs](src/init/mod.rs) have more details.
+    * Event loop abstractions.
+        - More info [here](src/event_loop.rs).
