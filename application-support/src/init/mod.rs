@@ -39,6 +39,7 @@ pub mod sim;
 pub mod sim_rpc;
 pub mod websocket;
 
+
 #[derive(Debug)]
 pub struct BlackBox {
     inner: Box<dyn Any>
@@ -49,7 +50,7 @@ impl BlackBox {
         let data: Box<dyn Any> = Box::new(data);
         std::mem::replace(&mut self.inner, data);
 
-        data.downcast_mut().unwrap()
+        self.inner.downcast_mut().unwrap()
     }
 }
 
