@@ -48,3 +48,4 @@ extern crate core; // makes rls actually look into the standard library (hack)
 pub mod shim_support;
 pub mod io_peripherals;
 pub mod init;
+pub mod event_loop;
