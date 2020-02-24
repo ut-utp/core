@@ -30,6 +30,9 @@ maintenance = { status = "actively-developed" }
 [dependencies]
 lc3-shims = { path = "../shims", version = "0.1.0" }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
+lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0", default-features = false }
+
+lazy_static = "1.4.0"
 
 
 [dev-dependencies]
