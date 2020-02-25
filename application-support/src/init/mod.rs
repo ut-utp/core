@@ -62,7 +62,7 @@ impl BlackBox {
 impl BlackBox {
     pub fn put<'a, T: 'static>(&'a mut self, data: T) -> &'a mut T {
         let data: Box<dyn Any> = Box::new(data);
-        std::mem::replace(&mut self.inner, data);
+        drop(std::mem::replace(&mut self.inner, data));
 
         self.inner.downcast_mut().unwrap()
     }
