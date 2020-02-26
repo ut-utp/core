@@ -71,7 +71,7 @@ impl BlackBox {
 /// As mentioned in the module docs, this trait does not attempt to cover all
 /// the different configuration interfaces that [`Control`] implementors can
 /// offer: instead we go after the common case. Put differently, this trait is
-/// restrictive by design.
+/// restrictive and limiting _by design_.
 ///
 /// As such, this trait offers only a zero configuration function and a function
 /// that takes a configuration type of the implementor's choosing. More
@@ -82,7 +82,7 @@ impl BlackBox {
 /// the resulting concrete type of the [`Interpreter`] that's produced will be
 /// different — a [`Init`] impl that wants to support configuration options
 /// would need to resort to trait object magicks to provide this functionality
-/// while having a consistent `ControlImpl` type below.).
+/// while having a consistent `ControlImpl` type below).
 ///
 /// [`Control`]: `lc3_traits::control::Control`
 /// [`MemoryShim`]: `lc3_shims::peripherals::MemoryShim`
