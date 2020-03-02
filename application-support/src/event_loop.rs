@@ -109,17 +109,18 @@ impl Default for Backoff {
 }
 
 impl Backoff {
-    // To be used on [`Control`] impls.
-    //
-    // func should return false to stop the loop and cause this function to
-    // return.
-    //
-    // Returns `Ok(())` when stopped because `func` returned false and `Err(())`
-    // when stopped because the Mpsc Receiver returned a Disconnected error.
-    //
-    // [`Control`]: `lc3_traits::control::Control`
+    /// To be used on [`Control`] impls.
+    ///
+    /// func should return false to stop the loop and cause this function to
+    /// return.
+    ///
+    /// Returns `Ok(())` when stopped because `func` returned false and
+    /// `Err(())` when stopped because the Mpsc Receiver returned a Disconnected
+    /// error.
+    ///
+    /// [`Control`]: `lc3_traits::control::Control`
     #[inline]
-    pub fn run_tick_with_events<C: Control, E, F: FnMut(&mut C, E) -> bool>(&self, dev: &mut C, recv: Receiver<E>, mut func: F) -> Result<(), ()> {
+    pub fn run_tick_with_events<C: Control + ?Sized, E, F: FnMut(&mut C, E) -> bool>(&self, dev: &mut C, recv: Receiver<E>, mut func: F) -> Result<(), ()> {
         let mut idle_count = 0;
 
         loop {
@@ -154,13 +155,13 @@ impl Backoff {
         }
     }
 
-    // To be used on the device side (i.e. on [`Device`]).
-    //
-    // Actually (embedded) devices will probably use a simpler spin loop than
-    // this (since wasting cycles is less of a concern and also because this
-    // requires OS functionality like `thread::sleep`).
-    //
-    // [`Device`]: `lc3_traits::control::rpc::Device`
+    /// To be used on the device side (i.e. on [`Device`]).
+    ///
+    /// Actual (i.e. embedded) devices will probably use a simpler spin loop
+    /// than this (since wasting cycles is less of a concern and also because
+    /// this requires OS functionality like `thread::sleep`).
+    ///
+    /// [`Device`]: `lc3_traits::control::rpc::Device`
     #[inline]
     pub fn run_step<C, Req, Resp, D, E, T>(&self, sim: &mut C, mut device: Device<T, C, Req, Resp, D, E>) -> !
     where
