@@ -457,14 +457,15 @@ dependencies = [
 
 [[package]]
 name = "flexi_logger"
-version = "0.14.6"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39c43e04ebd68f9695e0e2e593da77c01fddab56a6b4fea1467bb04621d0783a"
+checksum = "5e0bf77cdf25bf4e09221df3a7b02221445ab52904133e3fa9521698cc096f87"
 dependencies = [
  "chrono",
  "glob",
  "log",
  "regex",
+ "thiserror",
 ]
 
 [[package]]
@@ -1070,6 +1071,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
 dependencies = [
  "unicode-width",
+]
+
+[[package]]
+name = "thiserror"
+version = "1.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee14bf8e6767ab4c687c9e8bc003879e042a96fd67a3ba5934eadb6536bef4db"
+dependencies = [
+ "thiserror-impl",
+]
+
+[[package]]
+name = "thiserror-impl"
+version = "1.0.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7b51e1fbc44b5a0840be594fbc0f960be09050f2617e61e6aa43bef97cd3ef4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
