@@ -120,10 +120,44 @@ impl Backoff {
     ///
     /// [`Control`]: `lc3_traits::control::Control`
     #[inline]
-    pub fn run_tick_with_events<C: Control + ?Sized, E, F: FnMut(&mut C, E) -> bool>(&self, dev: &mut C, recv: Receiver<E>, mut func: F) -> Result<(), ()> {
+    pub fn run_tick_with_events<C: Control + ?Sized, E, F: FnMut(&mut C, E) -> bool>(&self, dev: &mut C, recv: Receiver<E>, func: F) -> Result<(), ()> {
+        self.run_tick_with_event_with_project::<C, _, C, E, F>(dev, |r| r, recv, func)
+    }
+
+
+    /// Just like [`run_tick_with_events`], but gives the event handling function access
+    /// to a type that contains the [`Control`] impl.
+    ///
+    /// This is handy when the `Control` impl is part of a containing type and the event
+    /// handling function needs access to the fields in the containing type. Because
+    /// this function takes a mutable reference to the `Control` impl (as it must),
+    /// with [`run_tick_with_events`] the event handling function is effectively
+    /// prevented from accessing the containing type by the borrow checked since the
+    /// mutable reference we ask for is held for the lifetime of this function.
+    ///
+    /// To get around this, this function asks for a mutable reference to the container
+    /// type (`S` in the function signature) and a projection function to narrow
+    /// `&mut S` into a mutable reference to the `Control` impl (`&mut C`).
+    ///
+    /// Because we relinquish access to the `Control` impl before we call the event
+    /// handling function this works; the lifetimes of our mutable `Control` borrow and
+    /// the event handling function's mutable borrow of `S` do *not* overlap.
+    ///
+    /// [`run_tick_with_events`]: `Backoff::run_tick_with_events`
+    /// [`Control`]: `lc3_traits::control::Control`
+    #[inline]
+    pub fn run_tick_with_event_with_project<S, P, C, E, F>(&self, container: &mut S, project: P, recv: Receiver<E>, mut func: F) -> Result<(), ()>
+    where
+        S: ?Sized,
+        P: for<'r> Fn(&'r mut S) -> &'r mut C,
+        C: Control + ?Sized,
+        F: FnMut(&mut S, E) -> bool,
+    {
+
         let mut idle_count = 0;
 
         loop {
+            let dev = project(container);
             let insns: usize = (0..self.num_iters).map(|_| dev.tick()).sum();
             if insns == 0 { idle_count += 1; } else { idle_count = 0; }
 
@@ -133,7 +167,7 @@ impl Backoff {
 
                 use RecvTimeoutError::*;
                 match recv.recv_timeout(sleep_time) {
-                    Ok(e) => if func(dev, e) { break Ok(()) },
+                    Ok(e) => if func(container, e) { break Ok(()) },
                     Err(Timeout) => {},
                     Err(Disconnected) => break Err(()),
                 }
@@ -144,7 +178,7 @@ impl Backoff {
             use TryRecvError::*;
             match loop {
                 match recv.try_recv() {
-                    Ok(e) => if func(dev, e) { break Ok(()) },
+                    Ok(e) => if func(container, e) { break Ok(()) },
                     Err(e) => break Err(e),
                 }
             } {
