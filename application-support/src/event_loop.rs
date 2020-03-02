@@ -167,7 +167,7 @@ impl Backoff {
 
                 use RecvTimeoutError::*;
                 match recv.recv_timeout(sleep_time) {
-                    Ok(e) => if func(container, e) { break Ok(()) },
+                    Ok(e) => if !func(container, e) { break Ok(()) },
                     Err(Timeout) => {},
                     Err(Disconnected) => break Err(()),
                 }
@@ -178,7 +178,7 @@ impl Backoff {
             use TryRecvError::*;
             match loop {
                 match recv.try_recv() {
-                    Ok(e) => if func(container, e) { break Ok(()) },
+                    Ok(e) => if !func(container, e) { break Ok(()) },
                     Err(e) => break Err(e),
                 }
             } {
