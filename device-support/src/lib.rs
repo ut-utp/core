@@ -52,3 +52,13 @@ macro_rules! using_alloc { ($($i:item)*) => ($(#[cfg(feature = "alloc")]$i)*) }
 extern crate core; // makes rls actually look into the standard library (hack)
 
 extern crate static_assertions as sa;
+
+pub mod encoding;
+
+pub mod memory;
+
+pub mod peripherals;
+
+pub mod transport;
+
+pub mod util;
