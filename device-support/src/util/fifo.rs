@@ -41,7 +41,8 @@ impl<T> Default for Fifo<T> {
 }
 
 impl<T> Fifo<T> {
-    pub const fn new() -> Self {
+    /// Creates an empty Fifo.
+    pub fn new() -> Self {
         // This is really a job for `MaybeUninit::uninit_array` but alas, it is
         // not yet stable (it needs const generics).
         let data = MaybeUninit::<[MaybeUninit<T>; CAPACITY]>::uninit();
@@ -63,6 +64,88 @@ impl<T> Fifo<T> {
             starting: 0,
             ending: 0,
         }
+    }
+
+    /// Creates a new Fifo and is const.
+    ///
+    /// This can only be const because `CAPACITY` is a constant (and not a
+    /// const generic parameter). Hopefully by the time const generics actually
+    /// land we'll have repeating const expressions or a const `assume_init`
+    /// function.
+    pub const fn new_const() -> Self {
+        // Some macro crimes:
+        // macro_rules! dup {
+        //     ($t:expr) => { $t, $t };
+        // }
+
+        // macro_rules! nest {
+        //     ($t:expr => $one:tt $($rest:tt)* ) => {
+        //         dup!(nest!($t => $($rest)*))
+        //     };
+
+        //     ($t:expr) => { $t }
+        // }
+
+        // trace_macros!(true);
+
+        // macro_rules! nested_tuple {
+        //     (($t:expr) $one:tt $($rest:tt)*) => {
+        //         (nested_tuple!(($t) $($rest)*), nested_tuple!(($t) $($rest)*))
+        //     };
+        //     (($t:expr)) => { $t };
+        // }
+
+        // macro_rules! flatten {
+        //     (($t:expr) $one:tt $($rest:tt)*) => {
+
+        //     };
+        // }
+
+        // macro_rules! nest {
+        //     ($t:expr => $($pow2:tt)* ) => {
+        //         [ nest!(($t) $($rest)*) ]
+        //     };
+
+        //     (($t:expr) $one:tt $($rest:tt)* ) => {
+        //         // dup!(nest!($t => $($rest)*))
+        //         nest!($t => $($rest)*), nest!($t => $($rest)*)
+        //         // 78
+        //     };
+
+        //     (($t:expr) ) => { $t }
+        // }
+
+
+
+        // // let data: [MaybeUninit<T>; CAPACITY] = nest!(MaybeUninit::unint() => T);
+        // let data: [_; CAPACITY] = nest!{0 => 0};
+
+        macro_rules! repeat {
+            (($t:expr) => { $($rest:ident)* }) => {
+                [$(
+                    { #[allow(unused)] let $rest = 0; $t },
+                )*]
+            };
+        }
+
+        let data = repeat!((MaybeUninit::uninit()) => {
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+        });
+
+        Self {
+            data,
+            length: 0,
+            starting: 0,
+            ending: 0
+        }
+
     }
 
     /// The maximum number of elements the `Fifo` can hold.
@@ -119,7 +202,7 @@ impl<T> Fifo<T> {
             // specific value was inserted (in a valid state) so we can safely
             // assume that this value is initialized.
             #[allow(unsafe_code)]
-            Some(&unsafe { *datum })
+            Some(unsafe { &*datum })
         }
     }
 
@@ -162,12 +245,20 @@ impl<T> Fifo<T> {
 
                 // Again, leaning on our invariants and assuming this is all
                 // init-ed data.
-                // TODO: not confident the transmute is actually safe here;
+                // TODO: not confident the transmute is actually safe here.
+                //
                 // [MaybeUninit<T>] and [T]
                 // and
                 // &[MaybeUninit<T>] and &[T]
-                // have the same representations right? There are asserts that
-                // check for this at the bottom of this file, but still.
+                // have the same representations right?
+                //
+                // This is probably safe since `MaybeUninit<T>` and `T` are
+                // guaranteed to have the same representation (size, alignment,
+                // and ABI).
+                // Probably because as per the `MaybeUninit` union docs, types
+                // that contain a MaybeUninit don't necessarily have to have the
+                // same representation as types that just contain `T`. There's
+                // an assert for this at the bottom of this file.
                 #[allow(unsafe_code)]
                 unsafe { transmute(s) }
             } else if self.ending <= self.starting {
