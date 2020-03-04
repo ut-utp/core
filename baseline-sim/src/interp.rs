@@ -661,12 +661,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
         // TODO: Set nzp to z here
 
-        // Make sure that the priority is high enough to interrupt:
-        if self.get_special_reg::<PSR>().get_priority() >= priority {
-            // Gotta wait.
-            return false;
-        }
-
         self.handle_exception(int_vec);
         self.get_special_reg::<PSR>().set_priority(self, priority);
 
@@ -680,6 +674,34 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         //     .unwrap();
 
         // true
+    }
+
+    fn check_interrupts(&mut self) {
+        macro_rules! int_devices {
+            ($max_priority:ident, $dev:ty) => {
+                if <$dev as Interrupt>::interrupt(self) && (<$dev>::PRIORITY > $max_priority) {
+                    $max_priority = <$dev>::PRIORITY;
+                    self.handle_interrupt(<$dev>::INT_VEC, <$dev>::PRIORITY);
+                    return;
+                }
+            };
+
+            ($max_priority:ident, $dev:ty, $($rest:ty),+) => {
+                if <$dev as Interrupt>::interrupt(self) && (<$dev>::PRIORITY > $max_priority) {
+                    $max_priority = <$dev>::PRIORITY;
+                    int_devices!($max_priority, $($rest),*);
+                    self.handle_interrupt(<$dev>::INT_VEC, <$dev>::PRIORITY);
+                    return;
+                } else {
+                    int_devices!($max_priority, $($rest),*);
+                }
+            };
+        };
+
+        let mut max_priority = self.get_special_reg::<PSR>().get_priority();
+        int_devices!(
+            max_priority, KBSR, DSR, G0CR, G1CR, G2CR, G3CR, G4CR, G5CR, G6CR, G7CR, T0CR, T1CR
+        );
     }
 
     fn is_acv(&self, addr: Word) -> bool {
@@ -846,6 +868,11 @@ use super::mem_mapped::{BSP, DDR, DSR, KBDR, KBSR, PSR};
 use super::mem_mapped::{
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
 };
+use super::mem_mapped::{
+    T0CR, T1CR,
+};
+use lc3_traits::peripherals::gpio::GPIO_PINS;
+use crate::mem_mapped::Interrupt;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");
@@ -859,7 +886,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         let current_pc = self.get_pc();
         self.set_pc(current_pc.wrapping_add(1)); // TODO: ???
 
-        // TODO: Peripheral interrupt stuff
+        self.check_interrupts();
 
         match self.get_word(current_pc).and_then(|w| match w.try_into() {
             Ok(insn) => self.instruction_step_inner(insn),
