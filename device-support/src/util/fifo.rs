@@ -6,7 +6,7 @@ use core::iter::ExactSizeIterator;
 // Note: Capacity is a constant so that the transition to const generics (once
 // that lands on stable) will be not terrible painful.
 
-pub(in super) mod FifoConfig {
+pub(in super) mod fifo_config {
     use core::mem::size_of;
 
     pub const CAPACITY: usize = 256;
@@ -21,7 +21,7 @@ pub(in super) mod FifoConfig {
     sa::const_assert!(CAPACITY >= 1);
 }
 
-pub use FifoConfig::{CAPACITY, Cur};
+pub use fifo_config::{CAPACITY, Cur};
 
 pub struct Fifo<T> {
     data: [MaybeUninit<T>; CAPACITY],
@@ -41,7 +41,7 @@ impl<T> Default for Fifo<T> {
 }
 
 impl<T> Fifo<T> {
-    /// Creates an empty Fifo.
+    /// Creates an empty `Fifo`.
     pub fn new() -> Self {
         // This is really a job for `MaybeUninit::uninit_array` but alas, it is
         // not yet stable (it needs const generics).
@@ -66,59 +66,16 @@ impl<T> Fifo<T> {
         }
     }
 
-    /// Creates a new Fifo and is const.
+    /// Creates a new `Fifo` and is const.
     ///
     /// This can only be const because `CAPACITY` is a constant (and not a
     /// const generic parameter). Hopefully by the time const generics actually
     /// land we'll have repeating const expressions or a const `assume_init`
     /// function.
     pub const fn new_const() -> Self {
-        // Some macro crimes:
-        // macro_rules! dup {
-        //     ($t:expr) => { $t, $t };
-        // }
-
-        // macro_rules! nest {
-        //     ($t:expr => $one:tt $($rest:tt)* ) => {
-        //         dup!(nest!($t => $($rest)*))
-        //     };
-
-        //     ($t:expr) => { $t }
-        // }
-
-        // trace_macros!(true);
-
-        // macro_rules! nested_tuple {
-        //     (($t:expr) $one:tt $($rest:tt)*) => {
-        //         (nested_tuple!(($t) $($rest)*), nested_tuple!(($t) $($rest)*))
-        //     };
-        //     (($t:expr)) => { $t };
-        // }
-
-        // macro_rules! flatten {
-        //     (($t:expr) $one:tt $($rest:tt)*) => {
-
-        //     };
-        // }
-
-        // macro_rules! nest {
-        //     ($t:expr => $($pow2:tt)* ) => {
-        //         [ nest!(($t) $($rest)*) ]
-        //     };
-
-        //     (($t:expr) $one:tt $($rest:tt)* ) => {
-        //         // dup!(nest!($t => $($rest)*))
-        //         nest!($t => $($rest)*), nest!($t => $($rest)*)
-        //         // 78
-        //     };
-
-        //     (($t:expr) ) => { $t }
-        // }
-
-
-
-        // // let data: [MaybeUninit<T>; CAPACITY] = nest!(MaybeUninit::unint() => T);
-        // let data: [_; CAPACITY] = nest!{0 => 0};
+        // This isn't great. Past attempts are in the git history for posterity.
+        // I'm not convinced it's possible to do better without using
+        // `proc-macro-hack`.
 
         macro_rules! repeat {
             (($t:expr) => { $($rest:ident)* }) => {
@@ -129,14 +86,14 @@ impl<T> Fifo<T> {
         }
 
         let data = repeat!((MaybeUninit::uninit()) => {
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
-            T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T T
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
+            t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t t
         });
 
         Self {
@@ -171,9 +128,9 @@ impl<T> Fifo<T> {
         (((pos as usize) + (num as usize)) % CAPACITY) as Cur
     }
 
-    /// Adds a value to the Fifo, if possible.
+    /// Adds a value to the `Fifo`, if possible.
     ///
-    /// Returns `Err(())` if the Fifo is currently full.
+    /// Returns `Err(())` if the `Fifo` is currently full.
     pub fn push(&mut self, datum: T) -> Result<(), ()> {
         if self.is_full() {
             Err(())
@@ -186,9 +143,9 @@ impl<T> Fifo<T> {
         }
     }
 
-    /// Gives a reference to the next value in the Fifo, if available.
+    /// Gives a reference to the next value in the `Fifo`, if available.
     ///
-    /// This function doesn't remove the value from the Fifo; use `pop` to do
+    /// This function doesn't remove the value from the `Fifo`; use `pop` to do
     /// that.
     ///
     /// [`pop`]: `Fifo::pop`
@@ -225,14 +182,14 @@ impl<T> Fifo<T> {
             self.advance(1);
 
             // As with peek, we trust our invariants to keep us safe here.
-            // Because this value must have been intialized for us to get here,
+            // Because this value must have been initialized for us to get here,
             // we know this is safe.
             #[allow(unsafe_code)]
             Some(unsafe { datum.assume_init() })
         }
     }
 
-    /// Returns a slice consisting of the data currently in the Fifo without
+    /// Returns a slice consisting of the data currently in the `Fifo` without
     /// removing it.
     pub fn as_slice(&self) -> &[T] {
         // starting == ending can either mean a full fifo or an empty one so
@@ -353,84 +310,12 @@ impl<'a, T: Clone + 'a> Fifo<T> {
     /// [`Clone`]: `core::clone::Clone`
     pub fn push_iter_ref<'i: 'a, I: ExactSizeIterator<Item = &'a T>>(&mut self, iter: &'i mut I) -> Result<(), ()> {
         self.push_iter(&mut iter.cloned())
-        // let mut iter = iter.cloned();
-        // let len = iter.len();
-
-        // if self.remaining() < len {
-        //     Err(())
-        // } else {
-        //     for _ in 0..len {
-        //         self.push(iter.next().expect())
-        //     }
-        // }
     }
 }
 
-    // fn increment(pos: Cur) -> Cur {
-    //     if pos == ((CAPACITY - 1) as Cur) {
-    //         0
-    //     } else {
-    //         pos + 1
-    //     }
-    // }
-
-    // const fn add(pos: Cur, num: Cur) -> Cur {
-    //     (((pos as usize) + (num as usize)) % CAPACITY) as Cur
-    // }
-
-    // pub fn push(&mut self, datum: T) -> Result<(), ()> {
-    //     if self.is_full() {
-    //         Err(())
-    //     } else {
-    //         self.length += 1;
-    //         self.data[self.ending as usize] = datum;
-    //         self.ending = Self::add(self.ending, 1);
-
-    //         Ok(())
-    //     }
-    // }
-
-    // pub fn peek(&self) -> Result<&T, ()> {
-    //     if self.is_empty() {
-    //         Err(())
-    //     } else {
-    //         Ok(&self.data[self.starting as usize])
-    //     }
-    // }
-
-//     pub fn pop(&mut self) -> Result<T, ()> {
-//         let datum = self.peek()?;
-
-//         self.advance(1);
-//         Ok(datum)
-//     }
-
-//     pub fn bytes(&self) -> &[T] {
-//         // starting == ending can either mean a full fifo or an empty one
-//         if self.is_empty() {
-//             &[]
-//         } else {
-//             if self.ending > self.starting {
-//                 &self.data[(self.starting as usize)..(self.ending as usize)]
-//             } else if self.ending <= self.starting {
-//                 // Gotta do it in two parts then.
-//                 &self.data[(self.starting as usize)..]
-//             } else { unreachable!() }
-//         }
-//     }
-
-//     // fn advance(&mut self, num: Cur) -> Result<(), ()> {
-//     fn advance(&mut self, num: Cur) {
-//         assert!((num as usize) <= self.length);
-
-//         self.length -= num as usize;
-//         self.starting = Self::add(self.starting, num);
-//     }
-// // }
-
 impl<T: Clone> Fifo<T> {
-    // Useful for generating arrays out of a `Clone`able (but not `Copy`able)
-    // value to pass into `Fifo::put_slice`.
+    /// Useful for generating arrays out of a `Clone`able (but not `Copy`able)
+    /// value to pass into `Fifo::put_slice`.
     pub fn array_init_using_clone(val: T) -> [T; CAPACITY] {
         // MaybeUninit is always properly initialized.
         // Note: this is _the_ use case for `MaybeUninit::uninit_array` which is
@@ -512,16 +397,6 @@ using_alloc! {
                     &mut self.data[(self.ending as usize)..]
                 } else { unreachable!() }
             }
-
-            // // This is probably safe since `MaybeUninit<T>` and `T` are guaranteed
-            // // to have the same representation (size, alignment, and ABI).
-            // //
-            // // Probably because as per the `MaybeUninit` union docs, types that
-            // // contain a MaybeUninit don't necessarily have to have the same
-            // // representation as types that just contain `T`. There's an assert for
-            // // this at the bottom of this file.
-            // #[allow(unsafe_code)]
-            // unsafe { transmute::<&mut [u8], &mut [MaybeUninit<u8>]>(slice) }
         }
     }
 }
