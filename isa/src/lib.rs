@@ -45,7 +45,11 @@
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
+#[allow(unused_extern_crates)]
+extern crate core; // makes rls actually look into the standard library (hack)
+
 extern crate static_assertions as sa;
+
 use core::mem::size_of;
 
 /// Address type/size for the LC-3.

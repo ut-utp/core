@@ -46,6 +46,9 @@
 // We're a no_std crate!
 #![no_std]
 
+#[allow(unused_extern_crates)]
+extern crate core; // makes rls actually look into the standard library (hack)
+
 pub const USER_PROG_START_ADDR: lc3_isa::Addr = 0x0400;
 pub const ERROR_ON_ACV_SETTING_ADDR: lc3_isa::Addr = 0x0401;
 
