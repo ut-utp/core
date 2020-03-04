@@ -1,12 +1,14 @@
 //! Stack allocated FIFO. (TODO)
 
-use core::mem::{MaybeUninit, size_of, transmute_copy, replace};
-use core::iter::ExactSizeIterator;
+use core::{
+    iter::ExactSizeIterator,
+    mem::{replace, size_of, transmute_copy, MaybeUninit},
+};
 
 // Note: Capacity is a constant so that the transition to const generics (once
 // that lands on stable) will be not terrible painful.
 
-pub(in super) mod fifo_config {
+pub(super) mod fifo_config {
     use core::mem::size_of;
 
     pub const CAPACITY: usize = 256;
@@ -21,7 +23,7 @@ pub(in super) mod fifo_config {
     sa::const_assert!(CAPACITY >= 1);
 }
 
-pub use fifo_config::{CAPACITY, Cur};
+pub use fifo_config::{Cur, CAPACITY};
 
 pub struct Fifo<T> {
     data: [MaybeUninit<T>; CAPACITY],
@@ -100,23 +102,34 @@ impl<T> Fifo<T> {
             data,
             length: 0,
             starting: 0,
-            ending: 0
+            ending: 0,
         }
-
     }
 
     /// The maximum number of elements the `Fifo` can hold.
-    pub const fn capacity() -> usize { CAPACITY }
+    pub const fn capacity() -> usize {
+        CAPACITY
+    }
 
     /// Whether the `Fifo` is empty or not.
-    pub const fn is_empty(&self) -> bool { self.length == 0 }
+    pub const fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+
     /// Whether the `Fifo` is full or not.
-    pub const fn is_full(&self) -> bool { self.length == CAPACITY }
+    pub const fn is_full(&self) -> bool {
+        self.length == CAPACITY
+    }
 
     /// Number of elements currently in the `Fifo`.
-    pub const fn length(&self) -> usize { self.length }
+    pub const fn length(&self) -> usize {
+        self.length
+    }
+
     /// Number of open slots the `Fifo` currently has.
-    pub const fn remaining(&self) -> usize { CAPACITY - self.length }
+    pub const fn remaining(&self) -> usize {
+        CAPACITY - self.length
+    }
 
     // A wheel function.
     // Note: this is not overflow protected!
@@ -177,7 +190,10 @@ impl<T> Fifo<T> {
         if self.is_empty() {
             None
         } else {
-            let datum = replace(&mut self.data[self.starting as usize], MaybeUninit::uninit());
+            let datum = replace(
+                &mut self.data[self.starting as usize],
+                MaybeUninit::uninit(),
+            );
 
             self.advance(1);
 
@@ -198,7 +214,8 @@ impl<T> Fifo<T> {
             &[]
         } else {
             if self.ending > self.starting {
-                let s = &self.data[(self.starting as usize)..(self.ending as usize)];
+                let s = &self.data
+                    [(self.starting as usize)..(self.ending as usize)];
 
                 // Again, leaning on our invariants and assuming this is all
                 // init-ed data.
@@ -217,15 +234,21 @@ impl<T> Fifo<T> {
                 // same representation as types that just contain `T`. There's
                 // an assert for this at the bottom of this file.
                 #[allow(unsafe_code)]
-                unsafe { transmute(s) }
+                unsafe {
+                    transmute(s)
+                }
             } else if self.ending <= self.starting {
                 // Gotta do it in two parts then.
                 let s = &self.data[(self.starting as usize)..];
 
                 // Same as above.
                 #[allow(unsafe_code)]
-                unsafe { transmute(s) }
-            } else { unreachable!() }
+                unsafe {
+                    transmute(s)
+                }
+            } else {
+                unreachable!()
+            }
         }
     }
 }
@@ -280,15 +303,20 @@ impl<T> Fifo<T> {
     /// [`Clone`]: `core::clone::Clone`
     /// [`Vec`]: `std::vec::Vec`
     /// [`drain`]: `std::vec::Vec::drain`
-    pub fn push_iter<I: ExactSizeIterator<Item = T>>(&mut self, iter: &mut I) -> Result<(), ()> {
+    pub fn push_iter<I: ExactSizeIterator<Item = T>>(
+        &mut self,
+        iter: &mut I,
+    ) -> Result<(), ()> {
         let len = iter.len();
 
         if self.remaining() < len {
             Err(())
         } else {
             for _ in 0..len {
-                self.push(iter.next().expect("ExactSizeIterator length was wrong!"))
-                    .expect("fifo: internal error")
+                self.push(
+                    iter.next().expect("ExactSizeIterator length was wrong!"),
+                )
+                .expect("fifo: internal error")
             }
 
             Ok(())
@@ -308,7 +336,10 @@ impl<'a, T: Clone + 'a> Fifo<T> {
     /// [`push_iter`]: `Fifo::push_iter`
     /// [`push_slice`]: `Fifo::push_slice`
     /// [`Clone`]: `core::clone::Clone`
-    pub fn push_iter_ref<'i: 'a, I: ExactSizeIterator<Item = &'a T>>(&mut self, iter: &'i mut I) -> Result<(), ()> {
+    pub fn push_iter_ref<'i: 'a, I: ExactSizeIterator<Item = &'a T>>(
+        &mut self,
+        iter: &'i mut I,
+    ) -> Result<(), ()> {
         self.push_iter(&mut iter.cloned())
     }
 }
@@ -321,9 +352,8 @@ impl<T: Clone> Fifo<T> {
         // Note: this is _the_ use case for `MaybeUninit::uninit_array` which is
         // not yet stable (blocked on const-generics like all the shiny things).
         #[allow(unsafe_code)]
-        let mut inner: [MaybeUninit<T>; CAPACITY] = unsafe {
-            MaybeUninit::uninit().assume_init()
-        };
+        let mut inner: [MaybeUninit<T>; CAPACITY] =
+            unsafe { MaybeUninit::uninit().assume_init() };
 
         for elem in &mut inner[..] {
             *elem = MaybeUninit::new(val.clone());
@@ -339,7 +369,9 @@ impl<T: Clone> Fifo<T> {
         // case) is a way for us to be extremely certain that `transmute_copy`'s
         // invariant is upheld.
         #[allow(unsafe_code)]
-        unsafe { transmute_copy(&inner) }
+        unsafe {
+            transmute_copy(&inner)
+        }
     }
 }
 
