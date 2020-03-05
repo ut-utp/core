@@ -4,6 +4,8 @@
 //! [`Memory` trait](crate::memory::Memory), there is no shim implementation of
 //! Control; instead the 'shim' is an instruction level simulator that lives in
 //! the [interp module](crate::interp).
+//!
+//! TODO!
 
 use crate::error::Error;
 use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
@@ -11,6 +13,7 @@ use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
 use crate::peripherals::timers::{TimerArr, TimerState};
 use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier};
+use super::load::{PageIndex, PageWriteStart, StartPageWriteError, PageChunkError, FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS};
 
 use lc3_isa::{Addr, Reg, Word, PSR};
 
@@ -21,7 +24,7 @@ use serde::{Deserialize, Serialize};
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHPOINTS: usize = 10;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
@@ -29,7 +32,7 @@ pub enum Event {
     Halted,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum State {
     Paused,
     RunningUntilEvent,
@@ -69,6 +72,54 @@ pub trait Control {
     fn read_word(&self, addr: Addr) -> Word;
     fn write_word(&mut self, addr: Addr, word: Word);
 
+    /// The start function for a Load API Session.
+    ///
+    /// Calling this is effectively unsafe since you need to call [an unsafe
+    /// function](crate::control::load::LoadApiSession<PageWriteStart>::new) to
+    /// construct the `page` token.
+    ///
+    /// Unless you have a special use case, you should use
+    /// [`load_memory_dump`](crate::control::load::load_memory_dump) and its
+    /// fellow functions in the [`load` module](crate::control::load) or the
+    /// [`load` function](lc3_shims::memory::FileBackedMemoryShim::load) on the
+    /// [file backed `Memory` shim](lc3_shims::memory::FileBackedMemoryShim).
+    fn start_page_write(
+        &mut self,
+        page: LoadApiSession<PageWriteStart>,
+        checksum: u64,
+    ) -> Result<LoadApiSession<PageIndex>, StartPageWriteError>;
+
+    /// The workhorse of the Load API. Sends a [single chunk](chunk).
+    ///
+    /// Note that this only takes an offset into the current session's page
+    /// instead of a full address; because the only (sans unsafe) way to
+    /// construct this offset is to use the [`with_offset` function](wo_func) on
+    /// the `LoadApiSession<PageIndex>` returned by the
+    /// [start_page_write function](start).
+    ///
+    /// [chunk]: crate::control::load::CHUNK_SIZE_IN_WORDS
+    /// [wo_func]: crate::control::load::LoadApiSession<PageIndex>::with_offset
+    /// [start]: crate::control::control::Control::start_page_write
+    fn send_page_chunk(
+        &mut self,
+        offset: LoadApiSession<Offset>,
+        chunk: [Word; CHUNK_SIZE_IN_WORDS as usize],
+    ) -> Result<(), PageChunkError>;
+
+    /// The finish function for a Load API Session.
+    ///
+    /// Consumes the `LoadApiSession<PageIndex>` returned by
+    /// [`start_page_write`](start) and makes it impossible to call
+    /// [`send_page_chunk`](send) again without starting a new session, thus
+    /// ending the session.
+    ///
+    /// [start]: crate::control::control::Control::start_page_write
+    /// [send]: crate::control::control::Control::send_page_chunk
+    fn finish_page_write(
+        &mut self,
+        page: LoadApiSession<PageIndex>,
+    ) -> Result<(), FinishPageWriteError>;
+
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS];
@@ -100,7 +151,7 @@ pub trait Control {
 
     fn get_state(&self) -> State;
 
-    fn reset(&mut self);
+    fn reset(&mut self); // Note: needs to reset memory!
 
     // TBD whether this is literally just an error for the last step or if it's the last error encountered.
     // If it's the latter, we should return the PC value when the error was encountered.

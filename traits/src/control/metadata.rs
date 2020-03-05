@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 
 // TODO: Identifier should probably move too, but I'm not sure to where.
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ProgramId {
     Known { hash: u64 },
     Unknown,
@@ -47,23 +47,25 @@ impl ProgramId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct ProgramMetadata {
+    pub name: LongIdentifier,
     pub id: ProgramId,
     /// Time the program was modified in seconds since the Unix epoch.
     pub last_modified: u64,
 }
 
 impl ProgramMetadata {
-    pub /*const*/ fn new(program: &MemoryDump, modified: Duration) -> Self {
+    pub /*const*/ fn new(name: LongIdentifier, program: &MemoryDump, modified: Duration) -> Self {
         Self {
+            name,
             id: ProgramId::new(program),
             last_modified: modified.as_secs()
         }
     }
 
-    pub /*const*/ fn from<P: Into<MemoryDump>>(program: P, modified: Duration) -> Self {
-        Self::new(&program.into(), modified)
+    pub /*const*/ fn from<P: Into<MemoryDump>>(name: LongIdentifier, program: P, modified: Duration) -> Self {
+        Self::new(name, &program.into(), modified)
     }
 
     pub fn set_last_modified(&mut self, modified: Duration) {
@@ -77,12 +79,12 @@ using_std! {
     use std::time::SystemTime;
 
     impl ProgramMetadata {
-        pub /*const*/ fn new_modified_now(program: &MemoryDump) -> Self {
-            Self::new(program, Duration::from_secs(0)).now()
+        pub /*const*/ fn new_modified_now(name: LongIdentifier, program: &MemoryDump) -> Self {
+            Self::new(name, program, Duration::from_secs(0)).now()
         }
 
-        pub /*const*/ fn from_modified_now<P: Into<MemoryDump>>(program: P) -> Self {
-            Self::from(program, Duration::from_secs(0)).now()
+        pub /*const*/ fn from_modified_now<P: Into<MemoryDump>>(name: LongIdentifier, program: P) -> Self {
+            Self::from(name, program, Duration::from_secs(0)).now()
         }
 
         pub fn now(mut self) -> Self {
@@ -106,7 +108,62 @@ using_std! {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+
+// If we had better const functions (+ typenum) or const generics (and better
+// const functions — mainly just loops and ranges) we wouldn't need two
+// separate types here.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(transparent)]
+pub struct LongIdentifier([u8; 8]);
+
+impl Default for LongIdentifier {
+    fn default() -> Self {
+        Self::new_from_str("unknown!").unwrap()
+    }
+}
+
+impl LongIdentifier {
+    pub fn new(name: [u8; 8]) -> Result<Self, ()> {
+        if !name.iter().all(|c| c.is_ascii()) {
+            Err(())
+        } else {
+            Ok(Self(name))
+        }
+    }
+
+    pub fn new_from_str(name: &str) -> Result<Self, ()> {
+        Self::new(name.as_bytes().try_into().map_err(|_| ())?)
+    }
+
+    pub fn new_truncated_padded(name: &str) -> Result<Self, ()> {
+        let mut arr = [0; 8];
+
+        for (idx, c) in name.chars().take(8).enumerate() {
+            if !c.is_ascii() {
+                return Err(())
+            }
+
+            arr[idx] = c as u8;
+        }
+
+        Ok(Self(arr))
+    }
+}
+
+impl Display for LongIdentifier {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "{}", self.as_ref())
+    }
+}
+
+impl AsRef<str> for LongIdentifier {
+    fn as_ref(&self) -> &str {
+        core::str::from_utf8(&self.0).unwrap()
+    }
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[repr(transparent)]
 pub struct Identifier([u8; 4]);
 
 impl Identifier {
@@ -161,12 +218,7 @@ impl Identifier {
 
 impl Display for Identifier {
     fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(fmt, "{}{}{}{}",
-            self.0[0] as char,
-            self.0[1] as char,
-            self.0[2] as char,
-            self.0[3] as char,
-        )
+        write!(fmt, "{}", self.as_ref())
     }
 }
 
@@ -176,24 +228,26 @@ impl AsRef<str> for Identifier {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 // extra, optional traits
 pub struct Capabilities {
     pub storage: bool,
     pub display: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeviceInfo {
     pub current_program_metadata: ProgramMetadata,
     pub capabilities: Capabilities,
     pub source_type_id: u64,
     pub source_name: Identifier,
-    pub proxies: [Option<Identifier>; 5]
+    pub proxies: [Option<Identifier>; 3]
 }
 
 impl DeviceInfo {
-    pub fn new(metadata: ProgramMetadata, capabilities: Capabilities, type_id: TypeId, name: Identifier, proxies: [Option<Identifier>; 5]) -> Self {
+    const MAX_NUM_PROXIES: usize = 3;
+
+    pub fn new(metadata: ProgramMetadata, capabilities: Capabilities, type_id: TypeId, name: Identifier, proxies: [Option<Identifier>; Self::MAX_NUM_PROXIES]) -> Self {
         Self {
             current_program_metadata: metadata,
             capabilities,

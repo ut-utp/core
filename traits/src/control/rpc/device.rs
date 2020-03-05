@@ -5,7 +5,7 @@
 // TODO: auto gen (proc macro, probably) the crimes below from the `Control`
 // trait.
 
-use super::{Encode, Decode, EventFutureSharedState, Transport};
+use super::{Encode, Decode, Transport};
 use super::{Control, RequestMessage, ResponseMessage};
 use super::encoding::Transparent;
 
@@ -319,6 +319,10 @@ where
 
                 (ReadWord { addr } => R::ReadWord(r)) with r = c.read_word(addr);
                 (WriteWord { addr, word } => R::WriteWord) with _ = c.write_word(addr, word);
+
+                (StartPageWrite { page, checksum } => R::StartPageWrite(r)) with r = c.start_page_write(page, checksum);
+                (SendPageChunk { offset, chunk } => R::SendPageChunk(r)) with r = c.send_page_chunk(offset, chunk);
+                (FinishPageWrite { page } => R::FinishPageWrite(r)) with r = c.finish_page_write(page);
 
                 (SetBreakpoint { addr } => R::SetBreakpoint(r)) with r= c.set_breakpoint(addr);
                 (UnsetBreakpoint { idx } => R::UnsetBreakpoint(r)) with r = c.unset_breakpoint(idx);

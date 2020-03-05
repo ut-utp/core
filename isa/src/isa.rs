@@ -230,7 +230,7 @@ pub enum Instruction {
     AndImm { dr: Reg, sr1: Reg, imm5: Sw },         // RR5
     Br { n: bool, z: bool, p: bool, offset9: Sw },  // nzp9
     Jmp { base: Reg },                              // B
-    Jsr { offset11: Sw },                           // a
+    Jsr { offset11: Sw },                           // b
     Jsrr { base: Reg },                             // B
     Ld { dr: Reg, offset9: Sw },                    // R9
     Ldi { dr: Reg, offset9: Sw },                   // R9
@@ -622,12 +622,12 @@ pub trait Bits: Sized + Copy {
     fn bits(self, range: Range<u32>) -> usize;
 
     fn u8(self, range: Range<u32>) -> u8 {
-        assert!(range.end - range.start <= 8);
+        assert!(range.end - range.start < 8);
         self.bits(range) as u8
     }
 
     fn i8(self, range: Range<u32>) -> i8 {
-        assert!(range.end - range.start <= 8);
+        assert!(range.end - range.start < 8);
 
         (if self.bit(range.end) {
             core::u8::MAX << (range.end - range.start)
@@ -637,7 +637,7 @@ pub trait Bits: Sized + Copy {
     }
 
     fn u16(self, range: Range<u32>) -> u16 {
-        assert!(range.end - range.start <= 16);
+        assert!(range.end - range.start < 16);
         self.bits(range) as u16
     }
 
@@ -651,7 +651,7 @@ pub trait Bits: Sized + Copy {
     }
 
     fn i16(self, range: Range<u32>) -> i16 {
-        assert!(range.end - range.start <= 16);
+        assert!(range.end - range.start < 16);
 
         (if self.bit(range.end) {
             core::u16::MAX << (range.end - range.start)
@@ -661,12 +661,12 @@ pub trait Bits: Sized + Copy {
     }
 
     fn u32(self, range: Range<u32>) -> u32 {
-        assert!(range.end - range.start <= 32);
+        assert!(range.end - range.start < 32);
         self.bits(range) as u32
     }
 
     fn i32(self, range: Range<u32>) -> i32 {
-        assert!(range.end - range.start <= 32);
+        assert!(range.end - range.start < 32);
 
         (if self.bit(range.end) {
             core::u32::MAX << (range.end - range.start)
@@ -804,6 +804,7 @@ impl Instruction {
 mod reg_tests {
     use super::Reg::{self, *};
     use core::convert::TryInto;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn eq() {
@@ -866,6 +867,7 @@ mod reg_tests {
 mod priority_level_tests {
     use super::PriorityLevel::{self, *};
     use core::convert::TryInto;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn eq() {
@@ -943,6 +945,7 @@ mod priority_level_tests {
 #[cfg(test)]
 mod compile_time_fns {
     use super::*;
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn pow_of_two_tests() {
@@ -969,6 +972,7 @@ mod instruction_tests {
         Instruction::{self, *},
         Reg::*,
     };
+    use pretty_assertions::assert_eq;
 
     #[test]
     fn ret_jmp_r7_eq() {
@@ -1010,4 +1014,42 @@ mod instruction_tests {
             assert!(false);
         }
     }
+}
+
+
+#[cfg(test)]
+mod bits_tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn identity() {
+        for i in 0..=u8::max_value() {
+            assert_eq!((i as Word).u8(0..7), i);
+        }
+
+    }
+
+    #[test]
+    fn misc() {
+        assert_eq!(0, 1.u8(14..15));
+    }
+
+    #[test] #[should_panic] fn too_many_bits_u8_one() { let _ = 256.u8(0..8); }
+    #[test] #[should_panic] fn too_many_bits_u8_two() { let _ = 256.u8(6..14); }
+
+    #[test] #[should_panic] fn too_many_bits_i8_one() { let _ = 250.i8(0..8); }
+    #[test] #[should_panic] fn too_many_bits_i8_two() { let _ = 250.i8(6..14); }
+
+    #[test] #[should_panic] fn too_many_bits_u16_one() { let _ = 256.u16(0..16); }
+    #[test] #[should_panic] fn too_many_bits_u16_two() { let _ = 256.u16(2..18); }
+
+    #[test] #[should_panic] fn too_many_bits_i16_one() { let _ = 256u16.i16(0..15); }
+    #[test] #[should_panic] fn too_many_bits_i16_two() { let _ = 256.i16(2..17); }
+
+    #[test] #[should_panic] fn too_many_bits_u32_one() { let _ = 25600.u32(0..32); }
+    #[test] #[should_panic] fn too_many_bits_u32_two() { let _ = 25600.u32(5..37); }
+
+    #[test] #[should_panic] fn too_many_bits_i32_one() { let _ = 25600.i32(0..31); }
+    #[test] #[should_panic] fn too_many_bits_i32_two() { let _ = 25600.i32(5..36); }
 }

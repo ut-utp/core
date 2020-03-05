@@ -2,6 +2,10 @@
 
 use super::{State, Event};
 use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::load::{
+    LoadApiSession, CHUNK_SIZE_IN_WORDS, PageWriteStart, PageIndex, Offset,
+    StartPageWriteError, PageChunkError, FinishPageWriteError
+};
 use crate::control::{ProgramMetadata, DeviceInfo};
 use crate::error::Error as Lc3Error;
 use crate::peripherals::{
@@ -33,14 +37,17 @@ use serde::{Serialize, Deserialize};
 // without adding more message related overhead to these "convenience calls".
 
 #[allow(dead_code)]
+// We're not using static_assertions here so that we can get an error that tells
+// us how much we're off by.
 static __REQ_SIZE_CHECK: () = {
     let s = core::mem::size_of::<RequestMessage>();
     let canary = [()];
 
-    canary[s - 32] // panic if the size of RequestMessage changes
+    canary[s - 40] // panic if the size of RequestMessage changes
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum RequestMessage { // messages for everything but tick()
     GetPc,
@@ -55,6 +62,10 @@ pub enum RequestMessage { // messages for everything but tick()
 
     ReadWord { addr: Addr },
     WriteWord { addr: Addr, word: Word },
+
+    StartPageWrite { page: LoadApiSession<PageWriteStart>, checksum: u64 },
+    SendPageChunk { offset: LoadApiSession<Offset>, chunk: [Word; CHUNK_SIZE_IN_WORDS as usize] },
+    FinishPageWrite { page: LoadApiSession<PageIndex> },
 
     SetBreakpoint { addr: Addr },
     UnsetBreakpoint { idx: usize },
@@ -90,6 +101,8 @@ pub enum RequestMessage { // messages for everything but tick()
 
     GetInfo,
     SetProgramMetadata { metadata: ProgramMetadata },
+
+    // no id!
 }
 
 #[allow(dead_code)]
@@ -100,7 +113,8 @@ static __RESP_SIZE_CHECK: () = {
     canary[s - 72] // panic if the size of ResponseMessage changes
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum ResponseMessage { // messages for everything but tick()
     GetPc(Addr),
@@ -115,6 +129,10 @@ pub enum ResponseMessage { // messages for everything but tick()
 
     ReadWord(Word),
     WriteWord,
+
+    StartPageWrite(Result<LoadApiSession<PageIndex>, StartPageWriteError>),
+    SendPageChunk(Result<(), PageChunkError>),
+    FinishPageWrite(Result<(), FinishPageWriteError>),
 
     SetBreakpoint(Result<usize, ()>),
     UnsetBreakpoint(Result<(), ()>),
@@ -150,4 +168,6 @@ pub enum ResponseMessage { // messages for everything but tick()
 
     GetInfo(DeviceInfo),
     SetProgramMetadata,
+
+    // no id!
 }

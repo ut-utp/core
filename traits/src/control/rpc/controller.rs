@@ -10,6 +10,10 @@ use super::messages::{RequestMessage, ResponseMessage};
 use super::encoding::{Encode, Decode, Transparent};
 use super::futures::{EventFutureSharedStatePorcelain, EventFuture};
 use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::load::{
+    LoadApiSession, CHUNK_SIZE_IN_WORDS, PageWriteStart, PageIndex, Offset,
+    StartPageWriteError, PageChunkError, FinishPageWriteError
+};
 use crate::control::{ProgramMetadata, DeviceInfo};
 use crate::error::Error as Lc3Error;
 use crate::peripherals::{
@@ -180,6 +184,16 @@ where
 
     fn read_word(&self, addr: Addr) -> Word { ctrl!(self, ReadWord { addr }, R::ReadWord(w), w) }
     fn write_word(&mut self, addr: Addr, word: Word) { ctrl!(self, WriteWord { addr, word }, R::WriteWord) }
+
+    fn start_page_write(&mut self, page: LoadApiSession<PageWriteStart>, checksum: u64) -> Result<LoadApiSession<u8>, StartPageWriteError> {
+        ctrl!(self, StartPageWrite { page, checksum }, R::StartPageWrite(r), r)
+    }
+    fn send_page_chunk(&mut self, offset: LoadApiSession<Offset>, chunk: [Word; CHUNK_SIZE_IN_WORDS as usize]) -> Result<(), PageChunkError> {
+        ctrl!(self, SendPageChunk { offset, chunk }, R::SendPageChunk(r), r)
+    }
+    fn finish_page_write(&mut self, page: LoadApiSession<PageIndex>) -> Result<(), FinishPageWriteError> {
+        ctrl!(self, FinishPageWrite { page }, R::FinishPageWrite(r), r)
+    }
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
         ctrl!(self, SetBreakpoint { addr }, R::SetBreakpoint(r), r)
