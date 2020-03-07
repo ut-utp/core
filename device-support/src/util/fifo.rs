@@ -161,7 +161,7 @@ impl<T> Fifo<T> {
     /// This function doesn't remove the value from the `Fifo`; use `pop` to do
     /// that.
     ///
-    /// [`pop`]: `Fifo::pop`
+    /// [`pop`]: Fifo::pop
     pub fn peek(&self) -> Option<&T> {
         if self.is_empty() {
             None
@@ -296,13 +296,13 @@ impl<T> Fifo<T> {
     /// are not just dropped (you can try again or do something else with your
     /// values).
     ///
-    /// [`push_slice`]: `Fifo::push_slice`
-    /// [`push_iter_ref`]: `Fifo::push_iter_ref`
-    /// [`ExactSizeIterator`]: `core::iter::ExactSizeIterator`
-    /// [`Iterator`]: `core::iter::Iterator`
-    /// [`Clone`]: `core::clone::Clone`
-    /// [`Vec`]: `std::vec::Vec`
-    /// [`drain`]: `std::vec::Vec::drain`
+    /// [`push_slice`]: Fifo::push_slice
+    /// [`push_iter_ref`]: Fifo::push_iter_ref
+    /// [`ExactSizeIterator`]: core::iter::ExactSizeIterator
+    /// [`Iterator`]: core::iter::Iterator
+    /// [`Clone`]: core::clone::Clone
+    /// [`Vec`]: alloc::vec::Vec
+    /// [`drain`]: alloc::vec::Vec::drain
     pub fn push_iter<I: ExactSizeIterator<Item = T>>(
         &mut self,
         iter: &mut I,
@@ -333,9 +333,9 @@ impl<'a, T: Clone + 'a> Fifo<T> {
     ///
     /// Returns `Err(())` if unable to push the entire iterator.
     ///
-    /// [`push_iter`]: `Fifo::push_iter`
-    /// [`push_slice`]: `Fifo::push_slice`
-    /// [`Clone`]: `core::clone::Clone`
+    /// [`push_iter`]: Fifo::push_iter
+    /// [`push_slice`]: Fifo::push_slice
+    /// [`Clone`]: core::clone::Clone
     pub fn push_iter_ref<'i: 'a, I: ExactSizeIterator<Item = &'a T>>(
         &mut self,
         iter: &'i mut I,
