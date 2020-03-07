@@ -53,12 +53,11 @@ extern crate core; // makes rls actually look into the standard library (hack)
 
 extern crate static_assertions as sa;
 
-pub mod encoding;
 
 pub mod memory;
 
 pub mod peripherals;
 
-pub mod transport;
+pub mod rpc;
 
 pub mod util;
