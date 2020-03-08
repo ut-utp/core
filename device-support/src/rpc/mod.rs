@@ -311,7 +311,7 @@
 //! distribution of your bit flips.
 //!
 //! [`Transport`]: lc3_traits::control::rpc::Transport
-//! [`Transport::send`]: lc3_traits::control::rpc::Transport::get
+//! [`Transport::get`]: lc3_traits::control::rpc::Transport::get
 //!
 //!
 //! ### Protecting against dropped bytes (aka framing errors)
@@ -360,9 +360,9 @@
 //!     \->   a b : 3 m e : 2 5 u s : 4 2
 //!
 //! Recv:   | a b : 3 m | e : 2 5 u | s : 4 2   |
-//!              |            |           |
-//!              v            v           v
-//!           Error!        Error!      Error!
+//!               |           |           |
+//!               v           v           v
+//!            Error!       Error!      Error!
 //! ```
 //!
 //! In the above, only one bit was lost, but rather than just compromise the
@@ -531,8 +531,42 @@
 //! 'substituted' with is also a single byte. 254 byte runs of non-zeros do
 //! incur a single byte of overhead, however.
 //!
+//! It's also worth mentioning that nothing says the delimiter you use has to be
+//! a zero; the COBS approach can be used with any arbitrary single-byte value
+//! (and indeed; the [Rust cobs crate](https://docs.rs/cobs/0.1.4/cobs/) allows
+//! you to [specify a sentinel value](cobs-sentinel)). It's unintuitive but to
+//! minimize overhead you'd actually want a sentinel value that _is_ used
+//! frequently in the actual message bytes (alternatively if you're sending
+//! less ≤ 254 bytes at a time, it is irrelevant).
+//!
+//! Another consideration for picking a sentinel value may be the likelihood of
+//! detecting transmission bit errors in that sentinel. For example, if you've
+//! got a UART setup where the baud rates for the two devices are just on the
+//! edge of what's workable, it's possible that you could get bits that are
+//! repeated and replace the next bit; i.e. this:
+//!
+//! ```text
+//! ---   ---            ---   ---------
+//!    ___   ____________   ___
+//!     |  0  1  2  3  4  5  6  7  |  |
+//!     v                          v  v
+//!   Start                     Stop Bits
+//!
+//!  -> 0b10000101
+//! ```
+//!
+//! could get read as `0b11000101` or `0b00000101` or `0b01000101` if one pulse
+//! is a little short (i.e due to capacitance in the wire) or if things are
+//! delayed a bit and things are aligned just so.
+//!
+//! This isn't actually a _problem_ since we'll still recover even if our frame
+//! marker goes missing for a frame (it's also already a pretty extreme edge
+//! case), but it's worth mentioning as a consideration in picking a sentinel
+//! value. Regardless, 0 seems like a good choice.
+//!
 //! [COBS]: https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing
 //! [wpi-stuf]: https://web.cs.wpi.edu/~rek/Undergrad_Nets/B07/BitByteStuff.pdf
+//! [cobs-sentinel]: https://docs.rs/cobs/0.1/cobs/fn.decode_in_place_with_sentinel.html
 //!
 //! #### What about UART framing errors?
 //!
