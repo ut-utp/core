@@ -112,7 +112,7 @@
 //!
 //! The one wrinkle with this approach is the asynchronous [`run_until_event`]
 //! response. Under this scheme each thing we receive can be one of three
-//! things with a fourth, error during the reception possibility:
+//! things with a fourth, error during the reception, possibility:
 //!   - `run_until_event` response
 //!   - current requests' response message
 //!   - an explicit error (new! tells us that the req failed, case A)
@@ -182,7 +182,7 @@
 //! the data is lost which seems like a fair assumption. In order to protect
 //! against such situations, I think you'd need a timeout.
 //!
-//! ##### Wait, but can we just Retry? Or: Idempotency is _Your Friend_
+//! ##### Wait, but _can_ we just Retry? Or: Idempotency is _Your Friend_
 //!
 //! In the above we assumed that just that the requester could just retry (i.e.
 //! resend its failed request) whenever it did not succeed, but: is this
@@ -313,6 +313,194 @@
 //! [`Transport`]: lc3_traits::control::rpc::Transport
 //! [`Transport::send`]: lc3_traits::control::rpc::Transport::get
 //!
+//!
+//! ### Protecting against dropped bytes (aka framing errors)
+//!
+//! Dropped bytes[^dropped-bits] are problematic but before we discuss why, we
+//! need to talk about framing.
+//!
+//! #### Framing, or: Where to Start and End
+//!
+//! For our purposes, all UART provides us with is a stream of bytes. From this
+//! we need to extract (multi-byte) messages and one of the challenges in doing
+//! so is figuring out which bytes correspond to a message, or, put differently
+//! where messages start and end. This is the question of framing.
+//!
+//! One very simple framing strategy is to have _fixed length messages_: if your
+//! message is length is `n`, the first `n` bytes will correspond to a message,
+//! the next `n` to the next, and so on. Nice and simple.
+//!
+//! This works — but at some cost. If your messages aren't fixed size, and you
+//! want to use this scheme you'll need to pick the largest message size you
+//! have and _make_ that your fixed size; all messages that are smaller get
+//! padded.
+//!
+//! If your messages aren't too varied in size, the above is a viable strategy
+//! — however this frequently isn't the case.
+//!
+//! Another option is to explicitly specify each message's length by prefixing
+//! the message with its length.
+//!
+//! This is less wasteful than picking a fixed message length and it too will
+//! work — provided you never drop any bytes at all. Consider the following
+//! example where messages are 5 elements long and of the format
+//! `[a-z] [a-z] : [0-9] [0-9]`:
+//!
+//! ```text
+//! Sent:   | a b : 3 2 | m e : 2 5 | u s : 4 2 |
+//!           | | | | |   | | | | |   | | | | |
+//!           | | | | x   | | | | |   | | | | |
+//!           v v v v     v v v v v   v v v v v
+//!           a b : 3     m e : 2 5   u s : 4 2
+//!    |
+//!     \->   a b : 3 m e : 2 5 u s : 4 2
+//!
+//! Recv:   | a b : 3 m | e : 2 5 u | s : 4 2   |
+//!              |            |           |
+//!              v            v           v
+//!           Error!        Error!      Error!
+//! ```
+//!
+//! In the above, only one bit was lost, but rather than just compromise the
+//! message that that one bit was part of, the following messages are also
+//! compromised! Even though the bytes in the consecutive messages were all
+//! transmitted successfully, we were unable to decode the messages because we
+//! matched the bytes to messages incorrectly, causing the message parsing to
+//! fail[^detecting-framing-errors].
+//!
+//! ##### A detour about detecting (and recovering from) framing errors
+//!
+//! In the above toy example, it's very easy to detect framing errors since
+//! there are many possible byte combinations that are invalid. An encoding that
+//! offers good compression will not have this property; it aims to make use of
+//! as many of the possible byte combinations as possible to send _fewer_ bytes.
+//!
+//! All this is to say that we might not even _detect_ that a framing error has
+//! occurred, in which case we'd simply continue processing messages but _every
+//! message after the framing error would not match the real message_. This is
+//! bad.
+//!
+//! Also worth mentioning is how long it takes to _recover_ from framing errors.
+//! If we're unable to detect that a framing error has happened and continue
+//! processing messages oblivious, the only way for us to recover would to for
+//! us to experience more framing errors until we're shifted over by one entire
+//! message length.
+//!
+//! If we _do_ detect that something has gone wrong (i.e. a message that doesn't
+//! parse) we can try to do better. For example, we could start to throw away
+//! bytes and try to reparse until it succeeds and _assume_ that the successful
+//! parse means that we're aligned again. Again, this is heavily dependent on
+//! the format and characteristics of the messages being sent; if the messages
+//! are sufficiently long or have a relatively small number of error states,
+//! then it's entirely possible that we realign ourselves incorrectly.
+//!
+//! #### Framing in a fallible world
+//!
+//! So, it's clear that we can't use fixed size or length prefix framing schemes
+//! on transports that can drop chunks of data and recovering from framing
+//! errors using the data we do get at best requires support from the data
+//! we're sending and at worst just isn't reliable.
+//!
+//! So, what do we do?
+//!
+//! As with handling errors, another way is to [be explicit]
+//! (#explicit-error-signaling). Rather than try to guess at where frames start
+//! and end by counting bytes and seeing what successfully parses, we can add
+//! 'markers' to the bytes we transmit indicating the framing.
+//!
+//! For example, we could terminate every message with a _sentinel_ (i.e. the
+//! way C style `NULL` terminated strings do) which we'd then watch for when
+//! receiving bytes:
+//!
+//! ```text
+//! a b : 3 2 ø m e : 2 5 ø u s : 4 2 ø
+//! ```
+//!
+//! If the bytes are dropped, the sentinel always lets us know where to start
+//! reading the next message so we only lose message the bytes belong to:
+//!
+//! ```text
+//! a b : 3 2 ø m e : 2 5 ø u s : 4 2 ø
+//! | | | | | | | | | | | | | | | | | |
+//! | | | | x | | | | | | | | | | | | |
+//! v v v v   v v v v v v v v v v v v v
+//! a b : 3   ø m e : 2 5 ø u s : 4 2 ø
+//!     |           |           |
+//!     v           v           v
+//!   Error!     Success     Success
+//! ```
+//!
+//! If we lose the sentinel byte then we lose the message _and_ the next message
+//! but will still recover afterwards.
+//!
+//! It's worth noting that this is somewhat similar to what UART does with
+//! start and stop bits.
+//!
+//! Also note that the sentinel obviates the need for explicit length prefixing,
+//! though it can be useful to include anyways as a way to detect situations
+//! where the sentinel is dropped sooner.
+//!
+//! The tradeoff with sentinels are that:
+//!   - they add to the number of bytes that must be transmitted
+//!      + in the above, they require one additional byte which comes out to
+//!        20% overhead
+//!      + in situations with larger messages (i.e. we've got ~40 byte requests)
+//!        this is not very significant
+//!      + of course, it is also possible to amortize this; for example, send
+//!        a sentinel every 4 or 8 messages, etc.
+//!   - they take away from the pool of values that can be used in messages
+//!
+//! The latter point is an important one. The sentinel value can't be used in
+//! the actual message you are sending! In the above that is fine since the
+//! message format doesn't allow for `ø`s anyways. In C style strings, `'ø'` or
+//! `NULL` aren't allowed in strings either so it isn't a problem. Put
+//! differently sentinel based framing schemes require cooperation from the
+//! data being transmitted!
+//!
+//! This is problematic for us since we'd like to keep the message format
+//! decoupled from the encoding *and* since many of our messages transmit, for
+//! example, `Word`s (i.e. unsigned 16 bit numbers) it's very difficult for us
+//! to specify any sentinel at all since a `Word`'s valid encodings span all
+//! possible byte values for two bytes. This, and situations like it, aren't
+//! on their own a deal breaker. There is nothing that requires a _single_ byte
+//! sentinel; we could switch to a multi-byte sentinel instead. But this, too,
+//! is a tradeoff. A multi-byte encoding steals fewer valid values from the
+//! encoding but it also increases the size of the messages and thereby
+//! increases the odds that a message will have one or more bytes dropped
+//! (assuming an independent byte drop rate).
+//!
+//! So what to do now?
+//!
+//! Sentinels are an attractive framing technique since they have relatively
+//! low overhead and can handle arbitrary bytes dropping. But they seem to
+//! require cooperation from the data being transmitted which is a non-starter
+//! for us, so it seems like we're back where we started.
+//!
+//! #### COBS to the Rescue!
+//!
+//!
+//!
+//! [^dropped-bits]: Note that we don't discuss dropped bits because UART
+//! operates at the word level; if individual bits get dropped we'll either
+//! drop the entire byte or just get a byte with wrong data (a bit flip error).
+//!
+//! [^detecting-framing-errors]: In this toy example, it is very possible to
+//! detect framing errors since there are many possible invalid states. In an
+//! actual
+//!
+//! #### What about UART framing errors?
+//!
+//! [As with dropped bits](#what-about-uart-parity), UART has an analogue for
+//! framing errors at the word level that it operates at. For UART these errors
+//! happen when words aren't followed by the right stop bits, I believe.
+//!
+//! Since our messages are larger than single words, this alone isn't a
+//! sufficient message framing mechanism.
+//!
+//! [As with UART parity](#what-about-uart-parity), we could use these errors to
+//! terminate an attempt early, but instead (in the interest of simplicity)
+//! we'll just let such errors bubble up into the framing/checksum errors that
+//! we already handle at the message level.
 //!
 //! ## Things to investigate in the future:
 //!  - Using DMA to transfer received messages into <wherever the transport goes
