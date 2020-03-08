@@ -1,7 +1,7 @@
 //! Stack allocated FIFO. (TODO)
 
 use core::{
-    iter::ExactSizeIterator,
+    iter::{ExactSizeIterator, Iterator, FusedIterator},
     mem::{replace, size_of, transmute_copy, MaybeUninit},
 };
 
@@ -187,7 +187,7 @@ impl<T> Fifo<T> {
 
     /// Pops a value from the Fifo, if available.
     pub fn pop(&mut self) -> Option<T> {
-        if self.is_empty() {
+        if Self::is_empty(self) {
             None
         } else {
             let datum = replace(
@@ -346,7 +346,7 @@ impl<'a, T: Clone + 'a> Fifo<T> {
 
 impl<T: Clone> Fifo<T> {
     /// Useful for generating arrays out of a `Clone`able (but not `Copy`able)
-    /// value to pass into `Fifo::put_slice`.
+    /// value to pass into `Fifo::push_slice`.
     pub fn array_init_using_clone(val: T) -> [T; CAPACITY] {
         // MaybeUninit is always properly initialized.
         // Note: this is _the_ use case for `MaybeUninit::uninit_array` which is
@@ -374,6 +374,24 @@ impl<T: Clone> Fifo<T> {
         }
     }
 }
+
+// Use `Iterator::by_ref` to retain ownership of the iterator
+impl<T> Iterator for /*&mut */Fifo<T> {
+    type Item = T;
+
+    #[inline]
+    fn next(&mut self) -> Option<T> {
+        self.pop()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (self.length(), Some(self.length()))
+    }
+}
+
+impl<T> FusedIterator for Fifo<T> { }
+
+impl<T> ExactSizeIterator for Fifo<T> { }
 
 using_alloc! {
     use core::mem::transmute;
@@ -419,7 +437,7 @@ using_alloc! {
         }
 
         fn bytes_mut(&mut self) -> &mut [MaybeUninit<u8>] {
-            if self.is_empty() {
+            if Self::is_empty(self) {
                 &mut self.data
             } else {
                 if self.ending <= self.starting {

@@ -48,6 +48,8 @@
 macro_rules! using_std { ($($i:item)*) => ($(#[cfg(not(feature = "no_std"))]$i)*) }
 macro_rules! using_alloc { ($($i:item)*) => ($(#[cfg(feature = "alloc")]$i)*) }
 
+using_alloc! { #[allow(unused_extern_crates)] extern crate alloc; }
+
 #[allow(unused_extern_crates)]
 extern crate core; // makes rls actually look into the standard library (hack)
 
