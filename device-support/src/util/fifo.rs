@@ -2,7 +2,7 @@
 
 use core::{
     iter::{ExactSizeIterator, Iterator, FusedIterator},
-    mem::{replace, size_of, transmute_copy, MaybeUninit},
+    mem::{replace, size_of, transmute, transmute_copy, MaybeUninit},
 };
 
 // Note: Capacity is a constant so that the transition to const generics (once
@@ -394,7 +394,6 @@ impl<T> FusedIterator for Fifo<T> { }
 impl<T> ExactSizeIterator for Fifo<T> { }
 
 using_alloc! {
-    use core::mem::transmute;
     use core::convert::TryInto;
 
     use bytes::{Buf, BufMut};
