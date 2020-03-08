@@ -1,6 +1,6 @@
 //! TODO!
 
-use super::util::fifo::{self, Fifo};
+use crate::util::fifo::{self, Fifo};
 
 use lc3_traits::control::rpc::{RequestMessage, ResponseMessage};
 

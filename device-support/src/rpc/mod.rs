@@ -131,7 +131,51 @@
 //! response then we'll just wait on the right response potentially forever. We
 //! also have no way to retry the `run_until_event` so that's a problem too.
 //!
+//! Fortunately, we've got a couple of things going for us. One is that we can
+//! frequently infer from context whether or the malformed response should have
+//! actually been a [`run_until_event`] response or something else. For example,
+//! if we don't have an `EventFuture` out, we can assume it *wasn't* a
+//! [`run_until_event`] response. Vice versa with regular responses; if we do
+//! have an `EventFuture` out and aren't in the middle of a request, we can
+//! assume.
 //!
+//! In the case where we *are* in the middle of a request and have an
+//! `EventFuture` out, we can tell whether or not we were supposed to receive
+//! a [`run_until_event`] response by just asking the [`Control`] impl (by
+//! calling `get_state` and seeing if we're still running — if we are, we didn't
+//! get a [`run_until_event`] response). Note that even if the request where we
+//! ask the [`Control`] impl fails in the same way, we're still fine; we can
+//! handle the nested faults. From here, we know whether to redo the request or
+//! to just wait.
+//!
+//!
+//! The one problem with this, however, is that we don't have a way to recover
+//! a borked `run_until_event` response. Unlike other requests we can't just
+//! re-request it (it is very much
+//! [not idempotent](#wait-but-can-we-just-retry-or-idempotency-is-your-friend))
+//! so what can to do?
+//!
+//! One thing we can do is have the response to `run_until_event` require an
+//! acknowledge. On it's own this doesn't solve anything (to be sure that the
+//! requester and the responder are consistent, the acknowledge would require
+//! an acknowledge and then _that_ acknowledge would need another acknowledge
+//! and so on til infinity) but if we make the responder repeatedly send the
+//! `run_until_event` response until it gets a response (and have the requester
+//! acknowledge whenever it gets one of these), eventually the system will
+//! settle.
+//!
+//! This seems like it should work but the wrinkle is that now there's the
+//! question of what should happen when a [`run_until_event`] call has
+//! resolved but has yet to be acknowledged by the requester *and* the requester
+//! goes and starts a new `run_until_event`. It's like the
+//! [reset & batch issue](https://github.com/ut-utp/prototype/issues/48) but
+//! worse!
+//!
+//! For now, as a compromise, I think we can change `EventFuture` to resolve to
+//! an `Option` of an `Event` and have that `Option` be `None` specifically in
+//! this case (when the actual `EventFuture` gets lost). Note that we still have
+//! enough data to confidently resolve the `EventFuture` (i.e. we know for sure
+//! that the `EventFuture` has been resolved).
 //!
 //! [^caveat3]: We're making an assumption here which is that when such failures
 //! happen the recipient of the data can tell. This is true so long as not *all*
@@ -269,7 +313,13 @@
 //! [`Transport`]: lc3_traits::control::rpc::Transport
 //! [`Transport::send`]: lc3_traits::control::rpc::Transport::get
 //!
-//! In the case
+//!
+//! ## Things to investigate in the future:
+//!  - Using DMA to transfer received messages into <wherever the transport goes
+//!    to look for new messages> + having a line break interrupt actually go
+//!    trip the flag that has the [`Controller`] go and actually try to process
+//!    the received bytes.
+
 
 pub mod encoding;
 pub mod transport;
