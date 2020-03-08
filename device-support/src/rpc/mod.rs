@@ -319,6 +319,10 @@
 //! Dropped bytes[^dropped-bits] are problematic but before we discuss why, we
 //! need to talk about framing.
 //!
+//! [^dropped-bits]: Note that we don't discuss dropped bits because UART
+//! operates at the word level; if individual bits get dropped we'll either
+//! drop the entire byte or just get a byte with wrong data (a bit flip error).
+//!
 //! #### Framing, or: Where to Start and End
 //!
 //! For our purposes, all UART provides us with is a stream of bytes. From this
@@ -367,6 +371,10 @@
 //! transmitted successfully, we were unable to decode the messages because we
 //! matched the bytes to messages incorrectly, causing the message parsing to
 //! fail[^detecting-framing-errors].
+//!
+//! [^detecting-framing-errors]: In this toy example, it is very possible to
+//! detect framing errors since there are many possible invalid states. In an
+//! actual
 //!
 //! ##### A detour about detecting (and recovering from) framing errors
 //!
@@ -478,15 +486,53 @@
 //!
 //! #### COBS to the Rescue!
 //!
+//! What we really want is a way to ensure that the data we're sending doesn't
+//! contain a particular value without actually imposing any restrictions on the
+//! data we're sending.
 //!
+//! It turns out this is totally a thing that is possible and it's called [byte
+//! (or bit) stuffing](wpi-stuf)!
 //!
-//! [^dropped-bits]: Note that we don't discuss dropped bits because UART
-//! operates at the word level; if individual bits get dropped we'll either
-//! drop the entire byte or just get a byte with wrong data (a bit flip error).
+//! One such implementation of this is [Consistent Overhead Byte Stuffing (aka
+//! _COBS_)](COBS); COBS works (approximately) by dividing up your data (which
+//! is allowed to have zeros) into chunks wherever the zeros are (or after
+//! 254 non-zero bytes — the end of your data also has an implicit zero):
 //!
-//! [^detecting-framing-errors]: In this toy example, it is very possible to
-//! detect framing errors since there are many possible invalid states. In an
-//! actual
+//! ```text
+//!  /-- 'a' 'b' 'c' 0 'h' 'e' 'l' 'l' 'o' 0 1 0 1 .. 255 _0_
+//!  |
+//!  |
+//!  \-> | 'a' 'b' 'c' | 'h' 'e' 'l' 'l' 'o' | 1 | 1 .. 254 | 255 |
+//! ```
+//!
+//! Now, prepend each chunk with length of the chunk + 1. Or, put another way,
+//! put the index of the chunk's zero in front of each chunk:
+//!
+//! ```text
+//! | 'a' 'b' 'c' | 'h' 'e' 'l' 'l' 'o' | 1 | 1 .. 254 | 255 |
+//!
+//! |4| 'a' 'b' 'c' |6| 'h' 'e' 'l' 'o' |2| 1 |254| 1 .. 254
+//! ```text
+//!
+//! Note that the index is guaranteed to be ≤ 255 since each chunk can be at
+//! most 254 bytes long. Also note that a length of 255 is a special case
+//! corresponding to 254 non-zero bytes and *no zero*. If you have actually have
+//! 254 non-zero bytes followed by a zero it'll be treated as two chunks, the
+//! latter being an 'empty' chunk.
+//!
+//! The one slightly problematic case seems to be that you'll get an extra
+//! trailing zero if your data ends with a sequence of non-zero bytes that is
+//! less than 254 elements long. But this isn't too difficult to remedy; as a
+//! simple fix (that also has other useful properties ­— like letting us size
+//! buffers) we can go back to prepending messages with the total length.
+//!
+//! COBS is pretty nifty because of just how low overhead it is. Each zero that
+//! is replaced incurs no extra overhead since the length that it's effectively
+//! 'substituted' with is also a single byte. 254 byte runs of non-zeros do
+//! incur a single byte of overhead, however.
+//!
+//! [COBS]: https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing
+//! [wpi-stuf]: https://web.cs.wpi.edu/~rek/Undergrad_Nets/B07/BitByteStuff.pdf
 //!
 //! #### What about UART framing errors?
 //!
@@ -507,6 +553,8 @@
 //!    to look for new messages> + having a line break interrupt actually go
 //!    trip the flag that has the [`Controller`] go and actually try to process
 //!    the received bytes.
+//!  - Error correcting codes instead of just checksums.
+//!  - Retrying individual bytes instead of entire messages.
 
 
 pub mod encoding;
