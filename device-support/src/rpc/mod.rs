@@ -584,8 +584,8 @@
 //!
 //! ## Altogether Now
 //!
-//! Ultimately, actually a error tolerant rpc system as described here involves
-//! two main components:
+//! Ultimately, actually implementing a error tolerant rpc system as described
+//! here involves three main components, I think:
 //!
 //! 1) Modifying the [`Controller`], [`Device`], and
 //!    [`RequestMessage`]/[`ResponseMessage`] types to support the explicit
@@ -611,60 +611,103 @@
 //!      makes for an acceptable API, I think. This layer doesn't need to be
 //!      aware of COBS; just that, i.e. 0 is the sentinel. Both the length
 //!      prefixing and the exact sentinel used can be configurable.
+//!    - We should have the length be _inclusive_ of the sentinel.
 //!    - This API is poll based so what should probably happen is that every
 //!      time [`Transport::get`] is called, this checks the current buffer of
 //!      UART bytes received from the UART and updates a state machine that
 //!      probably looks something like this:
-//!        * InitialState:
-//!           + On new bytes, take the first as the length; go to
-//!             `LengthNoChecksum`.
-//!           + Return `None` (no messages to process)
-//!        * LengthNoChecksum:
-//!           + On new bytes, take the first as the checksum; got to
-//!             `ReceivingMessage`.
-//!           + Return `None` (no messages to process)
-//!        * ReceivingMessage:
-//!           + On new bytes, copy into the internal buffer until we run out of
-//!             bytes or hit the sentinel or the count hits zero.
-//!              - If we hit the sentinel *and* the count is zero:
-//!                 * Try to decode the message and if that succeeds, return
-//!                   `Some(msg)`. (nvm; actually just return a reference to the
-//!                   internal buffer or something)
-//!                 * Transition to `PendingMessage` (which has a frozen buffer)
-//!              - If we hit the sentinel *and* the count is greater than zero:
-//!                 *
-//!              - If the count hits 0 *and* we're out of bytes:
-//!                 * Try to decode the message and
-//!          + This is maybe subtle but this just _won't_ store things from the
-//!            fifo it has a reference to (behind a bare metal Mutex) beyond the
-//!            current message (but it will grab them so the fifo doesn't
-//!            overflow).
-//!        * AwaitingSentinel:
-//!           + Throws away any bytes other than the sentinel.
-//!           + Upon getting a sentinel, resets back to
-//!        * AwaitingReset:
-//!           + This contains a buffer containing a framed message.
-//!           + Immediately switches back to `IntialState`; should not produce a
-//!             return value.
-//!    - The error types probably looks something like this:
+//!       * InitialState:
+//!          + On new bytes, take the first as the length; go to
+//!            `ReceivingMessage`.
+//!          + Return `Err(NoMessage)` (no messages to process)
+//!       * ReceivingMessage:
+//!          + On new bytes, copy into the internal buffer until we run out of
+//!            bytes or hit the sentinel or the count hits zero.
+//!             - If we hit the sentinel *and* the count is zero:
+//!                * Try to decode the message and if that succeeds, return
+//!                  `Some(msg)`. (nvm; actually just return a reference to the
+//!                  internal buffer or something)
+//!                * Transition to `PendingMessage` (which has a frozen buffer)
+//!                * Return the framed message; `Some(_)`.
+//!             - If we hit the sentinel *and* the count is greater than zero:
+//!                * Byte underrun!
+//!                * Discard the buffer; switch to `InitialState`.
+//!                * Return `LengthMismatch`
+//!             - If the count is zero but we didn't hit the sentinel:
+//!                * Byte overrun! (probably a dropped sentinel)
+//!                * Discard the buffer; switch to `AwaitingSentinel`.
+//!                * Return `LengthMismatch`
+//!             - Otherwise, (i.e. if we've run out of bytes):
+//!                * Update the count, go back to the same state.
+//!                * Return `MessageInProgress`
+//!         + This is maybe subtle but this just _won't_ store things from the
+//!           fifo it has a reference to (behind a bare metal Mutex) beyond the
+//!           current message (but it will grab them so the fifo doesn't
+//!           overflow).
+//!       * AwaitingSentinel:
+//!          + Throws away any bytes other than the sentinel.
+//!          + Upon getting a sentinel, resets back to `InitialState`.
+//!          + This is where we get when we're waiting to realign/recover from
+//!            a framing problem.
+//!       * AwaitingReset:
+//!          + This contains a buffer containing a framed message.
+//!          + Immediately switches back to `IntialState`; should not produce a
+//!            return value.
+//!    - Send will just prefix with a length and dump into the Uart send FIFO.
+//!       * As an optimization this can also enable uart_tx interrupts; the
+//!         interrupt can then go disable itself if it ever runs and doesn't
+//!         have data to send.
+//!    - The error types probably look something like this:
 //!      ```rust
 //!      enum UartTransportRecvError {
-//!          MessageInProgress
+//!          NoMessage,
+//!          MessageInProgress,
+//!          /// Overrun or underrun
+//!          LengthMismatch { overrun: bool, expected: usize, got: usize },
+//!      }
+//!
+//!      enum UartTransportSendError {
+//!          UartFifoFull,
+//!          ???
 //!      }
 //!      ```
-//!
-// !    - The error type probably looks something like this:
-// !      ```rust
-// !      enum UartTransportRecvError<EncodingError> {
-// !          FramingError,
-// !          LengthError { expected: usize, got: usize },
-// !          DecodeError<EncodingError>,
-// !      }
-// !      ```
 //!    - To support cooperation with interrupts, we could have an AtomicBool
 //!      that gets set in interrupts and is checked to see if we have new data
 //!      in [`Transport::get`].
 //!
+//! 3) The Encodings.
+//!
+//!    - Rather than just have one, I think we continue the middleware-esque
+//!      approach that's worked well for us:
+//!
+//!    1) Checksumming can be one layer.
+//!       + It takes an inner encoding/decoding.
+//!       + The Decoding uses the first <word> as the checksum and then checks
+//!         if the rest of the slice it was given matches the checksum.
+//!          * As with the transport, the particulars can be configurable,
+//!            including what checksum to use/how many bytes long it is, etc.
+//!       + If the checksum doesn't match, terminate without calling the inner
+//!         decoding. If it does match, try to call the inner decode.
+//!       + The Decoding error type should look something like this:
+//!         ```rust
+//!         enum ChecksumDecodingError<Inner: Debug> {
+//!             ChecksumMismatch { expected: <tbd>, got: <tbd> },
+//!             InnerDecodingError(Inner),
+//!         }
+//!         ```
+//!       + Encode can work the same way, but in reverse; call the inner encode,
+//!         checksum it, and then prepend the checksum onto the inner encode's
+//!         result.
+//!       + Managing to do this without a heap will be interesting.
+//!
+//!    2) The actual COBS encoded `postcard` thing can be another layer.
+//!       + Ideally, COBS would be it's own layer, but `postcard` internally
+//!         uses a middleware like thing that's somewhat similar to what we do
+//!         (but only for serialize, not for deserialize) so for simplicity and
+//!         for the sake of symmetry with the decode, we'll just have this be
+//!         one layer.
+//!       + Unlike basically everything else, this should actually be fairly
+//!         straightforward, maybe.
 //!
 //! [`Device`]: lc3_traits::control::rpc::Device
 //! [`RequestMessage`]: lc3_traits::control::rpc::RequestMessage
