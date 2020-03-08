@@ -107,7 +107,7 @@ impl<T> Fifo<T> {
     }
 
     /// The maximum number of elements the `Fifo` can hold.
-    pub const fn capacity() -> usize {
+    pub const fn capacity(&self) -> usize {
         CAPACITY
     }
 
@@ -456,3 +456,168 @@ using_alloc! {
 sa::assert_eq_size!(&mut [MaybeUninit<u8>], &mut [u8]);
 sa::assert_eq_size!([MaybeUninit<u8>; CAPACITY], [u8; CAPACITY]);
 sa::assert_eq_align!([MaybeUninit<u8>; CAPACITY], [u8; CAPACITY]);
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    const FIFO: Fifo<usize> = Fifo::new_const();
+
+    // A type that implements Clone (but not Copy!).
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct Cloneable {
+        a: usize,
+        b: usize,
+        c: usize,
+    }
+
+    impl Cloneable {
+        const fn new(n: usize) -> Self { Self { a: n, b: n, c: n } }
+    }
+
+    // A type this does *not* implement Clone.
+    #[derive(Debug, PartialEq, Eq)]
+    struct Uncloneable {
+        inner: Cloneable
+    }
+
+    impl Uncloneable {
+        const fn new(n: usize) -> Self { Self { inner: Cloneable::new(n) } }
+    }
+
+    // Also tests push_slice (requires Clone)
+    #[test]
+    fn new_with_values() {
+        let c = Cloneable::new(78);
+        let arr = Fifo::array_init_using_clone(c.clone());
+        let mut fifo = Fifo::new();
+
+        assert_eq!(Ok(()), fifo.push_slice(&arr));
+
+        assert_eq!(fifo.length(), fifo.capacity());
+
+        let mut count = 0;
+        for i in fifo.by_ref() {
+            assert_eq!(c, i);
+            count += 1;
+        }
+
+        assert_eq!(count, fifo.capacity());
+    }
+
+    const BIG_SLICE: [u8; CAPACITY + 2] = [0; CAPACITY + 2];
+
+    #[test]
+    fn push_slice_too_big() {
+        let mut fifo = Fifo::new();
+
+        assert_eq!(0, fifo.length());
+        assert_eq!(Err(()), fifo.push_slice(&BIG_SLICE));
+        assert_eq!(0, fifo.length());
+    }
+
+    // Tests pushing cloneable values in an iterator
+    #[test]
+    fn push_iter_ref() {
+        let mut fifo = Fifo::new();
+
+        macro_rules! ascii_string {
+            ($($c:literal)*) => {
+                [$(
+                    $c as u8
+                ),*]
+            };
+        }
+
+        let string = ascii_string!['H''e''l''l''o'' ''W''o''r''l''d''!'];
+
+        assert_eq!(Ok(()), fifo.push_iter_ref(&mut string.iter()));
+
+        for (idx, c) in fifo.enumerate() {
+            assert_eq!(string[idx], c);
+        }
+    }
+
+    // Tests pushing an owned iterator
+    #[test]
+    fn push_uncloneable() {
+        let mut arr = [0; CAPACITY];
+        for i in 0..CAPACITY { arr[i] = i; }
+
+        let mut iter = arr.iter().map(|i| Uncloneable::new(*i));
+        let mut fifo = Fifo::new();
+
+        assert_eq!(Ok(()), fifo.push_iter(&mut iter));
+
+        for (idx, uc) in fifo.enumerate() {
+            assert_eq!(Uncloneable::new(idx), uc);
+        }
+    }
+
+    #[test]
+    fn overpush() {
+        let mut fifo = FIFO;
+
+        for i in 0..fifo.capacity() { assert_eq!(Ok(()), fifo.push(i)); }
+
+        assert_eq!(Err(()), fifo.push(123));
+        assert_eq!(Err(()), fifo.push(567));
+    }
+
+    #[test]
+    fn overpop() {
+        let mut fifo = FIFO;
+
+        assert_eq!(None, fifo.pop());
+        assert_eq!(None, fifo.pop());
+
+        for i in 0..fifo.capacity() { assert_eq!(Ok(()), fifo.push(i)); }
+
+        // Also tests ordering!
+        for i in 0..fifo.capacity() { assert_eq!(Some(i), fifo.pop()); }
+
+        assert_eq!(None, fifo.pop());
+        assert_eq!(None, fifo.pop());
+    }
+
+    #[test]
+    fn peek() {
+        let mut fifo = Fifo::new();
+
+        assert_eq!(Ok(()), fifo.push(278));
+        assert_eq!(Ok(()), fifo.push(513));
+        assert_eq!(2, fifo.length());
+
+        assert_eq!(Some(&278), fifo.peek());
+        assert_eq!(2, fifo.length());
+
+        assert_eq!(Some(278), fifo.pop());
+        assert_eq!(1, fifo.length());
+
+        assert_eq!(Some(&513), fifo.peek());
+        assert_eq!(1, fifo.length());
+
+        assert_eq!(Some(513), fifo.pop());
+        assert_eq!(0, fifo.length());
+
+        assert_eq!(None, fifo.pop());
+    }
+
+    #[test]
+    fn by_ref() {
+        let mut f = Fifo::<u8>::new();
+
+        assert_eq!(Ok(()), f.push_iter(&mut (0..10)));
+        assert_eq!(10, f.length());
+
+        // If we remove by_ref here this will fail to compile because `f` will
+        // be _consumed_.
+        for (idx, i) in f.by_ref().enumerate() {
+            assert_eq!(idx as u8, i);
+        }
+
+        assert_eq!(0, f.length());
+    }
+}
