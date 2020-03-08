@@ -582,13 +582,114 @@
 //! we'll just let such errors bubble up into the framing/checksum errors that
 //! we already handle at the message level.
 //!
-//! ## Things to investigate in the future:
+//! ## Altogether Now
+//!
+//! Ultimately, actually a error tolerant rpc system as described here involves
+//! two main components:
+//!
+//! 1) Modifying the [`Controller`], [`Device`], and
+//!    [`RequestMessage`]/[`ResponseMessage`] types to support the explicit
+//!    error reporting mechanisms described above and to actually retry when
+//!    errors happen in the way described above.
+//!
+//!    - To testing that this machinery works, we can 'send' [`Control`] calls
+//!      across an rpc setup that uses a mock transport. This mock transport
+//!      can emulate a fallible transport by occasionally turning some of the
+//!      messages sent across it into Errors. The [`Controller`] and [`Device`]
+//!      should continue relaying calls across; from the perspective of the
+//!      user of the [`Controller`] and the [`Control`] impl that the [`Device`]
+//!      wraps, no messages should be lost. However, the two may differ in their
+//!      estimation of the _number_ of calls sent across; this is okay and
+//!      expected.
+//!
+//! 2) Making the UART Transport.
+//!
+//!    - This will have to ensure the uart instance we're using in in whatever
+//!      configuration (i.e. 8b, 1 stop, no parity) we settle on.
+//!    - This will also be responsible for framing. That means it will have to
+//!      be aware of any length-prefixing we do + any sentinel we use. This
+//!      makes for an acceptable API, I think. This layer doesn't need to be
+//!      aware of COBS; just that, i.e. 0 is the sentinel. Both the length
+//!      prefixing and the exact sentinel used can be configurable.
+//!    - This API is poll based so what should probably happen is that every
+//!      time [`Transport::get`] is called, this checks the current buffer of
+//!      UART bytes received from the UART and updates a state machine that
+//!      probably looks something like this:
+//!        * InitialState:
+//!           + On new bytes, take the first as the length; go to
+//!             `LengthNoChecksum`.
+//!           + Return `None` (no messages to process)
+//!        * LengthNoChecksum:
+//!           + On new bytes, take the first as the checksum; got to
+//!             `ReceivingMessage`.
+//!           + Return `None` (no messages to process)
+//!        * ReceivingMessage:
+//!           + On new bytes, copy into the internal buffer until we run out of
+//!             bytes or hit the sentinel or the count hits zero.
+//!              - If we hit the sentinel *and* the count is zero:
+//!                 * Try to decode the message and if that succeeds, return
+//!                   `Some(msg)`. (nvm; actually just return a reference to the
+//!                   internal buffer or something)
+//!                 * Transition to `PendingMessage` (which has a frozen buffer)
+//!              - If we hit the sentinel *and* the count is greater than zero:
+//!                 *
+//!              - If the count hits 0 *and* we're out of bytes:
+//!                 * Try to decode the message and
+//!          + This is maybe subtle but this just _won't_ store things from the
+//!            fifo it has a reference to (behind a bare metal Mutex) beyond the
+//!            current message (but it will grab them so the fifo doesn't
+//!            overflow).
+//!        * AwaitingSentinel:
+//!           + Throws away any bytes other than the sentinel.
+//!           + Upon getting a sentinel, resets back to
+//!        * AwaitingReset:
+//!           + This contains a buffer containing a framed message.
+//!           + Immediately switches back to `IntialState`; should not produce a
+//!             return value.
+//!    - The error types probably looks something like this:
+//!      ```rust
+//!      enum UartTransportRecvError {
+//!          MessageInProgress
+//!      }
+//!      ```
+//!
+// !    - The error type probably looks something like this:
+// !      ```rust
+// !      enum UartTransportRecvError<EncodingError> {
+// !          FramingError,
+// !          LengthError { expected: usize, got: usize },
+// !          DecodeError<EncodingError>,
+// !      }
+// !      ```
+//!    - To support cooperation with interrupts, we could have an AtomicBool
+//!      that gets set in interrupts and is checked to see if we have new data
+//!      in [`Transport::get`].
+//!
+//!
+//! [`Device`]: lc3_traits::control::rpc::Device
+//! [`RequestMessage`]: lc3_traits::control::rpc::RequestMessage
+//! [`ResponseMessage`]: lc3_traits::control::rpc::ResponseMessage
+//!
+//! ## Multiplexing UART for [`Control`] and for [`Input`]/[`Output`]
+//!
+//! Another fun bit of complexity that our system has is that we
+//!
+//! [`Input`]: lc3_traits::peripherals::Input
+//! [`Output`]: lc3_traits::peripherals::Output
+//!
+//! ## Things to investigate in the future: (TODO)
 //!  - Using DMA to transfer received messages into <wherever the transport goes
 //!    to look for new messages> + having a line break interrupt actually go
 //!    trip the flag that has the [`Controller`] go and actually try to process
 //!    the received bytes.
 //!  - Error correcting codes instead of just checksums.
 //!  - Retrying individual bytes instead of entire messages.
+//!  - Maybe think about what a non-poll based API would look like.
+//!  - Layering on compression below COBS.
+//!  - Grow a status field on the Transport layer that tells us how many things
+//!    have to be retried/dropped.
+//!  - The Controller/Device and Transport layer should add logging letting us
+//!    know when things are getting dropped/retried!
 
 
 pub mod encoding;
