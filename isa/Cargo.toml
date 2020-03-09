@@ -43,3 +43,4 @@ pretty_assertions = "0.6.1"
 default = ["no_std"]
 no_std = []
 strict = []
+nightly-const = [] # Requires nightly; isn't tested by CI.
