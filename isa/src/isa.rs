@@ -739,25 +739,37 @@ impl TryFrom<Word> for Instruction {
 impl From<Instruction> for Word {
     #[rustfmt::skip]
     fn from(ins: Instruction) -> u16 {
+        ins.to_word()
+    }
+}
+
+impl Instruction {
+    // // This is an awful hack that only exists because const fn isn't where we
+    // // want it to be yet. Once we've got a way to impl a const version (or impl
+    // // of) Into<u16> and a way to match in const functions, this should perish.
+    // #[doc(hidden)]
+
+    #[rustfmt::skip]
+    nightly_const! { [pub] => [fn to_word(&self) -> u16 {
         #![allow(non_snake_case)]
         use Instruction::*;
 
-        fn Op(op: u8) -> Word { ((op as u16) & 0b1111) << 12 }
-        fn Dr(dr: Reg) -> Word { ((dr as u16) & 0b111) << 9 }
-        fn Sr1(sr1: Reg) -> Word { ((sr1 as u16) & 0b111) << 6 }
-        fn Sr2(sr2: Reg) -> Word { (sr2 as u16) & 0b111 }
-        fn Imm5(imm5: i16) -> Word { ((imm5 as u16) & 0b11111) | 0b100000 }
-        fn N(n: bool) -> Word { (n as u16) << 11 }
-        fn Z(z: bool) -> Word { (z as u16) << 10 }
-        fn P(p: bool) -> Word { (p as u16) << 9 }
-        fn O9(offset9: i16) -> Word { (offset9 as u16) & 0b111111111 }
-        fn O11(offset11: i16) -> Word { (1 << 11) | ((offset11 as u16) & 0x7FF) }
-        fn Base(base: Reg) -> Word { Sr1(base) }
-        fn O6(offset6: i16) -> Word { (offset6 as u16) & 0b111111 }
-        fn Sr(sr: Reg) -> Word { Sr1(sr) | 0b111111 }
-        fn Trapvec(trapvec: u8) -> Word { (trapvec as u16) & 0xFF }
+        const fn Op(op: u8) -> Word { ((op as u16) & 0b1111) << 12 }
+        const fn Dr(dr: Reg) -> Word { ((dr as u16) & 0b111) << 9 }
+        const fn Sr1(sr1: Reg) -> Word { ((sr1 as u16) & 0b111) << 6 }
+        const fn Sr2(sr2: Reg) -> Word { (sr2 as u16) & 0b111 }
+        const fn Imm5(imm5: i16) -> Word { ((imm5 as u16) & 0b11111) | 0b100000 }
+        const fn N(n: bool) -> Word { (n as u16) << 11 }
+        const fn Z(z: bool) -> Word { (z as u16) << 10 }
+        const fn P(p: bool) -> Word { (p as u16) << 9 }
+        const fn O9(offset9: i16) -> Word { (offset9 as u16) & 0b111111111 }
+        const fn O11(offset11: i16) -> Word { (1 << 11) | ((offset11 as u16) & 0x7FF) }
+        const fn Base(base: Reg) -> Word { Sr1(base) }
+        const fn O6(offset6: i16) -> Word { (offset6 as u16) & 0b111111 }
+        const fn Sr(sr: Reg) -> Word { Sr1(sr) | 0b111111 }
+        const fn Trapvec(trapvec: u8) -> Word { (trapvec as u16) & 0xFF }
 
-        match ins {
+        match *self {
             AddReg { dr, sr1, sr2 }   => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Sr2(sr2)   ,
             AddImm { dr, sr1, imm5 }  => Op(0b0001) | Dr(dr) | Sr1(sr1)   | Imm5(imm5) ,
             AndReg { dr, sr1, sr2 }   => Op(0b0101) | Dr(dr) | Sr1(sr1)   | Sr2(sr2)   ,
@@ -778,17 +790,7 @@ impl From<Instruction> for Word {
             Str { sr, base, offset6 } => Op(0b0111) | Dr(sr) | Base(base) | O6(offset6),
             Trap { trapvec }          => Op(0b1111)          | Trapvec(trapvec)        ,
         }
-    }
-}
-
-impl Instruction {
-    // // This is an awful hack that only exists because const fn isn't where we
-    // // want it to be yet. Once we've got a way to impl a const version (or impl
-    // // of) Into<u16> and a way to match in const functions, this should perish.
-    // #[doc(hidden)]
-    // pub const fn to_word(&self) -> Word {
-
-    // }
+    }]}
 }
 
 // TODO: tests for Instruction
