@@ -94,6 +94,7 @@ impl<'a> Input<'a> for InputStub {
 
     fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) { }
     fn interrupt_occurred(&self) -> bool { false }
+    fn reset_interrupt_flag(&mut self) { }
 
     fn set_interrupt_enable_bit(&mut self, bit: bool) { }
     fn interrupts_enabled(&self) -> bool  { false }
@@ -109,6 +110,7 @@ impl<'a> Output<'a> for OutputStub {
 
     fn register_interrupt_flag(&mut self, flag: &'a AtomicBool) { }
     fn interrupt_occurred(&self) -> bool { false }
+    fn reset_interrupt_flag(&mut self) { }
 
     fn set_interrupt_enable_bit(&mut self, bit: bool) { }
     fn interrupts_enabled(&self) -> bool { false }
