@@ -1,55 +1,104 @@
 //! Test that the macros work when called from outside the crate.
 
+#![cfg_attr(feature = "nightly-const", feature(const_if_match))]
+#![cfg_attr(feature = "nightly-const", feature(const_panic))]
+
 use lc3_isa::util::AssembledProgram;
 
 use pretty_assertions::assert_eq;
 
-// use lc3_isa::{Addr, Word};
 
-// const LOADABLE: [(lc3_isa::Addr, lc3_isa::Word); 28] = lc3_isa::loadable! {
-//     .ORIG #0x3000  => is the program start;
-//     ADD R0, R0, R1 => you can use comments like this;
-//     ADD R1, R1, #0 => careful though there are things you cannot stick in these weird comments;
-//     AND R1, R2, R3 => like apostrophes and commas and leading numbers;
-//     AND R4, R5, #-0xF => also expressions and parens and most tokens like
-//                          periods and arrows;
-//     BRnzp #-1; // Or you can always use good old Rust comments like this
-//     JMP R6;
-//     JSR #-1024;
-//     JSRR R2;
+#[cfg(feature = "nightly-const")]
+const CONST_LOADABLE_TEST: [(lc3_isa::Addr, lc3_isa::Word); 28] = lc3_isa::loadable! {
+    .ORIG #0x3000  => is the program start;
+    ADD R0, R0, R1 => you can use comments like this;
+    ADD R1, R1, #0 => careful though there are things you cannot stick in these weird comments;
+    AND R1, R2, R3 => like apostrophes and commas and leading numbers;
+    AND R4, R5, #-0xF => also expressions and parens and most tokens like
+                         periods and arrows;
+    BRnzp #-1; // Or you can always use good old Rust comments like this
+    JMP R6;
+    JSR #-1024;
+    JSRR R2;
 
-//     // No labels unfortunately.
-//     LD R7, #-1;
-//     LDI R4, #255;
-//     LDR R0, R1, #31;
-//     LEA R0, #12;
+    // No labels unfortunately.
+    LD R7, #-1;
+    LDI R4, #255;
+    LDR R0, R1, #31;
+    LEA R0, #12;
 
-//     // After all this isn't an assembler.
-//     NOT R2, R3;
-//     RET;
-//     RTI;
+    // After all this isn't an assembler.
+    NOT R2, R3;
+    RET;
+    RTI;
 
-//     // So, make good use of comments if you're going to write things this way.
-//     ST R2, #-45;
-//     STI R7, #3;
-//     STR R2, R0, #-32;
+    // So, make good use of comments if you're going to write things this way.
+    ST R2, #-45;
+    STI R7, #3;
+    STR R2, R0, #-32;
 
-//     TRAP #0x25;
+    TRAP #0x25;
 
-//     ADD R0, R2, #0;
-//     OUT;
-//     PUTS;
+    ADD R0, R2, #0;
+    OUT;
+    PUTS;
 
-//     AND R0, R0, #0;
-//     GETC;
+    AND R0, R0, #0;
+    GETC;
 
-//     AND R0, R0, #0;
-//     IN;
+    AND R0, R0, #0;
+    IN;
 
-//     HALT;
+    HALT;
 
-//     .FILL #0x23u16;
-// };
+    .FILL #0x23u16;
+};
+
+#[cfg(feature = "nightly-const")]
+const CONST_PROGRAM_TEST: [(lc3_isa::Word, bool); lc3_isa::ADDR_SPACE_SIZE_IN_WORDS] = lc3_isa::program! {
+    .ORIG #0x3000  => is the program start;
+    ADD R0, R0, R1 => you can use comments like this;
+    ADD R1, R1, #0 => careful though there are things you cannot stick in these weird comments;
+    AND R1, R2, R3 => like apostrophes and commas and leading numbers;
+    AND R4, R5, #-0xF => also expressions and parens and most tokens like
+                         periods and arrows;
+    BRnzp #-1; // Or you can always use good old Rust comments like this
+    JMP R6;
+    JSR #-1024;
+    JSRR R2;
+
+    // No labels unfortunately.
+    LD R7, #-1;
+    LDI R4, #255;
+    LDR R0, R1, #31;
+    LEA R0, #12;
+
+    // After all this isn't an assembler.
+    NOT R2, R3;
+    RET;
+    RTI;
+
+    // So, make good use of comments if you're going to write things this way.
+    ST R2, #-45;
+    STI R7, #3;
+    STR R2, R0, #-32;
+
+    TRAP #0x25;
+
+    ADD R0, R2, #0;
+    OUT;
+    PUTS;
+
+    AND R0, R0, #0;
+    GETC;
+
+    AND R0, R0, #0;
+    IN;
+
+    HALT;
+
+    .FILL #0x23u16;
+};
 
 use lc3_isa::{Addr, Instruction::*, Reg::*, Word};
 

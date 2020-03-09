@@ -332,7 +332,7 @@ macro_rules! reg {
 
 #[cfg(test)]
 mod tests {
-    const _REG_R7: Reg = reg!(R7);
+    use pretty_assertions::assert_eq;
 
     use crate::util::AssembledProgram;
     use crate::{
@@ -665,6 +665,7 @@ mod tests {
 
 #[cfg(test)]
 mod misc {
+    use pretty_assertions::assert_eq;
     use crate::Instruction::*;
 
     #[test]
