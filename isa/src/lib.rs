@@ -49,6 +49,7 @@
 // this is fine for now.
 #![cfg_attr(feature = "nightly-const", feature(const_if_match))]
 #![cfg_attr(feature = "nightly-const", feature(const_panic))]
+#![cfg_attr(feature = "nightly-const", feature(const_fn))]
 
 // Makes some an item const if the nightly-const feature is activated and not
 // const otherwise.
