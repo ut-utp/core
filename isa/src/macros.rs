@@ -254,7 +254,10 @@ macro_rules! program {
         // Update: now that const if/match have landed on nightly, this macro can be
         // const and *is* const when this crate is used with the `nightly-const` feature
         // and a new enough nightly rustc build.
-        if $mem[$addr as usize].1 { panic!("Overlap at {:#4X}!", $addr); }
+        #[cfg(not(feature = "nightly-const"))]
+        { if $mem[$addr as usize].1 { panic!("Overlap at {:#4X}!", $addr); } }
+        #[cfg(feature = "nightly-const")]
+        { if $mem[$addr as usize].1 { panic!("Overlap!"); } } // Can't format in consts yet!
         $mem[$addr as usize] = ($crate::word!(FILL $($regs,)* $(#((($label_operand))))? $(#$num)*), true);
 
         $addr += 1;
@@ -270,7 +273,10 @@ macro_rules! program {
         // )?
 
         // See the above comment about const contexts.
-        if $mem[$addr as usize].1 { panic!("Overlap at {:#4X}!", $addr); }
+        #[cfg(not(feature = "nightly-const"))]
+        { if $mem[$addr as usize].1 { panic!("Overlap at {:#4X}!", $addr); } }
+        #[cfg(feature = "nightly-const")]
+        { if $mem[$addr as usize].1 { panic!("Overlap!"); } } // Can't format in consts yet!
         $mem[$addr as usize] = ($crate::word!($op $($regs,)* $(#((($label_operand as i64) - ($addr as i64) - 1) as $crate::SignedWord))? $(#$num)*), true);
 
         $addr += 1;
