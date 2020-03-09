@@ -194,7 +194,7 @@ dependencies = [
  "clap",
  "criterion-plot",
  "csv",
- "itertools",
+ "itertools 0.8.2",
  "lazy_static",
  "num-traits",
  "oorandom",
@@ -215,7 +215,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a01e15e0ea58e8234f96146b1f91fa9d0e4dd7a38da93ff7a75d42c0b9d3a545"
 dependencies = [
  "cast",
- "itertools",
+ "itertools 0.8.2",
 ]
 
 [[package]]
@@ -544,6 +544,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -598,7 +607,7 @@ dependencies = [
 name = "lc3-isa"
 version = "0.1.0"
 dependencies = [
- "itertools",
+ "itertools 0.9.0",
  "lc3-macros",
  "pretty_assertions",
  "serde",
@@ -1122,7 +1131,7 @@ dependencies = [
  "cassowary",
  "crossterm 0.9.6",
  "either",
- "itertools",
+ "itertools 0.8.2",
  "log",
  "unicode-segmentation",
  "unicode-width",
