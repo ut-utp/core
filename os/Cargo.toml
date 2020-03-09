@@ -40,3 +40,7 @@ lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0", default-featur
 
 pretty_assertions = "0.6.1"
 
+
+[features]
+default = []
+nightly-const = ["lc3-isa/nightly-const"] # Requires nightly; isn't tested by CI.
