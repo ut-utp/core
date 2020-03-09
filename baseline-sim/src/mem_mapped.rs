@@ -173,6 +173,11 @@ pub trait Interrupt: MemMapped {
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>;
+
+    fn reset_interrupt_flag<'a, I>(interp: &mut I)
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>;
 }
 
 // struct KBSR(Word);
@@ -382,6 +387,16 @@ impl Interrupt for KBSR {
     {
         Input::interrupts_enabled(interp.get_peripherals())
     }
+
+    fn reset_interrupt_flag<'a, I>(interp: &mut I)
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        if Input::interrupts_enabled(interp.get_peripherals()) {
+            Input::reset_interrupt_flag(interp.get_peripherals_mut());
+        }
+    }
 }
 
 // impl KBSR {
@@ -447,6 +462,16 @@ impl Interrupt for DSR {
             <I as Deref>::Target: Peripherals<'a>
     {
         Output::interrupts_enabled(interp.get_peripherals())
+    }
+
+    fn reset_interrupt_flag<'a, I>(interp: &mut I)
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        if Output::interrupts_enabled(interp.get_peripherals()) {
+            Output::reset_interrupt_flag(interp.get_peripherals_mut());
+        }
     }
 }
 
@@ -560,6 +585,16 @@ macro_rules! gpio_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>
             {
                 Gpio::interrupts_enabled(interp.get_peripherals(), $pin)
+            }
+
+            fn reset_interrupt_flag<'a, I>(interp: &mut I)
+                where
+                    I: InstructionInterpreterPeripheralAccess<'a>,
+                    <I as Deref>::Target: Peripherals<'a>
+            {
+                if Gpio::interrupts_enabled(interp.get_peripherals(), $pin) {
+                    Gpio::reset_interrupt_flag(interp.get_peripherals_mut(), $pin);
+                }
             }
 
         }
@@ -994,6 +1029,17 @@ macro_rules! timer_mem_mapped {
             {
                 Timers::interrupts_enabled(interp.get_peripherals(), $id)
             }
+
+            fn reset_interrupt_flag<'a, I>(interp: &mut I)
+                where
+                    I: InstructionInterpreterPeripheralAccess<'a>,
+                    <I as Deref>::Target: Peripherals<'a>
+            {
+                if Timers::interrupts_enabled(interp.get_peripherals(), $id) {
+                    Timers::reset_interrupt_flag(interp.get_peripherals_mut(), $id);
+                }
+            }
+
         }
 
         #[doc=$id_name]

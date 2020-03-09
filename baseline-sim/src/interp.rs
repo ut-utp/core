@@ -659,6 +659,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn handle_interrupt(&mut self, int_vec: u8, priority: u8) -> bool {
         // TODO: check that the ordering here is right
 
+        // Make sure that the priority is high enough to interrupt:
+        if self.get_special_reg::<PSR>().get_priority() >= priority {
+            // Gotta wait.
+            return false;
+        }
+
         // TODO: Set nzp to z here
 
         self.handle_exception(int_vec);
@@ -676,32 +682,24 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // true
     }
 
-    fn check_interrupts(&mut self) {
+    fn check_interrupts(&mut self) -> bool {
         macro_rules! int_devices {
-            ($max_priority:ident, $dev:ty) => {
-                if <$dev as Interrupt>::interrupt(self) && (<$dev>::PRIORITY > $max_priority) {
-                    $max_priority = <$dev>::PRIORITY;
-                    self.handle_interrupt(<$dev>::INT_VEC, <$dev>::PRIORITY);
-                    return;
-                }
-            };
+            ($($dev:ty),*) => {
+                let cur_priority: u8 = self.get_special_reg::<PSR>().get_priority();
+                $(
+                    if <$dev>::PRIORITY <= cur_priority { return false; }
+                    else if <$dev as Interrupt>::interrupt(self) {
+                        <$dev as Interrupt>::reset_interrupt_flag(self);
+                        return self.handle_interrupt(<$dev>::INT_VEC, <$dev>::PRIORITY);
+                    }
+                )*
+            }
+        }
 
-            ($max_priority:ident, $dev:ty, $($rest:ty),+) => {
-                if <$dev as Interrupt>::interrupt(self) && (<$dev>::PRIORITY > $max_priority) {
-                    $max_priority = <$dev>::PRIORITY;
-                    int_devices!($max_priority, $($rest),*);
-                    self.handle_interrupt(<$dev>::INT_VEC, <$dev>::PRIORITY);
-                    return;
-                } else {
-                    int_devices!($max_priority, $($rest),*);
-                }
-            };
-        };
-
-        let mut max_priority = self.get_special_reg::<PSR>().get_priority();
         int_devices!(
-            max_priority, KBSR, DSR, G0CR, G1CR, G2CR, G3CR, G4CR, G5CR, G6CR, G7CR, T0CR, T1CR
+            KBSR, DSR, G0CR, G1CR, G2CR, G3CR, G4CR, G5CR, G6CR, G7CR, T0CR, T1CR
         );
+        false
     }
 
     fn is_acv(&self, addr: Word) -> bool {
