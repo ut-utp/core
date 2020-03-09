@@ -16,6 +16,10 @@ lazy_static! {
     pub static ref OS: AssembledProgram = os();
 }
 
+#[cfg(feature = "nightly-const")]
+pub const CONST_OS: AssembledProgram = os();
+
+nightly_const! { [] => [
 fn os() -> AssembledProgram {
     let os = lc3_isa::program! {
         // The following is a lightly modified version of the OS that ships with Chirag
@@ -1144,7 +1148,7 @@ fn os() -> AssembledProgram {
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
-            
+
         // Timer Pin Set
         // R0= Timer Pin to set mode of
         // R1= mode to be set
@@ -1668,5 +1672,5 @@ fn os() -> AssembledProgram {
         .FILL #0x1; // 0 == disabled, non-zero == enabled
     };
 
-    os.into()
-}
+    AssembledProgram::new(os)
+}]}
