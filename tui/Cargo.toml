@@ -35,7 +35,7 @@ lc3-shims = { path = "../shims", version = "0.1.0" }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
 
 crossterm = "^0.10"
-failure = "0.1.6"
+failure = "0.1.7"
 log = "0.4.8"
 flexi_logger = { version = "0.14", default_features = false }
 lazy_static = "1.4.0"
