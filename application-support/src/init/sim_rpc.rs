@@ -72,7 +72,7 @@ impl<'s> Init<'s> for SimWithRpcDevice<'static> {
 
         let _ = ThreadBuilder::new()
             .name("Device Thread".to_string())
-            .stack_size(1024 * 1024 * 4)
+            .stack_size(1024 * 1024 * 8)
             .spawn(move || {
                 let mut sim = new_sim(shims);
 
