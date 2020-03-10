@@ -422,7 +422,7 @@ using_std! {
             let progress = self.progress();
             let elapsed = self.time_elapsed()?;
 
-            Some(elapsed.mul_f32(1f32 / progress) - elapsed)
+            Some(elapsed.mul_f32(1f32 / progress).max(elapsed) - elapsed)
         }
     }
 }
