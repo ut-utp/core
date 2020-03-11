@@ -281,7 +281,7 @@ where
             }
         }
 
-        while let Some(m) = self.transport.get().map(|enc| D::decode(&enc).unwrap().into()) {
+        while let Ok(m) = self.transport.get().map(|enc| D::decode(&enc).unwrap().into()) {
             num_processed_messages += 1;
 
             macro_rules! dev {

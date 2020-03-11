@@ -7,13 +7,14 @@ use crate::control::Identifier;
 use core::fmt::Debug;
 
 pub trait Transport<SendFormat, RecvFormat> {
-    type Err: Debug;
+    type RecvErr: Debug;
+    type SendErr: Debug;
     const ID: Identifier;
 
-    fn send(&self, message: SendFormat) -> Result<(), Self::Err>;
+    fn send(&self, message: SendFormat) -> Result<(), Self::SendErr>;
 
     // None if no messages were sent, Some(message) otherwise.
-    fn get(&self) -> Option<RecvFormat>; // TODO: should this be wrapped in a Result?
+    fn get(&self) -> Result<RecvFormat, Self::RecvErr>; // TODO: should this be wrapped in a Result?
 }
 
 using_std! {

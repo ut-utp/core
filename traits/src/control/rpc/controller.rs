@@ -117,7 +117,7 @@ where
     // Responses to our one non-blocking call (`run_until_event`) are the only
     // thing that could interrupt this.
     fn tick(&self) -> Option<ResponseMessage> {
-        let encoded_message = self.transport.get()?;
+        let encoded_message = self.transport.get().ok()?;
         let message = D::decode(&encoded_message).unwrap(); // TODO: don't panic;
         let message = message.into();
 
