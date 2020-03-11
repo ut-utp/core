@@ -723,13 +723,77 @@
 //!       + Unlike basically everything else, this should actually be fairly
 //!         straightforward, maybe.
 //!
+//!    - Testing this should be even simpler than testing the transport.
+//!
 //! [`Device`]: lc3_traits::control::rpc::Device
 //! [`RequestMessage`]: lc3_traits::control::rpc::RequestMessage
 //! [`ResponseMessage`]: lc3_traits::control::rpc::ResponseMessage
 //!
 //! ## Multiplexing UART for [`Control`] and for [`Input`]/[`Output`]
 //!
-//! Another fun bit of complexity that our system has is that we
+//! Another fun bit of complexity that our system has is that we want to
+//! multiplex UART to also be used for the [input](`Input`) and
+//! [output](`Output`) peripherals too.
+//!
+//! For our actual transmission protocol the changes aren't too drastic. We can
+//! simply prepend each kind of message (input/output or control) with a symbol
+//! indicating what the type of the message is:
+//!
+//! ```plain
+//! [Msg Type]
+//!   |
+//!   | -> C. Resp: [C. Resp Sym] [Length] [Checksum] [ ... data bits ... ] [0]
+//!   | <- C. Req:  [C. Req  Sym] [Length] [Checksum] [ ... data bits ... ] [0]
+//!   |
+//!   | -> Input:   [Input  Sym] [Checksum] [Single Character]
+//!   | <- Output:  [Output Sym] [Checksum] [Single Character]
+//! ```
+//!
+//! ### Where to multiplex?
+//!
+//! We have a couple of options for where we choose to actually separate the
+//! different kinds of data and do I/O for the [`Input`]/[`Output`] impls.
+//!
+//! The obvious way (I think) is to throw this additional logic into the
+//! `Transport`; it already gets all the incoming bytes and polls for new
+//! messages frequently. The downsides to adding this logic to the `Transport`
+//! would are:
+//!   - The `Transport` now need to hold a reference to the [`Input`] impl,
+//!     while the [`Input`] impl is used by the simulator.
+//!      + This is gross but not a dealbreaker; it means implementing [`Input`]
+//!        on an immutable reference to some type and using interior mutability
+//!        for everything.
+//!   - The proper function of the [`Input`] impl is contingent on a `Transport`
+//!     being up and running and holding a reference to the [`Input`] impl;
+//!     something that would not be obvious to anyone who doesn't read the fine
+//!     print.
+//!
+//! It's also worth noting that the [`Output`] impl would *not* be able to go
+//! through the `Transport`. Instead it'd need it's own reference to whatever
+//! buffer ultimately gets transmitted, so that's an additional bit of
+//! asymmetry.
+//!
+//! //////////////////////////////////// TODO!!! Finish this.
+// ! Note: have the `Output` interrupt_ready function be sourced from its' fifo's
+// ! `is_full`.
+//!
+//! Another option is to do this processing at the point
+//!
+//! ### [`Input`]/[`Output`] Implementations
+//!
+//! We'd need make an [`Input`] implementation that has functions that allow us
+//! (rather than a device or actual hardware) to provide the inputs. So, pretty
+//! much just the `InputShim` but for `#![no_std]`. This also does not have to
+//! be generic at all, unlike the `InputShim`.
+//!
+//!
+//!
+//! Additionally, because the transport (assuming we still want the transport to
+//! be the only thing that )
+//!
+//! Our transport layer above would need to:
+//!   - Take a reference to a grow hooks and new states in its
+//! state machine
 //!
 //! [`Input`]: lc3_traits::peripherals::Input
 //! [`Output`]: lc3_traits::peripherals::Output
