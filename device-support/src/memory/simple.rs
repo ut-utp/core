@@ -1,3 +1,12 @@
+//! Straightforward RAM-only [`Memory`] implementation.
+//!
+//! This can live in RAM on embedded devices because it only only tries to
+//! provide a _part_ of the entire address space.
+//!
+//! TODO!
+//!
+//! [`Memory`]: lc3_traits::memory::Memory
+
 use core::ops::{Index, IndexMut};
 
 use lc3_isa::{Addr, Word};
@@ -36,13 +45,13 @@ use lc3_traits::memory::{Memory, MemoryMiscError};
 /// 24 of these pages will occupy 12KiB of RAM, which we should be able to
 /// handle.
 ///
-pub struct Tm4cMemory {
+pub struct PartialMemory {
     pages: [[Word; Self::PAGE_SIZE]; 24],
     zero: Word,
     void: Word,
 }
 
-impl Tm4cMemory {
+impl PartialMemory {
     const PAGE_SIZE: usize = 0x0100;
 
     fn addr_to_page(addr: Addr) -> Option<(usize, usize)> {
@@ -57,11 +66,11 @@ impl Tm4cMemory {
     }
 }
 
-impl Index<Addr> for Tm4cMemory {
+impl Index<Addr> for PartialMemory {
     type Output = Word;
 
     fn index(&self, addr: Addr) -> &Self::Output {
-        match Tm4cMemory::addr_to_page(addr) {
+        match PartialMemory::addr_to_page(addr) {
             Some((page, offset)) => {
                 &self.pages[page][offset]
             },
@@ -70,9 +79,9 @@ impl Index<Addr> for Tm4cMemory {
     }
 }
 
-impl IndexMut<Addr> for Tm4cMemory {
+impl IndexMut<Addr> for PartialMemory {
     fn index_mut(&mut self, addr: Addr) -> &mut Self::Output {
-        match Tm4cMemory::addr_to_page(addr) {
+        match PartialMemory::addr_to_page(addr) {
             Some((page, offset)) => {
                 &mut self.pages[page][offset]
             },
@@ -84,17 +93,17 @@ impl IndexMut<Addr> for Tm4cMemory {
     }
 }
 
-impl Default for Tm4cMemory {
+impl Default for PartialMemory {
     fn default() -> Self {
         Self {
-            pages: [[0; Tm4cMemory::PAGE_SIZE]; 24],
+            pages: [[0; PartialMemory::PAGE_SIZE]; 24],
             zero: 0,
             void: 0,
         }
     }
 }
 
-impl Memory for Tm4cMemory {
+impl Memory for PartialMemory {
     fn commit(&mut self) -> Result<(), MemoryMiscError> {
         Err(MemoryMiscError) // No persistent storage for now!
     }
