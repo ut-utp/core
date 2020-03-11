@@ -1,8 +1,8 @@
 pub const KBSR_ADDR: Addr = 0xFE00;
 pub const KBDR_ADDR: Addr = 0xFE02;
 
-pub const KB_INTVEC: u8 = 0x8E;
-pub const KB_PRIORITY: u8 = 4;
+pub const KEYBOARD_INT_VEC: u8 = 0x80;
+pub const KEYBOARD_INT_PRIORITY: u8 = 4;
 
 pub const DSR_ADDR: Addr = 0xFE04;
 pub const DDR_ADDR: Addr = 0xFE06;
@@ -371,8 +371,8 @@ impl MemMapped for KBSR {
 }
 
 impl Interrupt for KBSR {
-    const INT_VEC: u8 = KB_INTVEC;
-    const PRIORITY: u8 = KB_PRIORITY;
+    const INT_VEC: u8 = KEYBOARD_INT_VEC;
+    const PRIORITY: u8 = KEYBOARD_INT_PRIORITY;
 
     fn interrupt_ready<'a, I>(interp: &I) -> bool
         where
@@ -447,8 +447,8 @@ impl MemMapped for DSR {
 }
 
 impl Interrupt for DSR {
-    const INT_VEC: u8 = D_INTVEC;
-    const PRIORITY: u8 = D_PRIORITY;
+    const INT_VEC: u8 = DISPLAY_INT_VEC;
+    const PRIORITY: u8 = DISPLAY_INT_PRIORITY;
 
     fn interrupt_ready<'a, I>(interp: &I) -> bool
         where
@@ -570,7 +570,7 @@ macro_rules! gpio_mem_mapped {
 
         impl Interrupt for $cr {
             const INT_VEC: u8 = $int_vec;
-            const PRIORITY: u8 = GPIO_PRIORITY;
+            const PRIORITY: u8 = GPIO_INT_PRIORITY;
 
             fn interrupt_ready<'a, I>(interp: &I) -> bool
             where
@@ -643,14 +643,14 @@ macro_rules! gpio_mem_mapped {
 
 use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*, GpioPinArr, GpioPin, GPIO_PINS};
 
-gpio_mem_mapped!(G0, "G0", G0CR, G0DR, G0CR_ADDR, G0DR_ADDR, G0_INTVEC);
-gpio_mem_mapped!(G1, "G1", G1CR, G1DR, G1CR_ADDR, G1DR_ADDR, G1_INTVEC);
-gpio_mem_mapped!(G2, "G2", G2CR, G2DR, G2CR_ADDR, G2DR_ADDR, G2_INTVEC);
-gpio_mem_mapped!(G3, "G3", G3CR, G3DR, G3CR_ADDR, G3DR_ADDR, G3_INTVEC);
-gpio_mem_mapped!(G4, "G4", G4CR, G4DR, G4CR_ADDR, G4DR_ADDR, G4_INTVEC);
-gpio_mem_mapped!(G5, "G5", G5CR, G5DR, G5CR_ADDR, G5DR_ADDR, G5_INTVEC);
-gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR, G6_INTVEC);
-gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR, G7_INTVEC);
+gpio_mem_mapped!(G0, "G0", G0CR, G0DR, G0CR_ADDR, G0DR_ADDR, G0_INT_VEC);
+gpio_mem_mapped!(G1, "G1", G1CR, G1DR, G1CR_ADDR, G1DR_ADDR, G1_INT_VEC);
+gpio_mem_mapped!(G2, "G2", G2CR, G2DR, G2CR_ADDR, G2DR_ADDR, G2_INT_VEC);
+gpio_mem_mapped!(G3, "G3", G3CR, G3DR, G3CR_ADDR, G3DR_ADDR, G3_INT_VEC);
+gpio_mem_mapped!(G4, "G4", G4CR, G4DR, G4CR_ADDR, G4DR_ADDR, G4_INT_VEC);
+gpio_mem_mapped!(G5, "G5", G5CR, G5DR, G5CR_ADDR, G5DR_ADDR, G5_INT_VEC);
+gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR, G6_INT_VEC);
+gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR, G7_INT_VEC);
 
 pub struct GPIODR(Word);
 
@@ -1014,7 +1014,7 @@ macro_rules! timer_mem_mapped {
 
         impl Interrupt for $cr {
             const INT_VEC: u8 = $int_vec;
-            const PRIORITY: u8 = T_PRIORITY;
+            const PRIORITY: u8 = TIMER_INT_PRIORITY;
 
             fn interrupt_ready<'a, I>(interp: &I) -> bool
             where
@@ -1085,8 +1085,8 @@ macro_rules! timer_mem_mapped {
 
 use lc3_traits::peripherals::timers::{Timers, TimerId::*};
 
-timer_mem_mapped!(T0, "T0", T0CR, T0DR, T0CR_ADDR, T0DR_ADDR, T0_INTVEC);
-timer_mem_mapped!(T1, "T1", T1CR, T1DR, T1CR_ADDR, T1DR_ADDR, T1_INTVEC);
+timer_mem_mapped!(T0, "T0", T0CR, T0DR, T0CR_ADDR, T0DR_ADDR, T0_INT_VEC);
+timer_mem_mapped!(T1, "T1", T1CR, T1DR, T1CR_ADDR, T1DR_ADDR, T1_INT_VEC);
 
 mem_mapped!(special: BSP, BSP_ADDR, "Backup Stack Pointer.");
 
