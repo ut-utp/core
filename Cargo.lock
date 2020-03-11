@@ -592,6 +592,7 @@ dependencies = [
  "lc3-shims",
  "lc3-traits",
  "pretty_assertions",
+ "static_assertions",
 ]
 
 [[package]]
@@ -623,6 +624,7 @@ dependencies = [
  "lc3-baseline-sim",
  "lc3-isa",
  "lc3-macros",
+ "lc3-traits",
  "pretty_assertions",
 ]
 

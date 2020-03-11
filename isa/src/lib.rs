@@ -45,6 +45,24 @@
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
+// Note: this feature is not tested by CI (still dependent on nightly Rust) but
+// this is fine for now.
+#![cfg_attr(feature = "nightly-const", feature(const_if_match))]
+#![cfg_attr(feature = "nightly-const", feature(const_panic))]
+#![cfg_attr(feature = "nightly-const", feature(const_fn))]
+
+// Makes some an item const if the nightly-const feature is activated and not
+// const otherwise.
+macro_rules! nightly_const {
+    ([$($vis:tt)*] => [$($rest:tt)*]) => (
+        #[cfg(not(feature = "nightly-const"))]
+        $($vis)* $($rest)*
+
+        #[cfg(feature = "nightly-const")]
+        $($vis)* const $($rest)*
+    );
+}
+
 extern crate static_assertions as sa;
 use core::mem::size_of;
 

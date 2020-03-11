@@ -1,8 +1,106 @@
-//! Constants. (TODO)
+//! TODO!
+
+use lc3_isa::{MEM_MAPPED_START_ADDR, INTERRUPT_SERVICE_ROUTINES_START_ADDR};
+
+// TODO: split into modules/structs
+pub const KBSR_ADDR: Addr = 0xFE00;
+pub const KBDR_ADDR: Addr = 0xFE02;
+
+pub const KEYBOARD_INT_VEC: u8 = 0x80;
+pub const KEYBOARD_INT_PRIORITY: u8 = 4;
+
+pub const DSR_ADDR: Addr = 0xFE04;
+pub const DDR_ADDR: Addr = 0xFE06;
+
+pub const DISPLAY_INT_VEC: u8 = 0x81; // TODO: What is this actually?
+pub const DISPLAY_INT_PRIORITY: u8 = 4;
+
+pub const GPIO_OFFSET: u8 = 0x30;
+const GPIO_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (GPIO_OFFSET as Addr);
+const GPIO_PIN_ADDRS: Addr = 2;
+
+pub const G0CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 0; // xFE30
+pub const G0DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 1; // xFE31
+pub const G1CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 0; // xFE32
+pub const G1DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 1; // xFE33
+pub const G2CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 0; // xFE34
+pub const G2DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 1; // xFE35
+pub const G3CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 0; // xFE36
+pub const G3DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 1; // xFE37
+pub const G4CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 0; // xFE38
+pub const G4DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 1; // xFE39
+pub const G5CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 0; // xFE3A
+pub const G5DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 1; // xFE3B
+pub const G6CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 0; // xFE3C
+pub const G6DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 1; // xFE3D
+pub const G7CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 0; // xFE3E
+pub const G7DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 1; // xFE3F
+
+pub const GPIODR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 8 + 0;
+
+pub const GPIO_BASE_INT_VEC: Addr = INTERRUPT_SERVICE_ROUTINES_START_ADDR + (GPIO_OFFSET as Addr); // x1B0
+pub const G0_INT_VEC: u8 = 128 + GPIO_OFFSET + 0; // xB0
+pub const G1_INT_VEC: u8 = 128 + GPIO_OFFSET + 1; // xB1
+pub const G2_INT_VEC: u8 = 128 + GPIO_OFFSET + 2; // xB2
+pub const G3_INT_VEC: u8 = 128 + GPIO_OFFSET + 3; // xB3
+pub const G4_INT_VEC: u8 = 128 + GPIO_OFFSET + 4; // xB4
+pub const G5_INT_VEC: u8 = 128 + GPIO_OFFSET + 5; // xB5
+pub const G6_INT_VEC: u8 = 128 + GPIO_OFFSET + 6; // xB6
+pub const G7_INT_VEC: u8 = 128 + GPIO_OFFSET + 7; // xB7
+pub const GPIO_INT_PRIORITY: u8 = 4;
+
+pub const ADC_OFFSET: u8 = 0x40;
+const ADC_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (ADC_OFFSET as Addr);
+const ADC_PIN_ADDRS: Addr = 2;
+
+pub const A0CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 0 + 0; // xFE40
+pub const A0DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 0 + 1; // xFE41
+pub const A1CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 1 + 0; // xFE42
+pub const A1DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 1 + 1; // xFE43
+pub const A2CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 2 + 0; // xFE44
+pub const A2DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 2 + 1; // xFE45
+pub const A3CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 3 + 0; // xFE46
+pub const A3DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 3 + 1; // xFE47
+pub const A4CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 4 + 0; // xFE48
+pub const A4DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 4 + 1; // xFE49
+pub const A5CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 5 + 0; // xFE4A
+pub const A5DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 5 + 1; // xFE4B
+
+pub const PWM_OFFSET: u8 = 0x50;
+const PWM_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (PWM_OFFSET as Addr);
+const PWM_PIN_ADDRS: Addr = 2;
+
+pub const P0CR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 0 + 0; // xFE50
+pub const P0DR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 0 + 1; // xFE51
+pub const P1CR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 1 + 0; // xFE52
+pub const P1DR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 1 + 1; // xFE53
+
+pub const TIMER_OFFSET: u8 = 0x60;
+const TIMER_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (TIMER_OFFSET as Addr);
+const TIMER_PIN_ADDRS: Addr = 2;
+
+pub const T0CR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 0 + 0; // xFE60
+pub const T0DR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 0 + 1; // xFE61
+pub const T1CR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 1 + 0; // xFE62
+pub const T1DR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 1 + 1; // xFE63
+
+pub const TIMER_BASE_INT_VEC: Addr = INTERRUPT_SERVICE_ROUTINES_START_ADDR + (TIMER_OFFSET as Addr); // x1E0;       // TODO: do this in a better way
+pub const T0_INT_VEC: u8 = 128 + TIMER_OFFSET + 0; // xE0
+pub const T1_INT_VEC: u8 = 128 + TIMER_OFFSET + 1; // xE1;
+pub const TIMER_INT_PRIORITY: u8 = 4;
+
+// TODO: redo with MISC_OFFSET: u8 = 0x70
+// (For one off peripherals like the clock and the display, etc.)
+pub const MISC_OFFSET: u8 = 0x70;
+const MISC_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (MISC_OFFSET as Addr);
+
+pub const CLKR_ADDR: Addr = MISC_MEM_MAPPED_BASE + 0; // xFE70
+
+pub const BSP_ADDR: Addr = 0xFFFA;
 
 use crate::interp::InstructionInterpreterPeripheralAccess;
 use core::ops::Deref;
-use lc3_isa::{Addr, Bits, SignedWord, Word, MCR as MCR_ADDRESS, PSR as PSR_ADDRESS, WORD_MAX_VAL};
+use lc3_isa::{Addr, Bits, SignedWord, Word, MCR as MCR_ADDR, PSR as PSR_ADDR, WORD_MAX_VAL};
 use lc3_traits::peripherals::Peripherals;
 
 use crate::interp::{Acv, InstructionInterpreter, WriteAttempt};
@@ -107,6 +205,11 @@ pub trait Interrupt: MemMapped {
     where
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>;
+
+    fn reset_interrupt_flag<'a, I>(interp: &mut I)
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>;
 }
 
 // struct KBSR(Word);
@@ -129,19 +232,18 @@ pub trait Interrupt: MemMapped {
 
 macro_rules! mem_mapped {
     ($name:ident, $address:expr, $comment:literal) => {
-        #[doc=$comment]
         mem_mapped!(-; $name, $address, $comment);
     };
 
     (special: $name:ident, $address:expr, $comment:literal) => {
-        #[doc=$comment]
-        #[doc="\nDoes not produce access control violations (ACVs) when accessed!"]
-        mem_mapped!(+; $name, $address, $comment);
+        mem_mapped!(+; $name, $address, $comment, "\nDoes not produce access control violations (ACVs) when accessed!");
 
         impl MemMappedSpecial for $name { }
     };
 
-    ($special:tt; $name:ident, $address:expr, $comment:literal) => {
+    ($special:tt; $name:ident, $address:expr, $comment:literal $(, $extra_comment:literal)?) => {
+        #[doc=$comment]
+        $(#[doc=$extra_comment])?
         #[derive(Copy, Clone, Debug, PartialEq)]
         pub struct $name(Word);
 
@@ -222,7 +324,7 @@ impl Deref for KBDR {
     }
 }
 impl MemMapped for KBDR {
-    const ADDR: Addr = 0xFE02;
+    const ADDR: Addr = KBDR_ADDR;
     const HAS_STATEFUL_READS: bool = true;
 
     fn with_value(value: Word) -> Self {
@@ -263,7 +365,7 @@ impl Deref for KBSR {
 }
 
 impl MemMapped for KBSR {
-    const ADDR: Addr = 0xFE00; // TODO: Constants into ISA
+    const ADDR: Addr = KBSR_ADDR;
 
     fn with_value(value: Word) -> Self {
         Self(value)
@@ -297,6 +399,37 @@ impl MemMapped for KBSR {
     }
 }
 
+impl Interrupt for KBSR {
+    const INT_VEC: u8 = KEYBOARD_INT_VEC;
+    const PRIORITY: u8 = KEYBOARD_INT_PRIORITY;
+
+    fn interrupt_ready<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Input::interrupt_occurred(interp.get_peripherals())
+    }
+
+    fn interrupt_enabled<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        Input::interrupts_enabled(interp.get_peripherals())
+    }
+
+    fn reset_interrupt_flag<'a, I>(interp: &mut I)
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        if Input::interrupts_enabled(interp.get_peripherals()) {
+            Input::reset_interrupt_flag(interp.get_peripherals_mut());
+        }
+    }
+}
+
 // impl KBSR {
 //     pub fn
 // }
@@ -316,7 +449,7 @@ impl Deref for DSR {
     }
 }
 impl MemMapped for DSR {
-    const ADDR: Addr = 0xFE04;
+    const ADDR: Addr = DSR_ADDR;
 
     fn with_value(value: Word) -> Self {
         Self(value)
@@ -342,6 +475,37 @@ impl MemMapped for DSR {
     }
 }
 
+impl Interrupt for DSR {
+    const INT_VEC: u8 = DISPLAY_INT_VEC;
+    const PRIORITY: u8 = DISPLAY_INT_PRIORITY;
+
+    fn interrupt_ready<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>,
+    {
+        Output::interrupt_occurred(interp.get_peripherals())
+    }
+
+    fn interrupt_enabled<'a, I>(interp: &I) -> bool
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        Output::interrupts_enabled(interp.get_peripherals())
+    }
+
+    fn reset_interrupt_flag<'a, I>(interp: &mut I)
+        where
+            I: InstructionInterpreterPeripheralAccess<'a>,
+            <I as Deref>::Target: Peripherals<'a>
+    {
+        if Output::interrupts_enabled(interp.get_peripherals()) {
+            Output::reset_interrupt_flag(interp.get_peripherals_mut());
+        }
+    }
+}
+
 #[doc = "Display Data Register"]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct DDR(Word);
@@ -353,7 +517,7 @@ impl Deref for DDR {
     }
 }
 impl MemMapped for DDR {
-    const ADDR: Addr = 0xFE06;
+    const ADDR: Addr = DDR_ADDR;
 
     fn with_value(value: Word) -> Self {
         Self(value)
@@ -378,7 +542,7 @@ impl MemMapped for DDR {
 }
 
 macro_rules! gpio_mem_mapped {
-    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr, $int_vec:expr) => {
         #[doc=$pin_name]
         #[doc="GPIO Pin Control Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -391,7 +555,7 @@ macro_rules! gpio_mem_mapped {
         }
 
         impl MemMapped for $cr {
-            const ADDR: Addr = $addr;
+            const ADDR: Addr = $cr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -433,6 +597,39 @@ macro_rules! gpio_mem_mapped {
             }
         }
 
+        impl Interrupt for $cr {
+            const INT_VEC: u8 = $int_vec;
+            const PRIORITY: u8 = GPIO_INT_PRIORITY;
+
+            fn interrupt_ready<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                Gpio::interrupt_occurred(interp.get_peripherals(), $pin)
+                // TODO: When to reset interrupt occurred flag?
+            }
+
+            fn interrupt_enabled<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>
+            {
+                Gpio::interrupts_enabled(interp.get_peripherals(), $pin)
+            }
+
+            fn reset_interrupt_flag<'a, I>(interp: &mut I)
+                where
+                    I: InstructionInterpreterPeripheralAccess<'a>,
+                    <I as Deref>::Target: Peripherals<'a>
+            {
+                if Gpio::interrupts_enabled(interp.get_peripherals(), $pin) {
+                    Gpio::reset_interrupt_flag(interp.get_peripherals_mut(), $pin);
+                }
+            }
+
+        }
+
         #[doc=$pin_name]
         #[doc="GPIO Pin Data Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -445,7 +642,7 @@ macro_rules! gpio_mem_mapped {
         }
 
         impl MemMapped for $dr {
-            const ADDR: Addr = $addr + 1;
+            const ADDR: Addr = $dr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -463,7 +660,8 @@ macro_rules! gpio_mem_mapped {
             where
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
-            {                let bit: bool = value.bit(0);
+            {
+                let bit: bool = value.bit(0);
                 Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
 
                 Ok(())
@@ -472,16 +670,69 @@ macro_rules! gpio_mem_mapped {
     };
 }
 
-use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*};
+use lc3_traits::peripherals::gpio::{Gpio, GpioPin::*, GpioPinArr, GpioPin, GPIO_PINS};
 
-gpio_mem_mapped!(G0, "G0", G0CR, G0DR, 0xFE07);
-gpio_mem_mapped!(G1, "G1", G1CR, G1DR, 0xFE09);
-gpio_mem_mapped!(G2, "G2", G2CR, G2DR, 0xFE0B);
-gpio_mem_mapped!(G3, "G3", G3CR, G3DR, 0xFE0D);
-gpio_mem_mapped!(G4, "G4", G4CR, G4DR, 0xFE0F);
-gpio_mem_mapped!(G5, "G5", G5CR, G5DR, 0xFE11);
-gpio_mem_mapped!(G6, "G6", G6CR, G6DR, 0xFE13);
-gpio_mem_mapped!(G7, "G7", G7CR, G7DR, 0xFE15);
+gpio_mem_mapped!(G0, "G0", G0CR, G0DR, G0CR_ADDR, G0DR_ADDR, G0_INT_VEC);
+gpio_mem_mapped!(G1, "G1", G1CR, G1DR, G1CR_ADDR, G1DR_ADDR, G1_INT_VEC);
+gpio_mem_mapped!(G2, "G2", G2CR, G2DR, G2CR_ADDR, G2DR_ADDR, G2_INT_VEC);
+gpio_mem_mapped!(G3, "G3", G3CR, G3DR, G3CR_ADDR, G3DR_ADDR, G3_INT_VEC);
+gpio_mem_mapped!(G4, "G4", G4CR, G4DR, G4CR_ADDR, G4DR_ADDR, G4_INT_VEC);
+gpio_mem_mapped!(G5, "G5", G5CR, G5DR, G5CR_ADDR, G5DR_ADDR, G5_INT_VEC);
+gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR, G6_INT_VEC);
+gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR, G7_INT_VEC);
+
+pub struct GPIODR(Word);
+
+impl Deref for GPIODR {
+    type Target = Word;
+
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+
+impl MemMapped for GPIODR {
+    const ADDR: Addr = GPIODR_ADDR;
+
+    fn with_value(value: Word) -> Self { Self(value) }
+
+    fn from<'a, I> (interp: &I) -> Result<Self, Acv>
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        let readings = Gpio::read_all(interp.get_peripherals());
+
+        let mut word: Word = readings
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, r)| r.map(|b| (idx, b as Word)).ok())
+            .fold(0, |acc, (idx, r)| acc | (r << idx as Word));
+
+        if readings.iter().any(|r| r.is_err()) {
+            word = word | 0x8000;
+        }
+
+        Ok(Self::with_value(word))
+    }
+
+    fn set<'a, I> (interp: &mut I, value: Word) -> WriteAttempt
+    where
+        I: InstructionInterpreterPeripheralAccess<'a>,
+        <I as Deref>::Target: Peripherals<'a>,
+    {
+        let mut values = GpioPinArr([false; GpioPin::NUM_PINS]);
+
+        GPIO_PINS
+            .iter()
+            .enumerate()
+            .for_each(|(idx, pin)| {
+                values[*pin] = value.bit(idx as u32);
+            });
+
+        Gpio::write_all(interp.get_peripherals_mut(), values);
+
+        Ok(())
+    }
+}
 
 // Idk how to coerce the state of all pins into a word
 //#[doc="GPIO Control Register, all pins"]
@@ -503,7 +754,7 @@ gpio_mem_mapped!(G7, "G7", G7CR, G7DR, 0xFE15);
 //}
 
 macro_rules! adc_mem_mapped {
-    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr) => {
         #[doc=$pin_name]
         #[doc="ADC Pin Control Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -516,7 +767,7 @@ macro_rules! adc_mem_mapped {
         }
 
         impl MemMapped for $cr {
-            const ADDR: Addr = $addr;
+            const ADDR: Addr = $cr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -565,7 +816,7 @@ macro_rules! adc_mem_mapped {
         }
 
         impl MemMapped for $dr {
-            const ADDR: Addr = $addr + 1;
+            const ADDR: Addr = $dr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -592,10 +843,12 @@ macro_rules! adc_mem_mapped {
 
 use lc3_traits::peripherals::adc::{Adc, AdcPin::*};
 
-adc_mem_mapped!(A0, "A0", A0CR, A0DR, 0xFE17);
-adc_mem_mapped!(A1, "A1", A1CR, A1DR, 0xFE19);
-adc_mem_mapped!(A2, "A2", A2CR, A2DR, 0xFE1B);
-adc_mem_mapped!(A3, "A3", A3CR, A3DR, 0xFE1D);
+adc_mem_mapped!(A0, "A0", A0CR, A0DR, A0CR_ADDR, A0DR_ADDR);
+adc_mem_mapped!(A1, "A1", A1CR, A1DR, A1CR_ADDR, A1DR_ADDR);
+adc_mem_mapped!(A2, "A2", A2CR, A2DR, A2CR_ADDR, A2DR_ADDR);
+adc_mem_mapped!(A3, "A3", A3CR, A3DR, A3CR_ADDR, A3DR_ADDR);
+adc_mem_mapped!(A4, "A4", A4CR, A4DR, A4CR_ADDR, A4DR_ADDR);
+adc_mem_mapped!(A5, "A5", A5CR, A5DR, A5CR_ADDR, A5DR_ADDR);
 
 use lc3_traits::peripherals::clock::Clock;
 #[doc = "Clock Register"]
@@ -609,7 +862,7 @@ impl Deref for CLKR {
     }
 }
 impl MemMapped for CLKR {
-    const ADDR: Addr = 0xFE1F;
+    const ADDR: Addr = CLKR_ADDR;
 
     fn with_value(value: Word) -> Self {
         Self(value)
@@ -632,12 +885,12 @@ impl MemMapped for CLKR {
     {
         Clock::set_milliseconds(interp.get_peripherals_mut(), value);
 
-        Ok(()) // TODO: Ignore writes to ADC data register?
+        Ok(())
     }
 }
 
 macro_rules! pwm_mem_mapped {
-    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+    ($pin:expr, $pin_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr) => {
         #[doc=$pin_name]
         #[doc="PWM Pin Control Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -650,7 +903,7 @@ macro_rules! pwm_mem_mapped {
         }
 
         impl MemMapped for $cr {
-            const ADDR: Addr = $addr;
+            const ADDR: Addr = $cr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -702,7 +955,7 @@ macro_rules! pwm_mem_mapped {
         }
 
         impl MemMapped for $dr {
-            const ADDR: Addr = $addr + 1;
+            const ADDR: Addr = $dr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -732,11 +985,11 @@ macro_rules! pwm_mem_mapped {
 
 use lc3_traits::peripherals::pwm::{Pwm, PwmPin::*};
 
-pwm_mem_mapped!(P0, "P0", P0CR, P0DR, 0xFE20);
-pwm_mem_mapped!(P1, "P1", P1CR, P1DR, 0xFE22);
+pwm_mem_mapped!(P0, "P0", P0CR, P0DR, P0CR_ADDR, P0DR_ADDR);
+pwm_mem_mapped!(P1, "P1", P1CR, P1DR, P1CR_ADDR, P1DR_ADDR);
 
 macro_rules! timer_mem_mapped {
-    ($id:expr, $id_name:literal, $cr:ident, $dr:ident, $addr:expr) => {
+    ($id:expr, $id_name:literal, $cr:ident, $dr:ident, $cr_addr:expr, $dr_addr:expr, $int_vec:expr) => {
         #[doc=$id_name]
         #[doc="Timer Control Register"] // TODO: format correctly
         #[derive(Copy, Clone, Debug, PartialEq)]
@@ -749,7 +1002,7 @@ macro_rules! timer_mem_mapped {
         }
 
         impl MemMapped for $cr {
-            const ADDR: Addr = $addr;
+            const ADDR: Addr = $cr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -777,16 +1030,49 @@ macro_rules! timer_mem_mapped {
             {
                 use lc3_traits::peripherals::timers::TimerState::*;
 
-                let state = match word.bits(0..2) {
+                let state = match value.bits(0..2) {
                     0 | 3 => Disabled,
                     1 => Repeated,
                     2 => SingleShot,
+                    _ => unreachable!(),
                 };
 
-                Timer::set_state(interp.get_peripherals_mut(), $id, state).unwrap(); // TODO: do something different on error?
+                Timers::set_state(interp.get_peripherals_mut(), $id, state).unwrap(); // TODO: do something different on error?
 
                 Ok(())
             }
+        }
+
+        impl Interrupt for $cr {
+            const INT_VEC: u8 = $int_vec;
+            const PRIORITY: u8 = TIMER_INT_PRIORITY;
+
+            fn interrupt_ready<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>,
+            {
+                Timers::interrupt_occurred(interp.get_peripherals(), $id)
+            }
+
+            fn interrupt_enabled<'a, I>(interp: &I) -> bool
+            where
+                I: InstructionInterpreterPeripheralAccess<'a>,
+                <I as Deref>::Target: Peripherals<'a>
+            {
+                Timers::interrupts_enabled(interp.get_peripherals(), $id)
+            }
+
+            fn reset_interrupt_flag<'a, I>(interp: &mut I)
+                where
+                    I: InstructionInterpreterPeripheralAccess<'a>,
+                    <I as Deref>::Target: Peripherals<'a>
+            {
+                if Timers::interrupts_enabled(interp.get_peripherals(), $id) {
+                    Timers::reset_interrupt_flag(interp.get_peripherals_mut(), $id);
+                }
+            }
+
         }
 
         #[doc=$id_name]
@@ -801,7 +1087,7 @@ macro_rules! timer_mem_mapped {
         }
 
         impl MemMapped for $dr {
-            const ADDR: Addr = $addr + 1;
+            const ADDR: Addr = $dr_addr;
 
             fn with_value(value: Word) -> Self { Self(value) }
 
@@ -828,9 +1114,14 @@ macro_rules! timer_mem_mapped {
     };
 }
 
-mem_mapped!(special: BSP, 0xFFFA, "Backup Stack Pointer.");
+use lc3_traits::peripherals::timers::{Timers, TimerId::*};
 
-mem_mapped!(special: PSR, PSR_ADDRESS, "Program Status Register.");
+timer_mem_mapped!(T0, "T0", T0CR, T0DR, T0CR_ADDR, T0DR_ADDR, T0_INT_VEC);
+timer_mem_mapped!(T1, "T1", T1CR, T1DR, T1CR_ADDR, T1DR_ADDR, T1_INT_VEC);
+
+mem_mapped!(special: BSP, BSP_ADDR, "Backup Stack Pointer.");
+
+mem_mapped!(special: PSR, PSR_ADDR, "Program Status Register.");
 
 impl PSR {
     pub fn get_priority(&self) -> u8 {
@@ -938,7 +1229,7 @@ impl Deref for MCR {
 }
 
 impl MemMapped for MCR {
-    const ADDR: Addr = MCR_ADDRESS;
+    const ADDR: Addr = MCR_ADDR;
     fn with_value(value: Word) -> Self {
         Self(value)
     }
@@ -1002,11 +1293,3 @@ impl MCR {
         self.set_running_bit(interp, true);
     }
 }
-
-// pub const KBDR: Addr = 0xFE02;
-
-// // pub const KBSR: Addr = 0xFE00;
-// pub const KBDR: Addr = 0xFE02;
-// pub const DSR: Addr = 0xFE04;
-// pub const DDR: Addr = 0xFE06;
-// pub const BSP: Addr = 0xFFFA;

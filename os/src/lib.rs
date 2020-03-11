@@ -2,7 +2,7 @@
 //!
 //! TODO!
 
-#![recursion_limit = "1024"]
+#![recursion_limit = "2048"]
 // TODO: forbid
 #![warn(
     bad_style,
@@ -46,8 +46,26 @@
 // We're a no_std crate!
 #![no_std]
 
-pub const USER_PROG_START_ADDR: lc3_isa::Addr = 0x0400;
-pub const ERROR_ON_ACV_SETTING_ADDR: lc3_isa::Addr = 0x0401;
+// Note: this feature is not tested by CI (still dependent on nightly Rust) but
+// this is fine for now.
+#![cfg_attr(feature = "nightly-const", feature(const_if_match))]
+#![cfg_attr(feature = "nightly-const", feature(const_panic))]
+#![cfg_attr(feature = "nightly-const", feature(const_fn))]
+
+// Makes some an item const if the nightly-const feature is activated and not
+// const otherwise.
+macro_rules! nightly_const {
+    ([$($vis:tt)*] => [$($rest:tt)*]) => (
+        #[cfg(not(feature = "nightly-const"))]
+        $($vis)* $($rest)*
+
+        #[cfg(feature = "nightly-const")]
+        $($vis)* const $($rest)*
+    );
+}
+
+pub const USER_PROG_START_ADDR: lc3_isa::Addr = 0x0500;
+pub const ERROR_ON_ACV_SETTING_ADDR: lc3_isa::Addr = 0x0501;
 
 mod os;
 

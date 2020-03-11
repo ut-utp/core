@@ -3,6 +3,9 @@
 use super::{ERROR_ON_ACV_SETTING_ADDR, USER_PROG_START_ADDR};
 use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
+use lc3_baseline_sim::{KBSR_ADDR, KBDR_ADDR, DSR_ADDR, DDR_ADDR};
+use lc3_baseline_sim::{G0CR_ADDR, A0CR_ADDR, CLKR_ADDR, T0CR_ADDR, P0CR_ADDR};
+use lc3_baseline_sim::{GPIO_BASE_INT_VEC, TIMER_BASE_INT_VEC};
 
 use lazy_static::lazy_static;
 
@@ -16,6 +19,10 @@ lazy_static! {
     pub static ref OS: AssembledProgram = os();
 }
 
+#[cfg(feature = "nightly-const")]
+pub const CONST_OS: AssembledProgram = os();
+
+nightly_const! { [] => [
 fn os() -> AssembledProgram {
     let os = lc3_isa::program! {
         // The following is a lightly modified version of the OS that ships with Chirag
@@ -75,13 +82,13 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x2D
         .FILL @UNKNOWN_TRAP; // 0x2E
         .FILL @UNKNOWN_TRAP; // 0x2F
-        .FILL @UNKNOWN_TRAP; // 0x30
-        .FILL @UNKNOWN_TRAP; // 0x31
-        .FILL @UNKNOWN_TRAP; // 0x32
-        .FILL @UNKNOWN_TRAP; // 0x33
-        .FILL @UNKNOWN_TRAP; // 0x34
-        .FILL @UNKNOWN_TRAP; // 0x35
-        .FILL @UNKNOWN_TRAP; // 0x36
+        .FILL @TRAP_SET_GPIO_INPUT; // 0x30
+        .FILL @TRAP_SET_GPIO_OUTPUT; // 0x31
+        .FILL @TRAP_SET_GPIO_INTERRUPT; // 0x32
+        .FILL @TRAP_SET_GPIO_DISABLED; // 0x33
+        .FILL @TRAP_READ_GPIO_MODE; // 0x34
+        .FILL @TRAP_WRITE_GPIO_DATA; // 0x35
+        .FILL @TRAP_READ_GPIO_DATA; // 0x36
         .FILL @UNKNOWN_TRAP; // 0x37
         .FILL @UNKNOWN_TRAP; // 0x38
         .FILL @UNKNOWN_TRAP; // 0x39
@@ -91,10 +98,10 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x3D
         .FILL @UNKNOWN_TRAP; // 0x3E
         .FILL @UNKNOWN_TRAP; // 0x3F
-        .FILL @UNKNOWN_TRAP; // 0x40
-        .FILL @UNKNOWN_TRAP; // 0x41
-        .FILL @UNKNOWN_TRAP; // 0x42
-        .FILL @UNKNOWN_TRAP; // 0x43
+        .FILL @TRAP_SET_ADC_ENABLE; // 0x40
+        .FILL @TRAP_SET_ADC_DISABLE; // 0x41
+        .FILL @TRAP_READ_ADC_MODE; // 0x42
+        .FILL @TRAP_READ_ADC_DATA; // 0x43
         .FILL @UNKNOWN_TRAP; // 0x44
         .FILL @UNKNOWN_TRAP; // 0x45
         .FILL @UNKNOWN_TRAP; // 0x46
@@ -107,10 +114,10 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x4D
         .FILL @UNKNOWN_TRAP; // 0x4E
         .FILL @UNKNOWN_TRAP; // 0x4F
-        .FILL @UNKNOWN_TRAP; // 0x50
-        .FILL @UNKNOWN_TRAP; // 0x51
-        .FILL @UNKNOWN_TRAP; // 0x52
-        .FILL @UNKNOWN_TRAP; // 0x53
+        .FILL @TRAP_SET_PWM; // 0x50
+        .FILL @TRAP_DISABLE_PWM; // 0x51
+        .FILL @TRAP_READ_PWM_MODE; // 0x52
+        .FILL @TRAP_READ_PWM_DUTY_CYCLE; // 0x53
         .FILL @UNKNOWN_TRAP; // 0x54
         .FILL @UNKNOWN_TRAP; // 0x55
         .FILL @UNKNOWN_TRAP; // 0x56
@@ -123,11 +130,11 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x5D
         .FILL @UNKNOWN_TRAP; // 0x5E
         .FILL @UNKNOWN_TRAP; // 0x5F
-        .FILL @UNKNOWN_TRAP; // 0x60
-        .FILL @UNKNOWN_TRAP; // 0x61
-        .FILL @UNKNOWN_TRAP; // 0x62
-        .FILL @UNKNOWN_TRAP; // 0x63
-        .FILL @UNKNOWN_TRAP; // 0x64
+        .FILL @TRAP_SET_TIMER_SINGLESHOT; // 0x60
+        .FILL @TRAP_SET_TIMER_REPEAT; // 0x61
+        .FILL @TRAP_SET_TIMER_DISABLE; // 0x62
+        .FILL @TRAP_READ_TIMER_MODE; // 0x63
+        .FILL @TRAP_READ_TIMER_DATA; // 0x64
         .FILL @UNKNOWN_TRAP; // 0x65
         .FILL @UNKNOWN_TRAP; // 0x66
         .FILL @UNKNOWN_TRAP; // 0x67
@@ -139,8 +146,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x6D
         .FILL @UNKNOWN_TRAP; // 0x6E
         .FILL @UNKNOWN_TRAP; // 0x6F
-        .FILL @UNKNOWN_TRAP; // 0x70
-        .FILL @UNKNOWN_TRAP; // 0x71
+        .FILL @TRAP_SET_CLOCK; // 0x70
+        .FILL @TRAP_READ_CLOCK; // 0x71
         .FILL @UNKNOWN_TRAP; // 0x72
         .FILL @UNKNOWN_TRAP; // 0x73
         .FILL @UNKNOWN_TRAP; // 0x74
@@ -416,8 +423,8 @@ fn os() -> AssembledProgram {
         .FILL @DEFAULT_EXCEPTION_HANDLER; // 0x17F
 
         //// The Interrupt vector table (0x0180 - 0x01FF) ////
-        .FILL @DEFAULT_INT_HANDLER; // 0x180
-        .FILL @DEFAULT_INT_HANDLER; // 0x181
+        .FILL @DEFAULT_INT_HANDLER; // 0x180: Keyboard Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x181: Display Interrupt (TODO: verify)
         .FILL @DEFAULT_INT_HANDLER; // 0x182
         .FILL @DEFAULT_INT_HANDLER; // 0x183
         .FILL @DEFAULT_INT_HANDLER; // 0x184
@@ -464,14 +471,14 @@ fn os() -> AssembledProgram {
         .FILL @DEFAULT_INT_HANDLER; // 0x1AD
         .FILL @DEFAULT_INT_HANDLER; // 0x1AE
         .FILL @DEFAULT_INT_HANDLER; // 0x1AF
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B0
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B1
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B2
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B3
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B4
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B5
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B6
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B7
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B0: G0 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B1: G1 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B2: G2 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B3: G3 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B4: G4 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B5: G5 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B6: G6 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B7: G7 Interrupt
         .FILL @DEFAULT_INT_HANDLER; // 0x1B8
         .FILL @DEFAULT_INT_HANDLER; // 0x1B9
         .FILL @DEFAULT_INT_HANDLER; // 0x1BA
@@ -512,8 +519,8 @@ fn os() -> AssembledProgram {
         .FILL @DEFAULT_INT_HANDLER; // 0x1DD
         .FILL @DEFAULT_INT_HANDLER; // 0x1DE
         .FILL @DEFAULT_INT_HANDLER; // 0x1DF
-        .FILL @DEFAULT_INT_HANDLER; // 0x1E0
-        .FILL @DEFAULT_INT_HANDLER; // 0x1E1
+        .FILL @DEFAULT_INT_HANDLER; // 0x1E0: Timer 0 Interrupt (TODO)
+        .FILL @DEFAULT_INT_HANDLER; // 0x1E1: Timer 1 Interrupt (TODO)
         .FILL @DEFAULT_INT_HANDLER; // 0x1E2
         .FILL @DEFAULT_INT_HANDLER; // 0x1E3
         .FILL @DEFAULT_INT_HANDLER; // 0x1E4
@@ -597,16 +604,20 @@ fn os() -> AssembledProgram {
         @OS_START_MSG // ""
             .FILL #('\0' as Word);
 
+        @SAVE_R0 .FILL #0;
+        @SAVE_R1 .FILL #0;
+        @SAVE_R2 .FILL #0;
+        @SAVE_R3 .FILL #0;
+        @SAVE_R7 .FILL #0;
+
         @USER_PROG_START_ADDR_PTR .FILL #USER_PROG_START_ADDR;
-        @ERROR_ON_ACV_SETTING_ADDR_PTR .FILL #ERROR_ON_ACV_SETTING_ADDR;
 
         @OS_STARTING_SP .FILL #lc3_isa::USER_PROGRAM_START_ADDR;
 
-        @KBSR .FILL #0xFE00;    // TODO: Use constant from <somewhere>
-        @KBDR .FILL #0xFE02;    // TODO: Use constant from <somewhere>
-
-        @DSR .FILL #0xFE04;     // TODO: Use constant from <somewhere>
-        @DDR .FILL #0xFE06;     // TODO: Use constant from <somewhere>
+        @KBSR .FILL #KBSR_ADDR;
+        @KBDR .FILL #KBDR_ADDR;
+        @DSR .FILL #DSR_ADDR;
+        @DDR .FILL #DDR_ADDR;
 
         @MCR .FILL #lc3_isa::MCR;
 
@@ -628,15 +639,8 @@ fn os() -> AssembledProgram {
         @MASK_HI_BIT .FILL #0x7FFF;
         @MASK_LOW_BYTE .FILL #0x00FF;
 
-        @OS_R0 .FILL #0;
-        @OS_R1 .FILL #0;
-        @OS_R2 .FILL #0;
-        @OS_R3 .FILL #0;
-        @OS_R7 .FILL #0;
-
         @TRAP_OUT_R1 .FILL #0;
         @TRAP_IN_R7 .FILL #0;
-
 
         //// TRAP Routines ////
 
@@ -668,9 +672,9 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a null-terminated string in R0.
         @TRAP_PUTS
-            ST R0, @OS_R0;  // Save R0, R1, and R7.
-            ST R1, @OS_R1;
-            ST R7, @OS_R7;
+            ST R0, @SAVE_R0;  // Save R0, R1, and R7.
+            ST R1, @SAVE_R1;
+            ST R7, @SAVE_R7;
 
             ADD R1, R0, #0; // Copy the string pointer.
 
@@ -683,9 +687,9 @@ fn os() -> AssembledProgram {
                 BRnzp @TRAP_PUTS_LOOP;
 
             @TRAP_PUTS_DONE
-                LD R0, @OS_R0; // Restore R0, R1, and R7.
-                LD R1, @OS_R1;
-                LD R7, @OS_R7;
+                LD R0, @SAVE_R0; // Restore R0, R1, and R7.
+                LD R1, @SAVE_R1;
+                LD R7, @SAVE_R7;
 
                 RTI;           // And return.
 
@@ -693,7 +697,7 @@ fn os() -> AssembledProgram {
         //
         // Returns the character in R0.
         @TRAP_IN
-            ST R7, @TRAP_IN_R7;   // Save R7 (also saved in PUTS so we can't use @OS_R7)
+            ST R7, @TRAP_IN_R7;   // Save R7 (also saved in PUTS so we can't use @SAVE_R7)
 
             LEA R0, @TRAP_IN_MSG; // Output the prompt.
             PUTS;
@@ -701,12 +705,12 @@ fn os() -> AssembledProgram {
             GETC;                 // Get the character.
             OUT;                  // Echo it.
 
-            ST R0, @OS_R0;        // Save the character, print a newline.
+            ST R0, @SAVE_R0;        // Save the character, print a newline.
             AND R0, R0, #0;
             ADD R0, R0, #('\n' as lc3_isa::SignedWord);
             OUT;
 
-            LD R0, @OS_R0;        // Restore and return.
+            LD R0, @SAVE_R0;        // Restore and return.
             LD R7, @TRAP_IN_R7;
             RTI;
 
@@ -717,11 +721,11 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a string in R0.
         @TRAP_PUTSP
-            ST R0, @OS_R0;              // Save the registers.
-            ST R1, @OS_R1;
-            ST R2, @OS_R2;
-            ST R3, @OS_R3;
-            ST R7, @OS_R7;
+            ST R0, @SAVE_R0;              // Save the registers.
+            ST R1, @SAVE_R1;
+            ST R2, @SAVE_R2;
+            ST R3, @SAVE_R3;
+            ST R7, @SAVE_R7;
 
             ADD R1, R0, #0;             // Copy over the string pointer (R0 -> R1).
 
@@ -767,11 +771,11 @@ fn os() -> AssembledProgram {
                     BRnzp @TRAP_PUTSP_LOOP; // and repeat.
 
             @TRAP_PUTSP_RETURN
-                LD R0, @OS_R0;          // Restore the registers.
-                LD R1, @OS_R1;
-                LD R2, @OS_R2;
-                LD R3, @OS_R3;
-                LD R7, @OS_R7;
+                LD R0, @SAVE_R0;          // Restore the registers.
+                LD R1, @SAVE_R1;
+                LD R2, @SAVE_R2;
+                LD R3, @SAVE_R3;
+                LD R7, @SAVE_R7;
                 RTI;
 
 
@@ -800,42 +804,6 @@ fn os() -> AssembledProgram {
             LEA R0, @UNKNOWN_TRAP_MSG;
             PUTS;
             HALT;
-
-
-        //// Exception Handlers ////
-
-        // Triggered when an RTI is called when in user mode.
-        // Halts the machine.
-        @PRIVILEGE_MODE_EX_HANDLER
-            LEA R0, @PRIVILEGE_MODE_EX_MSG;
-            PUTS;
-            HALT;
-
-        // Triggered when the illegal opcode (0b1101) is encountered.
-        // Halts the machine.
-        @ILLEGAL_OPCODE_EX_HANDLER
-            LEA R0, @ILLEGAL_OPCODE_EX_MSG;
-            PUTS;
-            HALT;
-
-        // Triggered when access control violations occur.
-        //
-        // TODO: not sure what will happen when this is told _not_ to error...
-        @ACV_EX_HANDLER
-            ST R0, @OS_R0; // Save R0;
-
-            LEA R0, @ACV_EX_MSG; // Print the error message no matter what.
-            PUTS;
-
-            LDI R0, @ERROR_ON_ACV_SETTING_ADDR_PTR; // Check if we're supposed to actually
-                                                    // error on ACVs.
-            BRz @ACV_EX_HANDLER_EXIT;               // If we're not, just return.
-
-            HALT;                // Otherwise, halt.
-
-            @ACV_EX_HANDLER_EXIT // Restore R0 and return.
-                LD R0, @OS_R0;
-                RTI;
 
         // Some strings:
         @TRAP_IN_MSG // "\nInput a character> "
@@ -931,6 +899,651 @@ fn os() -> AssembledProgram {
             .FILL #('\n' as Word);
             .FILL #('\0' as Word);
 
+        // Default entry for exceptions in the exception vector table.
+        @DEFAULT_EXCEPTION_HANDLER
+            LD R0, @DEFAULT_EX_MSG;
+            PUTS;
+            HALT;
+
+        // Default entry for interrupts in the interrupt vector table;
+        @DEFAULT_INT_HANDLER
+            LD R0, @DEFAULT_INT_MSG;
+            PUTS;
+            HALT;
+
+        // The rest of the strings (for offset reasons):
+        @DEFAULT_EX_MSG // "\n\n--- Encountered an exception without a handler! ---\n\n"
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('E' as Word);
+            .FILL #('n' as Word);
+            .FILL #('c' as Word);
+            .FILL #('o' as Word);
+            .FILL #('u' as Word);
+            .FILL #('n' as Word);
+            .FILL #('t' as Word);
+            .FILL #('e' as Word);
+            .FILL #('r' as Word);
+            .FILL #('e' as Word);
+            .FILL #('d' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('a' as Word);
+            .FILL #('n' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('e' as Word);
+            .FILL #('x' as Word);
+            .FILL #('c' as Word);
+            .FILL #('e' as Word);
+            .FILL #('p' as Word);
+            .FILL #('t' as Word);
+            .FILL #('i' as Word);
+            .FILL #('o' as Word);
+            .FILL #('n' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('w' as Word);
+            .FILL #('i' as Word);
+            .FILL #('t' as Word);
+            .FILL #('h' as Word);
+            .FILL #('o' as Word);
+            .FILL #('u' as Word);
+            .FILL #('t' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('a' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('h' as Word);
+            .FILL #('a' as Word);
+            .FILL #('n' as Word);
+            .FILL #('d' as Word);
+            .FILL #('l' as Word);
+            .FILL #('e' as Word);
+            .FILL #('r' as Word);
+            .FILL #('!' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\0' as Word);
+
+        @DEFAULT_INT_MSG // "\n\n--- Unhandled interrupt! ---\n\n"
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('U' as Word);
+            .FILL #('n' as Word);
+            .FILL #('h' as Word);
+            .FILL #('a' as Word);
+            .FILL #('n' as Word);
+            .FILL #('d' as Word);
+            .FILL #('l' as Word);
+            .FILL #('e' as Word);
+            .FILL #('d' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('i' as Word);
+            .FILL #('n' as Word);
+            .FILL #('t' as Word);
+            .FILL #('e' as Word);
+            .FILL #('r' as Word);
+            .FILL #('r' as Word);
+            .FILL #('u' as Word);
+            .FILL #('p' as Word);
+            .FILL #('t' as Word);
+            .FILL #('!' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\0' as Word);
+
+        // Checks if R0 is within range of 0 to R4
+        // R0 = value to check
+        // R4 = max value
+        // -> cc = n if out of bounds
+        //         p if within bounds
+        // Does not modify R0
+        // Destroys R1
+        @CHECK_OUT_OF_BOUNDS
+            ADD R0, R0, #0;                 // Check if R0 is negative
+            BRn @OUT_OF_BOUNDS_RET;
+            NOT R4, R4;                     // Negate R4
+            ADD R4, R4, #1;
+            ADD R4, R0, R4;                 // Check if R0 is less than R4
+            BRp @OUT_OF_BOUNDS;
+            ADD R0, R0, #0;                 // If not, set cc to p
+            BR @OUT_OF_BOUNDS_RET;
+        @OUT_OF_BOUNDS
+            NOT R4, R0;                     // Set cc to n
+        @OUT_OF_BOUNDS_RET
+            RET;
+
+        // Enables GPIO pin
+        // R0 = GPIO pin to enable
+        // R1 = mode to set
+        @SET_GPIO_MODE
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of GPIO pins
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_SET_GPIO_MODE;
+
+            LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
+            STR R1, R4, #0;                 // Write GPIO mode to control register
+        @SKIP_SET_GPIO_MODE
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RET;
+
+        // Sets GPIO pin to input mode
+        // R0 = GPIO pin to set
+        @TRAP_SET_GPIO_INPUT
+            ST R1, @OS_R1;
+            ST R7, @OS_R7_SUB;
+            AND R1, R1, #0;                 // Set R1 to 2 (Input)
+            ADD R1, R1, #2;
+            JSR @SET_GPIO_MODE;
+            LD R1, @OS_R1;
+            LD R7, @OS_R7_SUB;
+            RTI;
+
+        // Sets GPIO pin to output mode
+        // R0 = GPIO pin to set
+        @TRAP_SET_GPIO_OUTPUT
+            ST R1, @OS_R1;
+            ST R7, @OS_R7_SUB;
+            AND R1, R1, #0;                 // Set R1 to 1 (Output)
+            ADD R1, R1, #1;
+            JSR @SET_GPIO_MODE;
+            LD R1, @OS_R1;
+            LD R7, @OS_R7_SUB;
+            RTI;
+
+        // Sets GPIO pin to interrupt mode and sets ISR address in IVT
+        // R0 = GPIO pin to set
+        // R1 = Address of interrupt service routine
+        @TRAP_SET_GPIO_INTERRUPT
+            ST R1, @OS_R1;
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of GPIO pins
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_SET_GPIO_INTERRUPT;
+
+            LD R4, @OS_GPIO_BASE_INTVEC;    // Load GPIO base interrupt vector address
+            ADD R4, R4, R0;                 // R4 contains address of pin in R0
+            STR R1, R4, #0;                 // Load service routine address into vector table
+
+            LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R4
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
+            AND R1, R1, #0;                 // Set R1 to 3 (Interrupt)
+            ADD R1, R1, #3;
+            STR R1, R4, #0;                 // Write GPIO mode to control register
+        @SKIP_SET_GPIO_INTERRUPT
+            LD R1, @OS_R1;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Sets GPIO pin to disabled
+        // R0 = GPIO pin to set
+        @TRAP_SET_GPIO_DISABLED
+            ST R1, @OS_R1;
+            ST R7, @OS_R7_SUB;
+            AND R1, R1, #0;                 // Set R1 to 0 (Disabled)
+            JSR @SET_GPIO_MODE;
+            LD R1, @OS_R1;
+            LD R7, @OS_R7_SUB;
+            RTI;
+
+        // Reads and returns mode of GPIO pin
+        // R0 = GPIO pin to read from
+        // -> R0 = mode of GPIO pin
+        @TRAP_READ_GPIO_MODE
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of GPIO pins
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_GPIO_MODE;
+
+            LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R3 contains data address of pin number in R0
+            LDR R0, R4, #0;                 // Reads mode from pin into R0
+        @SKIP_READ_GPIO_MODE
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Writes data to GPIO pin
+        // R0 = GPIO pin to write to
+        // R1 = data to write
+        @TRAP_WRITE_GPIO_DATA
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of GPIO pins
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_WRITE_GPIO_DATA;
+
+            LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R2
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
+            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
+        @SKIP_WRITE_GPIO_DATA
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Reads and returns data from GPIO pin
+        // R0 = GPIO pin to read from
+        // -> R0 = data from GPIO pin
+        @TRAP_READ_GPIO_DATA
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of GPIO pins
+            ADD R4, R4, #lc3_traits::peripherals::gpio::GpioPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_GPIO_DATA;
+
+            LD R4, @OS_GPIO_BASE_ADDR;      // Load GPIO base address into R1
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R3 contains data address of pin number in R0
+            LDR R0, R4, #0;                 // Reads data from pin into R0
+        @SKIP_READ_GPIO_DATA
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Sets mode of ADC pin
+        // R0 = ADC pin to set mode of
+        // R1 = mode to set
+        @SET_ADC_MODE
+            ST R1, @OS_R1;
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of ADC pins
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_SET_ADC_MODE;
+
+            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
+            STR R1, R4, #0;                 // Writes ADC mode to control register
+        @SKIP_SET_ADC_MODE
+            LD R1, @OS_R1;
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RET;
+
+        // Sets mode of ADC pin to Enabled
+        // R0 = ADC pin to enable
+        @TRAP_SET_ADC_ENABLE
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0;                  // Sets mode to 1, to enable ADC
+           ADD R1, R1, #1;
+           JSR @SET_ADC_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;               // Restores values from JSR and the subroutine
+           RTI;
+
+        // Sets mode of ADC pin to Disabled
+        // R0 = ADC pin to disable
+        @TRAP_SET_ADC_DISABLE
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0;                  // Sets mode to 0, which is mode to disable ADC
+           JSR @SET_ADC_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;               // Restores values from JSR and the subroutine
+           RTI;
+
+        // Reads and returns mode of ADC pin
+        // R0 = ADC pin to read from
+        // -> R0 = mode of ADC pin
+        @TRAP_READ_ADC_MODE
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of ADC pins
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_ADC_MODE;
+
+            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R2
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
+            LDR R0, R4, #0;                 // Reads mode from pin into R0
+        @SKIP_READ_ADC_MODE
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Reads and returns data from ADC pin
+        // R0 = ADC pin to read from
+        // -> R0 = data from ADC pin
+        @TRAP_READ_ADC_DATA
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of ADC pins
+            ADD R4, R4, #lc3_traits::peripherals::adc::AdcPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_ADC_DATA;
+
+            LD R4, @OS_ADC_BASE_ADDR;       // Load ADC base address into R1
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and add 1
+            ADD R4, R4, #1;                 // R3 contains data address of pin number in R0
+            LDR R0, R4, #0;                 // Reads data from pin in R0
+        @SKIP_READ_ADC_DATA
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // More constants
+        @OS_R0 .FILL #0;
+        @OS_R1 .FILL #0;
+        @OS_R4 .FILL #0;
+        @OS_R7 .FILL #0;
+        @OS_R7_SUB .FILL #0;
+
+        @OS_GPIO_BASE_ADDR .FILL #G0CR_ADDR;
+        @OS_ADC_BASE_ADDR .FILL #A0CR_ADDR;
+        @OS_CLOCK_BASE_ADDR .FILL #CLKR_ADDR;
+        @OS_TIMER_BASE_ADDR .FILL #T0CR_ADDR;
+        @OS_PWM_BASE_ADDR .FILL #P0CR_ADDR;
+
+        @OS_GPIO_BASE_INTVEC .FILL #GPIO_BASE_INT_VEC;
+        @OS_TIMER_BASE_INTVEC .FILL #TIMER_BASE_INT_VEC;
+
+        // PWM set
+        // R0 = PWM to set
+        // R1 = period to set
+        // R2 = duty cycle to set
+        @TRAP_SET_PWM
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of PWM pins
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_SET_PWM;
+
+            LD R4, @OS_PWM_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains address of period control register
+            STR R1, R4, #0;                 // Write period to PWM
+            ADD R4, R4, #1;                 // R4 contains address of duty cycle register
+            STR R2, R4, #0;                 // Write duty cycle to PWM
+        @SKIP_SET_PWM
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // PWM disable
+        // R0 = PWM to disable
+        @TRAP_DISABLE_PWM
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of PWM pins
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_DISABLE_PWM;
+
+            LD R4, @OS_PWM_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains address of period control register
+            AND R7, R7, #0;
+            STR R7, R4, #0;                 // Disable PWM (period = 0)
+        @SKIP_DISABLE_PWM
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Reads and returns mode of PWM pin
+        // R0 = PWM pin to read from
+        // -> R0 = mode of PWM pin
+        @TRAP_READ_PWM_MODE
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of PWM pins
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_PWM_MODE;
+
+            LD R4, @OS_PWM_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
+            LDR R0, R4, #0;                 // Reads mode from pin into R0
+        @SKIP_READ_PWM_MODE
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Reads and returns data from PWM pin
+        // R0 = PWM pin to read from
+        // -> R0 = data from PWM pin
+        @TRAP_READ_PWM_DUTY_CYCLE
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of PWM pins
+            ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_PWM_DUTY_CYCLE;
+
+            LD R4, @OS_PWM_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R3 contains data address of pin number in R0
+            LDR R0, R4, #0;                 // Reads data from pin into R0
+        @SKIP_READ_PWM_DUTY_CYCLE
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Timer Pin Set
+        // R0= Timer Pin to set mode of
+        // R1= mode to be set
+        @SET_TIMER_MODE
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of timers
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_SET_TIMER_MODE;
+
+            LD R4, @OS_TIMER_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains address of pin number in R0
+            STR R1, R4, #0;
+        @SKIP_SET_TIMER_MODE
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RET;
+
+        // Writes data to TIMER pin
+        // R0 = TIMER pin to write to
+        // R1 = data to write
+        @WRITE_TIMER_DATA
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of timers
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_WRITE_TIMER_DATA;
+
+            LD R4, @OS_TIMER_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
+            STR R1, R4, #0;                 // Writes data from R1 to pin in R0
+        @SKIP_WRITE_TIMER_DATA
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RET;
+
+        // Sets timer to SingleShot mode with period
+        // R0 = TIMER pin to write to
+        // R1 = period to be set
+        // R2 = address of interrupt service routine
+        @TRAP_SET_TIMER_SINGLESHOT
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           JSR @WRITE_TIMER_DATA;
+
+           LD R1, @OS_TIMER_BASE_INTVEC;
+           ADD R1, R1, R0;
+           STR R2, R1, #0;
+
+           AND R1, R1, #0;
+           ADD R1, R1, #2;
+           JSR @SET_TIMER_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB; //restores values from JSR and the subroutine
+           RTI;
+
+        // Sets timer to Repeated mode with period
+        // R0 = Timer pin to write to
+        // R1 = period to be set
+        @TRAP_SET_TIMER_REPEAT
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           JSR @WRITE_TIMER_DATA;
+
+           LD R1, @OS_TIMER_BASE_INTVEC;
+           ADD R1, R1, R0;
+           STR R2, R1, #0;
+
+           AND R1, R1, #0;
+           ADD R1, R1, #1;
+           JSR @SET_TIMER_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;
+           RTI;
+
+        // Sets timer to Disabled mode
+        // R0 = Timer pin to disable
+        @TRAP_SET_TIMER_DISABLE
+           ST R1, @OS_R1;
+           ST R7, @OS_R7_SUB;
+           AND R1, R1, #0;
+           JSR @SET_TIMER_MODE;
+           LD R1, @OS_R1;
+           LD R7, @OS_R7_SUB;
+           RTI;
+
+        // Reads and returns mode of Timer pin
+        // R0 = Timer pin to read from
+        // -> R0 = mode of Timer pin
+        @TRAP_READ_TIMER_MODE
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of timers
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_TIMER_MODE;
+
+            LD R4, @OS_TIMER_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // R4 contains control address of pin number in R0
+            LDR R0, R4, #0;                 // Reads mode from pin into R0
+        @SKIP_READ_TIMER_MODE
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Reads and returns data from PWM pin
+        // R0 = TIMER pin to read from
+        // -> R0 = data from TIMER pin
+        @TRAP_READ_TIMER_DATA
+            ST R4, @OS_R4;
+            ST R7, @OS_R7;
+            AND R4, R4, #0;                 // Set R4 to # of timers
+            ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
+            JSR @CHECK_OUT_OF_BOUNDS;
+            BRn @SKIP_READ_TIMER_DATA;
+
+            LD R4, @OS_TIMER_BASE_ADDR;
+            ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
+            ADD R4, R4, R0;                 // and adding 1
+            ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
+            LDR R0, R4, #0;                 // Reads data from pin into R0
+        @SKIP_READ_TIMER_DATA
+            LD R4, @OS_R4;
+            LD R7, @OS_R7;
+            RTI;
+
+        // Sets clock
+        // R0 = data to set
+        @TRAP_SET_CLOCK
+            ST R1, @OS_R1;
+            LD R1, @OS_CLOCK_BASE_ADDR;     // Load clock base address into R1
+            STR R0, R1, #0;                 // Write data in R0 to clock
+            LD R1, @OS_R1;
+            RTI;
+
+        // Reads clock
+        // -> R0 = data read from clock
+        @TRAP_READ_CLOCK
+            LD R0, @OS_CLOCK_BASE_ADDR;     // Load clock base address into R1
+            LDR R0, R0, #0;                 // Read data from clock
+            RTI;
+
+        //// Exception Handlers ////
+
+        // Triggered when an RTI is called when in user mode.
+        // Halts the machine.
+        @PRIVILEGE_MODE_EX_HANDLER
+            LEA R0, @PRIVILEGE_MODE_EX_MSG;
+            PUTS;
+            HALT;
+
+        // Triggered when the illegal opcode (0b1101) is encountered.
+        // Halts the machine.
+        @ILLEGAL_OPCODE_EX_HANDLER
+            LEA R0, @ILLEGAL_OPCODE_EX_MSG;
+            PUTS;
+            HALT;
+
+        // Triggered when access control violations occur.
+        //
+        // TODO: not sure what will happen when this is told _not_ to error...
+        @ACV_EX_HANDLER
+            ST R0, @OS_R0; // Save R0;
+
+            LEA R0, @ACV_EX_MSG; // Print the error message no matter what.
+            PUTS;
+
+            LDI R0, @ERROR_ON_ACV_SETTING_ADDR_PTR; // Check if we're supposed to actually
+                                                    // error on ACVs.
+            BRz @ACV_EX_HANDLER_EXIT;               // If we're not, just return.
+
+            HALT;                // Otherwise, halt.
+
+            @ACV_EX_HANDLER_EXIT // Restore R0 and return.
+                LD R0, @OS_R0;
+                RTI;
+
+        // More constants
+        @ERROR_ON_ACV_SETTING_ADDR_PTR .FILL #ERROR_ON_ACV_SETTING_ADDR;
+
+        // More strings
         @PRIVILEGE_MODE_EX_MSG // "\n\n--- Privilege mode violation (RTI in user mode)! ---\n\n"
             .FILL #('\n' as Word);
             .FILL #('\n' as Word);
@@ -1069,113 +1682,6 @@ fn os() -> AssembledProgram {
             .FILL #('\n' as Word);
             .FILL #('\0' as Word);
 
-        // Default entry for exceptions in the exception vector table.
-        @DEFAULT_EXCEPTION_HANDLER
-            LD R0, @DEFAULT_EX_MSG;
-            PUTS;
-            HALT;
-
-        // Default entry for interrupts in the interrupt vector table;
-        @DEFAULT_INT_HANDLER
-            LD R0, @DEFAULT_INT_MSG;
-            PUTS;
-            HALT;
-
-        // The rest of the strings (for offset reasons):
-        @DEFAULT_EX_MSG // "\n\n--- Encountered an exception without a handler! ---\n\n"
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('E' as Word);
-            .FILL #('n' as Word);
-            .FILL #('c' as Word);
-            .FILL #('o' as Word);
-            .FILL #('u' as Word);
-            .FILL #('n' as Word);
-            .FILL #('t' as Word);
-            .FILL #('e' as Word);
-            .FILL #('r' as Word);
-            .FILL #('e' as Word);
-            .FILL #('d' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('a' as Word);
-            .FILL #('n' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('e' as Word);
-            .FILL #('x' as Word);
-            .FILL #('c' as Word);
-            .FILL #('e' as Word);
-            .FILL #('p' as Word);
-            .FILL #('t' as Word);
-            .FILL #('i' as Word);
-            .FILL #('o' as Word);
-            .FILL #('n' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('w' as Word);
-            .FILL #('i' as Word);
-            .FILL #('t' as Word);
-            .FILL #('h' as Word);
-            .FILL #('o' as Word);
-            .FILL #('u' as Word);
-            .FILL #('t' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('a' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('h' as Word);
-            .FILL #('a' as Word);
-            .FILL #('n' as Word);
-            .FILL #('d' as Word);
-            .FILL #('l' as Word);
-            .FILL #('e' as Word);
-            .FILL #('r' as Word);
-            .FILL #('!' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\0' as Word);
-
-        @DEFAULT_INT_MSG // "\n\n--- Unhandled interrupt! ---\n\n"
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('U' as Word);
-            .FILL #('n' as Word);
-            .FILL #('h' as Word);
-            .FILL #('a' as Word);
-            .FILL #('n' as Word);
-            .FILL #('d' as Word);
-            .FILL #('l' as Word);
-            .FILL #('e' as Word);
-            .FILL #('d' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('i' as Word);
-            .FILL #('n' as Word);
-            .FILL #('t' as Word);
-            .FILL #('e' as Word);
-            .FILL #('r' as Word);
-            .FILL #('r' as Word);
-            .FILL #('u' as Word);
-            .FILL #('p' as Word);
-            .FILL #('t' as Word);
-            .FILL #('!' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\0' as Word);
-
-
         //// Configuration 'variables' ////
         // (binaries can override these)
 
@@ -1186,5 +1692,5 @@ fn os() -> AssembledProgram {
         .FILL #0x1; // 0 == disabled, non-zero == enabled
     };
 
-    os.into()
-}
+    AssembledProgram::new(os)
+}]}

@@ -77,6 +77,13 @@ impl<'b> Output<'b> for OutputShim<'_, 'b> {
         self.current_data_written()
     }
 
+    fn reset_interrupt_flag(&mut self) {
+        match self.flag {
+            Some(flag) => flag.store(false, Ordering::SeqCst),
+            None => unreachable!(),
+        }
+    }
+
     fn set_interrupt_enable_bit(&mut self, bit: bool) {
         self.interrupt_enable_bit = bit;
     }

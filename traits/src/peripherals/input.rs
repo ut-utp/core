@@ -21,6 +21,7 @@ pub trait Input<'a>: Default {
 
     fn register_interrupt_flag(&mut self, flag: &'a AtomicBool);
     fn interrupt_occurred(&self) -> bool;
+    fn reset_interrupt_flag(&mut self,);
 
     fn set_interrupt_enable_bit(&mut self, bit: bool);
     fn interrupts_enabled(&self) -> bool;
@@ -39,6 +40,10 @@ using_std! {
 
         fn interrupt_occurred(&self) -> bool {
             RwLock::read(self).unwrap().interrupt_occurred()
+        }
+
+        fn reset_interrupt_flag(&mut self) {
+            RwLock::write(self).unwrap().reset_interrupt_flag()
         }
 
         fn set_interrupt_enable_bit(&mut self, bit: bool) {
@@ -66,6 +71,10 @@ using_std! {
 
         fn interrupt_occurred(&self) -> bool {
             Mutex::lock(self).unwrap().interrupt_occurred()
+        }
+
+        fn reset_interrupt_flag(&mut self) {
+            Mutex::lock(self).unwrap().reset_interrupt_flag()
         }
 
         fn set_interrupt_enable_bit(&mut self, bit: bool) {

@@ -362,6 +362,12 @@ pub mod util {
     // Newtype
     #[derive(Clone)] // TODO: impl Debug + PartialEq/Eq + Ser/De + Hash
     pub struct AssembledProgram(pub [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS]);
+    impl AssembledProgram {
+        pub const fn new(mem: [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
+            Self(mem)
+        }
+    }
+
     impl Deref for AssembledProgram {
         type Target = AssembledProgramInner;
 
