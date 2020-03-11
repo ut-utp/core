@@ -4,7 +4,6 @@
 //! This should tell us how much overhead each subsequent layer in the
 //! configuration adds.
 
-// TODO: share the common stuff with speed.rs in a module!
 // TODO: have CI run this and give us reports
 
 extern crate lc3_baseline_sim;
