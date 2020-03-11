@@ -64,8 +64,8 @@ macro_rules! nightly_const {
     );
 }
 
-pub const USER_PROG_START_ADDR: lc3_isa::Addr = 0x0400;
-pub const ERROR_ON_ACV_SETTING_ADDR: lc3_isa::Addr = 0x0401;
+pub const USER_PROG_START_ADDR: lc3_isa::Addr = 0x0500;
+pub const ERROR_ON_ACV_SETTING_ADDR: lc3_isa::Addr = 0x0501;
 
 mod os;
 
