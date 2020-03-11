@@ -202,19 +202,18 @@ pub trait Interrupt: MemMapped {
 
 macro_rules! mem_mapped {
     ($name:ident, $address:expr, $comment:literal) => {
-        #[doc=$comment]
         mem_mapped!(-; $name, $address, $comment);
     };
 
     (special: $name:ident, $address:expr, $comment:literal) => {
-        #[doc=$comment]
-        #[doc="\nDoes not produce access control violations (ACVs) when accessed!"]
-        mem_mapped!(+; $name, $address, $comment);
+        mem_mapped!(+; $name, $address, $comment, "\nDoes not produce access control violations (ACVs) when accessed!");
 
         impl MemMappedSpecial for $name { }
     };
 
-    ($special:tt; $name:ident, $address:expr, $comment:literal) => {
+    ($special:tt; $name:ident, $address:expr, $comment:literal $(, $extra_comment:literal)?) => {
+        #[doc=$comment]
+        $(#[doc=$extra_comment])?
         #[derive(Copy, Clone, Debug, PartialEq)]
         pub struct $name(Word);
 
