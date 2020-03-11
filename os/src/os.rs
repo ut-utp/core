@@ -696,7 +696,7 @@ fn os() -> AssembledProgram {
         @TRAP_IN
             ST R7, @TRAP_IN_R7;   // Save R7 (also saved in PUTS so we can't use @SAVE_R7)
 
-            LEA R0, @TRAP_IN_MSG; // Output the prompt.     // TODO: OOB
+            LEA R0, @TRAP_IN_MSG; // Output the prompt.
             PUTS;
 
             GETC;                 // Get the character.
@@ -782,7 +782,7 @@ fn os() -> AssembledProgram {
         // should be done) but also does so in an infinite loop just in case the
         // simulator we're running on doesn't actually implement the MCR.
         @TRAP_HALT
-            LEA R0, @TRAP_HALT_MSG;   // We're going down!      // TODO: OOB
+            LEA R0, @TRAP_HALT_MSG;   // We're going down!
             PUTS;
 
             LDI R0, @MCR;             // Set the top bit of the MCR to 0.
@@ -798,7 +798,7 @@ fn os() -> AssembledProgram {
         //
         // Prints a message and halts the machine.
         @UNKNOWN_TRAP
-            LEA R0, @UNKNOWN_TRAP_MSG;      // TODO: OOB
+            LEA R0, @UNKNOWN_TRAP_MSG;
             PUTS;
             HALT;
 
