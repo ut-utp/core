@@ -86,21 +86,21 @@ fn os() -> AssembledProgram {
         .FILL @TRAP_READ_GPIO_MODE; // 0x34
         .FILL @TRAP_WRITE_GPIO_DATA; // 0x35
         .FILL @TRAP_READ_GPIO_DATA; // 0x36
-        .FILL @TRAP_SET_ADC_ENABLE; // 0x37
-        .FILL @TRAP_SET_ADC_DISABLE; // 0x38
-        .FILL @TRAP_READ_ADC_MODE; // 0x39
-        .FILL @TRAP_READ_ADC_DATA; // 0x3A
-        .FILL @TRAP_SET_PWM; // 0x3B
-        .FILL @TRAP_DISABLE_PWM; // 0x3C
-        .FILL @TRAP_READ_PWM_MODE; // 0x3D
-        .FILL @TRAP_READ_PWM_DUTY_CYCLE; // 0x3E
-        .FILL @TRAP_SET_TIMER_SINGLESHOT; // 0x3F
-        .FILL @TRAP_SET_TIMER_REPEAT; // 0x40
-        .FILL @TRAP_SET_TIMER_DISABLE; // 0x41
-        .FILL @TRAP_READ_TIMER_MODE; // 0x42
-        .FILL @TRAP_READ_TIMER_DATA; // 0x43
-        .FILL @TRAP_SET_CLOCK; // 0x44
-        .FILL @TRAP_READ_CLOCK; // 0x45
+        .FILL @UNKNOWN_TRAP; // 0x37
+        .FILL @UNKNOWN_TRAP; // 0x38
+        .FILL @UNKNOWN_TRAP; // 0x39
+        .FILL @UNKNOWN_TRAP; // 0x3A
+        .FILL @UNKNOWN_TRAP; // 0x3B
+        .FILL @UNKNOWN_TRAP; // 0x3C
+        .FILL @UNKNOWN_TRAP; // 0x3D
+        .FILL @UNKNOWN_TRAP; // 0x3E
+        .FILL @UNKNOWN_TRAP; // 0x3F
+        .FILL @TRAP_SET_ADC_ENABLE; // 0x40
+        .FILL @TRAP_SET_ADC_DISABLE; // 0x41
+        .FILL @TRAP_READ_ADC_MODE; // 0x42
+        .FILL @TRAP_READ_ADC_DATA; // 0x43
+        .FILL @UNKNOWN_TRAP; // 0x44
+        .FILL @UNKNOWN_TRAP; // 0x45
         .FILL @UNKNOWN_TRAP; // 0x46
         .FILL @UNKNOWN_TRAP; // 0x47
         .FILL @UNKNOWN_TRAP; // 0x48
@@ -111,10 +111,10 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x4D
         .FILL @UNKNOWN_TRAP; // 0x4E
         .FILL @UNKNOWN_TRAP; // 0x4F
-        .FILL @UNKNOWN_TRAP; // 0x50
-        .FILL @UNKNOWN_TRAP; // 0x51
-        .FILL @UNKNOWN_TRAP; // 0x52
-        .FILL @UNKNOWN_TRAP; // 0x53
+        .FILL @TRAP_SET_PWM; // 0x50
+        .FILL @TRAP_DISABLE_PWM; // 0x51
+        .FILL @TRAP_READ_PWM_MODE; // 0x52
+        .FILL @TRAP_READ_PWM_DUTY_CYCLE; // 0x53
         .FILL @UNKNOWN_TRAP; // 0x54
         .FILL @UNKNOWN_TRAP; // 0x55
         .FILL @UNKNOWN_TRAP; // 0x56
@@ -127,11 +127,11 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x5D
         .FILL @UNKNOWN_TRAP; // 0x5E
         .FILL @UNKNOWN_TRAP; // 0x5F
-        .FILL @UNKNOWN_TRAP; // 0x60
-        .FILL @UNKNOWN_TRAP; // 0x61
-        .FILL @UNKNOWN_TRAP; // 0x62
-        .FILL @UNKNOWN_TRAP; // 0x63
-        .FILL @UNKNOWN_TRAP; // 0x64
+        .FILL @TRAP_SET_TIMER_SINGLESHOT; // 0x60
+        .FILL @TRAP_SET_TIMER_REPEAT; // 0x61
+        .FILL @TRAP_SET_TIMER_DISABLE; // 0x62
+        .FILL @TRAP_READ_TIMER_MODE; // 0x63
+        .FILL @TRAP_READ_TIMER_DATA; // 0x64
         .FILL @UNKNOWN_TRAP; // 0x65
         .FILL @UNKNOWN_TRAP; // 0x66
         .FILL @UNKNOWN_TRAP; // 0x67
@@ -143,8 +143,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x6D
         .FILL @UNKNOWN_TRAP; // 0x6E
         .FILL @UNKNOWN_TRAP; // 0x6F
-        .FILL @UNKNOWN_TRAP; // 0x70
-        .FILL @UNKNOWN_TRAP; // 0x71
+        .FILL @TRAP_SET_CLOCK; // 0x70
+        .FILL @TRAP_READ_CLOCK; // 0x71
         .FILL @UNKNOWN_TRAP; // 0x72
         .FILL @UNKNOWN_TRAP; // 0x73
         .FILL @UNKNOWN_TRAP; // 0x74
