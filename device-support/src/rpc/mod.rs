@@ -1,5 +1,3 @@
-//! TODO!
-//!
 //! # RPC
 //!
 //! In picking an encoding scheme for our embedded devices, we have to decide
@@ -12,7 +10,7 @@
 //! but does (we'll assume) guarantee ordering.
 //!
 //! In this ramble we kind of end up going through the details for the actual
-//! on the wire transport (UART, below encoding) and the protocol layer (i.e.
+//! on-the-wire transport (UART, below encoding) and the protocol layer (i.e.
 //! error handling, above encoding).
 //!
 //! [^parity]: UART does frequently use a parity bit but we won't rely on it
@@ -27,7 +25,16 @@
 //!   - dropped bytes (data loss, i.e. a framing error)
 //!
 //! Other possible error cases like reordered bytes and duplicated bytes can,
-//! _I think_ be safely ignored; they don't seem very likely with UART.
+//! _I think_ be safely ignored[^reordered-and-flipped]; they don't seem very
+//! likely with UART.
+//!
+//! [^reordered-and-flipped]: The setup we end up settling on actually *should*
+//! be able to handle reordered bytes (checksum fail or length check fail if the
+//! sentinel gets moved) and duplicated bytes (again: checksum fail and if it's
+//! the sentinel it'll just be like the message was dropped) and both at the
+//! same time: just not in a graceful way. Instead of reduplicating or
+//! reordering (which we could do if we assigned each datagram a number), we'll
+//! just retry, which is, imo, okay for something of this scale/size.
 //!
 //! ### Protecting against bit flips
 //!
@@ -92,7 +99,7 @@
 //!   [Requester] Req -----> [Responder]
 //!       ^                       |
 //!        \------------ Resp <--/
-//!                             \
+//!                             ^
 //!                              \-------- B
 //! ```
 //!
@@ -102,7 +109,7 @@
 //!
 //! In case A, the responder *knows* something has gone wrong. In case B, the
 //! requester *knows* something has gone wrong[^caveat3]. In order for the
-//! requester to be able to retry when errors happen we'd want to the requester
+//! requester to be able to retry when errors happen we'd want the requester
 //! to know about situations like case A as well as case B and that's what this
 //! approach does: it has the responder tell the requester when case A happens.
 //!
@@ -331,8 +338,8 @@
 //! where messages start and end. This is the question of framing.
 //!
 //! One very simple framing strategy is to have _fixed length messages_: if your
-//! message is length is `n`, the first `n` bytes will correspond to a message,
-//! the next `n` to the next, and so on. Nice and simple.
+//! message length is `n`, the first `n` bytes will correspond to a message, the
+//! next `n` to the next, and so on. Nice and simple.
 //!
 //! This works — but at some cost. If your messages aren't fixed size, and you
 //! want to use this scheme you'll need to pick the largest message size you
@@ -374,7 +381,9 @@
 //!
 //! [^detecting-framing-errors]: In this toy example, it is very possible to
 //! detect framing errors since there are many possible invalid states. In an
-//! actual
+//! actual format it might not be so possible, but the point is that it depends
+//! on your format (as in, it breaks the clean separation we're striving for).
+//! More [here](a-detour-about-detecting-and-recovering-from-framing-errors).
 //!
 //! ##### A detour about detecting (and recovering from) framing errors
 //!
@@ -405,9 +414,9 @@
 //! #### Framing in a fallible world
 //!
 //! So, it's clear that we can't use fixed size or length prefix framing schemes
-//! on transports that can drop chunks of data and recovering from framing
-//! errors using the data we do get at best requires support from the data
-//! we're sending and at worst just isn't reliable.
+//! on transports that can drop chunks of data and that recovering from framing
+//! errors using the data we *do* get _at best_ requires support from the data
+//! we're sending and _at worst_ just isn't reliable.
 //!
 //! So, what do we do?
 //!
@@ -462,7 +471,7 @@
 //! the actual message you are sending! In the above that is fine since the
 //! message format doesn't allow for `ø`s anyways. In C style strings, `'ø'` or
 //! `NULL` aren't allowed in strings either so it isn't a problem. Put
-//! differently sentinel based framing schemes require cooperation from the
+//! differently, sentinel based framing schemes require cooperation from the
 //! data being transmitted!
 //!
 //! This is problematic for us since we'd like to keep the message format
@@ -475,7 +484,9 @@
 //! is a tradeoff. A multi-byte encoding steals fewer valid values from the
 //! encoding but it also increases the size of the messages and thereby
 //! increases the odds that a message will have one or more bytes dropped
-//! (assuming an independent byte drop rate).
+//! (assuming an independent byte drop rate). Also, you want to pick your
+//! sentinel such that it's easy to align on without error; making your sentinel
+//! longer is actually at odds with this.
 //!
 //! So what to do now?
 //!
@@ -506,13 +517,13 @@
 //! ```
 //!
 //! Now, prepend each chunk with length of the chunk + 1. Or, put another way,
-//! put the index of the chunk's zero in front of each chunk:
+//! put the index (+1) of the chunk's zero in front of each chunk:
 //!
 //! ```text
 //! | 'a' 'b' 'c' | 'h' 'e' 'l' 'l' 'o' | 1 | 1 .. 254 | 255 |
 //!
-//! |4| 'a' 'b' 'c' |6| 'h' 'e' 'l' 'o' |2| 1 |254| 1 .. 254
-//! ```text
+//! |4| 'a' 'b' 'c' |6| 'h' 'e' 'l' l' 'o' |2| 1 |254| 1 .. 254 |2| 255
+//! ```
 //!
 //! Note that the index is guaranteed to be ≤ 255 since each chunk can be at
 //! most 254 bytes long. Also note that a length of 255 is a special case
@@ -592,7 +603,7 @@
 //!    error reporting mechanisms described above and to actually retry when
 //!    errors happen in the way described above.
 //!
-//!    - To testing that this machinery works, we can 'send' [`Control`] calls
+//!    - To test that this machinery works, we can 'send' [`Control`] calls
 //!      across an rpc setup that uses a mock transport. This mock transport
 //!      can emulate a fallible transport by occasionally turning some of the
 //!      messages sent across it into Errors. The [`Controller`] and [`Device`]
@@ -658,7 +669,7 @@
 //!         interrupt can then go disable itself if it ever runs and doesn't
 //!         have data to send.
 //!    - The error types probably look something like this:
-//!      ```rust
+//!      ```rust,ignore
 //!      enum UartTransportRecvError {
 //!          NoMessage,
 //!          MessageInProgress,
@@ -674,6 +685,9 @@
 //!    - To support cooperation with interrupts, we could have an AtomicBool
 //!      that gets set in interrupts and is checked to see if we have new data
 //!      in [`Transport::get`].
+//!    - Unlike the error handling thing in step 1, this should be fairly easy
+//!      to unit test; we shouldn't need to make any mocks or fake [`Control`]
+//!      impls.
 //!
 //! 3) The Encodings.
 //!
@@ -689,7 +703,7 @@
 //!       + If the checksum doesn't match, terminate without calling the inner
 //!         decoding. If it does match, try to call the inner decode.
 //!       + The Decoding error type should look something like this:
-//!         ```rust
+//!         ```rust,ignore
 //!         enum ChecksumDecodingError<Inner: Debug> {
 //!             ChecksumMismatch { expected: <tbd>, got: <tbd> },
 //!             InnerDecodingError(Inner),
