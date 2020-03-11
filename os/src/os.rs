@@ -3,6 +3,9 @@
 use super::{ERROR_ON_ACV_SETTING_ADDR, USER_PROG_START_ADDR};
 use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
+use lc3_baseline_sim::{KBSR_ADDR, KBDR_ADDR, DSR_ADDR, DDR_ADDR};
+use lc3_baseline_sim::{G0CR_ADDR, A0CR_ADDR, CLKR_ADDR, T0CR_ADDR, P0CR_ADDR};
+use lc3_baseline_sim::{G0_INTVEC, T0_INTVEC};
 
 use lazy_static::lazy_static;
 
@@ -611,10 +614,10 @@ fn os() -> AssembledProgram {
 
         @OS_STARTING_SP .FILL #lc3_isa::USER_PROGRAM_START_ADDR;
 
-        @KBSR .FILL #0xFE00;    // TODO: Use constant from <somewhere>
-        @KBDR .FILL #0xFE02;    // TODO: Use constant from <somewhere>
-        @DSR .FILL #0xFE04;     // TODO: Use constant from <somewhere>
-        @DDR .FILL #0xFE06;     // TODO: Use constant from <somewhere>
+        @KBSR .FILL #KBSR_ADDR;
+        @KBDR .FILL #KBDR_ADDR;
+        @DSR .FILL #DSR_ADDR;
+        @DDR .FILL #DDR_ADDR;
 
         @MCR .FILL #lc3_isa::MCR;
 
@@ -1261,13 +1264,14 @@ fn os() -> AssembledProgram {
         @OS_R7 .FILL #0;
         @OS_R7_SUB .FILL #0;
 
-        @OS_GPIO_BASE_ADDR .FILL #0xFE07;
-        @OS_ADC_BASE_ADDR .FILL #0xFE18;
-        @OS_CLOCK_BASE_ADDR .FILL #0xFE21;
-        @OS_TIMER_BASE_ADDR .FILL #0xFE26;
-        @OS_PWM_BASE_ADDR .FILL #0xFE22;
+        @OS_GPIO_BASE_ADDR .FILL #G0CR_ADDR;
+        @OS_ADC_BASE_ADDR .FILL #A0CR_ADDR;
+        @OS_CLOCK_BASE_ADDR .FILL #CLKR_ADDR;
+        @OS_TIMER_BASE_ADDR .FILL #T0CR_ADDR;
+        @OS_PWM_BASE_ADDR .FILL #P0CR_ADDR;
 
-        @OS_GPIO_BASE_INTVEC .FILL #0x0190;
+        @OS_GPIO_BASE_INTVEC .FILL #G0_INTVEC;
+        @OS_TIMER_BASE_INTVEC .FILL #T0_INTVEC;
 
         // PWM set
         // R0 = PWM to set
@@ -1397,12 +1401,17 @@ fn os() -> AssembledProgram {
         // Sets timer to SingleShot mode with period
         // R0 = TIMER pin to write to
         // R1 = period to be set
+        // R2 = address of interrupt service routine
         @TRAP_SET_TIMER_SINGLESHOT
            ST R1, @OS_R1;
            ST R7, @OS_R7_SUB;
            JSR @WRITE_TIMER_DATA;
 
-           AND R1, R1, #0; //sets mode to 0, which is mode to disable ADC
+           LD R1, @OS_TIMER_BASE_INTVEC;
+           ADD R1, R1, R0;
+           STR R2, R1, #0;
+
+           AND R1, R1, #0;
            ADD R1, R1, #2;
            JSR @SET_TIMER_MODE;
            LD R1, @OS_R1;
@@ -1417,11 +1426,15 @@ fn os() -> AssembledProgram {
            ST R7, @OS_R7_SUB;
            JSR @WRITE_TIMER_DATA;
 
-           AND R1, R1, #0;                  // sets mode to 0, which is mode to disable ADC
+           LD R1, @OS_TIMER_BASE_INTVEC;
+           ADD R1, R1, R0;
+           STR R2, R1, #0;
+
+           AND R1, R1, #0;
            ADD R1, R1, #1;
            JSR @SET_TIMER_MODE;
            LD R1, @OS_R1;
-           LD R7, @OS_R7_SUB;               // restores values from JSR and the subroutine
+           LD R7, @OS_R7_SUB;
            RTI;
 
         // Sets timer to Disabled mode
@@ -1429,10 +1442,10 @@ fn os() -> AssembledProgram {
         @TRAP_SET_TIMER_DISABLE
            ST R1, @OS_R1;
            ST R7, @OS_R7_SUB;
-           AND R1, R1, #0;                  // sets mode to 0, which is mode to disable ADC
+           AND R1, R1, #0;
            JSR @SET_TIMER_MODE;
            LD R1, @OS_R1;
-           LD R7, @OS_R7_SUB;               // restores values from JSR and the subroutine
+           LD R7, @OS_R7_SUB;
            RTI;
 
         // Reads and returns mode of Timer pin
