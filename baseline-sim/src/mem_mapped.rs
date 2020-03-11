@@ -46,7 +46,7 @@ pub const A1DR_ADDR: Addr = 0xFE1B;
 pub const A2CR_ADDR: Addr = 0xFE1C;
 pub const A2DR_ADDR: Addr = 0xFE1D;
 pub const A3CR_ADDR: Addr = 0xFE1E;
-pub const A3DR_ADDR: Addr = 0xFE2F;
+pub const A3DR_ADDR: Addr = 0xFE1F;
 
 pub const CLKR_ADDR: Addr = 0xFE20;
 
