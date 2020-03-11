@@ -1,7 +1,7 @@
 //! TODO!
 
-use crate::control::metadata::ProgramMetadata;
-use crate::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
+pub use crate::control::metadata::ProgramMetadata;
+pub use crate::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
 
 use lc3_isa::{Addr, Word};
 
