@@ -631,7 +631,6 @@ dependencies = [
  "crossterm 0.16.0",
  "failure",
  "flexi_logger",
- "lazy_static",
  "lc3-application-support",
  "lc3-baseline-sim",
  "lc3-isa",
