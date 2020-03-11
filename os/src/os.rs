@@ -601,8 +601,13 @@ fn os() -> AssembledProgram {
         @OS_START_MSG // ""
             .FILL #('\0' as Word);
 
+        @SAVE_R0 .FILL #0;
+        @SAVE_R1 .FILL #0;
+        @SAVE_R2 .FILL #0;
+        @SAVE_R3 .FILL #0;
+        @SAVE_R7 .FILL #0;
+
         @USER_PROG_START_ADDR_PTR .FILL #USER_PROG_START_ADDR;
-        @ERROR_ON_ACV_SETTING_ADDR_PTR .FILL #ERROR_ON_ACV_SETTING_ADDR;
 
         @OS_STARTING_SP .FILL #lc3_isa::USER_PROGRAM_START_ADDR;
 
@@ -631,24 +636,8 @@ fn os() -> AssembledProgram {
         @MASK_HI_BIT .FILL #0x7FFF;
         @MASK_LOW_BYTE .FILL #0x00FF;
 
-        @OS_R0 .FILL #0;
-        @OS_R1 .FILL #0;
-        @OS_R2 .FILL #0;
-        @OS_R3 .FILL #0;
-        @OS_R4 .FILL #0;
-        @OS_R7 .FILL #0;
-        @OS_R7_SUB .FILL #0;
-
         @TRAP_OUT_R1 .FILL #0;
         @TRAP_IN_R7 .FILL #0;
-
-        @OS_GPIO_BASE_ADDR .FILL #0xFE07;
-        @OS_ADC_BASE_ADDR .FILL #0xFE18;
-        @OS_CLOCK_BASE_ADDR .FILL #0xFE21;
-        @OS_TIMER_BASE_ADDR .FILL #0xFE26;
-        @OS_PWM_BASE_ADDR .FILL #0xFE22;
-
-        @OS_GPIO_BASE_INTVEC .FILL #0x0190;
 
         //// TRAP Routines ////
 
@@ -680,9 +669,9 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a null-terminated string in R0.
         @TRAP_PUTS
-            ST R0, @OS_R0;  // Save R0, R1, and R7.
-            ST R1, @OS_R1;
-            ST R7, @OS_R7;
+            ST R0, @SAVE_R0;  // Save R0, R1, and R7.
+            ST R1, @SAVE_R1;
+            ST R7, @SAVE_R7;
 
             ADD R1, R0, #0; // Copy the string pointer.
 
@@ -695,9 +684,9 @@ fn os() -> AssembledProgram {
                 BRnzp @TRAP_PUTS_LOOP;
 
             @TRAP_PUTS_DONE
-                LD R0, @OS_R0; // Restore R0, R1, and R7.
-                LD R1, @OS_R1;
-                LD R7, @OS_R7;
+                LD R0, @SAVE_R0; // Restore R0, R1, and R7.
+                LD R1, @SAVE_R1;
+                LD R7, @SAVE_R7;
 
                 RTI;           // And return.
 
@@ -705,20 +694,20 @@ fn os() -> AssembledProgram {
         //
         // Returns the character in R0.
         @TRAP_IN
-            ST R7, @TRAP_IN_R7;   // Save R7 (also saved in PUTS so we can't use @OS_R7)
+            ST R7, @TRAP_IN_R7;   // Save R7 (also saved in PUTS so we can't use @SAVE_R7)
 
-            LEA R0, @TRAP_IN_MSG; // Output the prompt.
+            LEA R0, @TRAP_IN_MSG; // Output the prompt.     // TODO: OOB
             PUTS;
 
             GETC;                 // Get the character.
             OUT;                  // Echo it.
 
-            ST R0, @OS_R0;        // Save the character, print a newline.
+            ST R0, @SAVE_R0;        // Save the character, print a newline.
             AND R0, R0, #0;
             ADD R0, R0, #('\n' as lc3_isa::SignedWord);
             OUT;
 
-            LD R0, @OS_R0;        // Restore and return.
+            LD R0, @SAVE_R0;        // Restore and return.
             LD R7, @TRAP_IN_R7;
             RTI;
 
@@ -729,11 +718,11 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a string in R0.
         @TRAP_PUTSP
-            ST R0, @OS_R0;              // Save the registers.
-            ST R1, @OS_R1;
-            ST R2, @OS_R2;
-            ST R3, @OS_R3;
-            ST R7, @OS_R7;
+            ST R0, @SAVE_R0;              // Save the registers.
+            ST R1, @SAVE_R1;
+            ST R2, @SAVE_R2;
+            ST R3, @SAVE_R3;
+            ST R7, @SAVE_R7;
 
             ADD R1, R0, #0;             // Copy over the string pointer (R0 -> R1).
 
@@ -779,11 +768,11 @@ fn os() -> AssembledProgram {
                     BRnzp @TRAP_PUTSP_LOOP; // and repeat.
 
             @TRAP_PUTSP_RETURN
-                LD R0, @OS_R0;          // Restore the registers.
-                LD R1, @OS_R1;
-                LD R2, @OS_R2;
-                LD R3, @OS_R3;
-                LD R7, @OS_R7;
+                LD R0, @SAVE_R0;          // Restore the registers.
+                LD R1, @SAVE_R1;
+                LD R2, @SAVE_R2;
+                LD R3, @SAVE_R3;
+                LD R7, @SAVE_R7;
                 RTI;
 
 
@@ -793,7 +782,7 @@ fn os() -> AssembledProgram {
         // should be done) but also does so in an infinite loop just in case the
         // simulator we're running on doesn't actually implement the MCR.
         @TRAP_HALT
-            LEA R0, @TRAP_HALT_MSG;   // We're going down!
+            LEA R0, @TRAP_HALT_MSG;   // We're going down!      // TODO: OOB
             PUTS;
 
             LDI R0, @MCR;             // Set the top bit of the MCR to 0.
@@ -809,9 +798,209 @@ fn os() -> AssembledProgram {
         //
         // Prints a message and halts the machine.
         @UNKNOWN_TRAP
-            LEA R0, @UNKNOWN_TRAP_MSG;
+            LEA R0, @UNKNOWN_TRAP_MSG;      // TODO: OOB
             PUTS;
             HALT;
+
+        // Some strings:
+        @TRAP_IN_MSG // "\nInput a character> "
+            .FILL #('\n' as Word);
+            .FILL #('I' as Word);
+            .FILL #('n' as Word);
+            .FILL #('p' as Word);
+            .FILL #('u' as Word);
+            .FILL #('t' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('a' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('c' as Word);
+            .FILL #('h' as Word);
+            .FILL #('a' as Word);
+            .FILL #('r' as Word);
+            .FILL #('a' as Word);
+            .FILL #('c' as Word);
+            .FILL #('t' as Word);
+            .FILL #('e' as Word);
+            .FILL #('r' as Word);
+            .FILL #('>' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('\0' as Word);
+
+        @TRAP_HALT_MSG // "\n\n--- Halting the LC-3 ---\n\n"
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('H' as Word);
+            .FILL #('a' as Word);
+            .FILL #('l' as Word);
+            .FILL #('t' as Word);
+            .FILL #('i' as Word);
+            .FILL #('n' as Word);
+            .FILL #('g' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('t' as Word);
+            .FILL #('h' as Word);
+            .FILL #('e' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('L' as Word);
+            .FILL #('C' as Word);
+            .FILL #('-' as Word);
+            .FILL #('3' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\0' as Word);
+
+        @UNKNOWN_TRAP_MSG // "\n\n--- Undefined TRAP executed! ---\n\n"
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('U' as Word);
+            .FILL #('n' as Word);
+            .FILL #('d' as Word);
+            .FILL #('e' as Word);
+            .FILL #('f' as Word);
+            .FILL #('i' as Word);
+            .FILL #('n' as Word);
+            .FILL #('e' as Word);
+            .FILL #('d' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('T' as Word);
+            .FILL #('R' as Word);
+            .FILL #('A' as Word);
+            .FILL #('P' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('e' as Word);
+            .FILL #('x' as Word);
+            .FILL #('e' as Word);
+            .FILL #('c' as Word);
+            .FILL #('u' as Word);
+            .FILL #('t' as Word);
+            .FILL #('e' as Word);
+            .FILL #('d' as Word);
+            .FILL #('!' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\0' as Word);
+
+        // Default entry for exceptions in the exception vector table.
+        @DEFAULT_EXCEPTION_HANDLER
+            LD R0, @DEFAULT_EX_MSG;
+            PUTS;
+            HALT;
+
+        // Default entry for interrupts in the interrupt vector table;
+        @DEFAULT_INT_HANDLER
+            LD R0, @DEFAULT_INT_MSG;
+            PUTS;
+            HALT;
+
+        // The rest of the strings (for offset reasons):
+        @DEFAULT_EX_MSG // "\n\n--- Encountered an exception without a handler! ---\n\n"
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('E' as Word);
+            .FILL #('n' as Word);
+            .FILL #('c' as Word);
+            .FILL #('o' as Word);
+            .FILL #('u' as Word);
+            .FILL #('n' as Word);
+            .FILL #('t' as Word);
+            .FILL #('e' as Word);
+            .FILL #('r' as Word);
+            .FILL #('e' as Word);
+            .FILL #('d' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('a' as Word);
+            .FILL #('n' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('e' as Word);
+            .FILL #('x' as Word);
+            .FILL #('c' as Word);
+            .FILL #('e' as Word);
+            .FILL #('p' as Word);
+            .FILL #('t' as Word);
+            .FILL #('i' as Word);
+            .FILL #('o' as Word);
+            .FILL #('n' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('w' as Word);
+            .FILL #('i' as Word);
+            .FILL #('t' as Word);
+            .FILL #('h' as Word);
+            .FILL #('o' as Word);
+            .FILL #('u' as Word);
+            .FILL #('t' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('a' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('h' as Word);
+            .FILL #('a' as Word);
+            .FILL #('n' as Word);
+            .FILL #('d' as Word);
+            .FILL #('l' as Word);
+            .FILL #('e' as Word);
+            .FILL #('r' as Word);
+            .FILL #('!' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\0' as Word);
+
+        @DEFAULT_INT_MSG // "\n\n--- Unhandled interrupt! ---\n\n"
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('U' as Word);
+            .FILL #('n' as Word);
+            .FILL #('h' as Word);
+            .FILL #('a' as Word);
+            .FILL #('n' as Word);
+            .FILL #('d' as Word);
+            .FILL #('l' as Word);
+            .FILL #('e' as Word);
+            .FILL #('d' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('i' as Word);
+            .FILL #('n' as Word);
+            .FILL #('t' as Word);
+            .FILL #('e' as Word);
+            .FILL #('r' as Word);
+            .FILL #('r' as Word);
+            .FILL #('u' as Word);
+            .FILL #('p' as Word);
+            .FILL #('t' as Word);
+            .FILL #('!' as Word);
+            .FILL #(' ' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('-' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\n' as Word);
+            .FILL #('\0' as Word);
 
         // Checks if R0 is within range of 0 to R4
         // R0 = value to check
@@ -1064,6 +1253,23 @@ fn os() -> AssembledProgram {
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
+
+        // More constants
+        @OS_R0 .FILL #0;
+        @OS_R1 .FILL #0;
+        @OS_R2 .FILL #0;
+        @OS_R3 .FILL #0;
+        @OS_R4 .FILL #0;
+        @OS_R7 .FILL #0;
+        @OS_R7_SUB .FILL #0;
+
+        @OS_GPIO_BASE_ADDR .FILL #0xFE07;
+        @OS_ADC_BASE_ADDR .FILL #0xFE18;
+        @OS_CLOCK_BASE_ADDR .FILL #0xFE21;
+        @OS_TIMER_BASE_ADDR .FILL #0xFE26;
+        @OS_PWM_BASE_ADDR .FILL #0xFE22;
+
+        @OS_GPIO_BASE_INTVEC .FILL #0x0190;
 
         // PWM set
         // R0 = PWM to set
@@ -1323,100 +1529,10 @@ fn os() -> AssembledProgram {
                 LD R0, @OS_R0;
                 RTI;
 
-        // Some strings:
-        @TRAP_IN_MSG // "\nInput a character> "
-            .FILL #('\n' as Word);
-            .FILL #('I' as Word);
-            .FILL #('n' as Word);
-            .FILL #('p' as Word);
-            .FILL #('u' as Word);
-            .FILL #('t' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('a' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('c' as Word);
-            .FILL #('h' as Word);
-            .FILL #('a' as Word);
-            .FILL #('r' as Word);
-            .FILL #('a' as Word);
-            .FILL #('c' as Word);
-            .FILL #('t' as Word);
-            .FILL #('e' as Word);
-            .FILL #('r' as Word);
-            .FILL #('>' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('\0' as Word);
+        // More constants
+        @ERROR_ON_ACV_SETTING_ADDR_PTR .FILL #ERROR_ON_ACV_SETTING_ADDR;
 
-        @TRAP_HALT_MSG // "\n\n--- Halting the LC-3 ---\n\n"
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('H' as Word);
-            .FILL #('a' as Word);
-            .FILL #('l' as Word);
-            .FILL #('t' as Word);
-            .FILL #('i' as Word);
-            .FILL #('n' as Word);
-            .FILL #('g' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('t' as Word);
-            .FILL #('h' as Word);
-            .FILL #('e' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('L' as Word);
-            .FILL #('C' as Word);
-            .FILL #('-' as Word);
-            .FILL #('3' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\0' as Word);
-
-        @UNKNOWN_TRAP_MSG // "\n\n--- Undefined TRAP executed! ---\n\n"
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('U' as Word);
-            .FILL #('n' as Word);
-            .FILL #('d' as Word);
-            .FILL #('e' as Word);
-            .FILL #('f' as Word);
-            .FILL #('i' as Word);
-            .FILL #('n' as Word);
-            .FILL #('e' as Word);
-            .FILL #('d' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('T' as Word);
-            .FILL #('R' as Word);
-            .FILL #('A' as Word);
-            .FILL #('P' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('e' as Word);
-            .FILL #('x' as Word);
-            .FILL #('e' as Word);
-            .FILL #('c' as Word);
-            .FILL #('u' as Word);
-            .FILL #('t' as Word);
-            .FILL #('e' as Word);
-            .FILL #('d' as Word);
-            .FILL #('!' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\0' as Word);
-
+        // More strings
         @PRIVILEGE_MODE_EX_MSG // "\n\n--- Privilege mode violation (RTI in user mode)! ---\n\n"
             .FILL #('\n' as Word);
             .FILL #('\n' as Word);
@@ -1554,113 +1670,6 @@ fn os() -> AssembledProgram {
             .FILL #('\n' as Word);
             .FILL #('\n' as Word);
             .FILL #('\0' as Word);
-
-        // Default entry for exceptions in the exception vector table.
-        @DEFAULT_EXCEPTION_HANDLER
-            LD R0, @DEFAULT_EX_MSG;
-            PUTS;
-            HALT;
-
-        // Default entry for interrupts in the interrupt vector table;
-        @DEFAULT_INT_HANDLER
-            LD R0, @DEFAULT_INT_MSG;
-            PUTS;
-            HALT;
-
-        // The rest of the strings (for offset reasons):
-        @DEFAULT_EX_MSG // "\n\n--- Encountered an exception without a handler! ---\n\n"
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('E' as Word);
-            .FILL #('n' as Word);
-            .FILL #('c' as Word);
-            .FILL #('o' as Word);
-            .FILL #('u' as Word);
-            .FILL #('n' as Word);
-            .FILL #('t' as Word);
-            .FILL #('e' as Word);
-            .FILL #('r' as Word);
-            .FILL #('e' as Word);
-            .FILL #('d' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('a' as Word);
-            .FILL #('n' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('e' as Word);
-            .FILL #('x' as Word);
-            .FILL #('c' as Word);
-            .FILL #('e' as Word);
-            .FILL #('p' as Word);
-            .FILL #('t' as Word);
-            .FILL #('i' as Word);
-            .FILL #('o' as Word);
-            .FILL #('n' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('w' as Word);
-            .FILL #('i' as Word);
-            .FILL #('t' as Word);
-            .FILL #('h' as Word);
-            .FILL #('o' as Word);
-            .FILL #('u' as Word);
-            .FILL #('t' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('a' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('h' as Word);
-            .FILL #('a' as Word);
-            .FILL #('n' as Word);
-            .FILL #('d' as Word);
-            .FILL #('l' as Word);
-            .FILL #('e' as Word);
-            .FILL #('r' as Word);
-            .FILL #('!' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\0' as Word);
-
-        @DEFAULT_INT_MSG // "\n\n--- Unhandled interrupt! ---\n\n"
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('U' as Word);
-            .FILL #('n' as Word);
-            .FILL #('h' as Word);
-            .FILL #('a' as Word);
-            .FILL #('n' as Word);
-            .FILL #('d' as Word);
-            .FILL #('l' as Word);
-            .FILL #('e' as Word);
-            .FILL #('d' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('i' as Word);
-            .FILL #('n' as Word);
-            .FILL #('t' as Word);
-            .FILL #('e' as Word);
-            .FILL #('r' as Word);
-            .FILL #('r' as Word);
-            .FILL #('u' as Word);
-            .FILL #('p' as Word);
-            .FILL #('t' as Word);
-            .FILL #('!' as Word);
-            .FILL #(' ' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('-' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\n' as Word);
-            .FILL #('\0' as Word);
-
 
         //// Configuration 'variables' ////
         // (binaries can override these)
