@@ -1,3 +1,8 @@
+//! TODO!
+
+use lc3_isa::{MEM_MAPPED_START_ADDR, INTERRUPT_SERVICE_ROUTINES_START_ADDR};
+
+// TODO: split into modules/structs
 pub const KBSR_ADDR: Addr = 0xFE00;
 pub const KBDR_ADDR: Addr = 0xFE02;
 
@@ -7,38 +12,45 @@ pub const KEYBOARD_INT_PRIORITY: u8 = 4;
 pub const DSR_ADDR: Addr = 0xFE04;
 pub const DDR_ADDR: Addr = 0xFE06;
 
-pub const D_INTVEC: u8 = 0x8F;
-pub const D_PRIORITY: u8 = 4;
+pub const DISPLAY_INT_VEC: u8 = 0x81; // TODO: What is this actually?
+pub const DISPLAY_INT_PRIORITY: u8 = 4;
 
-pub const G0CR_ADDR: Addr = 0xFE07;
-pub const G0DR_ADDR: Addr = 0xFE08;
-pub const G1CR_ADDR: Addr = 0xFE09;
-pub const G1DR_ADDR: Addr = 0xFE0A;
-pub const G2CR_ADDR: Addr = 0xFE0B;
-pub const G2DR_ADDR: Addr = 0xFE0C;
-pub const G3CR_ADDR: Addr = 0xFE0D;
-pub const G3DR_ADDR: Addr = 0xFE0E;
-pub const G4CR_ADDR: Addr = 0xFE0F;
-pub const G4DR_ADDR: Addr = 0xFE10;
-pub const G5CR_ADDR: Addr = 0xFE11;
-pub const G5DR_ADDR: Addr = 0xFE12;
-pub const G6CR_ADDR: Addr = 0xFE13;
-pub const G6DR_ADDR: Addr = 0xFE14;
-pub const G7CR_ADDR: Addr = 0xFE15;
-pub const G7DR_ADDR: Addr = 0xFE16;
+pub const GPIO_OFFSET: u8 = 0x30;
+const GPIO_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (GPIO_OFFSET as Addr);
+const GPIO_PIN_ADDRS: Addr = 2;
 
-pub const GPIODR_ADDR: Addr = 0xFE17;
+pub const G0CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 0; // xFE30
+pub const G0DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 1; // xFE31
+pub const G1CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 0; // xFE32
+pub const G1DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 1; // xFE33
+pub const G2CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 0; // xFE34
+pub const G2DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 1; // xFE35
+pub const G3CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 0; // xFE36
+pub const G3DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 1; // xFE37
+pub const G4CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 0; // xFE38
+pub const G4DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 1; // xFE39
+pub const G5CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 0; // xFE3A
+pub const G5DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 1; // xFE3B
+pub const G6CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 0; // xFE3C
+pub const G6DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 1; // xFE3D
+pub const G7CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 0; // xFE3E
+pub const G7DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 1; // xFE3F
 
-pub const GPIO_BASE_INTVEC: Addr = 0x0190;        // TODO: do this in a better way
-pub const G0_INTVEC: u8 = 0x90;
-pub const G1_INTVEC: u8 = 0x91;
-pub const G2_INTVEC: u8 = 0x92;
-pub const G3_INTVEC: u8 = 0x93;
-pub const G4_INTVEC: u8 = 0x94;
-pub const G5_INTVEC: u8 = 0x95;
-pub const G6_INTVEC: u8 = 0x96;
-pub const G7_INTVEC: u8 = 0x97;
-pub const GPIO_PRIORITY: u8 = 4;
+pub const GPIODR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 8 + 0;
+
+pub const GPIO_BASE_INT_VEC: Addr = INTERRUPT_SERVICE_ROUTINES_START_ADDR + (GPIO_OFFSET as Addr); // x1B0
+pub const G0_INT_VEC: u8 = 128 + GPIO_OFFSET + 0; // xB0
+pub const G1_INT_VEC: u8 = 128 + GPIO_OFFSET + 1; // xB1
+pub const G2_INT_VEC: u8 = 128 + GPIO_OFFSET + 2; // xB2
+pub const G3_INT_VEC: u8 = 128 + GPIO_OFFSET + 3; // xB3
+pub const G4_INT_VEC: u8 = 128 + GPIO_OFFSET + 4; // xB4
+pub const G5_INT_VEC: u8 = 128 + GPIO_OFFSET + 5; // xB5
+pub const G6_INT_VEC: u8 = 128 + GPIO_OFFSET + 6; // xB6
+pub const G7_INT_VEC: u8 = 128 + GPIO_OFFSET + 7; // xB7
+pub const GPIO_INT_PRIORITY: u8 = 4;
+
+// TODO: redo with ADC_OFFSET: u8 = 0x40
+// TODO: 6 ADC pins now
 
 pub const A0CR_ADDR: Addr = 0xFE18;
 pub const A0DR_ADDR: Addr = 0xFE19;
@@ -49,22 +61,34 @@ pub const A2DR_ADDR: Addr = 0xFE1D;
 pub const A3CR_ADDR: Addr = 0xFE1E;
 pub const A3DR_ADDR: Addr = 0xFE1F;
 
-pub const CLKR_ADDR: Addr = 0xFE20;
+// TODO: redo with PWM_OFFSET: u8 = 0x50
 
 pub const P0CR_ADDR: Addr = 0xFE21;
 pub const P0DR_ADDR: Addr = 0xFE22;
 pub const P1CR_ADDR: Addr = 0xFE23;
 pub const P1DR_ADDR: Addr = 0xFE24;
 
-pub const T0CR_ADDR: Addr = 0xFE25;
-pub const T0DR_ADDR: Addr = 0xFE26;
-pub const T1CR_ADDR: Addr = 0xFE27;
-pub const T1DR_ADDR: Addr = 0xFE28;
+// TODO: redo with TIMER_OFFSET: u8 = 0x60
+// i.e. interrupts should go at 0x1E0, etc.
 
-pub const TIMER_BASE_INTVEC: Addr = 0x0198;       // TODO: do this in a better way
-pub const T0_INTVEC: u8 = 0x98;
-pub const T1_INTVEC: u8 = 0x99;
-pub const T_PRIORITY: u8 = 4;
+pub const TIMER_OFFSET: u8 = 0x60;
+const TIMER_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (TIMER_OFFSET as Addr);
+const TIMER_PIN_ADDRS: Addr = 2;
+
+pub const T0CR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 0 + 0; // xFE60
+pub const T0DR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 0 + 1; // xFE61
+pub const T1CR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 1 + 0; // xFE62
+pub const T1DR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 1 + 1; // xFE63
+
+pub const TIMER_BASE_INT_VEC: Addr = INTERRUPT_SERVICE_ROUTINES_START_ADDR + (TIMER_OFFSET as Addr); // x1E0;       // TODO: do this in a better way
+pub const T0_INT_VEC: u8 = 128 + GPIO_OFFSET + 0; // xE0
+pub const T1_INT_VEC: u8 = 128 + GPIO_OFFSET + 0; // xE1;
+pub const TIMER_INT_PRIORITY: u8 = 4;
+
+// TODO: redo with MISC_OFFSET: u8 = 0x70
+// (For one off peripherals like the clock and the display, etc.)
+
+pub const CLKR_ADDR: Addr = 0xFE20;
 
 pub const BSP_ADDR: Addr = 0xFFFA;
 

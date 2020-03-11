@@ -5,7 +5,7 @@ use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
 use lc3_baseline_sim::{KBSR_ADDR, KBDR_ADDR, DSR_ADDR, DDR_ADDR};
 use lc3_baseline_sim::{G0CR_ADDR, A0CR_ADDR, CLKR_ADDR, T0CR_ADDR, P0CR_ADDR};
-use lc3_baseline_sim::{GPIO_BASE_INTVEC, TIMER_BASE_INTVEC};
+use lc3_baseline_sim::{GPIO_BASE_INT_VEC, TIMER_BASE_INT_VEC};
 
 use lazy_static::lazy_static;
 
@@ -423,8 +423,8 @@ fn os() -> AssembledProgram {
         .FILL @DEFAULT_EXCEPTION_HANDLER; // 0x17F
 
         //// The Interrupt vector table (0x0180 - 0x01FF) ////
-        .FILL @DEFAULT_INT_HANDLER; // 0x180
-        .FILL @DEFAULT_INT_HANDLER; // 0x181
+        .FILL @DEFAULT_INT_HANDLER; // 0x180: Keyboard Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x181: Display Interrupt (TODO: verify)
         .FILL @DEFAULT_INT_HANDLER; // 0x182
         .FILL @DEFAULT_INT_HANDLER; // 0x183
         .FILL @DEFAULT_INT_HANDLER; // 0x184
@@ -471,14 +471,14 @@ fn os() -> AssembledProgram {
         .FILL @DEFAULT_INT_HANDLER; // 0x1AD
         .FILL @DEFAULT_INT_HANDLER; // 0x1AE
         .FILL @DEFAULT_INT_HANDLER; // 0x1AF
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B0
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B1
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B2
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B3
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B4
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B5
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B6
-        .FILL @DEFAULT_INT_HANDLER; // 0x1B7
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B0: G0 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B1: G1 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B2: G2 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B3: G3 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B4: G4 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B5: G5 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B6: G6 Interrupt
+        .FILL @DEFAULT_INT_HANDLER; // 0x1B7: G7 Interrupt
         .FILL @DEFAULT_INT_HANDLER; // 0x1B8
         .FILL @DEFAULT_INT_HANDLER; // 0x1B9
         .FILL @DEFAULT_INT_HANDLER; // 0x1BA
@@ -519,8 +519,8 @@ fn os() -> AssembledProgram {
         .FILL @DEFAULT_INT_HANDLER; // 0x1DD
         .FILL @DEFAULT_INT_HANDLER; // 0x1DE
         .FILL @DEFAULT_INT_HANDLER; // 0x1DF
-        .FILL @DEFAULT_INT_HANDLER; // 0x1E0
-        .FILL @DEFAULT_INT_HANDLER; // 0x1E1
+        .FILL @DEFAULT_INT_HANDLER; // 0x1E0: Timer 0 Interrupt (TODO)
+        .FILL @DEFAULT_INT_HANDLER; // 0x1E1: Timer 1 Interrupt (TODO)
         .FILL @DEFAULT_INT_HANDLER; // 0x1E2
         .FILL @DEFAULT_INT_HANDLER; // 0x1E3
         .FILL @DEFAULT_INT_HANDLER; // 0x1E4
@@ -1270,8 +1270,8 @@ fn os() -> AssembledProgram {
         @OS_TIMER_BASE_ADDR .FILL #T0CR_ADDR;
         @OS_PWM_BASE_ADDR .FILL #P0CR_ADDR;
 
-        @OS_GPIO_BASE_INTVEC .FILL #GPIO_BASE_INTVEC;
-        @OS_TIMER_BASE_INTVEC .FILL #TIMER_BASE_INTVEC;
+        @OS_GPIO_BASE_INTVEC .FILL #GPIO_BASE_INT_VEC;
+        @OS_TIMER_BASE_INTVEC .FILL #TIMER_BASE_INT_VEC;
 
         // PWM set
         // R0 = PWM to set
