@@ -5,7 +5,7 @@ use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
 use lc3_baseline_sim::{KBSR_ADDR, KBDR_ADDR, DSR_ADDR, DDR_ADDR};
 use lc3_baseline_sim::{G0CR_ADDR, A0CR_ADDR, CLKR_ADDR, T0CR_ADDR, P0CR_ADDR};
-use lc3_baseline_sim::{G0_INTVEC, T0_INTVEC};
+use lc3_baseline_sim::{GPIO_BASE_INTVEC, TIMER_BASE_INTVEC};
 
 use lazy_static::lazy_static;
 
@@ -1270,8 +1270,8 @@ fn os() -> AssembledProgram {
         @OS_TIMER_BASE_ADDR .FILL #T0CR_ADDR;
         @OS_PWM_BASE_ADDR .FILL #P0CR_ADDR;
 
-        @OS_GPIO_BASE_INTVEC .FILL #G0_INTVEC;
-        @OS_TIMER_BASE_INTVEC .FILL #T0_INTVEC;
+        @OS_GPIO_BASE_INTVEC .FILL #GPIO_BASE_INTVEC;
+        @OS_TIMER_BASE_INTVEC .FILL #TIMER_BASE_INTVEC;
 
         // PWM set
         // R0 = PWM to set

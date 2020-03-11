@@ -29,6 +29,7 @@ pub const G7DR_ADDR: Addr = 0xFE16;
 
 pub const GPIODR_ADDR: Addr = 0xFE17;
 
+pub const GPIO_BASE_INTVEC: u8 = 0x0190;        // TODO: do this in a better way
 pub const G0_INTVEC: u8 = 0x90;
 pub const G1_INTVEC: u8 = 0x91;
 pub const G2_INTVEC: u8 = 0x92;
@@ -60,6 +61,7 @@ pub const T0DR_ADDR: Addr = 0xFE26;
 pub const T1CR_ADDR: Addr = 0xFE27;
 pub const T1DR_ADDR: Addr = 0xFE28;
 
+pub const TIMER_BASE_INTVEC: u8 = 0x0198;       // TODO: do this in a better way
 pub const T0_INTVEC: u8 = 0x98;
 pub const T1_INTVEC: u8 = 0x99;
 pub const T_PRIORITY: u8 = 4;
