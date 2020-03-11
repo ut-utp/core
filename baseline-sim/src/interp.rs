@@ -683,8 +683,19 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     }
 
     fn check_interrupts(&mut self) -> bool {
+        macro_rules! assert_in_priority_order {
+            ($dev1: ty, $dev2: ty, $($rest:ty),*) => {
+                sa::const_assert!(<$dev1>::PRIORITY >= <$dev2>::PRIORITY);
+
+                assert_in_priority_order!($dev2, $($rest),*);
+            };
+            ($dev1: ty, $dev2: ty) => {
+                sa::const_assert!(<$dev1>::PRIORITY >= <$dev2>::PRIORITY);
+            }
+        }
+
         macro_rules! int_devices {
-            ($($dev:ty),*) => {
+            ($($dev:ty),* $(,)?) => {
                 let cur_priority: u8 = self.get_special_reg::<PSR>().get_priority();
                 $(
                     if <$dev>::PRIORITY <= cur_priority { return false; }
@@ -693,6 +704,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                         return self.handle_interrupt(<$dev>::INT_VEC, <$dev>::PRIORITY);
                     }
                 )*
+
+                assert_in_priority_order!($($dev),*);
             }
         }
 

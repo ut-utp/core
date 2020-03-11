@@ -51,6 +51,9 @@
 // Mark the crate as no_std if the `no_std` feature is enabled.
 #![cfg_attr(feature = "no_std", no_std)]
 
+extern crate static_assertions as sa;
+
+
 pub mod interp;
 pub mod mem_mapped;
 pub mod sim;
