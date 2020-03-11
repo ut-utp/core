@@ -49,27 +49,31 @@ pub const G6_INT_VEC: u8 = 128 + GPIO_OFFSET + 6; // xB6
 pub const G7_INT_VEC: u8 = 128 + GPIO_OFFSET + 7; // xB7
 pub const GPIO_INT_PRIORITY: u8 = 4;
 
-// TODO: redo with ADC_OFFSET: u8 = 0x40
-// TODO: 6 ADC pins now
+pub const ADC_OFFSET: u8 = 0x40;
+const ADC_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (ADC_OFFSET as Addr);
+const ADC_PIN_ADDRS: Addr = 2;
 
-pub const A0CR_ADDR: Addr = 0xFE18;
-pub const A0DR_ADDR: Addr = 0xFE19;
-pub const A1CR_ADDR: Addr = 0xFE1A;
-pub const A1DR_ADDR: Addr = 0xFE1B;
-pub const A2CR_ADDR: Addr = 0xFE1C;
-pub const A2DR_ADDR: Addr = 0xFE1D;
-pub const A3CR_ADDR: Addr = 0xFE1E;
-pub const A3DR_ADDR: Addr = 0xFE1F;
+pub const A0CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 0 + 0; // xFE40
+pub const A0DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 0 + 1; // xFE41
+pub const A1CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 1 + 0; // xFE42
+pub const A1DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 1 + 1; // xFE43
+pub const A2CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 2 + 0; // xFE44
+pub const A2DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 2 + 1; // xFE45
+pub const A3CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 3 + 0; // xFE46
+pub const A3DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 3 + 1; // xFE47
+pub const A4CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 4 + 0; // xFE48
+pub const A4DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 4 + 1; // xFE49
+pub const A5CR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 5 + 0; // xFE4A
+pub const A5DR_ADDR: Addr = ADC_MEM_MAPPED_BASE + ADC_PIN_ADDRS * 5 + 1; // xFE4B
 
-// TODO: redo with PWM_OFFSET: u8 = 0x50
+pub const PWM_OFFSET: u8 = 0x50;
+const PWM_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (PWM_OFFSET as Addr);
+const PWM_PIN_ADDRS: Addr = 2;
 
-pub const P0CR_ADDR: Addr = 0xFE21;
-pub const P0DR_ADDR: Addr = 0xFE22;
-pub const P1CR_ADDR: Addr = 0xFE23;
-pub const P1DR_ADDR: Addr = 0xFE24;
-
-// TODO: redo with TIMER_OFFSET: u8 = 0x60
-// i.e. interrupts should go at 0x1E0, etc.
+pub const P0CR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 0 + 0; // xFE50
+pub const P0DR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 0 + 1; // xFE51
+pub const P1CR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 1 + 0; // xFE52
+pub const P1DR_ADDR: Addr = PWM_MEM_MAPPED_BASE + PWM_PIN_ADDRS * 1 + 1; // xFE53
 
 pub const TIMER_OFFSET: u8 = 0x60;
 const TIMER_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (TIMER_OFFSET as Addr);
@@ -81,14 +85,16 @@ pub const T1CR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 1 + 0; // 
 pub const T1DR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 1 + 1; // xFE63
 
 pub const TIMER_BASE_INT_VEC: Addr = INTERRUPT_SERVICE_ROUTINES_START_ADDR + (TIMER_OFFSET as Addr); // x1E0;       // TODO: do this in a better way
-pub const T0_INT_VEC: u8 = 128 + GPIO_OFFSET + 0; // xE0
-pub const T1_INT_VEC: u8 = 128 + GPIO_OFFSET + 0; // xE1;
+pub const T0_INT_VEC: u8 = 128 + TIMER_OFFSET + 0; // xE0
+pub const T1_INT_VEC: u8 = 128 + TIMER_OFFSET + 0; // xE1;
 pub const TIMER_INT_PRIORITY: u8 = 4;
 
 // TODO: redo with MISC_OFFSET: u8 = 0x70
 // (For one off peripherals like the clock and the display, etc.)
+pub const MISC_OFFSET: u8 = 0x70;
+const MISC_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (MISC_OFFSET as Addr);
 
-pub const CLKR_ADDR: Addr = 0xFE20;
+pub const CLKR_ADDR: Addr = MISC_MEM_MAPPED_BASE + 0; // xFE70
 
 pub const BSP_ADDR: Addr = 0xFFFA;
 
@@ -841,6 +847,8 @@ adc_mem_mapped!(A0, "A0", A0CR, A0DR, A0CR_ADDR, A0DR_ADDR);
 adc_mem_mapped!(A1, "A1", A1CR, A1DR, A1CR_ADDR, A1DR_ADDR);
 adc_mem_mapped!(A2, "A2", A2CR, A2DR, A2CR_ADDR, A2DR_ADDR);
 adc_mem_mapped!(A3, "A3", A3CR, A3DR, A3CR_ADDR, A3DR_ADDR);
+adc_mem_mapped!(A4, "A4", A4CR, A4DR, A4CR_ADDR, A4DR_ADDR);
+adc_mem_mapped!(A5, "A5", A5CR, A5DR, A5CR_ADDR, A5DR_ADDR);
 
 use lc3_traits::peripherals::clock::Clock;
 #[doc = "Clock Register"]
