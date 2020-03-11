@@ -86,7 +86,7 @@ pub const T1DR_ADDR: Addr = TIMER_MEM_MAPPED_BASE + TIMER_PIN_ADDRS * 1 + 1; // 
 
 pub const TIMER_BASE_INT_VEC: Addr = INTERRUPT_SERVICE_ROUTINES_START_ADDR + (TIMER_OFFSET as Addr); // x1E0;       // TODO: do this in a better way
 pub const T0_INT_VEC: u8 = 128 + TIMER_OFFSET + 0; // xE0
-pub const T1_INT_VEC: u8 = 128 + TIMER_OFFSET + 0; // xE1;
+pub const T1_INT_VEC: u8 = 128 + TIMER_OFFSET + 1; // xE1;
 pub const TIMER_INT_PRIORITY: u8 = 4;
 
 // TODO: redo with MISC_OFFSET: u8 = 0x70
