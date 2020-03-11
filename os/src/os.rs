@@ -1257,8 +1257,6 @@ fn os() -> AssembledProgram {
         // More constants
         @OS_R0 .FILL #0;
         @OS_R1 .FILL #0;
-        @OS_R2 .FILL #0;
-        @OS_R3 .FILL #0;
         @OS_R4 .FILL #0;
         @OS_R7 .FILL #0;
         @OS_R7_SUB .FILL #0;
