@@ -7,7 +7,7 @@
 
 🚧 🚧 This is very much not stable yet! 🚧 🚧
 
-Currently, the platform consists of these pieces:
+This repo houses the 'core' of the UTP platform which consists of these pieces:
  - Types and friends for the [LC-3](https://en.wikipedia.org/wiki/Little_Computer_3) ISA [as we know and love it](http://highered.mheducation.com/sites/dl/free/0072467509/104691/pat67509_appa.pdf).
      + Lives in the [`lc3-isa` crate](isa/).
  - Traits defining the LC-3's [peripherals](traits/src/peripherals/), [memory](traits/src/memory.rs), and [control interface](traits/src/control.rs).
@@ -25,9 +25,15 @@ Currently, the platform consists of these pieces:
  - Bits and bobs useful to _applications_ (things that interact with simulator implementations).
      + Lives in the [`lc3-application-support` crate](application-support).
      + [Currently has](application-support/README.md) a wrapper type for shims and an Input/Output peripheral abstraction for impls that are backed by a host.
- - A shiny TUI that uses all the other pieces.
-     + Lives in the [`lc3-tui` crate].
-     + Unlike the other things on this list, this is an application (you can run it).
+
+<TODO: diagram>
+
+At the moment, the primary 'users' of the platform are the following:
+ - An implementation of the platform for the TI Launchpad.
+     + Lives in the [`lc3-tm4c` crate](//github.com/ut-utp/tm4c).
+ - A TUI that can interact with any UTP LC-3 simulator.
+     + Lives in the [`lc3-tui` crate](//github.com/ut-utp/tui).
+     + Works with instances of [the simulator](baseline-sim) as well as actual devices like the [TM4C](//github.com/ut-utp/tm4c).
 
 TODO:
  - [ ] crate and doc badges on each crate
