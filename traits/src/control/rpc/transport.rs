@@ -12,6 +12,13 @@ pub trait Transport<SendFormat, RecvFormat> {
 
     fn send(&self, message: SendFormat) -> Result<(), Self::Err>;
 
+    /// Note: implementations of this method must *not* block.
+    ///
+    /// [`Device`](crate::control::rpc::Device)'s [step method](crate::control::rpc::Device::step)
+    /// calls this function which is also where progress that isn't tied to
+    /// messages is made (i.e. stepping while a `RunUntilEvent` request is
+    /// active). If this function were to block, all progress would be tied to
+    /// receiving messages and `run_until_event` would cease to work.
     // None if no messages were sent, Some(message) otherwise.
     fn get(&self) -> Option<RecvFormat>; // TODO: should this be wrapped in a Result?
 }
@@ -41,7 +48,15 @@ using_std! {
                 None
             }
 
-            // TODO(fix): this breaks `run_until_event`!!
+            // this breaks `run_until_event`!!
+            // This is because calls to Device::step (where progress is made)
+            // can't happen anymore if we block here since tick calls this
+            // function.
+            //
+            // This is unfortunate because we probably do want blocking calls on
+            // the controller side. Foruntately, it's unlikely to spend much
+            // time spinning on responses under normal use.
+            //
             // Going to use this blocking variant for now even though it is likely to
             // result in worse performance for huge amounts of messages
             // let m = self.rx.recv().ok();

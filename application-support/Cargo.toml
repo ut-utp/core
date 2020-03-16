@@ -1,25 +1,25 @@
 [package]
-name = "lc3-tui"
+name = "lc3-application-support"
 version = "0.1.0"
 authors = ["UT UTP <ut.utp.group@gmail.com>"]
 edition = "2018"
 
 workspace = ".."
 
-description = "A command line simulator for the LC-3 with additional peripherals."
+description = "Supporting materials for devices using the UTP LC-3 Simulator."
 homepage = "https://ut-utp.github.io"
 repository = "http://github.com/ut-utp/prototype"
 
 readme = "README.md"
 
-keywords = ["lc-3", "cli", "tui", "peripherals", "utp"]
-categories = ["simulation", "command-line-utilities"]
+keywords = ["lc-3", "peripherals", "applications", "utp"]
+categories = ["command-line-utilities", "simulation"]
 
 license = "MPL-2.0"
 
 
 [badges]
-github-actions = { repository = "ut-utp/prototype", workflow = "tui" }
+github-actions = { repository = "ut-utp/prototype", workflow = "application-support" }
 codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
 
 is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }
@@ -28,22 +28,11 @@ maintenance = { status = "actively-developed" }
 
 
 [dependencies]
-lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0", default-features = false }
-lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
-lc3-macros = { path = "../macros", version = "0.1.0" }
 lc3-shims = { path = "../shims", version = "0.1.0" }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
+lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0", default-features = false }
 
-crossterm = "^0.10"
-failure = "0.1.6"
-log = "0.4.8"
-flexi_logger = { version = "0.14", default_features = false }
 lazy_static = "1.4.0"
-
-[dependencies.tui]
-version = "0.6.2"
-default-features = false
-features = ["crossterm"]
 
 
 [dev-dependencies]

@@ -4,19 +4,18 @@ members = [
     "isa",
     "traits",
     "shims",
-    "tui",
     "baseline-sim",
     "macros",
     "os",
+    "application-support",
 ]
 exclude = [ "misc/lc3-tm4c", "misc/serial" ]
-
-# TODO: turn tui into a library and reference its bin target here
 
 
 [package] # TODO
 name = "lc3-utp"
 version = "0.0.0"
+autobenches = false
 
 [dev-dependencies]
 lc3-baseline-sim = { path = "baseline-sim", version = "0.1.0", default-features = false }
@@ -34,6 +33,10 @@ lazy_static = "1.4.0"
 name = "speed"
 harness = false
 
+[[bench]]
+name = "overhead"
+harness = false
+
 
 [profile.bench]
 opt-level = 3
@@ -42,6 +45,8 @@ rpath = false
 lto = "fat"
 debug-assertions = false
 codegen-units = 1
+# target-cpu = "native"
+# panic = "abort"
 incremental = false
 overflow-checks = false
 

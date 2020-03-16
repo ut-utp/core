@@ -242,7 +242,7 @@ where
         EventFuture(self.shared_state)
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self) -> usize {
         // Because we basically call tick() on every other function call here, we could
         // probably get away with just doing nothing here in practice.
         // But, checking here as well doesn't hurt.
@@ -251,6 +251,10 @@ where
         // handled within `Self::tick()`) though.
         // Self::tick(self).unwrap_none(); // when this goes stable, use this, maybe (TODO)
         if Self::tick(self).is_some() { panic!("Controller received a message in tick!") }
+
+        // This function can (probably, TODO) be safely _not_ called so we
+        // return 0:
+        0
     }
 
     fn step(&mut self) -> Option<Event> { ctrl!(self, Step, R::Step(r), r) }
@@ -259,8 +263,10 @@ where
     fn get_state(&self) -> State { ctrl!(self, GetState, R::GetState(r), r) }
 
     fn reset(&mut self) {
-        // Drop all pending futures:
-        // (if one of these futures is polled again, bad bad things will happen; TODO)
+        // For now, we won't force all futures to have resolved on a reset.
+        // We're still calling reset here (currently a no-op) because eventually
+        // this should advance the batch counter (though that may happen on
+        // set_event, rendering this function entirely unnecessary).
         self.shared_state.reset();
 
         ctrl!(self, Reset, R::Reset)

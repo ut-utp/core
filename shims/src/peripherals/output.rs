@@ -19,6 +19,8 @@ pub trait Sink {
 }
 
 impl<W: Write> Sink for Mutex<W> {
+    // TODO: update this for `char` when the time comes and be sure not to
+    // release the lock until all the bytes in the char have been written.
     fn put_char(&self, c: u8) -> IoResult<usize> {
         self.lock().unwrap().write(&[c])
     }
@@ -29,9 +31,9 @@ impl<W: Write> Sink for Mutex<W> {
 }
 
 // #[derive(Clone)] // TODO: Debug
-pub struct OutputShim<'a, 'b> {
-    sink: OwnedOrRef<'a, dyn Sink + Send + Sync + 'a>,
-    flag: Option<&'b AtomicBool>,
+pub struct OutputShim<'o, 'int> {
+    sink: OwnedOrRef<'o, dyn Sink + Send + Sync + 'o>,
+    flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
 }
 
@@ -41,12 +43,12 @@ impl Default for OutputShim<'_, '_> {
     }
 }
 
-impl<'a, 'b> OutputShim<'a, 'b> {
+impl<'o, 'int> OutputShim<'o, 'int> {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn using(sink: Box<dyn Sink + Send + Sync + 'a>) -> Self {
+    pub fn using(sink: Box<dyn Sink + Send + Sync + 'o>) -> Self {
         Self {
             sink: OwnedOrRef::Owned(sink),
             flag: None,
@@ -54,7 +56,7 @@ impl<'a, 'b> OutputShim<'a, 'b> {
         }
     }
 
-    pub fn with_ref(sink: &'a (dyn Sink + Send + Sync + 'a)) -> Self {
+    pub fn with_ref(sink: &'o (dyn Sink + Send + Sync + 'o)) -> Self {
         Self {
             sink: OwnedOrRef::Ref(sink),
             flag: None,
@@ -63,8 +65,8 @@ impl<'a, 'b> OutputShim<'a, 'b> {
     }
 }
 
-impl<'b> Output<'b> for OutputShim<'_, 'b> {
-    fn register_interrupt_flag(&mut self, flag: &'b AtomicBool) {
+impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
+    fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
             Some(_) => unreachable!(),

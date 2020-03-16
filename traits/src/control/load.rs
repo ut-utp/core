@@ -58,7 +58,7 @@ pub struct Index(pub PageIndex);
 
 impl Index {
     pub const fn with_offset(&self, offset: PageOffset) -> Addr {
-        (self.0 as Addr) << 8 + (offset as Addr)
+        ((self.0 as Addr) << 8) + (offset as Addr)
     }
 
     pub const fn as_index(&self) -> usize {
@@ -422,7 +422,7 @@ using_std! {
             let progress = self.progress();
             let elapsed = self.time_elapsed()?;
 
-            Some(elapsed.mul_f32(1f32 / progress) - elapsed)
+            Some(elapsed.mul_f32((1f32 / progress).min(1_000_000.0f32)).max(elapsed) - elapsed)
         }
     }
 }
@@ -439,7 +439,7 @@ using_std! {
 }
 
 #[inline]
-pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, previous: Option<&MemoryDump>, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
+pub fn load_memory_dump<C: Control + ?Sized, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, previous: Option<&MemoryDump>, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
     // Because this takes a mutable reference to the Control impl, we're
     // basically guaranteeing exclusive access to the Control impl so we can
     // ensure that there are no calls to other functions on the Control trait
@@ -537,14 +537,14 @@ pub fn load_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &M
     Ok(())
 }
 
-pub fn load_whole_memory_dump<C: Control, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
+pub fn load_whole_memory_dump<C: Control + ?Sized, P: LoadMemoryProgress>(sim: &mut C, dump: &MemoryDump, progress: Option<&P>) -> Result<(), LoadMemoryDumpError> {
     load_memory_dump(sim, dump, None, progress)
 }
 
-pub fn load_memory_dump_without_progress<C: Control>(sim: &mut C, dump: &MemoryDump, previous: &MemoryDump) -> Result<(), LoadMemoryDumpError> {
+pub fn load_memory_dump_without_progress<C: Control + ?Sized>(sim: &mut C, dump: &MemoryDump, previous: &MemoryDump) -> Result<(), LoadMemoryDumpError> {
     load_memory_dump::<_, Progress>(sim, dump, Some(previous), None)
 }
 
-pub fn load_whole_memory_dump_without_progress<C: Control>(sim: &mut C, dump: &MemoryDump) -> Result<(), LoadMemoryDumpError> {
+pub fn load_whole_memory_dump_without_progress<C: Control + ?Sized>(sim: &mut C, dump: &MemoryDump) -> Result<(), LoadMemoryDumpError> {
     load_whole_memory_dump::<_, Progress>(sim, dump, None)
 }

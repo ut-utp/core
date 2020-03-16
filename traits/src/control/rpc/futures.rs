@@ -20,13 +20,13 @@ use core::num::NonZeroU8;
 /// implementation.
 ///
 /// This trait does not require that implementors be Sync (a requirement imposed
-/// on Futures by certain executors) but some implementations will be (TODO).
+/// on Futures by certain executors) but some implementations will be.
 ///
 /// Implementors are encouraged to provide a const-fn constructor so that
 /// instances of the implementation can be put into `static` variables and
-/// therefore be `'static' (this is desirable since most executors - at least
+/// therefore be `'static` (this is desirable since most executors - at least
 /// those that don't use scoped thread pools - require that the futures they
-/// execute be static).
+/// execute be `'static`).
 ///
 /// Here's how the flow is supposed to go.
 ///
@@ -135,9 +135,16 @@ pub trait EventFutureSharedState {
     /// Note: this is no practical use for this function.
     fn is_clean(&self) -> bool;
 
-    fn reset(&self); // TODO!
+    /// Reset is tricky. We have no way to 'drop' or forget a future from our
+    /// end so if this function is called before all the futures have resolved,
+    /// it should panic.
+    ///
+    /// Eventually when we have batches, reset should mean "advance the batch
+    /// count". For now, it'll mean nothing. See [this](issue-48) for details.
+    ///
+    /// [issue-48]: https://github.com/ut-utp/prototype/issues/48
+    fn reset(&self) { /* TODO!! */ }
 }
-
 
 pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
     /// To be called by Futures.
@@ -155,7 +162,7 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
         if self.batch_sealed() {
             Err(())
         } else {
-            self.increment();
+            let _ = self.increment();
             Ok(self)
         }
     }
@@ -175,7 +182,7 @@ pub trait EventFutureSharedStatePorcelain: EventFutureSharedState {
 
 // We don't provide this blanket impl because the default implementation of the
 // porcelain trait makes multiple calls on `EventFutureSharedState`; for implementations
-// of `EventFutureSharedState` that accquire locks this can be problematic.
+// of `EventFutureSharedState` that acquire locks this can be problematic.
 // impl<E: EventFutureSharedState> EventFutureSharedStatePorcelain for E { }
 
 #[derive(Debug, Clone)]
@@ -245,10 +252,10 @@ impl SharedStateState {
     fn get_event(&mut self) -> Option<Event> {
         use SharedStateState::*;
 
-        let ret = match self {
+        match self {
             Errored | Dormant => panic!("Unregistered future polled the state! {:?}", self),
             WaitingForFuturesToResolve { waker: Some(_), .. } => panic!("Waker persisted after batch was sealed!"),
-            s @ WaitingForAnEvent { .. } => None,
+            WaitingForAnEvent { .. } => None,
             WaitingForFuturesToResolve { event, waker: None, count } => {
                 if count.get() == 1 {
                     let event = *event;
@@ -259,15 +266,13 @@ impl SharedStateState {
                     Some(*event)
                 }
             },
-        };
-
-        ret
+        }
     }
 
     fn increment(&mut self) -> u8 {
         use SharedStateState::*;
 
-        let ret = match self {
+        match self {
             Errored => unreachable!(),
             WaitingForFuturesToResolve { .. } => panic!("Attempted to add a future to a sealed batch!"),
             Dormant => {
@@ -279,9 +284,7 @@ impl SharedStateState {
                 *count = NonZeroU8::new(count.get().checked_add(1).unwrap()).unwrap();
                 count.get()
             }
-        };
-
-        ret
+        }
     }
 
     fn batch_sealed(&self) -> bool {
@@ -300,9 +303,11 @@ impl SharedStateState {
         }
     }
 
-    fn reset(&mut self) {
-        *self =  SharedStateState::Dormant; // TODO: currently pending futures!
-    }
+    /*fn reset(&mut self) {
+        assert!(self.is_clean(), "Tried to reset before all Futures resolved!");
+
+        *self = SharedStateState::Dormant;
+    }*/
 }
 
 pub struct SimpleEventFutureSharedState {
@@ -363,9 +368,10 @@ impl EventFutureSharedState for SimpleEventFutureSharedState {
         self.update(|s| s.is_clean())
     }
 
-    fn reset(&self) {
+    // See the note on `EventFutureSharedState::reset`.
+    /*fn reset(&self) {
         self.update(|s| s.reset())
-    }
+    }*/
 }
 
 #[derive(Debug)]
@@ -465,8 +471,9 @@ using_std! {
             self.0.read().unwrap().is_clean()
         }
 
-        fn reset(&self) {
+        // See the note on `EventFutureSharedState::reset`.
+        /*fn reset(&self) {
             self.0.write().unwrap().reset();
-        }
+        }*/
     }
 }

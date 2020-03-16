@@ -60,9 +60,9 @@ impl Debug for LoadApiState {
 }
 
 #[derive(Debug, Clone)]
-pub struct Simulator<'a, 's, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'a>, S: EventFutureSharedStatePorcelain = SimpleEventFutureSharedState>
+pub struct Simulator<'int, 'ss, I: InstructionInterpreter + InstructionInterpreterPeripheralAccess<'int>, S: EventFutureSharedStatePorcelain = SimpleEventFutureSharedState>
 where
-    <I as Deref>::Target: Peripherals<'a>,
+    <I as Deref>::Target: Peripherals<'int>,
 {
     interp: I,
     breakpoints: [Option<Addr>; MAX_BREAKPOINTS],
@@ -70,9 +70,9 @@ where
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
     state: State,
-    shared_state: Option<&'s S>,
+    shared_state: Option<&'ss S>,
     load_api_state: LoadApiState,
-    _i: PhantomData<&'a ()>,
+    _i: PhantomData<&'int ()>,
 }
 
 impl<'a, 's, I: InstructionInterpreterPeripheralAccess<'a> + Default, S: EventFutureSharedStatePorcelain> Default for Simulator<'a, 's, I, S>
@@ -255,26 +255,34 @@ where
     }
 
     fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
-        if self.num_set_breakpoints == MAX_BREAKPOINTS {
-            Err(())
-        } else {
-            // Scan for the next open slot:
-            let mut next_free: usize = 0;
-
-            while let Some(_) = self.breakpoints[next_free] {
-                next_free += 1;
+        // Scan for the next open slot:
+        for (idx, bp) in self.breakpoints.iter_mut().enumerate() {
+            if let Some(a) = bp {
+                // For each set breakpoint, check if it's already the one we
+                // want:
+                // (note that this doesn't increment the number of set
+                // breakpoints since it's not adding a new one)
+                if addr == *a {
+                    return Ok(idx)
+                }
+            } else {
+                // If we reach an empty slot, use it.
+                self.num_set_breakpoints += 1;
+                *bp = Some(addr);
+                return Ok(idx)
             }
-
-            assert!(next_free < MAX_BREAKPOINTS, "Invariant violated.");
-
-            self.breakpoints[next_free] = Some(addr);
-            Ok(next_free)
         }
+
+        Err(())
     }
 
     fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
         if idx < MAX_BREAKPOINTS {
-            self.breakpoints[idx].take().map(|_| ()).ok_or(())
+            self.breakpoints[idx].take().map(|_| {
+                // If we actually removed a breakpoint, subtract the count:
+                self.num_set_breakpoints -= 1;
+                ()
+            }).ok_or(())
         } else {
             Err(())
         }
@@ -286,26 +294,35 @@ where
 
     // TODO: breakpoints and watchpoints look macroable
     fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
-        if self.num_set_watchpoints == MAX_MEMORY_WATCHPOINTS {
-            Err(())
-        } else {
-            // Scan for the next open slot:
-            let mut next_free: usize = 0;
+        let current_val = self.read_word(addr); // TODO: is read_word okay? What if this is a mem mapped address.
+        // TODO: maybe move this into the right spot and fix the borrow checker issues.
 
-            while let Some(_) = self.watchpoints[next_free] {
-                next_free += 1;
+        // Scan for the next open slot:
+        for (idx, wp) in self.watchpoints.iter_mut().enumerate() {
+            if let Some((a, _)) = wp {
+                // For each watchpoint, check if it's already for the memory
+                // location we want (note: doesn't increment the count):
+                if addr == *a {
+                    return Ok(idx)
+                }
+            } else {
+                // If we reach an empty slot, use it.
+                self.num_set_watchpoints += 1;
+                *wp = Some((addr, current_val));
+                return Ok(idx)
             }
-
-            assert!(next_free < MAX_MEMORY_WATCHPOINTS, "Invariant violated.");
-
-            self.watchpoints[next_free] = Some((addr, self.read_word(addr)));
-            Ok(next_free)
         }
+
+        Err(())
     }
 
     fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
         if idx < MAX_MEMORY_WATCHPOINTS {
-            self.watchpoints[idx].take().map(|_| ()).ok_or(())
+            self.watchpoints[idx].take().map(|_| {
+                // If we actually removed a watchpoint, subtract the count:
+                self.num_set_watchpoints -= 1;
+                ()
+            }).ok_or(())
         } else {
             Err(())
         }
@@ -331,7 +348,7 @@ where
         EventFuture::new(s)
     }
 
-    fn tick(&mut self) {
+    fn tick(&mut self) -> usize {
         // We've got a tradeoff!
         //
         // Higher values for this constant will result in better throughput while
@@ -348,16 +365,18 @@ where
                     self.step();
                 }
 
-                return;
+                return STEPS_IN_A_TICK;
             }
 
             for _ in 0..STEPS_IN_A_TICK {
                 if let Some(e) = self.step() {
                     // If we produced some event, we're no longer `RunningUntilEvent`.
-                    return;
+                    return STEPS_IN_A_TICK; // this is not accurate but this is allowed
                 }
             }
         }
+
+        0
     }
 
     fn step(&mut self) -> Option<Event> {
@@ -437,7 +456,7 @@ where
             (RunningUntilEvent, Paused, Some(e)) |
             (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
                 // println!("resolving the device future");
-                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e);
+                self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e).unwrap();
                 self.state = new_state;
                 Some(e)
             },
@@ -490,9 +509,22 @@ where
     }
 
     fn reset(&mut self) {
-        self.state = State::Paused;
+        self.interp.halt();
+
+        // Resolve all futures! Doesn't cause problems if reset is called
+        // multiple times.
+        let _ = self.step();
+
         InstructionInterpreter::reset(&mut self.interp);
-        self.shared_state.as_ref().map(|s| s.reset());
+        self.state = State::Paused;
+
+        // For now, we won't force all futures to have resolved on a reset.
+        // We're still calling reset here (currently a no-op) because eventually
+        // this should advance the batch counter (though that may happen
+        // on set_event, rendering this function entirely unnecessary).
+        if let Some(s) = self.shared_state {
+            s.reset()
+        }
     }
 
     fn get_error(&self) -> Option<Error> {
