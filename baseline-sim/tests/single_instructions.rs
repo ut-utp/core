@@ -1,12 +1,10 @@
-use lc3_baseline_sim::*;
 use lc3_isa::{insn, Addr, Instruction, Reg, Word};
-use lc3_traits::memory::Memory;
-use lc3_traits::peripherals::Peripherals;
-
-use lc3_baseline_sim::interp::{InstructionInterpreter, Interpreter, MachineState};
 
 use lc3_shims::memory::MemoryShim;
 use lc3_shims::peripherals::PeripheralsShim;
+
+#[path = "common.rs"]
+mod common;
 
 #[cfg(test)]
 mod tests {
@@ -15,79 +13,12 @@ mod tests {
 
     use Reg::*;
 
-    use std::convert::TryFrom;
-    use std::convert::TryInto;
-
     use pretty_assertions::assert_eq;
+
+    use common::interp_test_runner;
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
-
-    fn interp_test_runner<'a, M: Memory + Default, P: Peripherals<'a>>(
-        insns: Vec<Instruction>,
-        num_steps: Option<usize>,
-        regs: [Option<Word>; 8],
-        pc: Addr,
-        memory_locations: Vec<(Addr, Word)>,
-    )
-    // where for<'p> P: Peripherals<'p>
-    {
-        let mut interp = Interpreter::<M, P>::default();
-
-        let mut addr = 0x3000;
-        interp.reset();
-        interp.set_pc(addr);
-
-        for insn in insns {
-            let enc = Into::<u16>::into(insn);
-            println!("{:?}", insn);
-            println!("{:#04X} -> {:?}", enc, Instruction::try_from(enc));
-            interp.set_word_unchecked(addr, insn.into());
-            println!(
-                "{:?}",
-                Instruction::try_from(interp.get_word_unchecked(addr))
-            );
-
-            addr += 1;
-        }
-
-        if let Some(num_steps) = num_steps {
-            for _ in 0..num_steps {
-                // println!("step: x{0:4X}", interp.get_pc());
-                interp.step();
-            }
-        } else {
-            while let MachineState::Running = interp.get_machine_state() {
-                interp.step();
-            }
-        }
-
-        // Check PC:
-        let expected_pc = pc;
-        let actual_pc = interp.get_pc();
-        assert_eq!(
-            pc,
-            interp.get_pc(),
-            "Expected PC = {:#04X}, got {:#04X}",
-            expected_pc,
-            actual_pc
-        );
-
-        // Check registers:
-        for (idx, r) in regs.iter().enumerate() {
-            if let Some(reg_word) = r {
-                assert_eq!(
-                    interp.get_register((idx as u8).try_into().unwrap()),
-                    *reg_word
-                );
-            }
-        }
-
-        // Check memory:
-        for (addr, word) in memory_locations.iter() {
-            assert_eq!(interp.get_word_unchecked(*addr), *word);
-        }
-    }
 
     macro_rules! sequence {
         ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:tt: $v:expr),* }, memory: { $($addr:literal: $val:expr),* }) => {
@@ -107,12 +38,15 @@ mod tests {
             let mut insns: Vec<Instruction> = Vec::new();
             $(insns.push(insn!($($insn)*));)*
 
-            interp_test_runner::<MemoryShim, PeripheralsShim>(
+            interp_test_runner::<MemoryShim, PeripheralsShim, _, _>(
+                Vec::new(),
                 insns,
                 $steps,
                 regs,
-                $pc,
-                checks
+                Some($pc),
+                checks,
+                (|_p| {}), // (no-op)
+                (|_p| {}), // (no-op)
             );
         }};
     }
