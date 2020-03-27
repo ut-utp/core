@@ -583,7 +583,7 @@ macro_rules! gpio_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 use lc3_traits::peripherals::gpio::GpioState::*;
-                let state = match value.bits(0..2) {
+                let state = match value.bits(0..1) {
                     0 => Disabled,
                     1 => Output,
                     2 => Input,
@@ -1030,7 +1030,7 @@ macro_rules! timer_mem_mapped {
             {
                 use lc3_traits::peripherals::timers::TimerState::*;
 
-                let state = match value.bits(0..2) {
+                let state = match value.bits(0..1) {
                     0 | 3 => Disabled,
                     1 => Repeated,
                     2 => SingleShot,
