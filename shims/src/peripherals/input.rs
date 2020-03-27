@@ -64,9 +64,9 @@ pub struct InputShim<'i, 'int> {
     data: Cell<Option<u8>>,
 }
 
-struct StdinSource;
+pub struct StdinSource;
 
-// This blocks; don't use this. This is the default though.
+// This blocks; don't use this unless you know what you're doing.
 //
 // We must implement Default because of our tyrannical super trait bounds.
 impl Source for StdinSource {
@@ -80,9 +80,11 @@ impl Source for StdinSource {
     }
 }
 
+// By default this reads from something that will never produce new values; this
+// is effectively useless.
 impl Default for InputShim<'_, '_> {
     fn default() -> Self {
-        Self::using(Box::new(StdinSource))
+        Self::using(Box::new(SourceShim::new()))
     }
 }
 
