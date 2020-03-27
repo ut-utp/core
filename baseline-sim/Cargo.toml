@@ -40,6 +40,11 @@ pretty_assertions = "0.6.1"
 itertools = "0.9.0"
 
 
+[[test]]
+name = "mem_mapped"
+path = "tests/device_register_tests/mod.rs"
+
+
 [features]
 default = []
 no_std = ["lc3-traits/no_std", "lc3-isa/no_std"]

@@ -22,10 +22,6 @@ pub fn interp_test_runner<'a, M: Memory + Default, P: Peripherals<'a>, PF, TF>
 where
     for<'p> PF: FnOnce(&'p mut P),
     for<'p> TF: FnOnce(&'p P),
-    // P: 'a,
-    // M: 'a,
-    // PF: FnOnce(&mut P),
-    // TF: FnOnce(&P),
 {
     let mut interp = Interpreter::<M, P>::default();
 
@@ -43,14 +39,14 @@ where
     }
 
     for insn in insns {
-        let enc = Into::<u16>::into(insn);
-        println!("{:?}", insn);
-        println!("{:#04X} -> {:?}", enc, Instruction::try_from(enc));
+        // let enc = Into::<u16>::into(insn);
+        // println!("{:?}", insn);
+        // println!("{:#04X} -> {:?}", enc, Instruction::try_from(enc));
         interp.set_word_unchecked(addr, insn.into());
-        println!(
-            "{:?}",
-            Instruction::try_from(interp.get_word_unchecked(addr))
-        );
+        // println!(
+        //     "{:?}",
+        //     Instruction::try_from(interp.get_word_unchecked(addr))
+        // );
 
         addr += 1;
     }
