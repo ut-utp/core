@@ -3,6 +3,8 @@ use lc3_isa::{insn, Addr, Instruction, Reg, Word};
 use lc3_shims::memory::MemoryShim;
 use lc3_shims::peripherals::PeripheralsShim;
 
+use lc3_baseline_sim::interp::PeripheralInterruptFlags;
+
 #[path = "common.rs"]
 mod common;
 
@@ -38,6 +40,8 @@ mod single_instructions {
             let mut insns: Vec<Instruction> = Vec::new();
             $(insns.push(insn!($($insn)*));)*
 
+            let flags = PeripheralInterruptFlags::new();
+
             interp_test_runner::<MemoryShim, PeripheralsShim, _, _>(
                 Vec::new(),
                 insns,
@@ -47,6 +51,7 @@ mod single_instructions {
                 checks,
                 (|_p| {}), // (no-op)
                 (|_p| {}), // (no-op)
+                &flags,
             );
         }};
     }

@@ -2,7 +2,7 @@ use lc3_isa::{Addr, Instruction, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;
 
-use lc3_baseline_sim::interp::{InstructionInterpreter, Interpreter, MachineState};
+use lc3_baseline_sim::interp::{PeripheralInterruptFlags, InstructionInterpreter, Interpreter, MachineState};
 
 use std::convert::{TryFrom, TryInto};
 
@@ -18,12 +18,15 @@ pub fn interp_test_runner<'a, M: Memory + Default, P: Peripherals<'a>, PF, TF>
     memory_locations: Vec<(Addr, Word)>,
     setup_func: PF,
     teardown_func: TF,
+    flags: &'a PeripheralInterruptFlags,
 )
 where
     for<'p> PF: FnOnce(&'p mut P),
     for<'p> TF: FnOnce(&'p P),
 {
     let mut interp = Interpreter::<M, P>::default();
+
+    interp.init(flags);
 
     let mut addr = 0x3000;
     interp.reset();
