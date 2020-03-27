@@ -5,7 +5,7 @@ use lc3_shims::peripherals::PeripheralsShim;
 
 use lc3_baseline_sim::interp::PeripheralInterruptFlags;
 
-#[path = "common.rs"]
+#[path = "common/mod.rs"]
 mod common;
 
 #[cfg(test)]

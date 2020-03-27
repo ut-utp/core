@@ -1,3 +1,6 @@
+//! This is a folder module so that Cargo won't try to compile/run this as a
+//! test suite.
+
 use lc3_isa::{Addr, Instruction, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;

@@ -7,11 +7,13 @@ use lc3_baseline_sim::interp::PeripheralInterruptFlags;
 
 use pretty_assertions::assert_eq as eq;
 
-#[path = "../../common.rs"]
+#[path = "../../common/mod.rs"]
 mod common;
 use common::interp_test_runner;
 
 use itertools::Itertools;
+
+use Reg::*;
 
 // Setup func runs before anything is set; teardown func runs after everything is
 // checked but the order shouldn't matter.
