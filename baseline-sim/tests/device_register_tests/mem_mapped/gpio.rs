@@ -179,14 +179,81 @@ mod states {
 }
 
 mod read {
-    // Test that reads of [0, 1] work for all the pins
-    // (We can do all the )
+    // Test that reads of [0, 1] work for all the pins when everything is
+    // configured as inputs (i think we can skip the full 2 ^ 8 possibilities
+    // this time)
+
+    // Test that each pin works (0 and 1) as an input individually
+
+    // Test that reads when in interrupt mode work (0 and 1; be sure to set
+    // the value and then switch to interrupt mode so you don't trigger an
+    // interrupt); test this on all pins
+
+    // Test that reads when in output mode work (i.e. they set the high bit)
+    // be sure to also test this with more than 1 pin in output mode
+
+    // If you're feeling ambitious:
+    // There are 7 states each pin can be in:
+    //   - Input(false), Input(true),
+    //   - Output(false), Output(true),
+    //   - Interrupt(false), Interrupt(true),
+    //   - Disabled
+    //
+    // Test reads on all 8 pins for all the possible combinations of states;
+    // this comes out to (7 ^ 8) states: 5,764,801 states. This is _exhaustive_,
+    // but as with the mode testing, we should leave the other tests in anyways
+    // in case some bad impl relies on the sequence of 8 reads.
+
+    // Test the whole port register when all the pins are inputs with some
+    // values (again: don't need to do all 256)
+
+    // Test the whole port register when *not* all the pins are inputs. Should
+    // test with at least 1 kind of each other state (i.e. at least one pin is
+    // disabled, at least one is in output mode, etc.)
+    // Should also test that reads for the whole port do the right thing when
+    // *some* of the pins are in interrupt mode
 }
 
 mod write {
-
+    // Literally the same as the read tests except you get different behavior
+    // if you try to write to a pin that's in interrupt mode (as in: it
+    // shouldn't work).
 }
 
 mod interrupt {
+    // Reading from pins in interrupt mode should already be covered; the only
+    // thing left is to test that interrupts actually trigger.
 
+    // Here are the variables:
+    //   - rising edge or falling edge
+    //   - interrupts enabled or disabled
+    //   - in interrupt mode or some other mode (i.e. 3 other modes)
+
+    // Interrupts should only trigger on rising edges AND when interrupts are
+    // enabled AND when in interrupt mode. If we do an exhaustive test, this
+    // is (2 * 2 * 4) ^ 8 = 4,294,967,296 states...
+    //
+    // So, maybe don't do an exhaustive test or randomly pick a few thousand
+    // combinations from the full set of possibilities.
+
+    // Should also test that multiple interrupts are handled (i.e. they all
+    // run).
+
+    // Also need to test that when multiple interrupts occur, they trigger in
+    // the documented order!
+    //
+    // i.e. if G0 through G7 all trigger, G0 runs first, then G1, then G2, etc.
+    //
+    // One way we can actually test this is to have each handler increment R0
+    // and to have each handler store R0 into a fixed memory location for that
+    // handler.
+    //
+    // i.e. G0's handler -> 0x1000
+    //      G1's handler -> 0x1001
+    //      G2's handler -> 0x1002
+    //      G3's handler -> 0x1003
+    //      etc.
+    //
+    // If the handlers trigger in the right order, the values in 0x1000..0x1007
+    // should be sequential; if the handlers get run out of order they won't be.
 }
