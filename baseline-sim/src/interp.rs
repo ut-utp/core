@@ -200,7 +200,7 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 // }
 
 // #[derive(Debug, Default, Clone)] // TODO: Clone
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     memory: M,
     peripherals: P,
@@ -210,15 +210,13 @@ pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     state: MachineState,
 }
 
-// impl<'a, M: Memory, P> Default for Interpreter<'a, M, P>
-// where for <'p> P: Peripherals<'p> {
-//     fn default() -> Self {
-//         Self {
-//             memory: Default::default(),
-//             peripherals: P
-//         }
-//     }
-// }
+impl<'a, M: Memory + Default, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
+    fn default() -> Self {
+        InterpreterBuilder::new()
+            .with_defaults()
+            .build()
+    }
+}
 
 #[derive(Debug)]
 pub struct Set;
@@ -514,6 +512,17 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             pc,
             state,
         };
+
+        // TODO: we can't call this.
+        // This is a problem; we need to drop the `flags` field from `Interpreter` and
+        // make the builder ensure that flags (that live long enough) are actually
+        // passed in.
+        //
+        // Or rather we can have the flags field be of type
+        // `&'a PeripheralInterruptFlags`; the Default impl can use Box::leak to provide
+        // this.
+        //
+        // interp.init(&interp.flags);
 
         interp.reset(); // TODO: should we? won't that negate setting the regs and pc and stuff?
         interp
