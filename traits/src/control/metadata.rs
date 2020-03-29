@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 // TODO: `ProgramID` and `ProgramMetadata` should maybe move into lc3-isa. Or we
 // should spin off an lc3-program crate (or have an assembler crate) that has
-// everything in `isa/src/misc` and `ProgramID` + `ProgramMetadata`.
+// everything in `isa/src/misc` and `ProgramId` + `ProgramMetadata`.
 
 // TODO: Identifier should probably move too, but I'm not sure to where.
 
@@ -116,6 +116,8 @@ using_std! {
 #[repr(transparent)]
 pub struct LongIdentifier([u8; 8]);
 
+impl LongIdentifier { const MAX_LEN: usize = 8; }
+
 impl Default for LongIdentifier {
     fn default() -> Self {
         Self::new_from_str("unknown!").unwrap()
@@ -123,7 +125,7 @@ impl Default for LongIdentifier {
 }
 
 impl LongIdentifier {
-    pub fn new(name: [u8; 8]) -> Result<Self, ()> {
+    pub fn new(name: [u8; Self::MAX_LEN]) -> Result<Self, ()> {
         if !name.iter().all(|c| c.is_ascii()) {
             Err(())
         } else {
@@ -136,9 +138,9 @@ impl LongIdentifier {
     }
 
     pub fn new_truncated_padded(name: &str) -> Result<Self, ()> {
-        let mut arr = [0; 8];
+        let mut arr = [0; Self::MAX_LEN];
 
-        for (idx, c) in name.chars().take(8).enumerate() {
+        for (idx, c) in name.chars().take(Self::MAX_LEN).enumerate() {
             if !c.is_ascii() {
                 return Err(())
             }
@@ -166,8 +168,10 @@ impl AsRef<str> for LongIdentifier {
 #[repr(transparent)]
 pub struct Identifier([u8; 4]);
 
+impl Identifier { const MAX_LEN: usize = 4; }
+
 impl Identifier {
-    pub fn new(name: [u8; 4]) -> Result<Self, ()> {
+    pub fn new(name: [u8; Self::MAX_LEN]) -> Result<Self, ()> {
         for c in name.iter() {
             if !c.is_ascii() {
                 return Err(())
@@ -185,7 +189,11 @@ impl Identifier {
         Self::new(name.as_bytes().try_into().map_err(|_| ())?)
     }
 
-    pub const fn new_that_crashes_on_invalid_inputs(name: [u8; 4]) -> Self {
+    pub const fn empty() -> Self {
+        Self::new_from_str_that_crashes_on_invalid_inputs("    ")
+    }
+
+    pub const fn new_that_crashes_on_invalid_inputs(name: [u8; Self::MAX_LEN]) -> Self {
         // `is_ascii` == `*c & 128 == 0`
         let canary: [(); 1] = [()];
 
@@ -231,7 +239,7 @@ impl AsRef<str> for Identifier {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 // extra, optional traits
 pub struct Capabilities {
-    pub storage: bool,
+    pub disk: bool,
     pub display: bool,
 }
 
