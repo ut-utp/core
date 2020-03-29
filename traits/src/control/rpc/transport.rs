@@ -18,7 +18,7 @@ pub trait Transport<SendFormat, RecvFormat> {
 }
 
 using_std! {
-    use std::sync::mpsc::{Sender, Receiver, SendError};
+    use std::sync::mpsc::{Sender, Receiver, SendError, TryRecvError};
 
     pub struct MpscTransport<SendFormat: Debug, RecvFormat: Debug> {
         tx: Sender<SendFormat>,
@@ -26,21 +26,23 @@ using_std! {
     }
 
     impl<Send: Debug, Recv: Debug> Transport<Send, Recv> for MpscTransport<Send, Recv> {
-        type Err = SendError<Send>;
+        type RecvErr = TryRecvError;
+        type SendErr = SendError<Send>;
         const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("MPSC");
 
-        fn send(&self, message: Send) -> Result<(), Self::Err> {
+        fn send(&self, message: Send) -> Result<(), Self::SendErr> {
             log::trace!("SENT: {:?}", message);
             self.tx.send(message)
         }
 
-        fn get(&self) -> Option<Recv> {
-            if let Ok(m) = self.rx.try_recv() {
+        fn get(&self) -> Result<Recv, Self::RecvErr> {
+            let res = self.rx.try_recv();
+
+            if let Ok(ref m) = res {
                 log::trace!("GOT: {:?}", m);
-                Some(m)
-            } else {
-                None
             }
+
+            res
 
             // TODO(fix): this breaks `run_until_event`!!
             // Going to use this blocking variant for now even though it is likely to
