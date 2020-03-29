@@ -279,7 +279,9 @@ where
     fn get_pwm_config(&self) -> PwmPinArr<u8> { ctrl!(self, GetPwmConfig, R::GetPwmConfig(r), r) }
     fn get_clock(&self) -> Word { ctrl!(self, GetClock, R::GetClock(r), r) }
 
-    fn get_info(&self) -> DeviceInfo { ctrl!(self, GetInfo, R::GetInfo(r), r) }
+    fn get_device_info(&self) -> DeviceInfo { ctrl!(self, GetDeviceInfo, R::GetDeviceInfo(r), r) }
+
+    fn get_program_metadata(&self) -> ProgramMetadata { ctrl!(self, GetProgramMetadata, R::GetProgramMetadata(r), r) }
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) { ctrl!(self, SetProgramMetadata { metadata }, R::SetProgramMetadata) }
 
     fn id(&self) -> crate::control::metadata::Identifier {

@@ -99,7 +99,9 @@ pub enum RequestMessage { // messages for everything but tick()
     GetPwmConfig,
     GetClock,
 
-    GetInfo,
+    GetDeviceInfo,
+
+    GetProgramMetadata,
     SetProgramMetadata { metadata: ProgramMetadata },
 
     // no id!
@@ -166,7 +168,9 @@ pub enum ResponseMessage { // messages for everything but tick()
     GetPwmConfig(PwmPinArr<u8>), // TODO
     GetClock(Word),
 
-    GetInfo(DeviceInfo),
+    GetDeviceInfo(DeviceInfo),
+
+    GetProgramMetadata(ProgramMetadata),
     SetProgramMetadata,
 
     // no id!
