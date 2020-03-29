@@ -37,7 +37,7 @@ pub const PWM_PINS: PwmPinArr<PwmPin> = {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum PwmState {
-    Enabled(NonZeroU8),
+    Enabled(NonZeroU8), // TODO: is this in millis? is this enough?
     Disabled,
 }
 

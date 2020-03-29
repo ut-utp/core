@@ -32,6 +32,8 @@ mod states {
         assert_eq!(GpioPin::NUM_PINS, 8, "Number of Gpio Pins has changed!");
 
         // We're also assuming that the states in GpioState won't change:
+        // TODO: make this a `From` impl on the GpioState type so we don't have
+        // to remember/copy this around.
         fn state_to_word(s: GpioState) -> SignedWord {
             match s {
                 Disabled => 0b00,
