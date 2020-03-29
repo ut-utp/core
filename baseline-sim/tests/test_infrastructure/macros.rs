@@ -15,6 +15,7 @@ macro_rules! single_test {
         regs: { $($r:tt: $v:expr),* $(,)?},
         memory: { $($addr:literal: $val:expr),* $(,)?} $(,)?
         $(post: |$peripherals_t:ident| $teardown:block)? $(,)?
+        $(with os { $os:expr } @ $os_addr:expr)? $(,)?
     ) => {
     $(#[doc = $panics] #[should_panic])?
     #[test]
@@ -27,6 +28,7 @@ macro_rules! single_test {
             regs: { $($r: $v),* },
             memory: { $($addr: $val),* }
             $(post: |$peripherals_t| $teardown)?
+            $(with os { $os } @ $os_addr)?
         ));
     }};
 }
@@ -40,6 +42,7 @@ macro_rules! single_test_inner {
         regs: { $($r:tt: $v:expr),* $(,)?},
         memory: { $($addr:literal: $val:expr),* $(,)?} $(,)?
         $(post: |$peripherals_t:ident| $teardown:block)? $(,)?
+        $(with os { $os:expr } @ $os_addr:expr)? $(,)?
     ) => {{
         #[allow(unused_mut)]
         let mut regs: [Option<Word>; Reg::NUM_REGS] = [None, None, None, None, None, None, None, None];
@@ -71,6 +74,10 @@ macro_rules! single_test_inner {
 
         let flags = PeripheralInterruptFlags::new();
 
+        #[allow(unused)]
+        let os = None;
+        $(let os = Some(($os, $os_addr));)?
+
         interp_test_runner::<MemoryShim, PeripheralsShim, _, _>(
             prefill,
             insns,
@@ -83,6 +90,7 @@ macro_rules! single_test_inner {
             setup_func,
             teardown_func,
             &flags,
+            &os,
         );
     }};
 }

@@ -19,12 +19,32 @@ pub fn interp_test_runner<'a, M: Memory + Default + Clone, P: Peripherals<'a>, P
     setup_func: PF,
     teardown_func: TF,
     flags: &'a PeripheralInterruptFlags,
+    alt_memory: &Option<(M, Addr)>,
 )
 where
     for<'p> PF: FnOnce(&'p mut P),
     for<'p> TF: FnOnce(&'p P),
 {
     let mut addr = 0x3000;
+
+    let mut interp: Interpreter<M, P> = if let Some((mem, addr)) = alt_memory {
+        let mut int: Interpreter<M, P> = InterpreterBuilder::new()
+            .with_defaults()
+            .with_memory(mem.clone())
+            .build();
+
+        int.reset();
+        int.set_pc(*addr);
+
+        int
+    } else {
+        let mut int = Interpreter::<M, P>::default();
+
+        int.reset();
+        int.set_pc(addr);
+
+        int
+    };
 
     interp.init(flags);
 
