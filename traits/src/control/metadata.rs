@@ -1,5 +1,7 @@
 //! TODO!
 
+#![macro_use]
+
 use core::any::{Any, TypeId};
 use core::convert::{AsRef, TryInto};
 use core::hash::{Hasher, Hash};
@@ -331,18 +333,13 @@ impl Version {
         self.pre(Identifier::new_from_str_that_crashes_on_invalid_inputs(pre))
     }
 
-    pub const fn from_cargo() -> Self {
-        Self::from_cargo_inner(
-            env!("CARGO_PKG_VERSION_MAJOR"),
-            env!("CARGO_PKG_VERSION_MINOR"),
-            env!("CARGO_PKG_VERSION_PATCH"),
-            env!("CARGO_PKG_VERSION_PRE"),
-        )
-    }
-
-    // Exists so we can write unit tests without changing the crate version.
+    /// This takes arguments because if we ask for the env vars in compiled
+    /// code, we'll get the values of those env vars for this crate which is not
+    /// very useful.
+    ///
+    /// See the [`version_from_crate!()`](version_from_crate) macro.
     #[rustfmt::skip]
-    const fn from_cargo_inner<'a>(
+    pub const fn from_cargo_env_vars<'a>(
         major: &'a str,
         minor: &'a str,
         patch: &'a str,
@@ -504,6 +501,20 @@ impl Version {
     }
 }
 
+#[macro_export]
+macro_rules! version_from_crate {
+    () => {$crate::control::metadata::Version::from_cargo_env_vars(
+        env!("CARGO_PKG_VERSION_MAJOR"),
+        env!("CARGO_PKG_VERSION_MINOR"),
+        env!("CARGO_PKG_VERSION_PATCH"),
+        env!("CARGO_PKG_VERSION_PRE"),
+    )};
+}
+
+// We re-export the macro from the root to this module. Unfortunately, we can't
+// seem to get around the macro also showing up in the crate's root in docs.
+pub use crate::version_from_crate;
+
 impl Display for Version {
     fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(fmt, "{}.{}.{}", self.major, self.minor, self.patch)?;
@@ -613,7 +624,7 @@ mod version_tests {
 
     #[test]
     fn from_cargo() {
-        let vers = Version::from_cargo();
+        let vers = version_from_crate!();
 
         assert_eq!(vers.major.to_string(), env!("CARGO_PKG_VERSION_MAJOR"));
         assert_eq!(vers.minor.to_string(), env!("CARGO_PKG_VERSION_MINOR"));
@@ -635,7 +646,7 @@ mod version_tests {
         pre: &'static str,
         expected_pre: Option<&str>,
     ) {
-        let ver = Version::from_cargo_inner(
+        let ver = Version::from_cargo_env_vars(
             &major.to_string(),
             &minor.to_string(),
             &patch.to_string(),

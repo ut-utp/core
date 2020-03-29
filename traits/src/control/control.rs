@@ -192,7 +192,7 @@ pub trait Control {
     fn get_device_info(&self) -> DeviceInfo {
         DeviceInfo::new(
             self.id(),
-            Version::from_cargo(),
+            super::version_from_crate!(),
             core::any::TypeId::of::<()>(),
             Capabilities::default(),
             Default::default() // (no proxies by default)
