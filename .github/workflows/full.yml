@@ -12,6 +12,9 @@ name: full
 # So, we should perhaps switch to having the full test just build and test each
 # crate in the workspace separately. Or we should do away with this workflow
 # entirely.
+#
+# Update this has been resolved for now, but we're playing an increasingly
+# precarious game here..
 
 jobs:
   check:
