@@ -251,6 +251,17 @@ pub struct Version {
     pub pre: Option<Identifier>,
 }
 
+impl Default for Version {
+    fn default() -> Self {
+        Self {
+            major: 0,
+            minor: 0,
+            patch: 0,
+            pre: None,
+        }
+    }
+}
+
 impl Version {
     pub const fn new(major: u8, minor: u8, patch: u8, pre: Option<Identifier>) -> Self {
         Self {
@@ -281,9 +292,41 @@ impl Version {
         self
     }
 
+    pub fn get_pre(&self) -> Option<&str> {
+        if let Some(pre) = self.pre {
+            let mut idx = Identifier::MAX_LEN - 1;
+
+            // The entire Identifier can't be empty; Cargo doesn't allow it.
+            // Even so, we'll be safe in case someone decided to not use the
+            // Cargo constructor.
+            while pre.0[idx] == b" "[0] {
+                if idx == 0 { return None; }
+
+                idx -= 1;
+            }
+
+            Some(core::str::from_utf8(&pre.0[0..=idx]).unwrap())
+        } else {
+            None
+        }
+
+    }
+
     pub const fn pre_from_str_that_crashes_on_invalid_inputs(self, pre: &str) -> Self {
         self.pre(Identifier::new_from_str_that_crashes_on_invalid_inputs(pre))
     }
+
+impl Display for Version {
+    fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(fmt, "{}.{}.{}", self.major, self.minor, self.patch)?;
+
+        if let Some(pre) = self.get_pre() {
+            write!(fmt, "-{}", pre)?;
+        }
+
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeviceInfo {
