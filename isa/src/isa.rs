@@ -804,7 +804,6 @@ impl Instruction {
 
 #[cfg(test)]
 mod reg_tests {
-    use pretty_assertions::assert_eq;
     use super::Reg::{self, *};
     use core::convert::TryInto;
     use pretty_assertions::assert_eq;
@@ -868,7 +867,6 @@ mod reg_tests {
 
 #[cfg(test)]
 mod priority_level_tests {
-    use pretty_assertions::assert_eq;
     use super::PriorityLevel::{self, *};
     use core::convert::TryInto;
     use pretty_assertions::assert_eq;
@@ -948,7 +946,6 @@ mod priority_level_tests {
 
 #[cfg(test)]
 mod compile_time_fns {
-    use pretty_assertions::assert_eq;
     use super::*;
     use pretty_assertions::assert_eq;
 
@@ -973,7 +970,6 @@ mod compile_time_fns {
 
 #[cfg(test)]
 mod instruction_tests {
-    use pretty_assertions::assert_eq;
     use super::{
         Instruction::{self, *},
         Reg::*,
