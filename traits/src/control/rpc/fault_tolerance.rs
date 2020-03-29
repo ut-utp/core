@@ -2,7 +2,8 @@
 //!
 //! #### Normal:
 //!
-//! ```scala
+// {this is not valid scala code; just for syntax highlighting}
+//! ```scala,
 //! host:
 //!     => request(_)
 //!     -> encode (i.e. ser)

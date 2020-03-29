@@ -1,6 +1,134 @@
 //! Device side for the [`Control`](super::Control) RPC set up.
 //!
 //! TODO!
+//!
+
+//! ## A (ramble-y) explanation:
+//! This is meant to be a barebones blocking executor.
+//! It has been updated to more or less mirror the 'executor' in
+//! [`genawaiter`](https://docs.rs/crate/genawaiter/0.2.2/source/src/waker.rs);
+//! while this doesn't guarantee correctness, it does make me feel a little
+//! better.
+//!
+//! Another option would have been to use (or steal) `block_on` from the
+//! `futures` crate. We may switch to doing this in the future but currently we
+//! don't because:
+//!   - really, we want to _poll_ the future in the step function and not block
+//!     on it
+//!   - because the future that the simulator (i.e. the Control implementor)
+//!     that's given to a Device instance is ostensibly an EventFuture, it's
+//!     not going to need to do any real I/O; we can absolutely get away with
+//!     a fake executor that doesn't have a reactor and never actually does
+//!     any scheduling
+//!
+//! This is fine for now, but is definitely not ideal. If, in the future, we
+//! write simulators that do real async I/O and produce real Futures, we may
+//! need to use an executor from `tokio` (a cursory glance through the executors
+//! in `futures` seems to suggest they don't do anything special to accommodate
+//! I/O but I'm probably wrong). IIUC, this is mostly a performance thing;
+//! without an actual scheduler we'll just be blindly calling poll far more
+//! often than we actually should.
+//!
+//! I'm okay with this for now, since:
+//!   - it's not super apparent to me what an actual async API for the simulator
+//!     (i.e. an async version of Control) would look like
+//!   - we can't do async in Traits yet (_properly_) anyways
+//!
+//! (Glancing through `async-std` seems to confirm that the executor, the
+//! reactor and the futures are somewhat decoupled: the executor bumbles along
+//! trying to finish tasks and very politely asking futures to let it know when
+//! tasks that are blocked will become unblocked (i.e. the Waker API); futures
+//! are to call out to the actual hardware to do work and also to _arrange_ for
+//! the executor to be notified when they can make further process; the reactor
+//! is the thing that arranges for whatever is underneath us to alert the
+//! executor when a certain task can make progress. This suggests that
+//! individual futures can be somewhat tied to reactor implementations. For
+//! example, `async-std` uses `mio` and would not function correctly if the
+//! futures its functions produce were executed without a Mio based reactor
+//! being present; instead the futures would report that they were `NotReady`,
+//! would try to register themselves with their Mio based reactor (passing along
+//! their context or just their Waker) and would then be queued by their
+//! executor, unaware that no arrangement had actually been made to inform the
+//! executor once they could be awoken. All this is to say that futures and
+//! their reactor definitely are coupled and it seems like an executor must
+//! either start a reactor thread (that futures then somehow communicate with??)
+//! or there must be some way to guarantee that a globally accessible reactor
+//! instance will be available and running. Again, I've only glanced through
+//! async-std but it seems to opt for something like the latter; Reactor
+//! instances (per thing, I think -- like net has it's own reactor) are global
+//! and -- cleverly -- only started once the global variable the instance lives
+//! in is accessed. This lets the executor be largely unaware of the reactor, I
+//! think. Still not totally clear on how the futures interact with Mio (the
+//! reactor) but it has to do with `Evented` and the types Mio exposes. I have
+//! basically not looked at `tokio` at all but I think it does something fancier
+//! with layers (the executor, some timers, and the reactor are layers, in that
+//! order, I think)).
+//!
+//! ```text
+//! [Reactor]: {Registers events w/kernel}  <-----
+//!    (proxies) | (wake these)                   \
+//!              | ( futures  )                   |
+//!              |               ----> {Register Wake} -> [Sleep]
+//!              v              /    ^----------------|
+//! future -> [Executor] -> Task-----> [Running] -----|
+//!                             \    ^-v--------------|
+//!                              ------> [Finished]
+//! ```
+//!
+//!
+//! Sidenote: the desire for these pieces to be decoupled is why the Waker API
+//! is as "build it yourself" as it is iiuc (i.e. the raw vtable); they couldn't
+//! do a trait because then everything would have to be generic over the Waker;
+//! they couldn't do a trait object because then object safety rears its head
+//! (associated types? i think) so: all type safety was sacrificed. iirc one of
+//! withoutboats' async blog posts talks about it.
+//!
+//! Anyways. Now that we've got something of an understanding, we can talk about
+//! our fairly simple use case.
+//!
+//! For clarity, here's our whole picture (same as in the [module docs](super)):
+//!
+//! ```text
+//!   /----------------------------------------------------------------------\
+//!  |                    [Controller Side: i.e. Laptop]                      |
+//!  |                                                                        |
+//!  |  /----------------------\                     %%% < %%%                |
+//!  | | [Controller]: `Control`|               %%% [Main Loop] %%%           |
+//!  | | tick:                  |                                             |
+//!  | |  - resolves futures    |           %%%  /---------------\  %%%       |
+//!  | |    issued by           |               |  [Client Logic] |           |
+//!  | |    `run_until_event`   |<---\     %%%  |                 |   %%%     |
+//!  | | rest:                  |    |     vvv  | Uses the device |   ^^^     |
+//!  | |  - proxied; send req.  |    |     %%%  | via the Control |   %%%     |
+//!  | |    and block on resp.  |    |          | interface.      |           |
+//!  |  \--|----------------^--/     |     %%%  |  /---^          |  %%%      |
+//!  |     |                |        |           \-|-------------/            |
+//!  | |---v----|     |-----|---|    |        %%%  v              %%%         |
+//!  | |Enc: Req|     |Dec: Resp|    \----------->[Control::tick]             |
+//!  | |-|------|     |-------^-|                    %%% > %%%                |
+//!   \--|--------------------|----------------------------------------------/
+//!      |<Con Send  Con Recv>|
+//!      |  [Transport Layer] |
+//!      |<Dev Recv  Dev Send>|
+//!   /--v--------------------|----------------------------------------------\
+//!  | |--------|     |-------|-|            %%% < %%%            /--------\  |
+//!  | |Dec: Req|     |Enc: Resp|       %%% [Dev. Loop] %%%      |  [Sim.]  | |
+//!  | |---|----|     |-----^---|                       /--------| ╭──────╮ | |
+//!  |     |                |       %%%                 |   %%%  | │Interp│ | |
+//!  |  /--v----------------|--\                        |        | ╰──────╯ | |
+//!  | |        [Device]        |  %%%                  v     %%% \--------/  |
+//!  | | tick:                  |  vvv [Device::tick(......)] ^^^             |
+//!  | |  - makes progress on   |  %%%     |                  %%%             |
+//!  | |    any futures that    |<---------/                                  |
+//!  | |    were issued         |  %%%                       %%%              |
+//!  | |  - processes new reqs  |                                             |
+//!  | |    (blocks if not a    |     %%%  v              %%%                 |
+//!  | |    `run_until_event`)  |                                             |
+//!  |  \----------------------/             %%% > %%%                        |
+//!  |                                                                        |
+//!  |                         [Device Side: i.e. TM4C]                       |
+//!   \----------------------------------------------------------------------/
+//! ```
 
 // TODO: auto gen (proc macro, probably) the crimes below from the `Control`
 // trait.
@@ -15,15 +143,15 @@ use core::future::Future;
 use core::pin::Pin;
 use core::fmt::Debug;
 
-// Check for messages and execute them on something that implements the [`Control`]
-// interface.
-//
-// Receives Requests and sends Responses.
-//
-// As mentioned elsewhere, there's a level of indirection of
-// `RequestMessage`/`ResponseMessage` and the types used here so that users can
-// experiment with their own messages. This may, however, be moot (TODO). See
-// the docs in `controller.rs` for more info.
+/// Check for messages and execute them on something that implements the
+/// [`Control`] interface.
+///
+/// Receives Requests and sends Responses.
+///
+/// As mentioned elsewhere, there's a level of indirection of
+/// `RequestMessage`/`ResponseMessage` and the types used here so that users can
+/// experiment with their own messages. This may, however, be moot (TODO). See
+/// the docs in `controller.rs` for more info.
 #[derive(Debug, Default)]
 pub struct Device<
     T,
@@ -80,129 +208,6 @@ where
         }
     }
 }
-
-// This is meant to be a barebones blocking executor.
-// It has been updated to more or less mirror the 'executor' in
-// [`genawaiter`](https://docs.rs/crate/genawaiter/0.2.2/source/src/waker.rs);
-// while this doesn't guarantee correctness, it does make me feel a little
-// better.
-//
-// Another option would have been to use (or steal) `block_on` from the
-// `futures` crate. We may switch to doing this in the future but currently we
-// don't because:
-//   - really, we want to _poll_ the future in the step function and not block
-//     on it
-//   - because the future that the simulator (i.e. the Control implementor)
-//     that's given to a Device instance is ostensibly an EventFuture, it's
-//     not going to need to do any real I/O; we can absolutely get away with
-//     a fake executor that doesn't have a reactor and never actually does
-//     any scheduling
-//
-// This is fine for now, but is definitely not ideal. If, in the future, we
-// write simulators that do real async I/O and produce real Futures, we may need
-// to use an executor from `tokio` (a cursory glance through the executors in
-// `futures` seems to suggest they don't do anything special to accommodate I/O
-// but I'm probably wrong). IIUC, this is mostly a performance thing; without an
-// actual scheduler we'll just be blindly calling poll far more often than we
-// actually should.
-//
-// I'm okay with this for now, since:
-//   - it's not super apparent to me what an actual async API for the simulator
-//     (i.e. an async version of Control) would look like
-//   - we can't do async in Traits yet (_properly_) anyways
-//
-// (Glancing through `async-std` seems to confirm that the executor, the reactor
-// and the futures are somewhat decoupled: the executor bumbles along trying to
-// finish tasks and very politely asking futures to let it know when tasks that
-// are blocked will become unblocked (i.e. the Waker API); futures are to call
-// out to the actual hardware to do work and also to _arrange_ for the executor
-// to be notified when they can make further process; the reactor is the thing
-// that arranges for whatever is underneath us to alert the executor when a
-// certain task can make progress. This suggests that individual futures can be
-// somewhat tied to reactor implementations. For example, `async-std` uses `mio`
-// and would not function correctly if the futures its functions produce were
-// executed without a Mio based reactor being present; instead the futures would
-// report that they were `NotReady`, would try to register themselves with their
-// Mio based reactor (passing along their context or just their Waker) and would
-// then be queued by their executor, unaware that no arrangement had actually
-// been made to inform the executor once they could be awoken. All this is to
-// say that futures and their reactor definitely are coupled and it seems like
-// an executor must either start a reactor thread (that futures then somehow
-// communicate with??) or there must be some way to guarantee that a globally
-// accessible reactor instance will be available and running. Again, I've only
-// glanced through async-std but it seems to opt for something like the latter;
-// Reactor instances (per thing, I think -- like net has it's own reactor) are
-// global and -- cleverly -- only started once the global variable the instance
-// lives in is accessed. This lets the executor be largely unaware of the
-// reactor, I think. Still not totally clear on how the futures interact with
-// Mio (the reactor) but it has to do with `Evented` and the types Mio exposes.
-// I have basically not looked at `tokio` at all but I think it does something
-// fancier with layers (the executor, some timers, and the reactor are layers,
-// in that order, I think)).
-//
-// [Reactor]: {Registers events w/kernel}  <-----
-//    (proxies) | (wake these)                   \
-//              | ( futures  )                   |
-//              |               ----> {Register Wake} -> [Sleep]
-//              v              /    ^----------------|
-// future -> [Executor] -> Task-----> [Running] -----|
-//                             \    ^-v--------------|
-//                              ------> [Finished]
-//
-//
-// Sidenote: the desire for these pieces to be decoupled is why the Waker API
-// is as "build it yourself" as it is iiuc (i.e. the raw vtable); they couldn't
-// do a trait because then everything would have to be generic over the Waker;
-// they couldn't do a trait object because then object safety rears its head
-// (associated types? i think) so: all type safety was sacrificed. iirc one of
-// withoutboats' async blog posts talks about it.
-//
-// Anyways. Now that we've got something of an understanding, we can talk about
-// our fairly simple use case.
-//
-// For clarity, here's our whole picture (same as in the [module docs](super)):
-//
-// ```
-//   /----------------------------------------------------------------------\
-//  |                    [Controller Side: i.e. Laptop]                      |
-//  |                                                                        |
-//  |  /----------------------\                     %%% < %%%                |
-//  | | [Controller]: `Control`|               %%% [Main Loop] %%%           |
-//  | | tick:                  |                                             |
-//  | |  - resolves futures    |           %%%  /---------------\  %%%       |
-//  | |    issued by           |               |  [Client Logic] |           |
-//  | |    `run_until_event`   |<---\     %%%  |                 |   %%%     |
-//  | | rest:                  |    |     vvv  | Uses the device |   ^^^     |
-//  | |  - proxied; send req.  |    |     %%%  | via the Control |   %%%     |
-//  | |    and block on resp.  |    |          | interface.      |           |
-//  |  \--|----------------^--/     |     %%%  |  /---^          |  %%%      |
-//  |     |                |        |           \-|-------------/            |
-//  | |---v----|     |-----|---|    |        %%%  v              %%%         |
-//  | |Enc: Req|     |Dec: Resp|    \----------->[Control::tick]             |
-//  | |-|------|     |-------^-|                    %%% > %%%                |
-//   \--|--------------------|----------------------------------------------/
-//      |<Con Send  Con Recv>|
-//      |  [Transport Layer] |
-//      |<Dev Recv  Dev Send>|
-//   /--v--------------------|----------------------------------------------\
-//  | |--------|     |-------|-|            %%% < %%%            /--------\  |
-//  | |Dec: Req|     |Enc: Resp|       %%% [Dev. Loop] %%%      |  [Sim.]  | |
-//  | |---|----|     |-----^---|                       /--------| ╭──────╮ | |
-//  |     |                |       %%%                 |   %%%  | │Interp│ | |
-//  |  /--v----------------|--\                        |        | ╰──────╯ | |
-//  | |        [Device]        |  %%%                  v     %%% \--------/  |
-//  | | tick:                  |  vvv [Device::tick(......)] ^^^             |
-//  | |  - makes progress on   |  %%%     |                  %%%             |
-//  | |    any futures that    |<---------/                                  |
-//  | |    were issued         |  %%%                       %%%              |
-//  | |  - processes new reqs  |                                             |
-//  | |    (blocks if not a    |     %%%  v              %%%                 |
-//  | |    `run_until_event`)  |                                             |
-//  |  \----------------------/             %%% > %%%                        |
-//  |                                                                        |
-//  |                         [Device Side: i.e. TM4C]                       |
-//   \----------------------------------------------------------------------/
-// ```
 
 // ╭──────╮
 // │Interp│
