@@ -673,7 +673,7 @@ mod version_tests {
         single_test(1, 2, 3, "", None);
         single_test(1, 2, 3, "foo", Some("foo"));
         single_test(1, 2, 3, "FOo4", Some("FOo4"));
-        single_test(1, 2, 3, "13-3", Some("12-3"));
+        single_test(1, 2, 3, "12-3", Some("12-3"));
         single_test(1, 2, 3, "8", Some("8"));
         single_test(1, 2, 3, "a9", Some("a9"));
         single_test(1, 2, 3, "b", Some("b"));
