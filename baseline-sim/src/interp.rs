@@ -9,7 +9,7 @@ use lc3_isa::{
     PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR, TRAP_VECTOR_TABLE_START_ADDR,
     USER_PROGRAM_START_ADDR,
 };
-use lc3_traits::control::metadata::{Identifier, ProgramMetadata};
+use lc3_traits::control::metadata::{Identifier, ProgramMetadata, Version};
 use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
@@ -67,6 +67,7 @@ pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
 {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Insn");
+    const VER: Version = Version::from_cargo();
 
     fn step(&mut self) -> MachineState;
 
