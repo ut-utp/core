@@ -268,16 +268,21 @@ pub struct Version {
 
 impl Default for Version {
     fn default() -> Self {
-        Self {
-            major: 0,
-            minor: 0,
-            patch: 0,
-            pre: None,
-        }
+        Self::empty()
     }
 }
 
 impl Version {
+    // Same as what the `Default` impl returns, but this function is `const`.
+    pub const fn empty() -> Self {
+        Self {
+            major: 0,
+            minor: 0,
+            patch: 0,
+            pre: None
+        }
+    }
+
     pub const fn new(major: u8, minor: u8, patch: u8, pre: Option<Identifier>) -> Self {
         Self {
             major,
@@ -532,8 +537,8 @@ pub struct DeviceInfo {
     /// Name of the device.
     pub name: Identifier,
     /// Version of the software running on the device.
-    /// The exact meaning of this field is up to implementors; by default, we
-    /// use the current crate's version.
+    /// The exact meaning of this field is up to implementors; by default, our
+    /// implementations use the current crate's version.
     pub version: Version,
     /// `TypeId` of the `Control` impl running on the device.
     pub type_id: u64,

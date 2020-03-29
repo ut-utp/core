@@ -67,7 +67,8 @@ pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
 {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Insn");
-    const VER: Version = version_from_crate!();
+    const VER: Version = Version::empty()
+        .pre_from_str_that_crashes_on_invalid_inputs("????");
 
     fn step(&mut self) -> MachineState;
 
@@ -853,6 +854,7 @@ use super::mem_mapped::{
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");
+    const VER: Version = version_from_crate!();
 
     fn step(&mut self) -> MachineState {
         if let state @ MachineState::Halted = self.get_machine_state() {
