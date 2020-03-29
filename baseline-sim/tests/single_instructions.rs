@@ -5,7 +5,7 @@ use lc3_shims::peripherals::PeripheralsShim;
 
 use lc3_baseline_sim::interp::PeripheralInterruptFlags;
 
-#[path = "common/mod.rs"]
+#[path = "test_infrastructure/mod.rs"]
 mod common;
 
 #[cfg(test)]
@@ -17,7 +17,7 @@ mod single_instructions {
 
     use pretty_assertions::assert_eq;
 
-    use common::interp_test_runner;
+    use common::{interp_test_runner, with_larger_stack};
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
@@ -26,7 +26,7 @@ mod single_instructions {
         ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], steps: $steps:expr, ending_pc: $pc:literal, regs: { $($r:tt: $v:expr),* }, memory: { $($addr:literal: $val:expr),* }) => {
         $(#[doc = $panics] #[should_panic])?
         #[test]
-        fn $name() {
+        fn $name() { with_larger_stack(/*Some(stringify!($name).to_string())*/ None, || {
 
             #[allow(unused_mut)]
             let mut regs: [Option<Word>; Reg::NUM_REGS] = [None, None, None, None, None, None, None, None];
@@ -52,8 +52,9 @@ mod single_instructions {
                 (|_p| {}), // (no-op)
                 (|_p| {}), // (no-op)
                 &flags,
+                &None
             );
-        }};
+        })}};
     }
 
     // TODO: test macro like above but takes a program instead of a sequence of instructions (and uses the loadable! macro or the program macro).

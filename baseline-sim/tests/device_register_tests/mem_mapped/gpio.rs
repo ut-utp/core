@@ -26,7 +26,7 @@ mod states {
     // the first function below).
 
     #[test]
-    fn exhaustive_state_testing() {
+    fn exhaustive_state_testing() { with_larger_stack(None, || {
         // The actual assembly assumes that there are 8 pins and needs to be
         // updated if this changes.
         assert_eq!(GpioPin::NUM_PINS, 8, "Number of Gpio Pins has changed!");
@@ -150,7 +150,7 @@ mod states {
                 }
             }
         }
-    }
+    })}
 
     // Just to make sure nothing _relies_ on us setting/reading from all the
     // pins, we do a couple of hardcoded tests:
