@@ -84,6 +84,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x2D
         .FILL @UNKNOWN_TRAP; // 0x2E
         .FILL @UNKNOWN_TRAP; // 0x2F
+
+        .ORIG #GPIO_OFFSET as Word;
         .FILL @TRAP_SET_GPIO_INPUT;         // 0x30
         .FILL @TRAP_SET_GPIO_OUTPUT;        // 0x31
         .FILL @TRAP_SET_GPIO_INTERRUPT;     // 0x32
@@ -100,6 +102,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x3D
         .FILL @UNKNOWN_TRAP; // 0x3E
         .FILL @UNKNOWN_TRAP; // 0x3F
+
+        .ORIG #ADC_OFFSET as Word;
         .FILL @TRAP_SET_ADC_ENABLE;         // 0x40
         .FILL @TRAP_SET_ADC_DISABLE;        // 0x41
         .FILL @TRAP_READ_ADC_MODE;          // 0x42
@@ -117,6 +121,7 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x4E
         .FILL @UNKNOWN_TRAP; // 0x4F
 
+        .ORIG #PWM_OFFSET as Word;
         .FILL @TRAP_SET_PWM;                // 0x50
         .FILL @TRAP_DISABLE_PWM;            // 0x51
         .FILL @TRAP_READ_PWM_PERIOD;        // 0x52
@@ -133,6 +138,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x5D
         .FILL @UNKNOWN_TRAP; // 0x5E
         .FILL @UNKNOWN_TRAP; // 0x5F
+
+        .ORIG #TIMER_OFFSET as Word;
         .FILL @TRAP_SET_TIMER_SINGLESHOT;   // 0x60
         .FILL @TRAP_SET_TIMER_REPEAT;       // 0x61
         .FILL @TRAP_SET_TIMER_DISABLE;      // 0x62
@@ -149,6 +156,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x6D
         .FILL @UNKNOWN_TRAP; // 0x6E
         .FILL @UNKNOWN_TRAP; // 0x6F
+
+        .ORIG #MISC_OFFSET as Word;
         .FILL @TRAP_SET_CLOCK;              // 0x70
         .FILL @TRAP_READ_CLOCK;             // 0x71
         .FILL @UNKNOWN_TRAP; // 0x72
