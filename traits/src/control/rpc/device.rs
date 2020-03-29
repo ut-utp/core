@@ -360,7 +360,7 @@ where
 
                 (GetClock => R::GetClock(r)) with r = c.get_clock();
 
-                (GetDeviceInfo => R::GetDeviceInfo(r)) with r = c.get_device_info().add_proxy(T::ID).expect("too many proxies");
+                (GetDeviceInfo => R::GetDeviceInfo(r)) with r = c.get_device_info().add_proxy(T::ID, T::VER).expect("too many proxies");
 
                 (GetProgramMetadata => R::GetProgramMetadata(r)) with r = c.get_program_metadata();
                 (SetProgramMetadata { metadata } => R::SetProgramMetadata) with _ = c.set_program_metadata(metadata);

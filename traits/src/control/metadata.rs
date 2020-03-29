@@ -546,7 +546,7 @@ pub struct DeviceInfo {
     pub capabilities: Capabilities,
     /// The `Identifier`s of any proxies between the device and the `Control`
     /// user.
-    pub proxies: [Option<Identifier>; 3],
+    pub proxies: [Option<(Identifier, Version)>; 3],
 }
 
 impl DeviceInfo {
@@ -557,7 +557,7 @@ impl DeviceInfo {
         version: Version,
         type_id: TypeId,
         capabilities: Capabilities,
-        proxies: [Option<Identifier>; Self::MAX_NUM_PROXIES],
+        proxies: [Option<(Identifier, Version)>; Self::MAX_NUM_PROXIES],
     ) -> Self {
         Self {
             name,
@@ -568,7 +568,7 @@ impl DeviceInfo {
         }
     }
 
-    pub fn add_proxy(mut self, proxy: Identifier) -> Result<Self, Self> {
+    pub fn add_proxy(mut self, proxy: Identifier, version: Version) -> Result<Self, Self> {
         if let Some(idx) = self
             .proxies
             .iter()
@@ -577,7 +577,7 @@ impl DeviceInfo {
             .map(|(idx, _)| idx)
             .next()
         {
-            self.proxies[idx] = Some(proxy);
+            self.proxies[idx] = Some((proxy, version));
 
             Ok(self)
         } else {

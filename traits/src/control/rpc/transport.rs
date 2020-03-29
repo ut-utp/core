@@ -2,14 +2,16 @@
 //!
 //! TODO!
 
-use crate::control::Identifier;
+use crate::control::{Identifier, Version, version_from_crate};
 
 use core::fmt::Debug;
 
 pub trait Transport<SendFormat, RecvFormat> {
     type RecvErr: Debug;
     type SendErr: Debug;
+
     const ID: Identifier;
+    const VER: Version;
 
     fn send(&self, message: SendFormat) -> Result<(), Self::SendErr>;
 
@@ -28,7 +30,9 @@ using_std! {
     impl<Send: Debug, Recv: Debug> Transport<Send, Recv> for MpscTransport<Send, Recv> {
         type RecvErr = TryRecvError;
         type SendErr = SendError<Send>;
+
         const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("MPSC");
+        const VER: Version = version_from_crate!();
 
         fn send(&self, message: Send) -> Result<(), Self::SendErr> {
             log::trace!("SENT: {:?}", message);
