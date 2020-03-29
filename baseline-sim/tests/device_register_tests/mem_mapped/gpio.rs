@@ -235,12 +235,11 @@ mod interrupt {
 
     // Here are the variables:
     //   - rising edge or falling edge
-    //   - interrupts enabled or disabled
     //   - in interrupt mode or some other mode (i.e. 3 other modes)
 
     // Interrupts should only trigger on rising edges AND when interrupts are
     // enabled AND when in interrupt mode. If we do an exhaustive test, this
-    // is (2 * 2 * 4) ^ 8 = 4,294,967,296 states...
+    // is (2 * 4) ^ 8 = 16,777,216 states...
     //
     // So, maybe don't do an exhaustive test or randomly pick a few thousand
     // combinations from the full set of possibilities.
