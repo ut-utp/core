@@ -1,17 +1,14 @@
-//! This is a folder module so that Cargo won't try to compile/run this as a
-//! test suite.
-
 use lc3_isa::{Addr, Instruction, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;
 
-use lc3_baseline_sim::interp::{PeripheralInterruptFlags, InstructionInterpreter, Interpreter, MachineState};
+use lc3_baseline_sim::interp::{PeripheralInterruptFlags, InstructionInterpreter, Interpreter, InterpreterBuilder, MachineState};
 
-use std::convert::{TryFrom, TryInto};
+use core::convert::{TryFrom, TryInto};
 
 use pretty_assertions::assert_eq;
 
-pub fn interp_test_runner<'a, M: Memory + Default, P: Peripherals<'a>, PF, TF>
+pub fn interp_test_runner<'a, M: Memory + Default + Clone, P: Peripherals<'a>, PF, TF>
 (
     prefilled_memory_locations: Vec<(Addr, Word)>,
     insns: Vec<Instruction>,
@@ -27,13 +24,9 @@ where
     for<'p> PF: FnOnce(&'p mut P),
     for<'p> TF: FnOnce(&'p P),
 {
-    let mut interp = Interpreter::<M, P>::default();
+    let mut addr = 0x3000;
 
     interp.init(flags);
-
-    let mut addr = 0x3000;
-    interp.reset();
-    interp.set_pc(addr);
 
     // Run the setup func:
     setup_func(&mut *interp);
@@ -63,9 +56,7 @@ where
             interp.step();
         }
     } else {
-        while let MachineState::Running = interp.get_machine_state() {
-            interp.step();
-        }
+        while let MachineState::Running = interp.step() { }
     }
 
     // Check PC:
