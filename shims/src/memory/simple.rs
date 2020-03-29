@@ -18,6 +18,7 @@ use super::file_backed::{read_from_file, write_to_file};
 ///
 /// Only good for hosted platforms since we just go and use 256 KiB of stack
 /// space.
+#[derive(Clone)]
 pub struct MemoryShim {
     pub mem: [Word; ADDR_SPACE_SIZE_IN_WORDS],
     pub current: [Word; ADDR_SPACE_SIZE_IN_WORDS],
