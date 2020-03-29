@@ -604,3 +604,83 @@ pub trait AnyExt: Any {
 }
 
 impl<T: Any> AnyExt for T {}
+
+#[cfg(test)]
+mod version_tests {
+    use super::*;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn from_cargo() {
+        let vers = Version::from_cargo();
+
+        assert_eq!(vers.major.to_string(), env!("CARGO_PKG_VERSION_MAJOR"));
+        assert_eq!(vers.minor.to_string(), env!("CARGO_PKG_VERSION_MINOR"));
+        assert_eq!(vers.patch.to_string(), env!("CARGO_PKG_VERSION_PATCH"));
+
+        let pre = env!("CARGO_PKG_VERSION_PRE");
+
+        if pre.len() > 0 {
+            assert_eq!(vers.get_pre().unwrap(), pre);
+        }
+
+        // assert_eq!(format!("{}", vers.pre.unwrap_or(Identifier::empty())),  format!("{:4}", env!("CARGO_PKG_VERSION_PRE")));
+    }
+
+    fn single_test(
+        major: u8,
+        minor: u8,
+        patch: u8,
+        pre: &'static str,
+        expected_pre: Option<&str>,
+    ) {
+        let ver = Version::from_cargo_inner(
+            &major.to_string(),
+            &minor.to_string(),
+            &patch.to_string(),
+            pre,
+        );
+
+        assert_eq!(ver.major, major);
+        assert_eq!(ver.minor, minor);
+        assert_eq!(ver.patch, patch);
+
+        assert_eq!(ver.get_pre(), expected_pre);
+    }
+
+    #[test]
+    fn numbers() {
+        single_test(0, 0, 0, "", None);
+        single_test(0, 0, 1, "", None);
+        single_test(0, 1, 0, "", None);
+        single_test(0, 1, 1, "", None);
+        single_test(1, 1, 1, "", None);
+        single_test(1, 2, 3, "", None);
+        single_test(123, 45, 67, "", None);
+        single_test(1, 23, 45, "", None);
+        single_test(254, 253, 254, "", None);
+    }
+
+    #[test]
+    #[should_panic]
+    fn bad_numbers() {
+        single_test(256, 0, 0, "", None);
+    }
+
+    #[test]
+    fn pre_release_version() {
+        single_test(1, 2, 3, "", None);
+        single_test(1, 2, 3, "foo", Some("foo"));
+        single_test(1, 2, 3, "FOo4", Some("FOo4"));
+        single_test(1, 2, 3, "13-3", Some("12-3"));
+        single_test(1, 2, 3, "8", Some("8"));
+        single_test(1, 2, 3, "a9", Some("a9"));
+        single_test(1, 2, 3, "b", Some("b"));
+    }
+
+    #[test]
+    #[should_panic]
+    fn pre_release_version_too_long() {
+        single_test(1, 2, 3, "loong", None);
+    }
+}
