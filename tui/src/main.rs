@@ -956,11 +956,11 @@ fn main() -> Result<(), failure::Error> {
                 }
             };
 
-            let info = sim.get_info();
+            let info = sim.get_device_info();
             let mut proxies = String::new();
 
-            for p in info.proxies.iter().filter_map(|p| *p) {
-                proxies += format!("-> {}", p).as_str();
+            for (name, ver) in info.proxies.iter().filter_map(|p| p.as_ref()) {
+                proxies += format!("-> {} ({})", name, ver).as_str();
             }
 
             let text = [
@@ -972,8 +972,8 @@ fn main() -> Result<(), failure::Error> {
                 Text::raw(set_val_out.clone()),
                 Text::styled(
                     format!(
-                        "Prog: {:?}\nSource: {} | Proxies: {}",
-                        info.current_program_metadata, info.source_name, proxies,
+                        "Prog: {:?}\nSource: {} ({}) | Proxies: {}",
+                        sim.get_program_metadata(), info.name, info.version, proxies,
                     ),
                     Style::default().fg(Color::Rgb(0xFF, 0x97, 0x40)),
                 ),
