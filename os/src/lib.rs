@@ -69,4 +69,116 @@ pub const ERROR_ON_ACV_SETTING_ADDR: lc3_isa::Addr = 0x0501;
 
 mod os;
 
+/// Trap vector numbers.
+pub mod traps {
+    use lc3_baseline_sim::mem_mapped as mm;
+
+
+    macro_rules! define {
+        ([$starting:expr] <- { $first:ident $(,)? $($rest:ident$(,)?)* }) => {
+            pub const $first: u8 = $starting;
+
+            define!(munch $first $($rest)*);
+        };
+
+        (munch $previous:ident $next:ident $($rest:ident)*) => {
+            pub const $next: u8 = $previous + 1;
+
+            define!(munch $next $($rest)*);
+        };
+
+        (munch $previous:ident) => { }
+    }
+
+    pub mod gpio {
+        define!([super::mm::GPIO_OFFSET] <- {
+            INPUT_MODE,
+            OUTPUT_MODE,
+            INTERRUPT_MODE,
+            DISABLED_MODE,
+
+            GET_MODE,
+
+            WRITE,
+            READ,
+        });
+
+        // use lc3_baseline_sim::mem_mapped::GPIO_OFFSET as OFS;
+
+        // pub const INPUT_MODE: u8 = OFS + 0;
+        // pub const OUTPUT_MODE: u8 = OFS + 1;
+        // pub const INTERRUPT_MODE: u8 = OFS + 2;
+        // pub const DISABLED_MODE: u8 = OFS + 3;
+
+        // pub const READ: u8 = OFS + 4;
+    }
+
+    pub mod adc {
+        // use lc3_baseline_sim::mem_mapped::ADC_OFFSET as OFS;
+
+        define!([super::mm::ADC_OFFSET] <- {
+            ENABLE,
+            DISABLE,
+
+            GET_MODE,
+
+            READ,
+        });
+    }
+
+    pub mod pwm {
+        // use lc3_baseline_sim::mem_mapped::PWM_OFFSET as OFS;
+
+        define!([super::mm::PWM_OFFSET] <- {
+            ENABLE,
+            DISABLE,
+
+            GET_PERIOD,
+            GET_DUTY,
+        });
+    }
+
+    pub mod timers {
+        // use lc3_baseline_sim::mem_mapped::TIMER_OFFSET as OFS;
+
+        define!([super::mm::TIMER_OFFSET] <- {
+            SINGLESHOT,
+            REPEATED,
+            DISABLE,
+
+            GET_MODE,
+            GET_PERIOD,
+        });
+
+    }
+
+    pub mod clock {
+        // use lc3_baseline_sim::mem_mapped::MISC_OFFSET as OFS;
+
+        define!([super::mm::MISC_OFFSET] <- {
+            SET,
+            GET,
+        });
+    }
+
+    pub mod input {
+        pub use super::builtin::GETC as READ;
+    }
+
+    pub mod output {
+        pub use super::builtin::OUT as WRITE;
+    }
+
+    pub mod builtin {
+        define!([0x20] <- {
+            GETC,   // 0x20
+            OUT,    // 0x21
+            PUTS,   // 0x22
+            IN,     // 0x23
+            PUTSP,  // 0x24
+            HALT,   // 0x25
+        });
+    }
+}
+
 pub use os::{OS, OS_IMAGE};
