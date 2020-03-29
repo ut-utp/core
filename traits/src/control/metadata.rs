@@ -640,8 +640,6 @@ mod version_tests {
         if pre.len() > 0 {
             assert_eq!(vers.get_pre().unwrap(), pre);
         }
-
-        // assert_eq!(format!("{}", vers.pre.unwrap_or(Identifier::empty())),  format!("{:4}", env!("CARGO_PKG_VERSION_PRE")));
     }
 
     fn single_test(
