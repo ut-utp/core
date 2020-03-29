@@ -4,7 +4,8 @@ use super::{ERROR_ON_ACV_SETTING_ADDR, USER_PROG_START_ADDR};
 use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
 use lc3_baseline_sim::{KBSR_ADDR, KBDR_ADDR, DSR_ADDR, DDR_ADDR};
-use lc3_baseline_sim::{G0CR_ADDR, A0CR_ADDR, CLKR_ADDR, T0CR_ADDR, P0CR_ADDR};
+use lc3_baseline_sim::{G0CR_ADDR, A0CR_ADDR, P0CR_ADDR, T0CR_ADDR, CLKR_ADDR};
+use lc3_baseline_sim::{GPIO_OFFSET, ADC_OFFSET, PWM_OFFSET, TIMER_OFFSET, MISC_OFFSET};
 use lc3_baseline_sim::{GPIO_BASE_INT_VEC, TIMER_BASE_INT_VEC};
 
 use lazy_static::lazy_static;
@@ -66,6 +67,7 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x1D
         .FILL @UNKNOWN_TRAP; // 0x1E
         .FILL @UNKNOWN_TRAP; // 0x1F
+
         .FILL @TRAP_GETC;                   // 0x20
         .FILL @TRAP_OUT;                    // 0x21
         .FILL @TRAP_PUTS;                   // 0x22
@@ -114,9 +116,10 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x4D
         .FILL @UNKNOWN_TRAP; // 0x4E
         .FILL @UNKNOWN_TRAP; // 0x4F
-        .FILL @TRAP_SET_PWM; // 0x50
+
+        .FILL @TRAP_SET_PWM;                // 0x50
         .FILL @TRAP_DISABLE_PWM;            // 0x51
-        .FILL @TRAP_READ_PWM_MODE;          // 0x52
+        .FILL @TRAP_READ_PWM_PERIOD;        // 0x52
         .FILL @TRAP_READ_PWM_DUTY_CYCLE;    // 0x53
         .FILL @UNKNOWN_TRAP; // 0x54
         .FILL @UNKNOWN_TRAP; // 0x55
@@ -134,7 +137,7 @@ fn os() -> AssembledProgram {
         .FILL @TRAP_SET_TIMER_REPEAT;       // 0x61
         .FILL @TRAP_SET_TIMER_DISABLE;      // 0x62
         .FILL @TRAP_READ_TIMER_MODE;        // 0x63
-        .FILL @TRAP_READ_TIMER_DATA;        // 0x64
+        .FILL @TRAP_READ_TIMER_PERIOD;      // 0x64
         .FILL @UNKNOWN_TRAP; // 0x65
         .FILL @UNKNOWN_TRAP; // 0x66
         .FILL @UNKNOWN_TRAP; // 0x67
@@ -162,6 +165,7 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x7D
         .FILL @UNKNOWN_TRAP; // 0x7E
         .FILL @UNKNOWN_TRAP; // 0x7F
+
         .FILL @UNKNOWN_TRAP; // 0x80
         .FILL @UNKNOWN_TRAP; // 0x81
         .FILL @UNKNOWN_TRAP; // 0x82
@@ -1274,7 +1278,7 @@ fn os() -> AssembledProgram {
         @OS_TIMER_BASE_INTVEC .FILL #TIMER_BASE_INT_VEC;
 
         // PWM set
-        // R0 = PWM to set
+        // R0 = PWM pin to set
         // R1 = period to set
         // R2 = duty cycle to set
         @TRAP_SET_PWM
@@ -1319,19 +1323,19 @@ fn os() -> AssembledProgram {
         // Reads and returns mode of PWM pin
         // R0 = PWM pin to read from
         // -> R0 = mode of PWM pin
-        @TRAP_READ_PWM_MODE
-            ST R4, @OS_R4;
+        @TRAP_READ_PWM_PERIOD
+          ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
             ADD R4, R4, #lc3_traits::peripherals::pwm::PwmPin::NUM_PINS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_READ_PWM_MODE;
+            BRn @SKIP_READ_PWM_PERIOD;
 
             LD R4, @OS_PWM_BASE_ADDR;
             ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
             LDR R0, R4, #0;                 // Reads mode from pin into R0
-        @SKIP_READ_PWM_MODE
+        @SKIP_READ_PWM_PERIOD
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
@@ -1380,20 +1384,20 @@ fn os() -> AssembledProgram {
         // Writes data to TIMER pin
         // R0 = TIMER pin to write to
         // R1 = data to write
-        @WRITE_TIMER_DATA
+        @WRITE_TIMER_PERIOD
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
             ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_WRITE_TIMER_DATA;
+            BRn @SKIP_WRITE_TIMER_PERIOD;
 
             LD R4, @OS_TIMER_BASE_ADDR;
             ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // and adding 1
             ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
             STR R1, R4, #0;                 // Writes data from R1 to pin in R0
-        @SKIP_WRITE_TIMER_DATA
+        @SKIP_WRITE_TIMER_PERIOD
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RET;
@@ -1405,7 +1409,7 @@ fn os() -> AssembledProgram {
         @TRAP_SET_TIMER_SINGLESHOT
            ST R1, @OS_R1;
            ST R7, @OS_R7_SUB;
-           JSR @WRITE_TIMER_DATA;
+           JSR @SKIP_WRITE_TIMER_PERIOD;
 
            LD R1, @OS_TIMER_BASE_INTVEC;
            ADD R1, R1, R0;
@@ -1421,10 +1425,11 @@ fn os() -> AssembledProgram {
         // Sets timer to Repeated mode with period
         // R0 = Timer pin to write to
         // R1 = period to be set
+        // R2 = address of interrupt service routine
         @TRAP_SET_TIMER_REPEAT
            ST R1, @OS_R1;
            ST R7, @OS_R7_SUB;
-           JSR @WRITE_TIMER_DATA;
+           JSR @WRITE_TIMER_PERIOD;
 
            LD R1, @OS_TIMER_BASE_INTVEC;
            ADD R1, R1, R0;
@@ -1471,20 +1476,20 @@ fn os() -> AssembledProgram {
         // Reads and returns data from PWM pin
         // R0 = TIMER pin to read from
         // -> R0 = data from TIMER pin
-        @TRAP_READ_TIMER_DATA
+        @TRAP_READ_TIMER_PERIOD
             ST R4, @OS_R4;
             ST R7, @OS_R7;
             AND R4, R4, #0;                 // Set R4 to # of timers
             ADD R4, R4, #lc3_traits::peripherals::timers::TimerId::NUM_TIMERS as i16;
             JSR @CHECK_OUT_OF_BOUNDS;
-            BRn @SKIP_READ_TIMER_DATA;
+            BRn @SKIP_READ_TIMER_PERIOD;
 
             LD R4, @OS_TIMER_BASE_ADDR;
             ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // and adding 1
             ADD R4, R4, #1;                 // R4 contains data address of pin number in R0
             LDR R0, R4, #0;                 // Reads data from pin into R0
-        @SKIP_READ_TIMER_DATA
+        @SKIP_READ_TIMER_PERIOD
             LD R4, @OS_R4;
             LD R7, @OS_R7;
             RTI;
