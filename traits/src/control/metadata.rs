@@ -243,24 +243,74 @@ pub struct Capabilities {
     pub display: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct Version {
+    pub major: u8,
+    pub minor: u8,
+    pub patch: u8,
+    pub pre: Option<Identifier>,
+}
+
+impl Version {
+    pub const fn new(major: u8, minor: u8, patch: u8, pre: Option<Identifier>) -> Self {
+        Self {
+            major,
+            minor,
+            patch,
+            pre
+        }
+    }
+
+    pub const fn major(self, major: u8) -> Self {
+        self.major = major;
+        self
+    }
+
+    pub const fn minor(self, minor: u8) -> Self {
+        self.minor = minor;
+        self
+    }
+
+    pub const fn patch(self, patch: u8) -> Self {
+        self.patch = patch;
+        self
+    }
+
+    pub const fn pre(self, pre: Identifier) -> Self {
+        self.pre = Some(pre);
+        self
+    }
+
+    pub const fn pre_from_str_that_crashes_on_invalid_inputs(self, pre: &str) -> Self {
+        self.pre(Identifier::new_from_str_that_crashes_on_invalid_inputs(pre))
+    }
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct DeviceInfo {
-    pub current_program_metadata: ProgramMetadata,
+    /// Name of the device.
+    pub name: Identifier,
+    /// Version of the software running on the device.
+    /// The exact meaning of this field is up to implementors; by default, we
+    /// use the current crate's version.
+    pub version: Version,
+    /// `TypeId` of the `Control` impl running on the device.
+    pub type_id: u64,
+    /// Extra functionality supported by the `Control` impl.
     pub capabilities: Capabilities,
-    pub source_type_id: u64,
-    pub source_name: Identifier,
+    /// The `Identifier`s of any proxies between the device and the `Control`
+    /// user.
     pub proxies: [Option<Identifier>; 3]
 }
 
 impl DeviceInfo {
     const MAX_NUM_PROXIES: usize = 3;
 
-    pub fn new(metadata: ProgramMetadata, capabilities: Capabilities, type_id: TypeId, name: Identifier, proxies: [Option<Identifier>; Self::MAX_NUM_PROXIES]) -> Self {
+    pub fn new(name: Identifier, version: Version, type_id: TypeId, capabilities: Capabilities, proxies: [Option<Identifier>; Self::MAX_NUM_PROXIES]) -> Self {
         Self {
-            current_program_metadata: metadata,
+            name,
+            version,
+            type_id: type_id.t(),
             capabilities,
-            source_type_id: type_id.t(),
-            source_name: name,
             proxies
         }
     }

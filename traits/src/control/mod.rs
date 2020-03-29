@@ -8,6 +8,7 @@ pub use load::{load_memory_dump, Progress};
 pub mod metadata;
 pub use metadata::{
     AnyExt, Capabilities, DeviceInfo, Identifier, ProgramId, ProgramMetadata, TypeIdExt,
+    Version
 };
 
 pub mod snapshot;
