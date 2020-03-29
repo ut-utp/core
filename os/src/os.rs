@@ -66,12 +66,12 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x1D
         .FILL @UNKNOWN_TRAP; // 0x1E
         .FILL @UNKNOWN_TRAP; // 0x1F
-        .FILL @TRAP_GETC;    // 0x20
-        .FILL @TRAP_OUT;     // 0x21
-        .FILL @TRAP_PUTS;    // 0x22
-        .FILL @TRAP_IN;      // 0x23
-        .FILL @TRAP_PUTSP;   // 0x24
-        .FILL @TRAP_HALT;    // 0x25
+        .FILL @TRAP_GETC;                   // 0x20
+        .FILL @TRAP_OUT;                    // 0x21
+        .FILL @TRAP_PUTS;                   // 0x22
+        .FILL @TRAP_IN;                     // 0x23
+        .FILL @TRAP_PUTSP;                  // 0x24
+        .FILL @TRAP_HALT;                   // 0x25
         .FILL @UNKNOWN_TRAP; // 0x26
         .FILL @UNKNOWN_TRAP; // 0x27
         .FILL @UNKNOWN_TRAP; // 0x28
@@ -82,13 +82,13 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x2D
         .FILL @UNKNOWN_TRAP; // 0x2E
         .FILL @UNKNOWN_TRAP; // 0x2F
-        .FILL @TRAP_SET_GPIO_INPUT; // 0x30
-        .FILL @TRAP_SET_GPIO_OUTPUT; // 0x31
-        .FILL @TRAP_SET_GPIO_INTERRUPT; // 0x32
-        .FILL @TRAP_SET_GPIO_DISABLED; // 0x33
-        .FILL @TRAP_READ_GPIO_MODE; // 0x34
-        .FILL @TRAP_WRITE_GPIO_DATA; // 0x35
-        .FILL @TRAP_READ_GPIO_DATA; // 0x36
+        .FILL @TRAP_SET_GPIO_INPUT;         // 0x30
+        .FILL @TRAP_SET_GPIO_OUTPUT;        // 0x31
+        .FILL @TRAP_SET_GPIO_INTERRUPT;     // 0x32
+        .FILL @TRAP_SET_GPIO_DISABLED;      // 0x33
+        .FILL @TRAP_READ_GPIO_MODE;         // 0x34
+        .FILL @TRAP_WRITE_GPIO_DATA;        // 0x35
+        .FILL @TRAP_READ_GPIO_DATA;         // 0x36
         .FILL @UNKNOWN_TRAP; // 0x37
         .FILL @UNKNOWN_TRAP; // 0x38
         .FILL @UNKNOWN_TRAP; // 0x39
@@ -98,10 +98,10 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x3D
         .FILL @UNKNOWN_TRAP; // 0x3E
         .FILL @UNKNOWN_TRAP; // 0x3F
-        .FILL @TRAP_SET_ADC_ENABLE; // 0x40
-        .FILL @TRAP_SET_ADC_DISABLE; // 0x41
-        .FILL @TRAP_READ_ADC_MODE; // 0x42
-        .FILL @TRAP_READ_ADC_DATA; // 0x43
+        .FILL @TRAP_SET_ADC_ENABLE;         // 0x40
+        .FILL @TRAP_SET_ADC_DISABLE;        // 0x41
+        .FILL @TRAP_READ_ADC_MODE;          // 0x42
+        .FILL @TRAP_READ_ADC_DATA;          // 0x43
         .FILL @UNKNOWN_TRAP; // 0x44
         .FILL @UNKNOWN_TRAP; // 0x45
         .FILL @UNKNOWN_TRAP; // 0x46
@@ -115,9 +115,9 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x4E
         .FILL @UNKNOWN_TRAP; // 0x4F
         .FILL @TRAP_SET_PWM; // 0x50
-        .FILL @TRAP_DISABLE_PWM; // 0x51
-        .FILL @TRAP_READ_PWM_MODE; // 0x52
-        .FILL @TRAP_READ_PWM_DUTY_CYCLE; // 0x53
+        .FILL @TRAP_DISABLE_PWM;            // 0x51
+        .FILL @TRAP_READ_PWM_MODE;          // 0x52
+        .FILL @TRAP_READ_PWM_DUTY_CYCLE;    // 0x53
         .FILL @UNKNOWN_TRAP; // 0x54
         .FILL @UNKNOWN_TRAP; // 0x55
         .FILL @UNKNOWN_TRAP; // 0x56
@@ -130,11 +130,11 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x5D
         .FILL @UNKNOWN_TRAP; // 0x5E
         .FILL @UNKNOWN_TRAP; // 0x5F
-        .FILL @TRAP_SET_TIMER_SINGLESHOT; // 0x60
-        .FILL @TRAP_SET_TIMER_REPEAT; // 0x61
-        .FILL @TRAP_SET_TIMER_DISABLE; // 0x62
-        .FILL @TRAP_READ_TIMER_MODE; // 0x63
-        .FILL @TRAP_READ_TIMER_DATA; // 0x64
+        .FILL @TRAP_SET_TIMER_SINGLESHOT;   // 0x60
+        .FILL @TRAP_SET_TIMER_REPEAT;       // 0x61
+        .FILL @TRAP_SET_TIMER_DISABLE;      // 0x62
+        .FILL @TRAP_READ_TIMER_MODE;        // 0x63
+        .FILL @TRAP_READ_TIMER_DATA;        // 0x64
         .FILL @UNKNOWN_TRAP; // 0x65
         .FILL @UNKNOWN_TRAP; // 0x66
         .FILL @UNKNOWN_TRAP; // 0x67
@@ -146,8 +146,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x6D
         .FILL @UNKNOWN_TRAP; // 0x6E
         .FILL @UNKNOWN_TRAP; // 0x6F
-        .FILL @TRAP_SET_CLOCK; // 0x70
-        .FILL @TRAP_READ_CLOCK; // 0x71
+        .FILL @TRAP_SET_CLOCK;              // 0x70
+        .FILL @TRAP_READ_CLOCK;             // 0x71
         .FILL @UNKNOWN_TRAP; // 0x72
         .FILL @UNKNOWN_TRAP; // 0x73
         .FILL @UNKNOWN_TRAP; // 0x74
