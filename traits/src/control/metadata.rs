@@ -285,28 +285,28 @@ impl Version {
         }
     }
 
-    pub const fn major(self, major: u8) -> Self {
+    pub const fn major(mut self, major: u8) -> Self {
         self.major = major;
         self
     }
 
-    pub const fn minor(self, minor: u8) -> Self {
+    pub const fn minor(mut self, minor: u8) -> Self {
         self.minor = minor;
         self
     }
 
-    pub const fn patch(self, patch: u8) -> Self {
+    pub const fn patch(mut self, patch: u8) -> Self {
         self.patch = patch;
         self
     }
 
-    pub const fn pre(self, pre: Identifier) -> Self {
+    pub const fn pre(mut self, pre: Identifier) -> Self {
         self.pre = Some(pre);
         self
     }
 
     pub fn get_pre(&self) -> Option<&str> {
-        if let Some(pre) = self.pre {
+        if let Some(pre) = self.pre.as_ref() {
             let mut idx = Identifier::MAX_LEN - 1;
 
             // The entire Identifier can't be empty; Cargo doesn't allow it.
@@ -342,11 +342,11 @@ impl Version {
 
     // Exists so we can write unit tests without changing the crate version.
     #[rustfmt::skip]
-    const fn from_cargo_inner(
-        major: &'static str,
-        minor: &'static str,
-        patch: &'static str,
-        pre: &'static str,
+    const fn from_cargo_inner<'a>(
+        major: &'a str,
+        minor: &'a str,
+        patch: &'a str,
+        pre: &'a str,
     ) -> Self {
         // Cargo is very good about actually making people follow semver.
         // Major, minor, and patch versions are all _required_ and pre-release
@@ -376,7 +376,7 @@ impl Version {
         // Now we've got the exciting job of having to parse strings in u8's
         // in const contexts (i.e. with no loops, conditionals, or any real
         // support from std).
-        const fn ver_str_to_u8(v: &'static str) -> u8 {
+        const fn ver_str_to_u8<'a>(v: &'a str) -> u8 {
             // Since Cargo has made sure these are just numbers, we can assume
             // one byte per number and safely treat this as a bunch of ASCII
             // bytes.
@@ -469,9 +469,10 @@ impl Version {
         // That we also need to handle empty strings throws an additional wrench
         // into the works, but we can solve this with another level of
         // indirection.
-        let indirection = [&[b' '], bytes];
+        let blank = " ".as_bytes();
+        let indirection = [blank, bytes];
 
-        const fn char_at_pos(indir: &[&[u8]], len: usize, idx: usize) -> u8 {
+        const fn char_at_pos(indir: [&[u8]; 2], len: usize, idx: usize) -> u8 {
             // Length:   0       1       2       3       4
             let a = [(0, 0), (1, 0), (1, 0), (1, 0), (1, 0)];
             let b = [(0, 0), (0, 0), (1, 1), (1, 1), (1, 1)];
@@ -485,10 +486,10 @@ impl Version {
         }
 
         let padded = [
-            char_at_pos(&indirection, len, 0),
-            char_at_pos(&indirection, len, 1),
-            char_at_pos(&indirection, len, 2),
-            char_at_pos(&indirection, len, 3),
+            char_at_pos(indirection, len, 0),
+            char_at_pos(indirection, len, 1),
+            char_at_pos(indirection, len, 2),
+            char_at_pos(indirection, len, 3),
         ];
 
         // So now we have a padded string which means we can blindly pass it
@@ -497,7 +498,7 @@ impl Version {
         let pre = [
             None,
             Some(Identifier::new_that_crashes_on_invalid_inputs(padded)),
-        ][len];
+        ][[0, 1, 1, 1, 1][len]];
 
         Self::new(major, minor, patch, pre)
     }
@@ -628,9 +629,9 @@ mod version_tests {
     }
 
     fn single_test(
-        major: u8,
-        minor: u8,
-        patch: u8,
+        major: u16,
+        minor: u16,
+        patch: u16,
         pre: &'static str,
         expected_pre: Option<&str>,
     ) {
@@ -641,9 +642,9 @@ mod version_tests {
             pre,
         );
 
-        assert_eq!(ver.major, major);
-        assert_eq!(ver.minor, minor);
-        assert_eq!(ver.patch, patch);
+        assert_eq!(ver.major as u16, major);
+        assert_eq!(ver.minor as u16, minor);
+        assert_eq!(ver.patch as u16, patch);
 
         assert_eq!(ver.get_pre(), expected_pre);
     }
