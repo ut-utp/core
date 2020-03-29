@@ -316,6 +316,219 @@ impl Version {
         self.pre(Identifier::new_from_str_that_crashes_on_invalid_inputs(pre))
     }
 
+    pub const fn from_cargo() -> Self {
+        Self::from_cargo_inner(
+            env!("CARGO_PKG_VERSION_MAJOR"),
+            env!("CARGO_PKG_VERSION_MINOR"),
+            env!("CARGO_PKG_VERSION_PATCH"),
+            env!("CARGO_PKG_VERSION_PRE")
+        )
+    }
+
+    // Exists so we can write unit tests without changing the crate version.
+    const fn from_cargo_inner(
+        major: &'static str,
+        minor: &'static str,
+        patch: &'static str,
+        pre: &'static str
+    ) -> Self {
+        // Cargo is very good about actually making people follow semver.
+        // Major, minor, and patch versions are all _required_ and pre-release
+        // version tags are picked up. Build version tags are allowed but not
+        // reported through env vars which is fine; we don't use them anyways.
+        //
+        // Parsing seems pretty good too; only numbers for major, minor, patch;
+        // Cargo understands that pre-release versions have to come before build
+        // versions and can't contain a +. However this: "ei-ewori-w" is a valid
+        // pre-release version which is a little questionable but is in
+        // accordance with the grammar in the semver 2.0.0 spec.
+        //
+        // Mercifully, Cargo also yells at you if you try to put
+        // non-alphanumeric characters into the pre-release version (also in
+        // accordance with the semver spec) which makes our job a lot easier.
+        // It also means we could use something more compact than an Identifier
+        // (has encodings for all ASCII characters) for the pre-release version,
+        // but there isn't really a point.
+        //
+        // Blessedly, Cargo also yells at you for leading zeros.
+        //
+        // So, here are the reasons why this might fail:
+        //   - major/minor/patch versions greater than 255 (seems unlikely)
+        //   - pre-release version longer than the 4 characters allowed by the
+        //     `Identifier` type.
+
+        // let (major, minor, patch, pre) = (
+        //     env!("CARGO_PKG_VERSION_MAJOR"),
+        //     env!("CARGO_PKG_VERSION_MINOR"),
+        //     env!("CARGO_PKG_VERSION_PATCH"),
+        //     env!("CARGO_PKG_VERSION_PRE"),
+        // );
+
+        // Now we've got the exciting job of having to parse strings in u8's
+        // in const contexts (i.e. with no loops, conditionals, or any real
+        // support from std).
+        const fn ver_str_to_u8(v: &'static str) -> u8 {
+            // Since Cargo has made sure these are just numbers, we can assume
+            // one byte per number and safely treat this as a bunch of ASCII
+            // bytes.
+            let bytes = v.as_bytes();
+
+            // If we have more than 3 characters, we can bail right away:
+            let version_component_is_too_long = [()];
+            version_component_is_too_long[(bytes.len() > 3) as usize];
+
+            // Zero characters should not be possible. So, we're left with 1, 2,
+            // or 3. The trouble is that we can't do anything _conditionally_ on
+            // the length and we also can't ask for characters that don't exist
+            // without crashing. So what to do?
+            //
+            // Time for some cunning and guile:
+
+            // atoi; ASCII to u8
+            // const fn a(a: u8) -> u8 { a - b'0' }
+
+            // Closures aren't allowed, but this might be?
+            // let dispatch: [&dyn Fn(&[u8]) -> u8; 3] = [
+            //     /* 1 */ { const fn uno(b: &[u8]) -> u8 { a(b[0]) } &uno },
+            //     /* 2 */ { const fn dos(b: &[u8]) -> u8 { 10 * a(b[1]) + a(b[0]) } &dos },
+            //     /* 3 */ { const fn tres(b: &[u8]) -> u8 { 100 * a(b[2]) + 10 * a(b[1]) + a(b[0]) } &tres },
+            // ][bytes.len() - 1](&bytes);
+
+            // Okay, so that didn't work. But we've still got one other trick
+            // at our disposal: short circuiting.
+
+            // const fn uno(b: &[u8]) -> u8 { a(b[0]) }
+            // const fn dos(b: &[u8]) -> u8 { 10 * a(b[1]) + a(b[0]) }
+            // const fn tres(b: &[u8]) -> u8 { 100 * a(b[2]) + 10 * a(b[1]) + a(b[0]) }
+
+            // let len = bytes.len();
+            // let version_component_is_empty: [(); 0] = [];
+            // let mut val = 0;
+
+            // let zer = [true, false, false, false];
+            // let one = [false, true, false, false];
+            // let two = [false, false, true, false];
+            // let tre = [false, false, false, true];
+
+            // let _: bool = ((zer[len]) & { version_component_is_empty[0]; true })
+            // | ((one[len]) & { val = uno(bytes); true })
+            // | ((two[len]) & { val = dos(bytes); true })
+            // | ((tre[len]) & { val = tres(bytes); true });
+
+            // val
+
+            // Well. It turns out bitwise operations don't short circuit.
+
+            // Let's try this another way. Conditional execution is a no go, so
+            // let's instead just use a dummy value for the 10s and 100s digit
+            // when they're not actually there (in the below we just use the
+            // ones digit for them).
+            let len = bytes.len() - 1; // -1 catches the impossible empty case.
+            let one = [0, 0, 0];
+            let two = [0, 1, 1];
+            let tre = [0, 0, 2];
+
+            let padded = [
+                bytes[one[len]] - b'0',
+                bytes[two[len]] - b'0',
+                bytes[tre[len]] - b'0',
+            ];
+
+            // ['1', '2', '3'] => h(0), t(1), o(2)
+            // ['2', '3'     ] => h(-), t(0), o(1)
+            // ['3'          ] => h(-), t(-), o(0)
+
+            // And then we go use zero for the places that aren't actually
+            // there. Because all the places have _a_ value prior to this,
+            // there's no problem.
+            let hun = [         0,         0, padded[0] ];
+            let ten = [         0, padded[0], padded[1] ];
+            let one = [ padded[0], padded[1], padded[2] ];
+
+            let [h, t, o] = [
+                hun[len],
+                ten[len],
+                one[len],
+            ];
+
+            // If the value is too large, this will error:
+            h * 100 + t * 10 + o
+        }
+
+        let (major, minor, patch) = (
+            ver_str_to_u8(major),
+            ver_str_to_u8(minor),
+            ver_str_to_u8(patch),
+        );
+
+        // The pre-release part seems (relatively) easier to deal with; we just
+        // select between `None` and `Some(_)` depending on the length and let
+        // the constructor for `Identifier` panic if the version string is too
+        // long.
+        //
+        // Except... this will fail on pre-release version that aren't exactly
+        // 4 characters long. To fix this, we need to pad strings that aren't
+        // long enough. Luckily, we know how to this now.
+
+        // First catch strings that whose lengths aren't in [0, 4]:
+        let pre_release_version_is_too_long = [(); 5];
+        pre_release_version_is_too_long[pre.len()];
+
+        // Again, since Cargo checks that only a subset of ASCII is allowed, we
+        // can make this a byte string without any fuss:
+        let bytes = pre.as_bytes();
+        let len = bytes.len();
+
+        // For simplicity we're going to right pad (which we'll then filter out
+        // in our `Display` impl and the getter for the pre-release version).
+        //
+        // TODO: note that we could use this very trick (right padding and
+        // doing the below in const constructors for our Identifier and
+        // LongIdentifier types...)
+
+        // "abcd" -> "abcd": a(0 -> 0), b(1 -> 1), c(2 -> 2), d(3 -> 3)
+        //  "abc" -> "abc ": a(0 -> 0), b(1 -> 1), c(2 -> 2), d(_ -> 3)
+        //   "ab" -> "ab  ": a(0 -> 0), b(1 -> 1), c(_ -> 2), d(_ -> 3)
+        //    "a" -> "a   ": a(0 -> 0), b(_ -> 1), c(_ -> 2), d(_ -> 3)
+        //     "" -> "    ": a(_ -> _), b(_ -> 1), c(_ -> 2), d(_ -> 3)
+
+        // That we also need to handle empty strings throws an additional wrench
+        // into the works, but we can solve this with another level of
+        // indirection.
+        let indirection = [&[b' '], bytes];
+
+        const fn char_at_pos(indir: &[&[u8]], len: usize, idx: usize) -> u8 {
+            // Length:   0       1       2       3       4
+            let a = [(0, 0), (1, 0), (1, 0), (1, 0), (1, 0)];
+            let b = [(0, 0), (0, 0), (1, 1), (1, 1), (1, 1)];
+            let c = [(0, 0), (0, 0), (0, 0), (1, 2), (1, 2)];
+            let d = [(0, 0), (0, 0), (0, 0), (0, 0), (1, 3)];
+
+            let lookup = [a, b, c, d][idx][len];
+            let (uno, dos) = lookup;
+
+            indir[uno][dos]
+        }
+
+        let padded = [
+            char_at_pos(&indirection, len, 0),
+            char_at_pos(&indirection, len, 1),
+            char_at_pos(&indirection, len, 2),
+            char_at_pos(&indirection, len, 3),
+        ];
+
+        // So now we have a padded string which means we can blindly pass it
+        // to the Identifier constructor and be on our merry way.
+
+        let pre = [
+            None,
+            Some(Identifier::new_that_crashes_on_invalid_inputs(padded))
+        ][len];
+
+        Self::new(major, minor, patch, pre)
+    }
+}
+
 impl Display for Version {
     fn fmt(&self, fmt: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(fmt, "{}.{}.{}", self.major, self.minor, self.patch)?;
