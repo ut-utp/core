@@ -99,7 +99,9 @@ pub enum RequestMessage { // messages for everything but tick()
     GetPwmConfig,
     GetClock,
 
-    GetInfo,
+    GetDeviceInfo,
+
+    GetProgramMetadata,
     SetProgramMetadata { metadata: ProgramMetadata },
 
     // no id!
@@ -110,7 +112,7 @@ static __RESP_SIZE_CHECK: () = {
     let s = core::mem::size_of::<ResponseMessage>();
     let canary = [()];
 
-    canary[s - 72] // panic if the size of ResponseMessage changes
+    canary[s - 64] // panic if the size of ResponseMessage changes
 };
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -166,7 +168,9 @@ pub enum ResponseMessage { // messages for everything but tick()
     GetPwmConfig(PwmPinArr<u8>), // TODO
     GetClock(Word),
 
-    GetInfo(DeviceInfo),
+    GetDeviceInfo(DeviceInfo),
+
+    GetProgramMetadata(ProgramMetadata),
     SetProgramMetadata,
 
     // no id!
