@@ -5,6 +5,7 @@ use core::convert::{AsRef, TryInto};
 use core::hash::{Hasher, Hash};
 use core::time::Duration;
 use core::fmt::Display;
+
 #[allow(deprecated)] use core::hash::SipHasher; // TODO: this is deprecated (but the replacement isn't available without std).
 
 use lc3_isa::util::MemoryDump;
@@ -32,7 +33,7 @@ impl Default for ProgramId {
 
 impl ProgramId {
     // Can't be const until const traits arrive (`Hasher`).
-    pub /*const*/ fn new(program: &MemoryDump) -> Self {
+    pub fn new(program: &MemoryDump) -> Self {
         #[allow(deprecated)]
         let mut hasher = SipHasher::new();
 
@@ -56,15 +57,23 @@ pub struct ProgramMetadata {
 }
 
 impl ProgramMetadata {
-    pub /*const*/ fn new(name: LongIdentifier, program: &MemoryDump, modified: Duration) -> Self {
+    pub fn new(
+        name: LongIdentifier,
+        program: &MemoryDump,
+        modified: Duration,
+    ) -> Self {
         Self {
             name,
             id: ProgramId::new(program),
-            last_modified: modified.as_secs()
+            last_modified: modified.as_secs(),
         }
     }
 
-    pub /*const*/ fn from<P: Into<MemoryDump>>(name: LongIdentifier, program: P, modified: Duration) -> Self {
+    pub fn from<P: Into<MemoryDump>>(
+        name: LongIdentifier,
+        program: P,
+        modified: Duration,
+    ) -> Self {
         Self::new(name, &program.into(), modified)
     }
 
@@ -108,7 +117,6 @@ using_std! {
     }
 }
 
-
 // If we had better const functions (+ typenum) or const generics (and better
 // const functions — mainly just loops and ranges) we wouldn't need two
 // separate types here.
@@ -116,7 +124,9 @@ using_std! {
 #[repr(transparent)]
 pub struct LongIdentifier([u8; 8]);
 
-impl LongIdentifier { const MAX_LEN: usize = 8; }
+impl LongIdentifier {
+    const MAX_LEN: usize = 8;
+}
 
 impl Default for LongIdentifier {
     fn default() -> Self {
@@ -142,7 +152,7 @@ impl LongIdentifier {
 
         for (idx, c) in name.chars().take(Self::MAX_LEN).enumerate() {
             if !c.is_ascii() {
-                return Err(())
+                return Err(());
             }
 
             arr[idx] = c as u8;
@@ -164,17 +174,19 @@ impl AsRef<str> for LongIdentifier {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[repr(transparent)]
 pub struct Identifier([u8; 4]);
 
-impl Identifier { const MAX_LEN: usize = 4; }
+impl Identifier {
+    const MAX_LEN: usize = 4;
+}
 
 impl Identifier {
     pub fn new(name: [u8; Self::MAX_LEN]) -> Result<Self, ()> {
         for c in name.iter() {
             if !c.is_ascii() {
-                return Err(())
+                return Err(());
             }
         }
 
@@ -193,7 +205,9 @@ impl Identifier {
         Self::new_from_str_that_crashes_on_invalid_inputs("    ")
     }
 
-    pub const fn new_that_crashes_on_invalid_inputs(name: [u8; Self::MAX_LEN]) -> Self {
+    pub const fn new_that_crashes_on_invalid_inputs(
+        name: [u8; Self::MAX_LEN],
+    ) -> Self {
         // `is_ascii` == `*c & 128 == 0`
         let canary: [(); 1] = [()];
 
@@ -206,7 +220,9 @@ impl Identifier {
         Self(name)
     }
 
-    pub const fn new_from_str_that_crashes_on_invalid_inputs(name: &str) -> Self {
+    pub const fn new_from_str_that_crashes_on_invalid_inputs(
+        name: &str,
+    ) -> Self {
         let slice = name.as_bytes();
 
         let canary: [(); 1] = [()];
@@ -216,10 +232,7 @@ impl Identifier {
         input_length_is_not_four[slice.len() ^ 4];
 
         Self::new_that_crashes_on_invalid_inputs([
-            slice[0],
-            slice[1],
-            slice[2],
-            slice[3],
+            slice[0], slice[1], slice[2], slice[3],
         ])
     }
 }
@@ -268,7 +281,7 @@ impl Version {
             major,
             minor,
             patch,
-            pre
+            pre,
         }
     }
 
@@ -309,10 +322,12 @@ impl Version {
         } else {
             None
         }
-
     }
 
-    pub const fn pre_from_str_that_crashes_on_invalid_inputs(self, pre: &str) -> Self {
+    pub const fn pre_from_str_that_crashes_on_invalid_inputs(
+        self,
+        pre: &str,
+    ) -> Self {
         self.pre(Identifier::new_from_str_that_crashes_on_invalid_inputs(pre))
     }
 
@@ -321,16 +336,17 @@ impl Version {
             env!("CARGO_PKG_VERSION_MAJOR"),
             env!("CARGO_PKG_VERSION_MINOR"),
             env!("CARGO_PKG_VERSION_PATCH"),
-            env!("CARGO_PKG_VERSION_PRE")
+            env!("CARGO_PKG_VERSION_PRE"),
         )
     }
 
     // Exists so we can write unit tests without changing the crate version.
+    #[rustfmt::skip]
     const fn from_cargo_inner(
         major: &'static str,
         minor: &'static str,
         patch: &'static str,
-        pre: &'static str
+        pre: &'static str,
     ) -> Self {
         // Cargo is very good about actually making people follow semver.
         // Major, minor, and patch versions are all _required_ and pre-release
@@ -357,13 +373,6 @@ impl Version {
         //   - pre-release version longer than the 4 characters allowed by the
         //     `Identifier` type.
 
-        // let (major, minor, patch, pre) = (
-        //     env!("CARGO_PKG_VERSION_MAJOR"),
-        //     env!("CARGO_PKG_VERSION_MINOR"),
-        //     env!("CARGO_PKG_VERSION_PATCH"),
-        //     env!("CARGO_PKG_VERSION_PRE"),
-        // );
-
         // Now we've got the exciting job of having to parse strings in u8's
         // in const contexts (i.e. with no loops, conditionals, or any real
         // support from std).
@@ -383,41 +392,6 @@ impl Version {
             // without crashing. So what to do?
             //
             // Time for some cunning and guile:
-
-            // atoi; ASCII to u8
-            // const fn a(a: u8) -> u8 { a - b'0' }
-
-            // Closures aren't allowed, but this might be?
-            // let dispatch: [&dyn Fn(&[u8]) -> u8; 3] = [
-            //     /* 1 */ { const fn uno(b: &[u8]) -> u8 { a(b[0]) } &uno },
-            //     /* 2 */ { const fn dos(b: &[u8]) -> u8 { 10 * a(b[1]) + a(b[0]) } &dos },
-            //     /* 3 */ { const fn tres(b: &[u8]) -> u8 { 100 * a(b[2]) + 10 * a(b[1]) + a(b[0]) } &tres },
-            // ][bytes.len() - 1](&bytes);
-
-            // Okay, so that didn't work. But we've still got one other trick
-            // at our disposal: short circuiting.
-
-            // const fn uno(b: &[u8]) -> u8 { a(b[0]) }
-            // const fn dos(b: &[u8]) -> u8 { 10 * a(b[1]) + a(b[0]) }
-            // const fn tres(b: &[u8]) -> u8 { 100 * a(b[2]) + 10 * a(b[1]) + a(b[0]) }
-
-            // let len = bytes.len();
-            // let version_component_is_empty: [(); 0] = [];
-            // let mut val = 0;
-
-            // let zer = [true, false, false, false];
-            // let one = [false, true, false, false];
-            // let two = [false, false, true, false];
-            // let tre = [false, false, false, true];
-
-            // let _: bool = ((zer[len]) & { version_component_is_empty[0]; true })
-            // | ((one[len]) & { val = uno(bytes); true })
-            // | ((two[len]) & { val = dos(bytes); true })
-            // | ((tre[len]) & { val = tres(bytes); true });
-
-            // val
-
-            // Well. It turns out bitwise operations don't short circuit.
 
             // Let's try this another way. Conditional execution is a no go, so
             // let's instead just use a dummy value for the 10s and 100s digit
@@ -484,7 +458,7 @@ impl Version {
         //
         // TODO: note that we could use this very trick (right padding and
         // doing the below in const constructors for our Identifier and
-        // LongIdentifier types...)
+        // LongIdentifier types, except with NULs instead of spaces...)
 
         // "abcd" -> "abcd": a(0 -> 0), b(1 -> 1), c(2 -> 2), d(3 -> 3)
         //  "abc" -> "abc ": a(0 -> 0), b(1 -> 1), c(2 -> 2), d(_ -> 3)
@@ -522,7 +496,7 @@ impl Version {
 
         let pre = [
             None,
-            Some(Identifier::new_that_crashes_on_invalid_inputs(padded))
+            Some(Identifier::new_that_crashes_on_invalid_inputs(padded)),
         ][len];
 
         Self::new(major, minor, patch, pre)
@@ -555,24 +529,37 @@ pub struct DeviceInfo {
     pub capabilities: Capabilities,
     /// The `Identifier`s of any proxies between the device and the `Control`
     /// user.
-    pub proxies: [Option<Identifier>; 3]
+    pub proxies: [Option<Identifier>; 3],
 }
 
 impl DeviceInfo {
     const MAX_NUM_PROXIES: usize = 3;
 
-    pub fn new(name: Identifier, version: Version, type_id: TypeId, capabilities: Capabilities, proxies: [Option<Identifier>; Self::MAX_NUM_PROXIES]) -> Self {
+    pub fn new(
+        name: Identifier,
+        version: Version,
+        type_id: TypeId,
+        capabilities: Capabilities,
+        proxies: [Option<Identifier>; Self::MAX_NUM_PROXIES],
+    ) -> Self {
         Self {
             name,
             version,
             type_id: type_id.t(),
             capabilities,
-            proxies
+            proxies,
         }
     }
 
     pub fn add_proxy(mut self, proxy: Identifier) -> Result<Self, Self> {
-        if let Some(idx) = self.proxies.iter().enumerate().filter(|(_, p)| p.is_none()).map(|(idx, _)| idx).next() {
+        if let Some(idx) = self
+            .proxies
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| p.is_none())
+            .map(|(idx, _)| idx)
+            .next()
+        {
             self.proxies[idx] = Some(proxy);
 
             Ok(self)
@@ -590,6 +577,7 @@ impl DeviceInfo {
 // the crimes yourself.
 struct U64Extractor(Option<u64>);
 
+#[rustfmt::skip]
 impl Hasher for U64Extractor {
     fn finish(&self) -> u64 { self.0.unwrap() }
     fn write(&mut self, _: &[u8]) { unreachable!() }
