@@ -1,6 +1,7 @@
 //! (TODO!)
 
 use super::{ERROR_ON_ACV_SETTING_ADDR, USER_PROG_START_ADDR};
+use super::{OS_DEFAULT_STARTING_SP, OS_STARTING_SP_ADDR};
 use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
 use lc3_baseline_sim::{KBSR_ADDR, KBDR_ADDR, DSR_ADDR, DDR_ADDR};
@@ -555,7 +556,7 @@ fn os() -> AssembledProgram {
 
         //// OS Startup Routine ////
         .ORIG #OS_START_ADDR;
-            LD R6, @OS_STARTING_SP;          // Set the system stack pointer (SSP)
+            LDI R6, @OS_STARTING_SP_PTR;          // Set the system stack pointer (SSP)
 
             LEA R0, @OS_START_MSG;  // Print a welcome message
             PUTS;
@@ -606,7 +607,7 @@ fn os() -> AssembledProgram {
 
         @USER_PROG_START_ADDR_PTR .FILL #USER_PROG_START_ADDR;
 
-        @OS_STARTING_SP .FILL #lc3_isa::USER_PROGRAM_START_ADDR;
+        @OS_STARTING_SP_PTR .FILL #OS_STARTING_SP_ADDR;
 
         @KBSR .FILL #KBSR_ADDR;
         @KBDR .FILL #KBDR_ADDR;
@@ -677,7 +678,7 @@ fn os() -> AssembledProgram {
             ADD R1, R1, #1;
             BRnzp @TRAP_PUTS_LOOP;
         @TRAP_PUTS_DONE
-            LDR R1, R6, #0;         // Eestore R0 and R1
+            LDR R1, R6, #0;        // Restore R0 and R1
             ADD R6, R6, #1;
             LDR R0, R6, #0;
             ADD R6, R6, #1;
@@ -694,13 +695,13 @@ fn os() -> AssembledProgram {
             OUT;                  // Echo it.
 
             ADD R6, R6, #-1;
-            STR R0, R6, #0;        // Save the character, print a newline.
+            STR R0, R6, #0;       // Save the character, print a newline.
             AND R0, R0, #0;
             ADD R0, R0, #('\n' as lc3_isa::SignedWord);
             OUT;
 
             LDR R0, R6, #0;
-            ADD R6, R6, #1;         // Restore and return.
+            ADD R6, R6, #1;       // Restore and return.
             RTI;
 
         // PUTSP: Output a packed (2 characters to a word) string.
@@ -710,7 +711,7 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a string in R0.
         @TRAP_PUTSP
-            ADD R6, R6, #-1;        // Save R0, R1, R2, and R3
+            ADD R6, R6, #-1;         // Save R0, R1, R2, and R3
             STR R0, R6, #0;
             ADD R6, R6, #-1;
             STR R1, R6, #0;
@@ -1792,6 +1793,9 @@ fn os() -> AssembledProgram {
 
         .ORIG #ERROR_ON_ACV_SETTING_ADDR;
         .FILL #0x1; // 0 == disabled, non-zero == enabled
+
+        .ORIG #OS_STARTING_SP_ADDR;
+        .FILL #OS_DEFAULT_STARTING_SP;
     };
 
     AssembledProgram::new(os)
