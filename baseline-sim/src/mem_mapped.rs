@@ -336,9 +336,9 @@ impl MemMapped for KBDR {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        Ok(Self::with_value(
-            Input::read_data(interp.get_peripherals()).unwrap() as Word,
-        )) // TODO: Do something on error
+        let data = (Input::read_data(interp.get_peripherals()).unwrap_or(0)) as Word;
+
+        Ok(Self::with_value(data))
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
