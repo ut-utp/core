@@ -95,7 +95,7 @@ pub mod traps {
                 pub const $first: u8 = $starting;
                 $(#[doc = concat!("**`[", stringify!($chk), "]`** ")])*
                 $(#[doc = $doc])*
-                $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`", stringify!($chk), "`**")])?
+                $(#[doc = concat!("\n ### TRAP Vector\n Vector Number: **`", stringify!($chk), "`**")])?
             }
 
             $(sa::const_assert_eq!($first, $chk);)?
@@ -108,7 +108,7 @@ pub mod traps {
                 pub const $next: u8 = $previous + 1;
                 $(#[doc = concat!("**`[", stringify!($chk), "]`** ")])*
                 $(#[doc = $doc])*
-                $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`", stringify!($chk), "`**")])?
+                $(#[doc = concat!("\n ### TRAP Vector\n Vector Number: **`", stringify!($chk), "`**")])?
             }
 
             $(sa::const_assert_eq!($next, $chk);)?
