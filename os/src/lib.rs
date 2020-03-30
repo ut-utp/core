@@ -125,7 +125,7 @@ pub mod traps {
     /// Trap vectors for the [`Gpio`](lc3_traits::peripherals::Gpio) peripheral.
     pub mod gpio {
         define!([super::mm::GPIO_OFFSET] <- {
-            /// Puts a [GPIO] pin in [Input] mode.
+            /// Puts a [GPIO] [Pin] in [Input] mode.
             ///
             /// ## Inputs
             ///  - [`R0`]: A [GPIO] [Pin] number.
@@ -135,16 +135,16 @@ pub mod traps {
             ///
             /// ## Usage
             ///
-            /// This TRAP puts the [GPIO] [Pin] indicated by [R0] into [Input]
-            /// mode. When [`R0`] contains a valid pin number (i.e. when [R0] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]), this TRAP is _infallible_.
+            /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Input]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
             ///
-            /// When [R0] does not hold a valid pin number, the `n` bit is set.
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
-            /// All registers (including [R0]) are preserved.
+            /// All registers (including [`R0`]) are preserved.
             ///
             /// ## Example
-            /// The below sets [G0] to be an [Input]:
+            /// The below sets [`G0`] to be an [Input]:
             /// ```{ARM Assembly}
             /// AND R0, R0, #0
             /// TRAP 0x30
@@ -153,19 +153,267 @@ pub mod traps {
             /// [GPIO]: lc3_traits::peripherals::Gpio
             /// [Input]: lc3_traits::peripherals::gpio::GpioState::Input
             /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
-            /// [R0]: lc3_isa::Reg::R0
             /// [`R0`]: lc3_isa::Reg::R0
             /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
-            /// [G0]: lc3_traits::peripherals::gpio::GpioPin::G0
+            /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x30] INPUT,
+            /// Puts a [GPIO] [Pin] in [Output] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [GPIO] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Output]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`G0`] to be an [Output]:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x31
+            /// ```
+            ///
+            /// [GPIO]: lc3_traits::peripherals::Gpio
+            /// [Output]: lc3_traits::peripherals::gpio::GpioState::Output
+            /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x31] OUTPUT,
+            /// Puts a [GPIO] [Pin] in [Interrupt] mode and sets the interrupt service
+            /// routine address in the interrupt vector table.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [GPIO] [Pin] number.
+            ///  - [`R1`]: Address of interrupt service routine.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Interrupt]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// This TRAP also sets the corresponding interrupt vector table entry
+            /// for this [GPIO] [Pin] to the address indicated by [`R1`].
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`G0`] to be an [Interrupt] and sets the interrupt
+            /// service routine to `ISR`. It will then spin until [`G0`] fires an
+            /// interrupt, which will call `ISR`, set the `ISR_FLAG` to 1, and allow
+            /// the main program to halt.
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LEA R1, ISR
+            /// TRAP 0x31
+            ///
+            /// LOOP
+            /// LD R1, ISR_FLAG
+            /// BRz LOOP
+            /// HALT
+            ///
+            /// .FILL ISR_FLAG #0
+            ///
+            /// ISR
+            /// AND R0, R0, #0
+            /// ADD R0, R0, #1
+            /// ST R0, ISR_FLAG
+            /// RTI
+            /// ```
+            ///
+            /// [GPIO]: lc3_traits::peripherals::Gpio
+            /// [Interrupt]: lc3_traits::peripherals::gpio::GpioState::Interrupt
+            /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x32] INTERRUPT,
+            /// Puts a [GPIO] [Pin] in [Disabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [GPIO] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Disabled]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`] and [`R1`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`G0`] to be an [Output], then immediately sets it
+            /// to [Disabled]:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x31
+            /// TRAP 0x33
+            /// ```
+            ///
+            /// [GPIO]: lc3_traits::peripherals::Gpio
+            /// [Disabled]: lc3_traits::peripherals::gpio::GpioState::Disabled
+            /// [Output]: lc3_traits::peripherals::gpio::GpioState::Output
+            /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x33] DISABLED,
-
+            /// Returns the mode of a [GPIO] [Pin].
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [GPIO] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: A value corresponding to a [GPIO] [mode].
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP returns the mode of the [GPIO] [Pin] indicated by [`R0`] by
+            /// writing a value to [`R0`]. The values are as follows:
+            ///
+            /// | Mode          | Value |
+            /// | ------------- | ----- |
+            /// | [`Input`]     | 0     |
+            /// | [`Output`]    | 1     |
+            /// | [`Interrupt`] | 2     |
+            /// | [`Disabled`]  | 3     |
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (excluding [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`G0`] to be an [Output], then reads [`G0`]'s mode
+            /// into [`R0`]. [`R0`] will then contain the value 2.
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x31
+            /// TRAP 0x34
+            /// ```
+            ///
+            /// [GPIO]: lc3_traits::peripherals::Gpio
+            /// [mode]: lc3_traits::peripherals::gpio::GpioState
+            /// [`Input`]: lc3_traits::peripherals::gpio::GpioState::Input
+            /// [`Output`]: lc3_traits::peripherals::gpio::GpioState::Output
+            /// [`Interrupt`]: lc3_traits::peripherals::gpio::GpioState::Interrupt
+            /// [`Disabled`]: lc3_traits::peripherals::gpio::GpioState::Disabled
+            /// [Output]: lc3_traits::peripherals::gpio::GpioState::Output
+            /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x34] GET_MODE,
-
+            /// Writes data to a [GPIO] [Pin] in [Output] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [GPIO] [Pin] number.
+            ///  - [`R1`]: Data to write.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP writes the data in [`R1`] to the [GPIO] [Pin] indicated
+            /// by [`R0`].
+            ///
+            /// Only the least significant bit of [`R1`] is written.
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// Attempting to write to a [GPIO] [Pin] that is not in [Output] mode does
+            /// nothing.
+            ///
+            /// All registers (including [`R0`] and [`R1`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`G0`] to be an [Output], then writes the value 1 to [`G0`]:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x31
+            /// AND R1, R1, #0
+            /// ADD R1, R1, #1
+            /// TRAP 0x35
+            /// ```
+            ///
+            /// [GPIO]: lc3_traits::peripherals::Gpio
+            /// [Output]: lc3_traits::peripherals::gpio::GpioState::Output
+            /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x35] WRITE,
-            /* these are checked for value but not for formatting, so it's on you to not do this: (TODO: remove this)*/ [00054] READ,
+            /// Reads data from a [GPIO] [Pin] in [Input] or [Interrupt] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [GPIO] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: data from [GPIO] [Pin]
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP reads data from the [GPIO] [Pin] indicated by [`R0`], and
+            /// returns the data in [`R0`].
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// Attempting to read from a [GPIO] [Pin] that is not in [Input] or
+            /// [Interrupt] mode returns -1 in [`R0`].
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`G0`] to be an [Input], then reads from [`G0`] into [`R0`]:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x30
+            /// TRAP 0x36
+            /// ```
+            ///
+            /// [GPIO]: lc3_traits::peripherals::Gpio
+            /// [Input]: lc3_traits::peripherals::gpio::GpioState::Input
+            /// [Interrupt]: lc3_traits::peripherals::gpio::GpioState::Interrupt
+            /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
+            [0x36] READ,
         });
     }
 
