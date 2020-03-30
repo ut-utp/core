@@ -654,11 +654,9 @@ macro_rules! gpio_mem_mapped {
                 use lc3_traits::peripherals::gpio::GpioState::*;
 
                 let state = Gpio::get_state(interp.get_peripherals(), $pin);
-                let word: Word;
-                if state == Input || state == Interrupt {
-                    word = Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
-                } else {
-                    word = Word::max_value();
+                let word: Word = match state {
+                    Input | Interrupt => Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000),
+                    Output | Disabled => Word::max_value(),
                 }
 
                 Ok(Self::with_value(word))
@@ -837,7 +835,13 @@ macro_rules! adc_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+                use lc3_traits::peripherals::adc::AdcState::*;
+
+                let state = Adc::get_state(interp.get_peripherals(), $pin);
+                let word: Word = match state {
+                    Enabled => Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+                    Disabled => Word::max_value(),
+                }
 
                 Ok(Self::with_value(word))
             }
