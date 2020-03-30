@@ -657,7 +657,7 @@ macro_rules! gpio_mem_mapped {
                 let word: Word = match state {
                     Input | Interrupt => Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000),
                     Output | Disabled => Word::max_value(),
-                }
+                };
 
                 Ok(Self::with_value(word))
             }
@@ -839,9 +839,9 @@ macro_rules! adc_mem_mapped {
 
                 let state = Adc::get_state(interp.get_peripherals(), $pin);
                 let word: Word = match state {
-                    Enabled => Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+                    Enabled => Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000), // TODO: document and/or change the 'error' value
                     Disabled => Word::max_value(),
-                }
+                };
 
                 Ok(Self::with_value(word))
             }
