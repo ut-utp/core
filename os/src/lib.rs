@@ -43,6 +43,8 @@
 #![doc(test(attr(deny(warnings))))]
 #![doc(html_logo_url = "")] // TODO!
 
+#![deny(intra_doc_link_resolution_failure)] // TODO: this is temporary
+
 // We're a no_std crate!
 #![no_std]
 
@@ -125,27 +127,25 @@ pub mod traps {
         define!([super::mm::GPIO_OFFSET] <- {
             /// Puts a [GPIO] pin in [Input] mode.
             ///
-            /// ## Signature
+            /// ## Inputs
+            ///  - [`R0`]: A [GPIO] [Pin] number.
             ///
-            /// #### Inputs
-            ///  - [`R0`](R0): A [GPIO] [Pin] number.
-            ///
-            /// #### Outputs
+            /// ## Outputs
             ///  - `n` bit: set on error, cleared on success.
             ///
-            /// ### Usage
+            /// ## Usage
             ///
             /// This TRAP puts the [GPIO] [Pin] indicated by [R0] into [Input]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [R0] is
-            /// ∈ `[0, [NUM_GPIO_PINS])`), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_GPIO_PINS`]), this TRAP is _infallible_.
             ///
             /// When [R0] does not hold a valid pin number, the `n` bit is set.
             ///
             /// All registers (including [R0]) are preserved.
             ///
             /// ## Example
+            /// The below sets [G0] to be an [Input]:
             /// ```{ARM Assembly}
-            /// ; Set G0 to be an Input:
             /// AND R0, R0, #0
             /// TRAP 0x30
             /// ```
@@ -154,7 +154,9 @@ pub mod traps {
             /// [Input]: lc3_traits::peripherals::gpio::GpioState::Input
             /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
             /// [R0]: lc3_isa::Reg::R0
-            /// [NUM_GPIO_PINS]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
+            /// [G0]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x30] INPUT,
             [0x31] OUTPUT,
             [0x32] INTERRUPT,
