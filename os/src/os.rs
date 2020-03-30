@@ -1,6 +1,7 @@
 //! (TODO!)
 
-use super::{ERROR_ON_ACV_SETTING_ADDR, USER_PROG_START_ADDR};
+use super::{ERROR_ON_ACV_SETTING_ADDR, USER_PROG_START_ADDR, traps as t};
+
 use lc3_isa::util::{AssembledProgram, MemoryDump};
 use lc3_isa::{Word, OS_START_ADDR};
 use lc3_baseline_sim::{KBSR_ADDR, KBDR_ADDR, DSR_ADDR, DDR_ADDR};
@@ -25,6 +26,8 @@ pub const CONST_OS: AssembledProgram = os();
 
 nightly_const! { [] => [
 fn os() -> AssembledProgram {
+    use Word as W;
+
     let os = lc3_isa::program! {
         // The following is a lightly modified version of the OS that ships with Chirag
         // Sakhuja's [lc3tools](https://github.com/chiragsakhuja/lc3tools). Many thanks
@@ -68,12 +71,12 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x1E
         .FILL @UNKNOWN_TRAP; // 0x1F
 
-        .FILL @TRAP_GETC;                   // 0x20
-        .FILL @TRAP_OUT;                    // 0x21
-        .FILL @TRAP_PUTS;                   // 0x22
-        .FILL @TRAP_IN;                     // 0x23
-        .FILL @TRAP_PUTSP;                  // 0x24
-        .FILL @TRAP_HALT;                   // 0x25
+        .ORIG #t::builtin::GETC      as W;  .FILL @TRAP_GETC;                   // 0x20
+        .ORIG #t::builtin::OUT       as W;  .FILL @TRAP_OUT;                    // 0x21
+        .ORIG #t::builtin::PUTS      as W;  .FILL @TRAP_PUTS;                   // 0x22
+        .ORIG #t::builtin::IN        as W;  .FILL @TRAP_IN;                     // 0x23
+        .ORIG #t::builtin::PUTSP     as W;  .FILL @TRAP_PUTSP;                  // 0x24
+        .ORIG #t::builtin::HALT      as W;  .FILL @TRAP_HALT;                   // 0x25
         .FILL @UNKNOWN_TRAP; // 0x26
         .FILL @UNKNOWN_TRAP; // 0x27
         .FILL @UNKNOWN_TRAP; // 0x28
@@ -86,13 +89,13 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x2F
 
         .ORIG #GPIO_OFFSET as Word;
-        .FILL @TRAP_SET_GPIO_INPUT;         // 0x30
-        .FILL @TRAP_SET_GPIO_OUTPUT;        // 0x31
-        .FILL @TRAP_SET_GPIO_INTERRUPT;     // 0x32
-        .FILL @TRAP_SET_GPIO_DISABLED;      // 0x33
-        .FILL @TRAP_READ_GPIO_MODE;         // 0x34
-        .FILL @TRAP_WRITE_GPIO_DATA;        // 0x35
-        .FILL @TRAP_READ_GPIO_DATA;         // 0x36
+        .ORIG #t::gpio::INPUT        as W;  .FILL @TRAP_SET_GPIO_INPUT;         // 0x30
+        .ORIG #t::gpio::OUTPUT       as W;  .FILL @TRAP_SET_GPIO_OUTPUT;        // 0x31
+        .ORIG #t::gpio::INTERRUPT    as W;  .FILL @TRAP_SET_GPIO_INTERRUPT;     // 0x32
+        .ORIG #t::gpio::DISABLED     as W;  .FILL @TRAP_SET_GPIO_DISABLED;      // 0x33
+        .ORIG #t::gpio::GET_MODE     as W;  .FILL @TRAP_READ_GPIO_MODE;         // 0x34
+        .ORIG #t::gpio::WRITE        as W;  .FILL @TRAP_WRITE_GPIO_DATA;        // 0x35
+        .ORIG #t::gpio::READ         as W;  .FILL @TRAP_READ_GPIO_DATA;         // 0x36
         .FILL @UNKNOWN_TRAP; // 0x37
         .FILL @UNKNOWN_TRAP; // 0x38
         .FILL @UNKNOWN_TRAP; // 0x39
@@ -104,10 +107,10 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x3F
 
         .ORIG #ADC_OFFSET as Word;
-        .FILL @TRAP_SET_ADC_ENABLE;         // 0x40
-        .FILL @TRAP_SET_ADC_DISABLE;        // 0x41
-        .FILL @TRAP_READ_ADC_MODE;          // 0x42
-        .FILL @TRAP_READ_ADC_DATA;          // 0x43
+        .ORIG #t::adc::ENABLE        as W;  .FILL @TRAP_SET_ADC_ENABLE;         // 0x40
+        .ORIG #t::adc::DISABLE       as W;  .FILL @TRAP_SET_ADC_DISABLE;        // 0x41
+        .ORIG #t::adc::GET_MODE      as W;  .FILL @TRAP_READ_ADC_MODE;          // 0x42
+        .ORIG #t::adc::READ          as W;  .FILL @TRAP_READ_ADC_DATA;          // 0x43
         .FILL @UNKNOWN_TRAP; // 0x44
         .FILL @UNKNOWN_TRAP; // 0x45
         .FILL @UNKNOWN_TRAP; // 0x46
@@ -122,10 +125,10 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x4F
 
         .ORIG #PWM_OFFSET as Word;
-        .FILL @TRAP_SET_PWM;                // 0x50
-        .FILL @TRAP_DISABLE_PWM;            // 0x51
-        .FILL @TRAP_READ_PWM_PERIOD;        // 0x52
-        .FILL @TRAP_READ_PWM_DUTY_CYCLE;    // 0x53
+        .ORIG #t::pwm::ENABLE        as W;  .FILL @TRAP_SET_PWM;                // 0x50
+        .ORIG #t::pwm::DISABLE       as W;  .FILL @TRAP_DISABLE_PWM;            // 0x51
+        .ORIG #t::pwm::GET_PERIOD    as W;  .FILL @TRAP_READ_PWM_PERIOD;        // 0x52
+        .ORIG #t::pwm::GET_DUTY      as W;  .FILL @TRAP_READ_PWM_DUTY_CYCLE;    // 0x53
         .FILL @UNKNOWN_TRAP; // 0x54
         .FILL @UNKNOWN_TRAP; // 0x55
         .FILL @UNKNOWN_TRAP; // 0x56
@@ -140,11 +143,11 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x5F
 
         .ORIG #TIMER_OFFSET as Word;
-        .FILL @TRAP_SET_TIMER_SINGLESHOT;   // 0x60
-        .FILL @TRAP_SET_TIMER_REPEAT;       // 0x61
-        .FILL @TRAP_SET_TIMER_DISABLE;      // 0x62
-        .FILL @TRAP_READ_TIMER_MODE;        // 0x63
-        .FILL @TRAP_READ_TIMER_PERIOD;      // 0x64
+        .ORIG #t::timers::SINGLESHOT as W;  .FILL @TRAP_SET_TIMER_SINGLESHOT;   // 0x60
+        .ORIG #t::timers::REPEATED   as W;  .FILL @TRAP_SET_TIMER_REPEAT;       // 0x61
+        .ORIG #t::timers::DISABLE    as W;  .FILL @TRAP_SET_TIMER_DISABLE;      // 0x62
+        .ORIG #t::timers::GET_MODE   as W;  .FILL @TRAP_READ_TIMER_MODE;        // 0x63
+        .ORIG #t::timers::GET_PERIOD as W;  .FILL @TRAP_READ_TIMER_PERIOD;      // 0x64
         .FILL @UNKNOWN_TRAP; // 0x65
         .FILL @UNKNOWN_TRAP; // 0x66
         .FILL @UNKNOWN_TRAP; // 0x67
@@ -158,8 +161,8 @@ fn os() -> AssembledProgram {
         .FILL @UNKNOWN_TRAP; // 0x6F
 
         .ORIG #MISC_OFFSET as Word;
-        .FILL @TRAP_SET_CLOCK;              // 0x70
-        .FILL @TRAP_READ_CLOCK;             // 0x71
+        .ORIG #t::clock::SET         as W;  .FILL @TRAP_SET_CLOCK;              // 0x70
+        .ORIG #t::clock::GET         as W;  .FILL @TRAP_READ_CLOCK;             // 0x71
         .FILL @UNKNOWN_TRAP; // 0x72
         .FILL @UNKNOWN_TRAP; // 0x73
         .FILL @UNKNOWN_TRAP; // 0x74
