@@ -94,9 +94,6 @@ pub mod traps {
                 $(#[doc = concat!("**`[", stringify!($chk), "]`** ")])*
                 $(#[doc = $doc])*
                 $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`", stringify!($chk), "`**")])?
-                // $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`[", stringify!($chk), "]`**")])?
-                // $(#[doc = concat!("\n### TRAP Vector\nVector Number: **", stringify!($chk), "**")])?
-                // $(#[doc = "\nTrap Vec: *"] #[doc = stringify!($chk)] #[doc = "*"])?
             }
 
             $(sa::const_assert_eq!($first, $chk);)?
@@ -107,12 +104,9 @@ pub mod traps {
         (munch $previous:ident $(#[doc = $doc:expr])* $([$chk:literal])? $next:ident $( $(#[doc = $r_doc:expr])* $([$r_chk:literal])? $rest:ident)*) => {
             calculated_doc! {
                 pub const $next: u8 = $previous + 1;
-                // $(#[doc = concat!("[", stringify!($chk), "] ")])*
-                // $(#[doc = concat!("[", stringify!($chk), "] ")])*
                 $(#[doc = concat!("**`[", stringify!($chk), "]`** ")])*
                 $(#[doc = $doc])*
                 $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`", stringify!($chk), "`**")])?
-                // $(#[doc = concat!("\nTrap Vec: *", $chk, "*")])?
             }
 
             $(sa::const_assert_eq!($next, $chk);)?
@@ -123,10 +117,44 @@ pub mod traps {
         (munch $previous:ident) => { }
     }
 
-    /// Trap vectors for the [`Gpio`](lc3_traits::peripheral::Gpio) peripheral.
+    // Note: we're currently using ARM Assembly for syntax highlighting but this
+    // is not perfect for us.
+
+    /// Trap vectors for the [`Gpio`](lc3_traits::peripherals::Gpio) peripheral.
     pub mod gpio {
         define!([super::mm::GPIO_OFFSET] <- {
-            /// Reads
+            /// Puts a [GPIO] pin in [Input] mode.
+            ///
+            /// ## Signature
+            ///
+            /// #### Inputs
+            ///  - [`R0`](R0): A [GPIO] [Pin] number.
+            ///
+            /// #### Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ### Usage
+            ///
+            /// This TRAP puts the [GPIO] [Pin] indicated by [R0] into [Input]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [R0] is
+            /// ∈ `[0, [NUM_GPIO_PINS])`), this TRAP is _infallible_.
+            ///
+            /// When [R0] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (including [R0]) are preserved.
+            ///
+            /// ## Example
+            /// ```{ARM Assembly}
+            /// ; Set G0 to be an Input:
+            /// AND R0, R0, #0
+            /// TRAP 0x30
+            /// ```
+            ///
+            /// [GPIO]: lc3_traits::peripherals::Gpio
+            /// [Input]: lc3_traits::peripherals::gpio::GpioState::Input
+            /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
+            /// [R0]: lc3_isa::Reg::R0
+            /// [NUM_GPIO_PINS]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
             [0x30] INPUT,
             [0x31] OUTPUT,
             [0x32] INTERRUPT,
@@ -135,11 +163,11 @@ pub mod traps {
             [0x34] GET_MODE,
 
             [0x35] WRITE,
-            /* these are checked for value but not for formatting, so it's on you to not do this: */ [00054] READ,
+            /* these are checked for value but not for formatting, so it's on you to not do this: (TODO: remove this)*/ [00054] READ,
         });
     }
 
-    /// Trap vectors for the [`Adc`](lc3_traits::peripheral::Adc) peripheral.
+    /// Trap vectors for the [`Adc`](lc3_traits::peripherals::Adc) peripheral.
     pub mod adc {
         define!([super::mm::ADC_OFFSET] <- {
             ENABLE,
@@ -151,7 +179,7 @@ pub mod traps {
         });
     }
 
-    /// Trap vectors for the [`Pwm`](lc3_traits::peripheral::Pwm) peripheral.
+    /// Trap vectors for the [`Pwm`](lc3_traits::peripherals::Pwm) peripheral.
     pub mod pwm {
         define!([super::mm::PWM_OFFSET] <- {
             ENABLE,
@@ -162,7 +190,7 @@ pub mod traps {
         });
     }
 
-    /// Trap vectors for the [`Timers`](lc3_traits::peripheral::Timers)
+    /// Trap vectors for the [`Timers`](lc3_traits::peripherals::Timers)
     /// peripheral.
     pub mod timers {
         define!([super::mm::TIMER_OFFSET] <- {
@@ -176,7 +204,7 @@ pub mod traps {
 
     }
 
-    /// Trap vectors for the [`Clock`](lc3_traits::peripheral::Clock)
+    /// Trap vectors for the [`Clock`](lc3_traits::peripherals::Clock)
     /// peripheral.
     pub mod clock {
         define!([super::mm::MISC_OFFSET] <- {
@@ -185,20 +213,26 @@ pub mod traps {
         });
     }
 
-    /// Trap vectors for the [`Input`](lc3_traits::peripheral::Input)
+    /// Trap vectors for the [`Input`](lc3_traits::peripherals::Input)
     /// peripheral.
     pub mod input {
         pub use super::builtin::GETC as READ;
     }
 
-    /// Trap vectors for the [`Output`](lc3_traits::peripheral::Output)
+    /// Trap vectors for the [`Output`](lc3_traits::peripherals::Output)
     /// peripheral.
     pub mod output {
         pub use super::builtin::OUT as WRITE;
     }
 
-    /// Trap vectors for the Traps officially part of the LC-3 ISA (i.e. GETC,
-    /// OUT, PUTS, IN, HALT, etc.).
+    /// Trap vectors for the Traps officially part of the LC-3 ISA (i.e. [GETC],
+    /// [OUT], [PUTS], [IN], [HALT], etc.).
+    ///
+    /// [GETC]: builtin::GETC
+    /// [OUT]: builtin::OUT
+    /// [PUTS]: builtin::PUTS
+    /// [IN]: builtin::IN
+    /// [HALT]: builtin::HALT
     pub mod builtin {
         define!([0x20] <- {
             GETC,   // 0x20
