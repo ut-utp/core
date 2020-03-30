@@ -980,7 +980,13 @@ macro_rules! pwm_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word;
+                use lc3_traits::peripherals::pwm::PwmState::*;
+
+                let state = Pwm::get_state(interp.get_peripherals(), $pin);
+                let word = match state {
+                    Enabled(ref nzu8) => Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word,
+                    Disabled => Word::max_value(),
+                };
 
                 Ok(Self::with_value(word))
             }
