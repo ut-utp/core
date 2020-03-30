@@ -128,14 +128,14 @@ pub mod traps {
             /// Puts a [GPIO] pin in [Input] mode.
             ///
             /// ## Inputs
-            ///  - [`R0`]: A [GPIO] [Pin] number.
+            ///  - [`R0`]: A GPIO [pin] number.
             ///
             /// ## Outputs
             ///  - `n` bit: set on error, cleared on success.
             ///
             /// ## Usage
             ///
-            /// This TRAP puts the [GPIO] [Pin] indicated by [R0] into [Input]
+            /// This TRAP puts the [GPIO] [pin] indicated by [R0] into [Input]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [R0] is
             /// ∈ \[0, [`NUM_GPIO_PINS`]), this TRAP is _infallible_.
             ///
