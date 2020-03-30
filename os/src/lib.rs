@@ -326,7 +326,6 @@ pub mod traps {
             /// [Output]: lc3_traits::peripherals::gpio::GpioState::Output
             /// [Pin]: lc3_traits::peripherals::gpio::GpioPin
             /// [`R0`]: lc3_isa::Reg::R0
-            /// [`R1`]: lc3_isa::Reg::R1
             /// [`NUM_GPIO_PINS`]: lc3_traits::peripherals::gpio::GpioPin::NUM_PINS
             /// [`G0`]: lc3_traits::peripherals::gpio::GpioPin::G0
             [0x34] GET_MODE,
@@ -420,23 +419,170 @@ pub mod traps {
     /// Trap vectors for the [`Adc`](lc3_traits::peripherals::Adc) peripheral.
     pub mod adc {
         define!([super::mm::ADC_OFFSET] <- {
-            ENABLE,
-            DISABLE,
-
-            GET_MODE,
-
-            READ,
+            /// Puts an [ADC] [Pin] in [Enabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: An [ADC] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [ADC] [Pin] indicated by [`R0`] into [Enabled]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`A0`] to be an [Enabled]:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x40
+            /// ```
+            ///
+            /// [ADC]: lc3_traits::peripherals::adc
+            /// [Enabled]: lc3_traits::peripherals::adc::AdcState::Enabled
+            /// [Pin]: lc3_traits::peripherals::adc::AdcPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_ADC_PINS`]: lc3_traits::peripherals::adc::AdcPin::NUM_PINS
+            /// [`A0`]: lc3_traits::peripherals::adc::AdcPin::A0
+            [0x40] ENABLE,
+            /// Puts an [ADC] [Pin] in [Disabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: An [ADC] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [ADC] [Pin] indicated by [`R0`] into [Disabled]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`A0`] to be an [Enabled], then immediately sets it
+            /// to [Disabled]:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x40
+            /// TRAP 0x41
+            /// ```
+            ///
+            /// [ADC]: lc3_traits::peripherals::adc
+            /// [Enabled]: lc3_traits::peripherals::adc::AdcState::Enabled
+            /// [Disabled]: lc3_traits::peripherals::adc::AdcState::Disabled
+            /// [Pin]: lc3_traits::peripherals::adc::AdcPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_ADC_PINS`]: lc3_traits::peripherals::adc::AdcPin::NUM_PINS
+            /// [`A0`]: lc3_traits::peripherals::adc::AdcPin::A0
+            [0x41] DISABLE,
+            /// Returns the mode of an [ADC] [Pin].
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: An [ADC] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: A value corresponding to an [ADC] [mode].
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP returns the mode of the [ADC] [Pin] indicated by [`R0`] by
+            /// writing a value to [`R0`]. The values are as follows:
+            ///
+            /// | Mode          | Value |
+            /// | ------------- | ----- |
+            /// | [`Enabled`]   | 0     |
+            /// | [`Disabled`]  | 1     |
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (excluding [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`A0`] to be an [Disabled], then reads [`A0`]'s mode
+            /// into [`R0`]. [`R0`] will then contain the value 1.
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x41
+            /// TRAP 0x42
+            /// ```
+            ///
+            /// [ADC]: lc3_traits::peripherals::adc
+            /// [mode]: lc3_traits::peripherals::adc::AdcState
+            /// [`Enabled`]: lc3_traits::peripherals::adc::AdcState::Enabled
+            /// [`Disabled`]: lc3_traits::peripherals::adc::AdcState::Disabled
+            /// [Disabled]: lc3_traits::peripherals::adc::AdcState::Disabled
+            /// [Pin]: lc3_traits::peripherals::adc::AdcPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_ADC_PINS`]: lc3_traits::peripherals::adc::AdcPin::NUM_PINS
+            /// [`A0`]: lc3_traits::peripherals::adc::AdcPin::A0
+            [0x42] GET_MODE,
+            /// Reads data from an [ADC] [Pin] in [Enabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: An [ADC] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: data from [ADC] [Pin]
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP reads data from the [ADC] [Pin] indicated by [`R0`], and
+            /// returns the data in [`R0`].
+            ///
+            /// The data returned will be in the range [0, 255].
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// Attempting to read from an [ADC] [Pin] that is not in [Enabled]
+            /// mode returns -1 in [`R0`].
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`A0`] to be an [Enabled], then reads from [`A0`] into [`R0`]:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x40
+            /// TRAP 0x43
+            /// ```
+            ///
+            /// [ADC]: lc3_traits::peripherals::adc
+            /// [mode]: lc3_traits::peripherals::adc::AdcState
+            /// [Enabled]: lc3_traits::peripherals::adc::AdcState::Enabled
+            /// [Pin]: lc3_traits::peripherals::adc::AdcPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_ADC_PINS`]: lc3_traits::peripherals::adc::AdcPin::NUM_PINS
+            /// [`A0`]: lc3_traits::peripherals::adc::AdcPin::A0
+            [0x43] READ,
         });
     }
 
     /// Trap vectors for the [`Pwm`](lc3_traits::peripherals::Pwm) peripheral.
     pub mod pwm {
         define!([super::mm::PWM_OFFSET] <- {
-            ENABLE,
-            DISABLE,
-
-            GET_PERIOD,
-            GET_DUTY,
+            [0x50] ENABLE,
+            [0x51] DISABLE,
+            [0x52] GET_PERIOD,
+            [0x53] GET_DUTY,
         });
     }
 
@@ -444,12 +590,11 @@ pub mod traps {
     /// peripheral.
     pub mod timers {
         define!([super::mm::TIMER_OFFSET] <- {
-            SINGLESHOT,
-            REPEATED,
-            DISABLE,
-
-            GET_MODE,
-            GET_PERIOD,
+            [0x60] SINGLESHOT,
+            [0x61] REPEATED,
+            [0x62] DISABLE,
+            [0x63] GET_MODE,
+            [0x64] GET_PERIOD,
         });
 
     }
@@ -458,8 +603,8 @@ pub mod traps {
     /// peripheral.
     pub mod clock {
         define!([super::mm::MISC_OFFSET] <- {
-            SET,
-            GET,
+            [0x70] SET,
+            [0x71] GET,
         });
     }
 
