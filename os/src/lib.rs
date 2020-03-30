@@ -75,18 +75,49 @@ mod os;
 pub mod traps {
     use lc3_baseline_sim::mem_mapped as mm;
 
+    /// Uses the workaround detailed
+    /// [here](https://github.com/rust-lang/rust/issues/52607) to let us
+    /// 'generate' a doc literal.
+    macro_rules! calculated_doc {
+        ( $thing:item $(#[doc = $doc:expr])* ) => {
+            $(
+                #[doc = $doc]
+            )*
+                $thing
+        };
+    }
 
     macro_rules! define {
-        ([$starting:expr] <- { $first:ident $(,)? $($rest:ident$(,)?)* }) => {
-            pub const $first: u8 = $starting;
+        ([$starting:expr] <- { $(#[doc = $doc:expr])* $([$chk:literal])? $first:ident $(,)? $( $(#[doc = $r_doc:expr])* $([$r_chk:literal])? $rest:ident$(,)?)* }) => {
+            calculated_doc! {
+                pub const $first: u8 = $starting;
+                $(#[doc = concat!("**`[", stringify!($chk), "]`** ")])*
+                $(#[doc = $doc])*
+                $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`", stringify!($chk), "`**")])?
+                // $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`[", stringify!($chk), "]`**")])?
+                // $(#[doc = concat!("\n### TRAP Vector\nVector Number: **", stringify!($chk), "**")])?
+                // $(#[doc = "\nTrap Vec: *"] #[doc = stringify!($chk)] #[doc = "*"])?
+            }
 
-            define!(munch $first $($rest)*);
+            $(sa::const_assert_eq!($first, $chk);)?
+
+            define!(munch $first $( $(#[doc = $r_doc])* $([$r_chk])? $rest )* );
         };
 
-        (munch $previous:ident $next:ident $($rest:ident)*) => {
-            pub const $next: u8 = $previous + 1;
+        (munch $previous:ident $(#[doc = $doc:expr])* $([$chk:literal])? $next:ident $( $(#[doc = $r_doc:expr])* $([$r_chk:literal])? $rest:ident)*) => {
+            calculated_doc! {
+                pub const $next: u8 = $previous + 1;
+                // $(#[doc = concat!("[", stringify!($chk), "] ")])*
+                // $(#[doc = concat!("[", stringify!($chk), "] ")])*
+                $(#[doc = concat!("**`[", stringify!($chk), "]`** ")])*
+                $(#[doc = $doc])*
+                $(#[doc = concat!("\n### TRAP Vector\nVector Number: **`", stringify!($chk), "`**")])?
+                // $(#[doc = concat!("\nTrap Vec: *", $chk, "*")])?
+            }
 
-            define!(munch $next $($rest)*);
+            $(sa::const_assert_eq!($next, $chk);)?
+
+            define!(munch $next $( $(#[doc = $r_doc])* $([$r_chk])? $rest )* );
         };
 
         (munch $previous:ident) => { }
@@ -95,15 +126,16 @@ pub mod traps {
     /// Trap vectors for the [`Gpio`](lc3_traits::peripheral::Gpio) peripheral.
     pub mod gpio {
         define!([super::mm::GPIO_OFFSET] <- {
-            INPUT_MODE,
-            OUTPUT_MODE,
-            INTERRUPT_MODE,
-            DISABLED_MODE,
+            /// Reads
+            [0x30] INPUT,
+            [0x31] OUTPUT,
+            [0x32] INTERRUPT,
+            [0x33] DISABLED,
 
-            GET_MODE,
+            [0x34] GET_MODE,
 
-            WRITE,
-            READ,
+            [0x35] WRITE,
+            /* these are checked for value but not for formatting, so it's on you to not do this: */ [00054] READ,
         });
     }
 

@@ -445,6 +445,7 @@ dependencies = [
  "lc3-shims",
  "lc3-traits",
  "pretty_assertions",
+ "static_assertions",
 ]
 
 [[package]]
