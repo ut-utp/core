@@ -227,7 +227,7 @@ pub mod traps {
             /// BRz LOOP
             /// HALT
             ///
-            /// .FILL ISR_FLAG #0
+            /// ISR_FLAG .FILL #0
             ///
             /// ISR
             /// AND R0, R0, #0
@@ -545,7 +545,7 @@ pub mod traps {
             /// This TRAP reads data from the [ADC] [Pin] indicated by [`R0`], and
             /// returns the data in [`R0`].
             ///
-            /// The data returned will be in the range [0, 255].
+            /// The data returned will be in the range \[0, 255\].
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
             /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
@@ -555,7 +555,7 @@ pub mod traps {
             /// Attempting to read from an [ADC] [Pin] that is not in [Enabled]
             /// mode returns -1 in [`R0`].
             ///
-            /// All registers (including [`R0`]) are preserved.
+            /// All registers (excluding [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`A0`] to be an [Enabled], then reads from [`A0`] into [`R0`]:
@@ -579,9 +579,198 @@ pub mod traps {
     /// Trap vectors for the [`Pwm`](lc3_traits::peripherals::Pwm) peripheral.
     pub mod pwm {
         define!([super::mm::PWM_OFFSET] <- {
+            /// Puts a [PWM] [Pin] in [Enabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [PWM] [Pin] number.
+            ///  - [`R1`]: The period.
+            ///  - [`R2`]: The duty cycle.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [PWM] [Pin] indicated by [`R0`] into [Enabled]
+            /// mode. It also sets the corresponding period and duty cycle of that
+            /// [Pin] with [`R1`] and [`R2`] respectively.
+            ///
+            /// The period and duty cycle will only use the 8 least significant bits
+            /// of [`R1`] and [`R2`], resulting in values in the range \[0, 255\].
+            /// The period is measured in units of milliseconds. The duty cycle is
+            /// the fractional value (e.g. a value of 64 corresponds to a 25% duty cycle).
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
+            /// *50%* duty cycle then halts:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LD R2, DUTY
+            /// TRAP 0x50
+            /// HALT
+            ///
+            /// PERIOD .FILL #20
+            /// DUTY .FILL #128
+            /// ```
+            ///
+            /// [PWM]: lc3_traits::peripherals::pwm
+            /// [Enabled]: lc3_traits::peripherals::pwm::PwmState::Enabled
+            /// [Pin]: lc3_traits::peripherals::pwm::PwmPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`R2`]: lc3_isa::Reg::R2
+            /// [`NUM_PWM_PINS`]: lc3_traits::peripherals::pwm::PwmPin::NUM_PINS
+            /// [`P0`]: lc3_traits::peripherals::pwm::PwmPin::P0
             [0x50] ENABLE,
+            /// Puts a [PWM] [Pin] in [Disabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [PWM] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [PWM] [Pin] indicated by [`R0`] into [Disabled]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
+            /// *50%* duty cycle, immediately sets it to [Disabled], then halts:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LD R2, DUTY
+            /// TRAP 0x50
+            /// TRAP 0x51
+            /// HALT
+            ///
+            /// PERIOD .FILL #20
+            /// DUTY .FILL #128
+            /// ```
+            ///
+            /// [PWM]: lc3_traits::peripherals::pwm
+            /// [Enabled]: lc3_traits::peripherals::pwm::PwmState::Enabled
+            /// [Disabled]: lc3_traits::peripherals::pwm::PwmState::Disabled
+            /// [Pin]: lc3_traits::peripherals::pwm::PwmPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`R2`]: lc3_isa::Reg::R2
+            /// [`NUM_PWM_PINS`]: lc3_traits::peripherals::pwm::PwmPin::NUM_PINS
+            /// [`P0`]: lc3_traits::peripherals::pwm::PwmPin::P0
             [0x51] DISABLE,
+            /// Reads the period of a [PWM] [Pin] in [Enabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [PWM] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: A period ∈ \[0, 255\] milliseconds.
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP reads the period from the [PWM] [Pin] indicated by [`R0`]
+            /// and returns the period in [`R0`]. The period will be a value in the
+            /// range \[0, 255\] and has units of milliseconds.
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// Attempting to read the period from a [PWM] [Pin] that is in [Disabled]
+            /// mode returns 0 in [`R0`].
+            ///
+            /// All registers (excluding [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
+            /// *50%* duty cycle. It then reads the period of [`P0`] and results in the
+            /// value 20 in [`R0`] then halts:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LD R2, DUTY
+            /// TRAP 0x50
+            /// TRAP 0x52
+            /// HALT
+            ///
+            /// PERIOD .FILL #20
+            /// DUTY .FILL #128
+            /// ```
+            ///
+            /// [PWM]: lc3_traits::peripherals::pwm
+            /// [Enabled]: lc3_traits::peripherals::pwm::PwmState::Enabled
+            /// [Disabled]: lc3_traits::peripherals::pwm::PwmState::Disabled
+            /// [Pin]: lc3_traits::peripherals::pwm::PwmPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_PWM_PINS`]: lc3_traits::peripherals::pwm::PwmPin::NUM_PINS
+            /// [`P0`]: lc3_traits::peripherals::pwm::PwmPin::P0
             [0x52] GET_PERIOD,
+            /// Reads the duty cycle of a [PWM] [Pin] in [Enabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [PWM] [Pin] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: A duty cycle ∈ \[0, 255\].
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP reads the duty cycle from the [PWM] [Pin] indicated by
+            /// [`R0`] and returns the duty cycle in [`R0`]. The duty cycle will
+            /// be a value in the range \[0, 255\] and corresponds to a percentage
+            /// (e.g. a value of 64 corresponds to a 25% duty cycle).
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// Attempting to read the duty cycle from a [PWM] [Pin] that is in
+            /// [Disabled] mode returns -1 in [`R0`].
+            ///
+            /// All registers (excluding [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
+            /// *50%* duty cycle. It then reads the duty cycle of [`P0`] and results in
+            /// the value 128 in [`R0`] then halts:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LD R2, DUTY
+            /// TRAP 0x50
+            /// TRAP 0x53
+            /// HALT
+            ///
+            /// PERIOD .FILL #20
+            /// DUTY .FILL #128
+            /// ```
+            ///
+            /// [PWM]: lc3_traits::peripherals::pwm
+            /// [Enabled]: lc3_traits::peripherals::pwm::PwmState::Enabled
+            /// [Disabled]: lc3_traits::peripherals::pwm::PwmState::Disabled
+            /// [Pin]: lc3_traits::peripherals::pwm::PwmPin
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`NUM_PWM_PINS`]: lc3_traits::peripherals::pwm::PwmPin::NUM_PINS
+            /// [`P0`]: lc3_traits::peripherals::pwm::PwmPin::P0
             [0x53] GET_DUTY,
         });
     }
