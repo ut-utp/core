@@ -662,7 +662,7 @@ macro_rules! gpio_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 let state = Gpio::get_state(interp.get_peripherals(), $pin);
-                if state == lc3_traits::peripherals::gpio::GpioState::Input {
+                if state == lc3_traits::peripherals::gpio::GpioState::Output {
                     let bit: bool = value.bit(0);
                     Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
                 }
