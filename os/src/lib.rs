@@ -64,6 +64,8 @@ macro_rules! nightly_const {
     );
 }
 
+extern crate static_assertions as sa;
+
 pub const USER_PROG_START_ADDR: lc3_isa::Addr = 0x0500;
 pub const ERROR_ON_ACV_SETTING_ADDR: lc3_isa::Addr = 0x0501;
 
@@ -90,6 +92,7 @@ pub mod traps {
         (munch $previous:ident) => { }
     }
 
+    /// Trap vectors for the [`Gpio`](lc3_traits::peripheral::Gpio) peripheral.
     pub mod gpio {
         define!([super::mm::GPIO_OFFSET] <- {
             INPUT_MODE,
@@ -102,20 +105,10 @@ pub mod traps {
             WRITE,
             READ,
         });
-
-        // use lc3_baseline_sim::mem_mapped::GPIO_OFFSET as OFS;
-
-        // pub const INPUT_MODE: u8 = OFS + 0;
-        // pub const OUTPUT_MODE: u8 = OFS + 1;
-        // pub const INTERRUPT_MODE: u8 = OFS + 2;
-        // pub const DISABLED_MODE: u8 = OFS + 3;
-
-        // pub const READ: u8 = OFS + 4;
     }
 
+    /// Trap vectors for the [`Adc`](lc3_traits::peripheral::Adc) peripheral.
     pub mod adc {
-        // use lc3_baseline_sim::mem_mapped::ADC_OFFSET as OFS;
-
         define!([super::mm::ADC_OFFSET] <- {
             ENABLE,
             DISABLE,
@@ -126,9 +119,8 @@ pub mod traps {
         });
     }
 
+    /// Trap vectors for the [`Pwm`](lc3_traits::peripheral::Pwm) peripheral.
     pub mod pwm {
-        // use lc3_baseline_sim::mem_mapped::PWM_OFFSET as OFS;
-
         define!([super::mm::PWM_OFFSET] <- {
             ENABLE,
             DISABLE,
@@ -138,9 +130,9 @@ pub mod traps {
         });
     }
 
+    /// Trap vectors for the [`Timers`](lc3_traits::peripheral::Timers)
+    /// peripheral.
     pub mod timers {
-        // use lc3_baseline_sim::mem_mapped::TIMER_OFFSET as OFS;
-
         define!([super::mm::TIMER_OFFSET] <- {
             SINGLESHOT,
             REPEATED,
@@ -152,23 +144,29 @@ pub mod traps {
 
     }
 
+    /// Trap vectors for the [`Clock`](lc3_traits::peripheral::Clock)
+    /// peripheral.
     pub mod clock {
-        // use lc3_baseline_sim::mem_mapped::MISC_OFFSET as OFS;
-
         define!([super::mm::MISC_OFFSET] <- {
             SET,
             GET,
         });
     }
 
+    /// Trap vectors for the [`Input`](lc3_traits::peripheral::Input)
+    /// peripheral.
     pub mod input {
         pub use super::builtin::GETC as READ;
     }
 
+    /// Trap vectors for the [`Output`](lc3_traits::peripheral::Output)
+    /// peripheral.
     pub mod output {
         pub use super::builtin::OUT as WRITE;
     }
 
+    /// Trap vectors for the Traps officially part of the LC-3 ISA (i.e. GETC,
+    /// OUT, PUTS, IN, HALT, etc.).
     pub mod builtin {
         define!([0x20] <- {
             GETC,   // 0x20
