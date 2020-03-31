@@ -137,7 +137,7 @@ pub mod traps {
             ///
             /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Input]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -169,7 +169,7 @@ pub mod traps {
             ///
             /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Output]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -202,13 +202,13 @@ pub mod traps {
             /// ## Usage
             ///
             /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Interrupt]
-            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            /// mode. This TRAP also sets the corresponding interrupt vector table entry
+            /// for this [GPIO] [Pin] to the address indicated by [`R1`].
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
-            ///
-            /// This TRAP also sets the corresponding interrupt vector table entry
-            /// for this [GPIO] [Pin] to the address indicated by [`R1`].
             ///
             /// All registers (including [`R0`]) are preserved.
             ///
@@ -220,7 +220,7 @@ pub mod traps {
             /// ```{ARM Assembly}
             /// AND R0, R0, #0
             /// LEA R1, ISR
-            /// TRAP 0x31
+            /// TRAP 0x32
             ///
             /// LOOP
             /// LD R1, ISR_FLAG
@@ -256,7 +256,7 @@ pub mod traps {
             ///
             /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Disabled]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -302,7 +302,7 @@ pub mod traps {
             /// | [`Disabled`]  | 3     |
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -346,7 +346,7 @@ pub mod traps {
             /// Only the least significant bit of [`R1`] is written.
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -388,7 +388,7 @@ pub mod traps {
             /// returns the data in [`R0`].
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_GPIO_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -431,7 +431,7 @@ pub mod traps {
             ///
             /// This TRAP puts the [ADC] [Pin] indicated by [`R0`] into [Enabled]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_ADC_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -463,7 +463,7 @@ pub mod traps {
             ///
             /// This TRAP puts the [ADC] [Pin] indicated by [`R0`] into [Disabled]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_ADC_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -506,7 +506,7 @@ pub mod traps {
             /// | [`Disabled`]  | 1     |
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_ADC_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -548,7 +548,7 @@ pub mod traps {
             /// The data returned will be in the range \[0, 255\].
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_ADC_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_ADC_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -601,7 +601,7 @@ pub mod traps {
             /// the fractional value (e.g. a value of 64 corresponds to a 25% duty cycle).
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_PWM_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -642,7 +642,7 @@ pub mod traps {
             ///
             /// This TRAP puts the [PWM] [Pin] indicated by [`R0`] into [Disabled]
             /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_PWM_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -689,7 +689,7 @@ pub mod traps {
             /// range \[0, 255\] and has units of milliseconds.
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_PWM_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -739,7 +739,7 @@ pub mod traps {
             /// (e.g. a value of 64 corresponds to a 25% duty cycle).
             ///
             /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
-            /// ∈ \[0, [`NUM_PWM_PINS`]\]), this TRAP is _infallible_.
+            /// ∈ \[0, [`NUM_PWM_PINS`])), this TRAP is _infallible_.
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
@@ -779,10 +779,300 @@ pub mod traps {
     /// peripheral.
     pub mod timers {
         define!([super::mm::TIMER_OFFSET] <- {
+            /// Puts a [Timer] in [SingleShot] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [Timer] [ID] number.
+            ///  - [`R1`]: The period.
+            ///  - [`R2`]: Address of interrupt service routine.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [Timer] indicated by [`R0`] into [SingleShot]
+            /// mode. It also sets the period of the [Timer] as well as the entry
+            /// in the interrupt vector table corresponding to the [Timer]. The
+            /// period is measured in units of milliseconds and uses full 16-bit
+            /// words (i.e. the period will be a value in the range \[0, 65535\]).
+            ///
+            /// In [SingleShot] mode, the interrupt service routine is only
+            /// triggered one time. The [Timer] will then set itself to [Disabled].
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`T0`] to be a [SingleShot] with a period of `3 seconds`
+            /// and sets the interrupt service routine to `ISR`. It will then spin
+            /// until [`T0`] fires an interrupt, after three seconds have passed,
+            /// which will call `ISR`, set the `ISR_FLAG` to 1, and allow the main
+            /// program to halt.
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LEA R2, ISR
+            /// TRAP 0x60
+            ///
+            /// LOOP
+            /// LD R1, ISR_FLAG
+            /// BRz LOOP
+            /// HALT
+            ///
+            /// PERIOD .FILL #3000
+            /// ISR_FLAG .FILL #0
+            ///
+            /// ISR
+            /// AND R0, R0, #0
+            /// ADD R0, R0, #1
+            /// ST R0, ISR_FLAG
+            /// RTI
+            /// ```
+            ///
+            /// [Timer]: lc3_traits::peripherals::timers
+            /// [Disabled]: lc3_traits::peripherals::timers::TimerState::Disabled
+            /// [SingleShot]: lc3_traits::peripherals::timers::TimerState::SingleShot
+            /// [ID]: lc3_traits::peripherals::timers::TimerId
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`R2`]: lc3_isa::Reg::R2
+            /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
+            /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
             [0x60] SINGLESHOT,
+            /// Puts a [Timer] in [Repeated] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [Timer] [ID] number.
+            ///  - [`R1`]: The period.
+            ///  - [`R2`]: Address of interrupt service routine.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [Timer] indicated by [`R0`] into [Repeated]
+            /// mode. It also sets the period of the [Timer] as well as the entry
+            /// in the interrupt vector table corresponding to the [Timer]. The
+            /// period is measured in units of milliseconds and uses full 16-bit
+            /// words (i.e. the period will be a value in the range \[0, 65535\]).
+            ///
+            /// In [Repeated] mode, the interrupt service routine triggers every
+            /// period cycle until the [Timer] is disabled.
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
+            /// and sets the interrupt service routine to `ISR`. It will then spin
+            /// endlessly. When [`T0`] fires an interrupt every second, `ISR` is called,
+            /// which increments a counter:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LEA R2, ISR
+            /// TRAP 0x61
+            ///
+            /// LOOP
+            /// BRz LOOP
+            ///
+            /// PERIOD .FILL #1000
+            /// COUNTER .FILL #0
+            ///
+            /// ISR
+            /// LD R0, COUNTER
+            /// ADD R0, R0, #1
+            /// ST R0, COUNTER
+            /// RTI
+            /// ```
+            ///
+            /// [Timer]: lc3_traits::peripherals::timers
+            /// [Repeated]: lc3_traits::peripherals::timers::TimerState::Repeated
+            /// [ID]: lc3_traits::peripherals::timers::TimerId
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`R2`]: lc3_isa::Reg::R2
+            /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
+            /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
             [0x61] REPEATED,
+            /// Puts a [Timer] in [Disabled] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [Timer] [ID] number.
+            ///
+            /// ## Outputs
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP puts the [Timer] indicated by [`R0`] into [Disabled]
+            /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is set.
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
+            /// and sets the interrupt service routine to `ISR`, then immediately
+            /// disables [`T0`] It will then spin endlessly. Since [`T0`] is disabled,
+            /// `ISR` is never called, and the counter never increments.
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LEA R2, ISR
+            /// TRAP 0x61
+            ///
+            /// TRAP 0x62
+            ///
+            /// LOOP
+            /// BRz LOOP
+            ///
+            /// PERIOD .FILL #1000
+            /// COUNTER .FILL #0
+            ///
+            /// ISR
+            /// LD R0, COUNTER
+            /// ADD R0, R0, #1
+            /// ST R0, COUNTER
+            /// RTI
+            /// ```
+            ///
+            /// [Timer]: lc3_traits::peripherals::timers
+            /// [Repeated]: lc3_traits::peripherals::timers::TimerState::Repeated
+            /// [ID]: lc3_traits::peripherals::timers::TimerId
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`R2`]: lc3_isa::Reg::R2
+            /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
+            /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
             [0x62] DISABLE,
+            /// Returns the mode of a [Timer].
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [Timer] [ID] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: A value corresponding to a [Timer] [mode].
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP returns the mode of the [Timer] indicated by [`R0`] by
+            /// writing a value to [`R0`]. The values are as follows:
+            ///
+            /// | Mode           | Value |
+            /// | -------------- | ----- |
+            /// | [`Repeated`]   | 0     |
+            /// | [`SingleShot`] | 1     |
+            /// | [`Disabled`]   | 2     |
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// All registers (excluding [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`T0`] to be a [SingleShot] with a period of `1 second`
+            /// and sets the interrupt service routine to `ISR`. It then gets the
+            /// [mode] of [`T0`], which will write a value of 1 into [`R0`]. Then the
+            /// program halts.
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LEA R2, ISR
+            /// TRAP 0x60
+            /// TRAP 0x63
+            /// HALT
+            ///
+            /// PERIOD .FILL #1000
+            ///
+            /// ISR
+            /// RTI
+            /// ```
+            ///
+            /// [Timer]: lc3_traits::peripherals::timers
+            /// [`Repeated`]: lc3_traits::peripherals::timers::TimerState::Repeated
+            /// [`SingleShot`]: lc3_traits::peripherals::timers::TimerState::SingleShot
+            /// [`Disabled`]: lc3_traits::peripherals::timers::TimerState::Disabled
+            /// [SingleShot]: lc3_traits::peripherals::timers::TimerState::SingleShot
+            /// [ID]: lc3_traits::peripherals::timers::TimerId
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`R2`]: lc3_isa::Reg::R2
+            /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
+            /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
+            /// [mode]: lc3_traits::peripherals::timers::TimerState
             [0x63] GET_MODE,
+            /// Returns the period of a [Timer] in [SingleShot] or [Repeated] mode.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: A [Timer] [ID] number.
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: A period ∈ \[0, 65535\].
+            ///  - `n` bit: set on error, cleared on success.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP returns the period of the [Timer] indicated by [`R0`] by
+            /// writing a value to [`R0`]. The period will be a value in the range
+            /// \[0, 65535\] and is measured in milliseconds.
+            ///
+            /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+            /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
+            ///
+            /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+            ///
+            /// Attempting to read the period of a [Timer] not in [SingleShot] or
+            /// [Repeated] modes will return -1.
+            ///
+            /// All registers (excluding [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
+            /// and sets the interrupt service routine to `ISR`. It then gets the
+            /// period of [`T0`], which will write a value of `1000` into [`R0`].
+            /// Then the program halts.
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// LD R1, PERIOD
+            /// LEA R2, ISR
+            /// TRAP 0x60
+            /// TRAP 0x64
+            /// HALT
+            ///
+            /// PERIOD .FILL #1000
+            ///
+            /// ISR
+            /// RTI
+            /// ```
+            ///
+            /// [Timer]: lc3_traits::peripherals::timers
+            /// [`Repeated`]: lc3_traits::peripherals::timers::TimerState::Repeated
+            /// [`SingleShot`]: lc3_traits::peripherals::timers::TimerState::SingleShot
+            /// [`Disabled`]: lc3_traits::peripherals::timers::TimerState::Disabled
+            /// [SingleShot]: lc3_traits::peripherals::timers::TimerState::SingleShot
+            /// [ID]: lc3_traits::peripherals::timers::TimerId
+            /// [`R0`]: lc3_isa::Reg::R0
+            /// [`R1`]: lc3_isa::Reg::R1
+            /// [`R2`]: lc3_isa::Reg::R2
+            /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
+            /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
+            /// [mode]: lc3_traits::peripherals::timers::TimerState
             [0x64] GET_PERIOD,
         });
 
