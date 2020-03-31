@@ -951,6 +951,7 @@ pub mod traps {
             ///
             /// [Timer]: lc3_traits::peripherals::timers
             /// [Repeated]: lc3_traits::peripherals::timers::TimerState::Repeated
+            /// [Disabled]: lc3_traits::peripherals::timers::TimerState::Disabled
             /// [ID]: lc3_traits::peripherals::timers::TimerId
             /// [`R0`]: lc3_isa::Reg::R0
             /// [`R1`]: lc3_isa::Reg::R1
@@ -1062,10 +1063,8 @@ pub mod traps {
             /// ```
             ///
             /// [Timer]: lc3_traits::peripherals::timers
-            /// [`Repeated`]: lc3_traits::peripherals::timers::TimerState::Repeated
-            /// [`SingleShot`]: lc3_traits::peripherals::timers::TimerState::SingleShot
-            /// [`Disabled`]: lc3_traits::peripherals::timers::TimerState::Disabled
             /// [SingleShot]: lc3_traits::peripherals::timers::TimerState::SingleShot
+            /// [Repeated]: lc3_traits::peripherals::timers::TimerState::Repeated
             /// [ID]: lc3_traits::peripherals::timers::TimerId
             /// [`R0`]: lc3_isa::Reg::R0
             /// [`R1`]: lc3_isa::Reg::R1
@@ -1082,6 +1081,7 @@ pub mod traps {
     /// peripheral.
     pub mod clock {
         define!([super::mm::MISC_OFFSET] <- {
+
             [0x70] SET,
             [0x71] GET,
         });
