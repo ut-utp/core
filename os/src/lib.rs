@@ -1081,8 +1081,56 @@ pub mod traps {
     /// peripheral.
     pub mod clock {
         define!([super::mm::MISC_OFFSET] <- {
-
+            /// Sets the value of the [Clock].
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: Value to set the clock in milliseconds.
+            ///
+            /// ## Outputs
+            ///  - None? TODO: check this
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP sets the value of the [Clock] based on the value of [`R0`].
+            /// The clock's value is measured in milliseconds and uses full 16-bit
+            /// words (i.e. the value will be in the range \[0, 65535\]).
+            ///
+            /// All registers (including [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below resets the [Clock]'s value:
+            /// ```{ARM Assembly}
+            /// AND R0, R0, #0
+            /// TRAP 0x70
+            /// ```
+            ///
+            /// [Clock]: lc3_traits::peripherals::clock
+            /// [`R0`]: lc3_isa::Reg::R0
             [0x70] SET,
+            /// Gets the value of the [Clock].
+            ///
+            /// ## Inputs
+            ///  - None
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: Value of the clock.
+            ///
+            /// ## Usage
+            ///
+            /// This TRAP gets the value of the [Clock] and stores it in [`R0`].
+            /// The clock's value is measured in milliseconds and uses full 16-bit
+            /// words (i.e. the value will be in the range \[0, 65535\]).
+            ///
+            /// All registers (excluding [`R0`]) are preserved.
+            ///
+            /// ## Example
+            /// The below gets the [Clock]'s value and stores it in [`R0`]:
+            /// ```{ARM Assembly}
+            /// TRAP 0x71
+            /// ```
+            ///
+            /// [Clock]: lc3_traits::peripherals::clock
+            /// [`R0`]: lc3_isa::Reg::R0
             [0x71] GET,
         });
     }
