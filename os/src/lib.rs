@@ -1157,12 +1157,126 @@ pub mod traps {
     /// [HALT]: builtin::HALT
     pub mod builtin {
         define!([0x20] <- {
-            GETC,   // 0x20
-            OUT,    // 0x21
-            PUTS,   // 0x22
-            IN,     // 0x23
-            PUTSP,  // 0x24
-            HALT,   // 0x25
+            /// Reads a character from the keyboard.
+            ///
+            /// ## Inputs
+            ///  - None
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: Character read from keyboard.
+            ///
+            /// ## Usage
+            ///
+            /// The following description is from *Introduction to Computing
+            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+            ///
+            /// Read a single character from the keyboard. The character is not
+            /// echoed onto the console. Its ASCII code is copied into R0. The high
+            /// eight bits of R0 are cleared.
+            ///
+            /// [`R0`]: lc3_isa::Reg::R0
+            [0x20] GETC,   // 0x20
+            /// Writes a character to the console display.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: Character to write.
+            ///
+            /// ## Outputs
+            ///  - None
+            ///
+            /// ## Usage
+            ///
+            /// The following description is from *Introduction to Computing
+            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+            ///
+            ///  Write a character in R0\[7:0\] to the console display.
+            ///
+            /// [`R0`]: lc3_isa::Reg::R0
+            [0x21] OUT,    // 0x21
+            /// Writes a string of ASCII characters to the console display.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: Address of first character.
+            ///
+            /// ## Outputs
+            ///  - None
+            ///
+            /// ## Usage
+            ///
+            /// The following description is from *Introduction to Computing
+            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+            ///
+            /// Write a string of ASCII characters to the console display.
+            /// The characters are contained in consecutive memory locations,
+            /// one character per memory location, starting with the address
+            /// specified in R0. Writing terminates with the occurrence of
+            /// x0000 in a memory location.
+            ///
+            /// [`R0`]: lc3_isa::Reg::R0
+            [0x22] PUTS,   // 0x22
+            /// Prints a prompt and reads a character from the keyboard.
+            ///
+            /// ## Inputs
+            ///  - None
+            ///
+            /// ## Outputs
+            ///  - [`R0`]: Character read from keyboard.
+            ///
+            /// ## Usage
+            ///
+            /// The following description is from *Introduction to Computing
+            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+            ///
+            /// Print a prompt on the screen and read a single character from
+            /// the keyboard. The character is echoed onto the console monitor,
+            /// and its ASCII code is copied into R0. The high eight bits of R0
+            /// are cleared.
+            ///
+            /// [`R0`]: lc3_isa::Reg::R0
+            [0x23] IN,     // 0x23
+            /// Writes a string of ASCII characters stored compactly to the
+            /// console display.
+            ///
+            /// ## Inputs
+            ///  - [`R0`]: Address of first characters.
+            ///
+            /// ## Outputs
+            ///  - None
+            ///
+            /// ## Usage
+            ///
+            /// The following description is from *Introduction to Computing
+            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+            ///
+            /// Write a string of ASCII characters to the console. The
+            /// characters are contained in consecutive memory locations, two
+            /// characters per memory location, starting with the address
+            /// specified in R0. The ASCII code contained in bits \[7:0\] of a
+            /// memory location is written to the console first. Then the ASCII
+            /// code contained in bits \[15:8\] of that memory location is
+            /// written to the console. (A character string consisting of an
+            /// odd number of characters to be written will have x00 in bits
+            /// \[15:8\] of the memory location containing the last character to
+            /// be written.) Writing terminates with the occurrence of x0000
+            /// in a memory location.
+            ///
+            /// [`R0`]: lc3_isa::Reg::R0
+            [0x24] PUTSP,  // 0x24
+            /// Halt execution and print a message on the console.
+            ///
+            /// ## Inputs
+            ///  - None
+            ///
+            /// ## Outputs
+            ///  - None
+            ///
+            /// ## Usage
+            ///
+            /// The following description is from *Introduction to Computing
+            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+            ///
+            /// Halt execution and print a message on the console.
+            [0x25] HALT,   // 0x25
         });
     }
 }
