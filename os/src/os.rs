@@ -1015,9 +1015,8 @@ fn os() -> AssembledProgram {
         // R0 = GPIO pin to enable
         // R1 = mode to set
         @SET_GPIO_MODE
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
@@ -1031,54 +1030,47 @@ fn os() -> AssembledProgram {
             STR R1, R4, #0;                 // Write GPIO mode to control register
         @SKIP_SET_GPIO_MODE
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RET;
 
         // Sets GPIO pin to input mode
         // R0 = GPIO pin to set
         @TRAP_SET_GPIO_INPUT
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             AND R1, R1, #0;                 // Set R1 to 2 (Input)
             ADD R1, R1, #2;
             JSR @SET_GPIO_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Sets GPIO pin to output mode
         // R0 = GPIO pin to set
         @TRAP_SET_GPIO_OUTPUT
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             AND R1, R1, #0;                 // Set R1 to 1 (Output)
             ADD R1, R1, #1;
             JSR @SET_GPIO_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Sets GPIO pin to interrupt mode and sets ISR address in IVT
         // R0 = GPIO pin to set
         // R1 = Address of interrupt service routine
         @TRAP_SET_GPIO_INTERRUPT
-            ADD R6, R6, #-1;                // Save R1, R4, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-3;                // Save R1, R4, R7 on stack
+            STR R1, R6, #2;
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
@@ -1098,36 +1090,31 @@ fn os() -> AssembledProgram {
             STR R1, R4, #0;                 // Write GPIO mode to control register
         @SKIP_SET_GPIO_INTERRUPT
             LDR R7, R6, #0;                 // Restore R1, R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            LDR R1, R6, #2;
+            ADD R6, R6, #3;
             RTI;
 
         // Sets GPIO pin to disabled
         // R0 = GPIO pin to set
         @TRAP_SET_GPIO_DISABLED
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             AND R1, R1, #0;                 // Set R1 to 0 (Disabled)
             JSR @SET_GPIO_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns mode of GPIO pin
         // R0 = GPIO pin to read from
         // -> R0 = mode of GPIO pin
         @TRAP_READ_GPIO_MODE
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
@@ -1141,18 +1128,16 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_GPIO_MODE
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Writes data to GPIO pin
         // R0 = GPIO pin to write to
         // R1 = data to write
         @TRAP_WRITE_GPIO_DATA
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
@@ -1167,18 +1152,16 @@ fn os() -> AssembledProgram {
             STR R1, R4, #0;                 // Writes data from R1 to pin in R0
         @SKIP_WRITE_GPIO_DATA
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns data from GPIO pin
         // R0 = GPIO pin to read from
         // -> R0 = data from GPIO pin
         @TRAP_READ_GPIO_DATA
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of GPIO pins
@@ -1193,20 +1176,17 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads data from pin into R0
         @SKIP_READ_GPIO_DATA
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Sets mode of ADC pin
         // R0 = ADC pin to set mode of
         // R1 = mode to set
         @SET_ADC_MODE
-            ADD R6, R6, #-1;                // Save R1, R4, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-3;                // Save R1, R4, R7 on stack
+            STR R1, R6, #2;
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
@@ -1220,53 +1200,46 @@ fn os() -> AssembledProgram {
             STR R1, R4, #0;                 // Writes ADC mode to control register
         @SKIP_SET_ADC_MODE
             LDR R7, R6, #0;                 // Restore R1, R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            LDR R1, R6, #2;
+            ADD R6, R6, #3;
             RET;
 
         // Sets mode of ADC pin to Enabled
         // R0 = ADC pin to enable
         @TRAP_SET_ADC_ENABLE
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             AND R1, R1, #0;                 // Sets mode to 1, to enable ADC
             ADD R1, R1, #1;
             JSR @SET_ADC_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Sets mode of ADC pin to Disabled
         // R0 = ADC pin to disable
         @TRAP_SET_ADC_DISABLE
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             AND R1, R1, #0;                 // Sets mode to 0, which is mode to disable ADC
             JSR @SET_ADC_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns mode of ADC pin
         // R0 = ADC pin to read from
         // -> R0 = mode of ADC pin
         @TRAP_READ_ADC_MODE
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
@@ -1280,18 +1253,16 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_ADC_MODE
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns data from ADC pin
         // R0 = ADC pin to read from
         // -> R0 = data from ADC pin
         @TRAP_READ_ADC_DATA
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of ADC pins
@@ -1306,9 +1277,8 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads data from pin in R0
         @SKIP_READ_ADC_DATA
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // More constants
@@ -1326,9 +1296,8 @@ fn os() -> AssembledProgram {
         // R1 = period to set
         // R2 = duty cycle to set
         @TRAP_SET_PWM
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
@@ -1344,17 +1313,15 @@ fn os() -> AssembledProgram {
             STR R2, R4, #0;                 // Write duty cycle to PWM
         @SKIP_SET_PWM
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // PWM disable
         // R0 = PWM to disable
         @TRAP_DISABLE_PWM
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
@@ -1369,18 +1336,16 @@ fn os() -> AssembledProgram {
             STR R7, R4, #0;                 // Disable PWM (period = 0)
         @SKIP_DISABLE_PWM
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns mode of PWM pin
         // R0 = PWM pin to read from
         // -> R0 = mode of PWM pin
         @TRAP_READ_PWM_MODE
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
@@ -1394,18 +1359,16 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_PWM_MODE
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns data from PWM pin
         // R0 = PWM pin to read from
         // -> R0 = data from PWM pin
         @TRAP_READ_PWM_DUTY_CYCLE
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of PWM pins
@@ -1420,18 +1383,16 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads data from pin into R0
         @SKIP_READ_PWM_DUTY_CYCLE
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Timer Pin Set
         // R0= Timer Pin to set mode of
         // R1= mode to be set
         @SET_TIMER_MODE
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of timers
@@ -1445,18 +1406,16 @@ fn os() -> AssembledProgram {
             STR R1, R4, #0;
         @SKIP_SET_TIMER_MODE
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RET;
 
         // Writes data to TIMER pin
         // R0 = TIMER pin to write to
         // R1 = data to write
         @WRITE_TIMER_DATA
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of timers
@@ -1471,9 +1430,8 @@ fn os() -> AssembledProgram {
             STR R1, R4, #0;                 // Writes data from R1 to pin in R0
         @SKIP_WRITE_TIMER_DATA
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RET;
 
         // Sets timer to SingleShot mode with period
@@ -1481,9 +1439,8 @@ fn os() -> AssembledProgram {
         // R1 = period to be set
         // R2 = address of interrupt service routine
         @TRAP_SET_TIMER_SINGLESHOT
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             JSR @WRITE_TIMER_DATA;
@@ -1496,18 +1453,16 @@ fn os() -> AssembledProgram {
             ADD R1, R1, #2;
             JSR @SET_TIMER_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Sets timer to Repeated mode with period
         // R0 = Timer pin to write to
         // R1 = period to be set
         @TRAP_SET_TIMER_REPEAT
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             JSR @WRITE_TIMER_DATA;
@@ -1520,34 +1475,30 @@ fn os() -> AssembledProgram {
             ADD R1, R1, #1;
             JSR @SET_TIMER_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Sets timer to Disabled mode
         // R0 = Timer pin to disable
             @TRAP_SET_TIMER_DISABLE
-            ADD R6, R6, #-1;                // Save R1, R7 on stack
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R1, R7 on stack
+            STR R1, R6, #1;
             STR R7, R6, #0;
 
             AND R1, R1, #0;
             JSR @SET_TIMER_MODE;
             LDR R7, R6, #0;                 // Restore R1, R7
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
+            LDR R1, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns mode of Timer pin
         // R0 = Timer pin to read from
         // -> R0 = mode of Timer pin
         @TRAP_READ_TIMER_MODE
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of timers
@@ -1561,18 +1512,16 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads mode from pin into R0
         @SKIP_READ_TIMER_MODE
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Reads and returns data from PWM pin
         // R0 = TIMER pin to read from
         // -> R0 = data from TIMER pin
         @TRAP_READ_TIMER_DATA
-            ADD R6, R6, #-1;                // Save R4, R7 on stack
-            STR R4, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;                // Save R4, R7 on stack
+            STR R4, R6, #1;
             STR R7, R6, #0;
 
             AND R4, R4, #0;                 // Set R4 to # of timers
@@ -1587,9 +1536,8 @@ fn os() -> AssembledProgram {
             LDR R0, R4, #0;                 // Reads data from pin into R0
         @SKIP_READ_TIMER_DATA
             LDR R7, R6, #0;                 // Restore R4, R7
-            ADD R6, R6, #1;
-            LDR R4, R6, #0;
-            ADD R6, R6, #1;
+            LDR R4, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // Sets clock
