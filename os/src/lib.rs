@@ -210,7 +210,7 @@ pub mod traps {
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
-            /// All registers (including [`R0`]) are preserved.
+            /// All registers (including [`R0`] and [`R1`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`G0`] to be an [Interrupt] and sets the interrupt
@@ -260,7 +260,7 @@ pub mod traps {
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
-            /// All registers (including [`R0`] and [`R1`]) are preserved.
+            /// All registers (including [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`G0`] to be an [Output], then immediately sets it
@@ -306,7 +306,7 @@ pub mod traps {
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`G0`] to be an [Output], then reads [`G0`]'s mode
@@ -395,7 +395,7 @@ pub mod traps {
             /// Attempting to read from a [GPIO] [Pin] that is not in [Input] or
             /// [Interrupt] mode returns -1 in [`R0`].
             ///
-            /// All registers (including [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`G0`] to be an [Input], then reads from [`G0`] into [`R0`]:
@@ -510,7 +510,7 @@ pub mod traps {
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`A0`] to be an [Disabled], then reads [`A0`]'s mode
@@ -555,7 +555,7 @@ pub mod traps {
             /// Attempting to read from an [ADC] [Pin] that is not in [Enabled]
             /// mode returns -1 in [`R0`].
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`A0`] to be an [Enabled], then reads from [`A0`] into [`R0`]:
@@ -696,7 +696,7 @@ pub mod traps {
             /// Attempting to read the period from a [PWM] [Pin] that is in [Disabled]
             /// mode returns 0 in [`R0`].
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
@@ -746,7 +746,7 @@ pub mod traps {
             /// Attempting to read the duty cycle from a [PWM] [Pin] that is in
             /// [Disabled] mode returns -1 in [`R0`].
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
@@ -984,7 +984,7 @@ pub mod traps {
             ///
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`T0`] to be a [SingleShot] with a period of `1 second`
@@ -1041,7 +1041,7 @@ pub mod traps {
             /// Attempting to read the period of a [Timer] not in [SingleShot] or
             /// [Repeated] modes will return -1.
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
@@ -1121,7 +1121,7 @@ pub mod traps {
             /// The clock's value is measured in milliseconds and uses full 16-bit
             /// words (i.e. the value will be in the range \[0, 65535\]).
             ///
-            /// All registers (excluding [`R0`]) are preserved.
+            /// All registers (**excluding** [`R0`]) are preserved.
             ///
             /// ## Example
             /// The below gets the [Clock]'s value and stores it in [`R0`]:
