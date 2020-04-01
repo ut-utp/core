@@ -666,9 +666,8 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a null-terminated string in R0.
         @TRAP_PUTS
-            ADD R6, R6, #-1;       // Save R0 and R1
-            STR R0, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-2;       // Save R0 and R1
+            STR R0, R6, #1;
             STR R1, R6, #0;
             ADD R1, R0, #0;        // Move string pointer (R0) into R1
         @TRAP_PUTS_LOOP
@@ -679,9 +678,8 @@ fn os() -> AssembledProgram {
             BRnzp @TRAP_PUTS_LOOP;
         @TRAP_PUTS_DONE
             LDR R1, R6, #0;        // Restore R0 and R1
-            ADD R6, R6, #1;
-            LDR R0, R6, #0;
-            ADD R6, R6, #1;
+            LDR R0, R6, #1;
+            ADD R6, R6, #2;
             RTI;
 
         // IN: Outputs a prompt and reads in a character.
@@ -711,51 +709,59 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a string in R0.
         @TRAP_PUTSP
-            ADD R6, R6, #-1;         // Save R0, R1, R2, and R3
-            STR R0, R6, #0;
-            ADD R6, R6, #-1;
-            STR R1, R6, #0;
-            ADD R6, R6, #-1;
-            STR R2, R6, #0;
-            ADD R6, R6, #-1;
+            ADD R6, R6, #-4;         // Save R0, R1, R2, and R3
+            STR R0, R6, #3;
+            STR R1, R6, #2;
+            STR R2, R6, #1;
             STR R3, R6, #0;
 
-            ADD R1, R0, #0;          // Move string pointer (R0) into R1
+            ADD R1, R0, #0;             // Copy over the string pointer (R0 -> R1).
 
             @TRAP_PUTSP_LOOP
-                LDR R2, R1, #0;          // Read the next two characters
-                LD R0, @MASK_LOW_BYTE;   // Use mask to get low byte
-                AND R0, R0, R2;          // If low byte is NUL, quit printing
-                BRz @TRAP_PUTSP_DONE;
-                OUT;                     // Otherwise print the low byte
-                AND R0, R0, #0;          // Shift high byte into R0
-                ADD R3, R0, #8;
+                LDR R2, R1, #0;         // Read two characters.
+                LD R0, @MASK_LOW_BYTE;  // Extract the lower byte.
+                AND R0, R0, R2;
+                BRz @TRAP_PUTSP_RETURN; // If it's 0 (NULL), we're done.
 
-                @TRAP_PUTSP_S_LOOP
-                    ADD R0, R0, R0;          // Shift R0 left
-                    ADD R2, R2, #0;          // Move MSB from R2 into R0
-                    BRzp @TRAP_PUTSP_MSB_0;
-                    ADD R0, R0, #1;
+                OUT;                    // Otherwise, print it out.
 
-                @TRAP_PUTSP_MSB_0
-                    ADD R2, R2, R2;          // Shift R2 left
-                    ADD R3, R3, #-1;
-                    BRp @TRAP_PUTSP_S_LOOP;
-                    ADD R0, R0, #0;          // If high byte is NUL, quit printing
-                    BRz @TRAP_PUTSP_DONE;
-                    OUT;                     // Otherwise print the low byte
-                    ADD R1, R1, #1;          // And keep going
-                    BRnzp @TRAP_PUTSP_LOOP;
+                // Now the upper byte. To get it into the lower 8 bits of the word we
+                // iteratively shift left, check the top bit, and append it to the
+                // output which we also shift left.
+                AND R0, R0, #0;         // R0 shall be the upper byte.
+                ADD R3, R0, #8;         // Set R3 to 8: the number of iterations
+                                        // we need to run to move the upper byte.
 
-        @TRAP_PUTSP_DONE
+                ADD R2, R2, #0;         // Set the condition codes on R2 once.
+
+                @TRAP_PUTSP_UPPER_BYTE_LOOP
+                    BRzp @TRAP_PUTSP_CURRENT_MSB_LOW;
+                    ADD R0, R0, #1;         // If the current MSB is set, append
+                                            // a 1 to the output.
+
+                    @TRAP_PUTSP_CURRENT_MSB_LOW
+                    ADD R0, R0, R0;         // Shift the output left.
+
+                    ADD R3, R3, #-1;        // Decrement the counter and break
+                    BRz @TRAP_PUTSP_UPPER;  // from this loop if we're done.
+
+                    ADD R2, R2, R2;         // Shift the input left and repeat.
+                    BRnzp @TRAP_PUTSP_UPPER_BYTE_LOOP;
+
+                @TRAP_PUTSP_UPPER
+                    ADD R0, R0, #0;         // Once again, if it's 0 (NULL),
+                    BRz @TRAP_PUTSP_RETURN; // we're done.
+
+                    OUT;                    // Otherwise, print the character,
+                    ADD R1, R1, #1;         // rinse,
+                    BRnzp @TRAP_PUTSP_LOOP; // and repeat.
+
+        @TRAP_PUTSP_RETURN
             LDR R3, R6, #0;          // Restore R0, R1, R2, and R3
-            ADD R6, R6, #1;
-            LDR R2, R6, #0;
-            ADD R6, R6, #1;
-            LDR R1, R6, #0;
-            ADD R6, R6, #1;
-            LDR R0, R6, #0;
-            ADD R6, R6, #1;
+            LDR R2, R6, #1;
+            LDR R1, R6, #2;
+            LDR R0, R6, #3;
+            ADD R6, R6, #4;
             RTI;
 
         // HALT: Halts the machine!
