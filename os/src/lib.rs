@@ -1245,6 +1245,9 @@ pub mod traps {
             ///
             /// ## Usage
             ///
+            /// The following description was adapted from *Introduction to Computing
+            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+            ///
             /// Write a string of ASCII characters to the console. The
             /// characters are contained in consecutive memory locations, two
             /// characters per memory location, starting with the address
