@@ -1171,8 +1171,8 @@ pub mod traps {
             /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
             ///
             /// Read a single character from the keyboard. The character is not
-            /// echoed onto the console. Its ASCII code is copied into R0. The high
-            /// eight bits of R0 are cleared.
+            /// echoed onto the console. Its ASCII code is copied into [`R0`]. The high
+            /// eight bits of [`R0`] are cleared.
             ///
             /// [`R0`]: lc3_isa::Reg::R0
             [0x20] GETC,   // 0x20
@@ -1189,7 +1189,7 @@ pub mod traps {
             /// The following description is from *Introduction to Computing
             /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
             ///
-            ///  Write a character in R0\[7:0\] to the console display.
+            ///  Write a character in [`R0`]\[7:0\] to the console display.
             ///
             /// [`R0`]: lc3_isa::Reg::R0
             [0x21] OUT,    // 0x21
@@ -1209,8 +1209,8 @@ pub mod traps {
             /// Write a string of ASCII characters to the console display.
             /// The characters are contained in consecutive memory locations,
             /// one character per memory location, starting with the address
-            /// specified in R0. Writing terminates with the occurrence of
-            /// x0000 in a memory location.
+            /// specified in [`R0`]. Writing terminates with the occurrence of
+            /// 0x0000 in a memory location.
             ///
             /// [`R0`]: lc3_isa::Reg::R0
             [0x22] PUTS,   // 0x22
@@ -1229,7 +1229,7 @@ pub mod traps {
             ///
             /// Print a prompt on the screen and read a single character from
             /// the keyboard. The character is echoed onto the console monitor,
-            /// and its ASCII code is copied into R0. The high eight bits of R0
+            /// and its ASCII code is copied into [`R0`]. The high eight bits of [`R0`]
             /// are cleared.
             ///
             /// [`R0`]: lc3_isa::Reg::R0
@@ -1245,20 +1245,17 @@ pub mod traps {
             ///
             /// ## Usage
             ///
-            /// The following description is from *Introduction to Computing
-            /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
-            ///
             /// Write a string of ASCII characters to the console. The
             /// characters are contained in consecutive memory locations, two
             /// characters per memory location, starting with the address
-            /// specified in R0. The ASCII code contained in bits \[7:0\] of a
+            /// specified in [`R0`]. The ASCII code contained in bits \[7:0\] of a
             /// memory location is written to the console first. Then the ASCII
             /// code contained in bits \[15:8\] of that memory location is
             /// written to the console. (A character string consisting of an
-            /// odd number of characters to be written will have x00 in bits
+            /// odd number of characters to be written will have 0x00 in bits
             /// \[15:8\] of the memory location containing the last character to
-            /// be written.) Writing terminates with the occurrence of x0000
-            /// in a memory location.
+            /// be written.) Writing terminates with the occurrence of 0x00
+            /// in bits \[7:0\] or bits \[15:8\] in a memory location.
             ///
             /// [`R0`]: lc3_isa::Reg::R0
             [0x24] PUTSP,  // 0x24
