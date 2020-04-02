@@ -146,8 +146,8 @@ pub mod traps {
             /// ## Example
             /// The below sets [`G0`] to be an [Input]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x30
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x30           ; Sets G0 to Input
             /// ```
             ///
             /// [GPIO]: lc3_traits::peripherals::Gpio
@@ -178,8 +178,8 @@ pub mod traps {
             /// ## Example
             /// The below sets [`G0`] to be an [Output]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x31
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x31           ; Sets G0 to Output
             /// ```
             ///
             /// [GPIO]: lc3_traits::peripherals::Gpio
@@ -218,26 +218,26 @@ pub mod traps {
             /// interrupt, which will call `ISR`, set the `ISR_FLAG` to 1, and allow
             /// the main program to halt.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LEA R1, ISR
-            /// TRAP 0x32
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LEA R1, ISR         ; Sets R1 to the address of ISR
+            /// TRAP 0x32           ; Sets G0 to Interrupt w/ ISR
             ///
             /// LOOP
-            /// LD R1, ISR_FLAG
+            /// LD R1, ISR_FLAG     ; Loops until the flag is set
             /// BRz LOOP
             /// HALT
             ///
             /// ISR_FLAG .FILL #0
             ///
             /// ISR
-            /// ADD R6, R6, #-1
+            /// ADD R6, R6, #-1     ; Save R0 onto the supervisor stack
             /// STR R0, R6, #0
             ///
-            /// AND R0, R0, #0
+            /// AND R0, R0, #0      ; Sets the flag
             /// ADD R0, R0, #1
             /// ST R0, ISR_FLAG
             ///
-            /// LDR R0, R6, #0
+            /// LDR R0, R6, #0      ; Pop R0 off of the supervisor stack
             /// ADD R6, R6, #1
             /// RTI
             /// ```
@@ -272,9 +272,9 @@ pub mod traps {
             /// The below sets [`G0`] to be an [Output], then immediately sets it
             /// to [Disabled]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x31
-            /// TRAP 0x33
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x31           ; Sets G0 to Output
+            /// TRAP 0x33           ; Sets G0 to Disabled
             /// ```
             ///
             /// [GPIO]: lc3_traits::peripherals::Gpio
@@ -318,9 +318,9 @@ pub mod traps {
             /// The below sets [`G0`] to be an [Output], then reads [`G0`]'s mode
             /// into [`R0`]. [`R0`] will then contain the value 2.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x31
-            /// TRAP 0x34
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x31           ; Sets G0 to Output
+            /// TRAP 0x34           ; Reads G0's mode, sets R0 to 2
             /// ```
             ///
             /// [GPIO]: lc3_traits::peripherals::Gpio
@@ -364,11 +364,11 @@ pub mod traps {
             /// ## Example
             /// The below sets [`G0`] to be an [Output], then writes the value 1 to [`G0`]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x31
-            /// AND R1, R1, #0
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x31           ; Sets G0 to Output
+            /// AND R1, R1, #0      ; Sets R1 to 1
             /// ADD R1, R1, #1
-            /// TRAP 0x35
+            /// TRAP 0x35           ; Writes 1 to G0
             /// ```
             ///
             /// [GPIO]: lc3_traits::peripherals::Gpio
@@ -406,9 +406,9 @@ pub mod traps {
             /// ## Example
             /// The below sets [`G0`] to be an [Input], then reads from [`G0`] into [`R0`]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x30
-            /// TRAP 0x36
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x30           ; Sets G0 to Input
+            /// TRAP 0x36           ; Reads from G0, sets R0
             /// ```
             ///
             /// [GPIO]: lc3_traits::peripherals::Gpio
@@ -446,8 +446,8 @@ pub mod traps {
             /// ## Example
             /// The below sets [`A0`] to be an [Enabled]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x40
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x40           ; Sets A0 to Enabled
             /// ```
             ///
             /// [ADC]: lc3_traits::peripherals::adc
@@ -479,9 +479,9 @@ pub mod traps {
             /// The below sets [`A0`] to be an [Enabled], then immediately sets it
             /// to [Disabled]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x40
-            /// TRAP 0x41
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x40           ; Sets A0 to Enabled
+            /// TRAP 0x41           ; Sets A0 to Disabled
             /// ```
             ///
             /// [ADC]: lc3_traits::peripherals::adc
@@ -522,9 +522,9 @@ pub mod traps {
             /// The below sets [`A0`] to be an [Disabled], then reads [`A0`]'s mode
             /// into [`R0`]. [`R0`] will then contain the value 1.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x41
-            /// TRAP 0x42
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x41           ; Sets A0 to Disabled
+            /// TRAP 0x42           ; Reads A0's mode, sets R0 to 1
             /// ```
             ///
             /// [ADC]: lc3_traits::peripherals::adc
@@ -566,9 +566,9 @@ pub mod traps {
             /// ## Example
             /// The below sets [`A0`] to be an [Enabled], then reads from [`A0`] into [`R0`]:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x40
-            /// TRAP 0x43
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x40           ; Sets A0 to Enabled
+            /// TRAP 0x43           ; Reads from A0, sets R0
             /// ```
             ///
             /// [ADC]: lc3_traits::peripherals::adc
@@ -617,10 +617,10 @@ pub mod traps {
             /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
             /// *50%* duty cycle then halts:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LD R2, DUTY
-            /// TRAP 0x50
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 20
+            /// LD R2, DUTY         ; Sets R2 to 128
+            /// TRAP 0x50           ; Sets P0 to enabled w/ period of 20 ms and duty of 50%
             /// HALT
             ///
             /// PERIOD .FILL #20
@@ -658,11 +658,11 @@ pub mod traps {
             /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
             /// *50%* duty cycle, immediately sets it to [Disabled], then halts:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LD R2, DUTY
-            /// TRAP 0x50
-            /// TRAP 0x51
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 20
+            /// LD R2, DUTY         ; Sets R2 to 128
+            /// TRAP 0x50           ; Sets P0 to Enabled w/ period of 20 ms and duty of 50%
+            /// TRAP 0x51           ; Sets P0 to Disabled
             /// HALT
             ///
             /// PERIOD .FILL #20
@@ -709,11 +709,11 @@ pub mod traps {
             /// *50%* duty cycle. It then reads the period of [`P0`] and results in the
             /// value 20 in [`R0`] then halts:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LD R2, DUTY
-            /// TRAP 0x50
-            /// TRAP 0x52
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 20
+            /// LD R2, DUTY         ; Sets R2 to 128
+            /// TRAP 0x50           ; Sets P0 to Enabled w/ period of 20 ms and duty of 50%
+            /// TRAP 0x52           ; Reads period of P0, sets R0 to 20
             /// HALT
             ///
             /// PERIOD .FILL #20
@@ -759,11 +759,11 @@ pub mod traps {
             /// *50%* duty cycle. It then reads the duty cycle of [`P0`] and results in
             /// the value 128 in [`R0`] then halts:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LD R2, DUTY
-            /// TRAP 0x50
-            /// TRAP 0x53
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 20
+            /// LD R2, DUTY         ; Sets R2 to 128
+            /// TRAP 0x50           ; Sets P0 to Enabled w/ period of 20 ms and duty of 50%
+            /// TRAP 0x53           ; Reads duty of P0, sets R0 to 128
             /// HALT
             ///
             /// PERIOD .FILL #20
@@ -820,13 +820,13 @@ pub mod traps {
             /// which will call `ISR`, set the `ISR_FLAG` to 1, and allow the main
             /// program to halt.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LEA R2, ISR
-            /// TRAP 0x60
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 3000
+            /// LEA R2, ISR         ; Sets R2 to the address of ISR
+            /// TRAP 0x60           ; Sets T0 to SingleShot w/ period of 3000 and ISR
             ///
             /// LOOP
-            /// LD R1, ISR_FLAG
+            /// LD R1, ISR_FLAG     ; Loops until flag is set
             /// BRz LOOP
             /// HALT
             ///
@@ -834,14 +834,14 @@ pub mod traps {
             /// ISR_FLAG .FILL #0
             ///
             /// ISR
-            /// ADD R6, R6, #-1
+            /// ADD R6, R6, #-1     ; Save R0 onto the supervisor stack
             /// STR R0, R6, #0
             ///
             /// AND R0, R0, #0
             /// ADD R0, R0, #1
             /// ST R0, ISR_FLAG
             ///
-            /// LDR R0, R6, #0
+            /// LDR R0, R6, #0      ; Pop R0 off of the supervisor stack
             /// ADD R6, R6, #1
             /// RTI
             /// ```
@@ -891,14 +891,14 @@ pub mod traps {
             /// In the main program, the counter is checked repeatedly until the target
             /// of `10` is reached.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LEA R2, ISR
-            /// TRAP 0x61
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 1000
+            /// LEA R2, ISR         ; Sets R2 to the address of ISR
+            /// TRAP 0x61           ; Sets T0 to Repeated w/ period of 1000 and ISR
             ///
-            /// LD R1, TARGET
+            /// LD R1, TARGET       ; Sets R1 to -10
             /// LOOP
-            /// LD R0, COUNTER
+            /// LD R0, COUNTER      ; Loops until counter reaches 10
             /// ADD R0, R0, R1
             /// BRn LOOP
             /// HALT
@@ -908,14 +908,14 @@ pub mod traps {
             /// TARGET .FILL #-10
             ///
             /// ISR
-            /// ADD R6, R6, #-1
+            /// ADD R6, R6, #-1     ; Save R0 onto the supervisor stack
             /// STR R0, R6, #0
             ///
-            /// LD R0, COUNTER
+            /// LD R0, COUNTER      ; Increment the counter
             /// ADD R0, R0, #1
             /// ST R0, COUNTER
             ///
-            /// LDR R0, R6, #0
+            /// LDR R0, R6, #0      ; Pop R0 off of the supervisor stack
             /// ADD R6, R6, #1
             /// RTI
             /// ```
@@ -949,25 +949,27 @@ pub mod traps {
             ///
             /// ## Example
             /// The below sets [`T1`] to be a [Repeated] with a period of `1 second`
-            /// and sets the interrupt service routine to `ISR`. When [`T0`] fires an
+            /// and sets the interrupt service routine to `ISR`. When [`T1`] fires an
             /// interrupt every second, `ISR` is called, which increments a counter.
             /// In the main program, the counter is checked repeatedly until the target
             /// of `10` is reached. After the target is reached, the timer is disabled
             /// and the program halts.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
+            /// AND R0, R0, #0      ; Sets R0 to 1
             /// ADD R0, R0, #1
-            /// LD R1, PERIOD
-            /// LEA R2, ISR
-            /// TRAP 0x61
+            /// LD R1, PERIOD       ; Sets R1 to 1000
+            /// LEA R2, ISR         ; Sets R2 to the address of ISR
+            /// TRAP 0x61           ; Sets T1 to Repeated w/ period of 1000 and ISR
             ///
-            /// LD R1, TARGET
+            /// LD R1, TARGET       ; Sets R1 to -10
             /// LOOP
-            /// LD R0, COUNTER
+            /// LD R0, COUNTER      ; Loop until counter reaches 10
             /// ADD R0, R0, R1
             /// BRn LOOP
             ///
-            /// TRAP 0x62
+            /// AND R0, R0, #0      ; Sets R0 to 1
+            /// ADD R0, R0, #1
+            /// TRAP 0x62           ; Disable T1
             /// HALT
             ///
             /// PERIOD .FILL #1000
@@ -975,14 +977,14 @@ pub mod traps {
             /// TARGET .FILL #-10
             ///
             /// ISR
-            /// ADD R6, R6, #-1
+            /// ADD R6, R6, #-1     ; Save R0 onto the supervisor stack
             /// STR R0, R6, #0
             ///
             /// LD R0, COUNTER
             /// ADD R0, R0, #1
             /// ST R0, COUNTER
             ///
-            /// LDR R0, R6, #0
+            /// LDR R0, R6, #0      ; Pop R0 off of the supervisor stack
             /// ADD R6, R6, #1
             /// RTI
             /// ```
@@ -995,7 +997,7 @@ pub mod traps {
             /// [`R1`]: lc3_isa::Reg::R1
             /// [`R2`]: lc3_isa::Reg::R2
             /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
-            /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
+            /// [`T1`]: lc3_traits::peripherals::timers::TimerId::T1
             [0x62] DISABLE,
             /// Returns the mode of a [Timer].
             ///
@@ -1030,16 +1032,16 @@ pub mod traps {
             /// [mode] of [`T0`], which will write a value of 1 into [`R0`]. Then the
             /// program halts.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LEA R2, ISR
-            /// TRAP 0x60
-            /// TRAP 0x63
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 1000
+            /// LEA R2, ISR         ; Sets R2 to address of ISR
+            /// TRAP 0x60           ; Sets T0 to SingleShot w/ period of 1000 and ISR
+            /// TRAP 0x63           ; Reads T0's mode, sets R0 to 1
             /// HALT
             ///
             /// PERIOD .FILL #1000
             ///
-            /// ISR
+            /// ISR                 ; Dummy ISR
             /// RTI
             /// ```
             ///
@@ -1087,16 +1089,16 @@ pub mod traps {
             /// period of [`T0`], which will write a value of `1000` into [`R0`].
             /// Then the program halts.
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// LD R1, PERIOD
-            /// LEA R2, ISR
-            /// TRAP 0x60
-            /// TRAP 0x64
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// LD R1, PERIOD       ; Sets R1 to 1000
+            /// LEA R2, ISR         ; Sets R2 to address of ISR
+            /// TRAP 0x60           ; Sets T0 to SingleShot w/ period of 1000 and ISR
+            /// TRAP 0x64           ; Reads T0's period, sets R0 to 1000
             /// HALT
             ///
             /// PERIOD .FILL #1000
             ///
-            /// ISR
+            /// ISR                 ; Dummy ISR
             /// RTI
             /// ```
             ///
@@ -1138,8 +1140,8 @@ pub mod traps {
             /// ## Example
             /// The below resets the [Clock]'s value:
             /// ```{ARM Assembly}
-            /// AND R0, R0, #0
-            /// TRAP 0x70
+            /// AND R0, R0, #0      ; Sets R0 to 0
+            /// TRAP 0x70           ; Sets the Clock's value to 0
             /// ```
             ///
             /// [Clock]: lc3_traits::peripherals::clock
@@ -1164,7 +1166,7 @@ pub mod traps {
             /// ## Example
             /// The below gets the [Clock]'s value and stores it in [`R0`]:
             /// ```{ARM Assembly}
-            /// TRAP 0x71
+            /// TRAP 0x71       ; Gets the Clock's value, sets R0
             /// ```
             ///
             /// [Clock]: lc3_traits::peripherals::clock
