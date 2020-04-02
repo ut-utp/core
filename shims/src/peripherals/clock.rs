@@ -41,6 +41,28 @@ mod tests {
 
     use pretty_assertions::{assert_eq, assert_ne};
 
+    const TOLERANCE: u16 = 5; // 5 ms
+
+    // Won't work as expected for tolerances greater than half the rollover period.
+    // ...but that wouldn't test anything anyway.
+    fn assert_is_about(actual: u16, expected: u16, tolerance: u16) {
+        let min = expected.wrapping_sub(tolerance);
+        let max = expected.wrapping_add(tolerance);
+        let above_min = min <= actual;
+        let below_max = actual <= max;
+        if min <= max {
+            assert!(above_min && below_max);
+        } else {
+            assert!(above_min || below_max);
+        }
+    }
+
+    #[test]
+    fn starts_at_0() {
+        let clock = ClockShim::default();
+        assert_eq!(clock.get_milliseconds(), 0);
+    }
+
     #[test]
     fn get_milliseconds() {
         let clock = ClockShim::default();
@@ -53,11 +75,11 @@ mod tests {
     }
 
     #[test]
-    fn overflow() {
-        let clock = ClockShim::default();
-        let now = Instant::now();
-        sleep(Duration::from_millis(WORD_MAX_VAL as u64 + 4000u64));
-        assert_eq!(clock.get_milliseconds(), 4000u16);
+    fn rollover() {
+        let mut clock = ClockShim::default();
+        clock.set_milliseconds(WORD_MAX_VAL - 100);
+        sleep(Duration::from_millis(200));
+        assert_is_about(clock.get_milliseconds(), 100, TOLERANCE);
     }
 
     #[test]
@@ -69,19 +91,17 @@ mod tests {
         assert_eq!(clock.get_milliseconds(), 2);
 
         clock.set_milliseconds(4000);
-        // assert_eq!(clock.get_milliseconds(), 4000);
-        assert!(3950 <= clock.get_milliseconds() && clock.get_milliseconds() <= 4050);
+        assert_is_about(clock.get_milliseconds(), 4000, TOLERANCE);
 
         sleep(Duration::from_millis(15));
-        assert!(3965 <= clock.get_milliseconds() && clock.get_milliseconds() <= 4165);
-        // assert_eq!(clock.get_milliseconds(), 4015);
+        assert_is_about(clock.get_milliseconds(), 4015, TOLERANCE);
 
         sleep(Duration::from_millis(400));
         clock.set_milliseconds(200);
-        assert!(195 <= clock.get_milliseconds() && clock.get_milliseconds() <= 205);
+        assert_is_about(clock.get_milliseconds(), 200, TOLERANCE);
 
         sleep(Duration::from_millis(90));
-        assert!(285 <= clock.get_milliseconds() && clock.get_milliseconds() <= 295);
+        assert_is_about(clock.get_milliseconds(), 290, TOLERANCE);
     }
 
     #[test]
@@ -94,6 +114,7 @@ mod tests {
             (now.elapsed().as_millis() % (WORD_MAX_VAL as u128)) as u16
         )
     }
+
     #[test]
     fn set_milliseconds() {
         let mut clock = ClockShim::default();
