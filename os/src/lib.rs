@@ -230,9 +230,15 @@ pub mod traps {
             /// ISR_FLAG .FILL #0
             ///
             /// ISR
+            /// ADD R6, R6, #-1
+            /// STR R0, R6, #0
+            ///
             /// AND R0, R0, #0
             /// ADD R0, R0, #1
             /// ST R0, ISR_FLAG
+            ///
+            /// LDR R0, R6, #0
+            /// ADD R6, R6, #1
             /// RTI
             /// ```
             ///
@@ -828,9 +834,15 @@ pub mod traps {
             /// ISR_FLAG .FILL #0
             ///
             /// ISR
+            /// ADD R6, R6, #-1
+            /// STR R0, R6, #0
+            ///
             /// AND R0, R0, #0
             /// ADD R0, R0, #1
             /// ST R0, ISR_FLAG
+            ///
+            /// LDR R0, R6, #0
+            /// ADD R6, R6, #1
             /// RTI
             /// ```
             ///
@@ -874,25 +886,37 @@ pub mod traps {
             ///
             /// ## Example
             /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
-            /// and sets the interrupt service routine to `ISR`. It will then spin
-            /// endlessly. When [`T0`] fires an interrupt every second, `ISR` is called,
-            /// which increments a counter:
+            /// and sets the interrupt service routine to `ISR`. When [`T0`] fires an
+            /// interrupt every second, `ISR` is called, which increments a counter.
+            /// In the main program, the counter is checked repeatedly until the target
+            /// of `10` is reached.
             /// ```{ARM Assembly}
             /// AND R0, R0, #0
             /// LD R1, PERIOD
             /// LEA R2, ISR
             /// TRAP 0x61
             ///
+            /// LD R1, TARGET
             /// LOOP
-            /// BRz LOOP
+            /// LD R0, COUNTER
+            /// ADD R0, R0, R1
+            /// BRn LOOP
+            /// HALT
             ///
             /// PERIOD .FILL #1000
             /// COUNTER .FILL #0
+            /// TARGET .FILL #-10
             ///
             /// ISR
+            /// ADD R6, R6, #-1
+            /// STR R0, R6, #0
+            ///
             /// LD R0, COUNTER
             /// ADD R0, R0, #1
             /// ST R0, COUNTER
+            ///
+            /// LDR R0, R6, #0
+            /// ADD R6, R6, #1
             /// RTI
             /// ```
             ///
@@ -924,28 +948,42 @@ pub mod traps {
             /// All registers (including [`R0`]) are preserved.
             ///
             /// ## Example
-            /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
-            /// and sets the interrupt service routine to `ISR`, then immediately
-            /// disables [`T0`] It will then spin endlessly. Since [`T0`] is disabled,
-            /// `ISR` is never called, and the counter never increments.
+            /// The below sets [`T1`] to be a [Repeated] with a period of `1 second`
+            /// and sets the interrupt service routine to `ISR`. When [`T0`] fires an
+            /// interrupt every second, `ISR` is called, which increments a counter.
+            /// In the main program, the counter is checked repeatedly until the target
+            /// of `10` is reached. After the target is reached, the timer is disabled
+            /// and the program halts.
             /// ```{ARM Assembly}
             /// AND R0, R0, #0
+            /// ADD R0, R0, #1
             /// LD R1, PERIOD
             /// LEA R2, ISR
             /// TRAP 0x61
             ///
-            /// TRAP 0x62
-            ///
+            /// LD R1, TARGET
             /// LOOP
-            /// BRz LOOP
+            /// LD R0, COUNTER
+            /// ADD R0, R0, R1
+            /// BRn LOOP
+            ///
+            /// TRAP 0x62
+            /// HALT
             ///
             /// PERIOD .FILL #1000
             /// COUNTER .FILL #0
+            /// TARGET .FILL #-10
             ///
             /// ISR
+            /// ADD R6, R6, #-1
+            /// STR R0, R6, #0
+            ///
             /// LD R0, COUNTER
             /// ADD R0, R0, #1
             /// ST R0, COUNTER
+            ///
+            /// LDR R0, R6, #0
+            /// ADD R6, R6, #1
             /// RTI
             /// ```
             ///
@@ -1039,7 +1077,7 @@ pub mod traps {
             /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
             ///
             /// Attempting to read the period of a [Timer] not in [SingleShot] or
-            /// [Repeated] modes will return -1.
+            /// [Repeated] modes will return 0.
             ///
             /// All registers (**excluding** [`R0`]) are preserved.
             ///
