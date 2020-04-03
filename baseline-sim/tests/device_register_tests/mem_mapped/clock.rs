@@ -30,8 +30,8 @@ single_test! {
     prefill: { 0x3010: CLKR_ADDR },
     insns: [
         { AND R0, R0, #0 },
-        { STI R0, #0xF },
-        { LDI R0, #0xF }
+        { STI R0, #0xE },
+        { LDI R0, #0xD }
     ],
     steps: 3,
     regs: { R0: 0 },
@@ -47,10 +47,10 @@ single_test! {
     },
     insns: [
         { LD R0, #0x10 },
-        { STI R0, #0xF },
-        { LDI R0, #0xF }
+        { STI R0, #0xE },
+        { LDI R0, #0xD }
     ],
-    steps: 4,
+    steps: 3,
     regs: { R0: 1000 },
     memory: { }
 }
