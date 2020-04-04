@@ -13,5 +13,5 @@ use common::with_larger_stack;
 
 #[test]
 fn os_size() {
-    with_larger_stack(None, || assert_eq!(OS.into_iter().count(), 0x04F9));
+    with_larger_stack(None, || assert_eq!(OS.into_iter().count(), 0x0524));
 }

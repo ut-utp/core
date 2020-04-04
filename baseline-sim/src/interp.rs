@@ -851,7 +851,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                 I!(PC <- PC + offset11)
             }
             Jsrr { base } => {
-                // TODO: add a test where base _is_ R7!!
                 let (pc, new_pc) = (self.get_pc(), self[base]);
                 I!(PC <- new_pc);
                 I!(R7 <- pc)
