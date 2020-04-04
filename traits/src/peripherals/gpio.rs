@@ -171,6 +171,7 @@ peripheral_trait! {gpio,
 /// in input ([`GpioState::Input`]) or interrupt ([`GpioState::Interrupt`]) mode.
 ///
 /// ### Interrupts
+/// TODO: OUT OF DATE.
 /// Registering interrupts (i.e. calling
 /// [`register_interrupt`](Gpio::register_interrupt)) does not automatically put a pin
 /// in [`interrupt`](GpioState::Interrupt) mode. Instead, this only updates the handler
