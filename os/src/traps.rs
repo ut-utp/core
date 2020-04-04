@@ -1,5 +1,45 @@
 //! Trap vector numbers and documentation.
 //!
+//! ### Guidelines on Writing ISRs
+//!
+//! Properly written ISRs should:
+//!   - Save and restore all registers they modify _using the stack_.
+//!      * It's important to use the stack to do this instead of using special
+//!        save locations in memory for _reentrancy_.
+//!      * If your ISR is guaranteed to only going to run once (i.e. it's only
+//!        registered as the handler for one interrupt) **and** the save
+//!        locations you're using aren't shared with any other code, then you
+//!        can get away with using special save locations.
+//!          + Even in this situation, we recommend you use the stack since
+//!            doing so consolidates all the regions of memory that are
+//!            modified; this means the underlying memory implementation will
+//!            have to keep track of fewer modified pages and won't need to
+//!            spend as much time paging.
+//!  - Make that when you return from your ISR, the stack pointer is the same as
+//!    when your ISR began running.
+//!     * Put another way: Have an equal number of pushes and pops.
+//!  - When pushing and popping, make sure you decrement the stack pointer
+//!    ([`R6`]) **before** pushing and increment it **after** popping.
+//!     * This is subtle, but if you were to go the other way (i.e. decrement
+//!       the stack pointer after pushing registers) you run the risk of losing
+//!       your data (if an interrupt with a higher priority were to come along
+//!       and push things, pop them, and return). The same applies to popping
+//!       after you increment the stack pointer.
+//        + TODO: example
+//!     * If you follow this rule you can push/pop multiple things onto/off of
+//!       the stack in one go by decrementing/incrementing the stack pointer by
+//!       more than 1.
+//!  - The OS, by default, [provisions about a page](sp) (256 memory locations)
+//!    of stack space and sets the starting stack pointer accordingly.
+//!     * If you overrun this, you'll start to write over the OS!
+//!  - Return from your ISRs with an [`RTI`]!
+//!     * Note that this means you cannot call your ISRs directly from user
+//!       code (i.e. `JSR ISR` won't work).
+//!
+//! [`R6`]: lc3_isa::Reg::R6
+//! [`RTI`]: lc3_isa::Instruction::Rti
+//! [sp]: lc3_os::OS_DEFAULT_STARTING_SP
+
 
 use lc3_baseline_sim::mem_mapped as mm;
 
@@ -137,6 +177,9 @@ pub mod gpio {
       /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
       ///
       /// All registers (including [`R0`]) are preserved.
+      ///
+      /// Be sure to follow the
+      /// [guidelines for writing ISRs](../index.html#guidelines-on-writing-isrs).
       ///
       /// ## Example
       /// The below sets [`G0`] to be an [Interrupt] and sets the interrupt
