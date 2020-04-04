@@ -113,7 +113,7 @@ pub mod gpio {
       /// ## Example
       /// The below sets [`G0`] to be an [Input]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x30
       /// ```
       ///
@@ -145,7 +145,7 @@ pub mod gpio {
       /// ## Example
       /// The below sets [`G0`] to be an [Output]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x31
       /// ```
       ///
@@ -189,12 +189,12 @@ pub mod gpio {
       /// the main program to halt.
       ///
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LEA R1, ISR
+      /// AND  R0, R0, #0
+      /// LEA  R1, ISR
       /// TRAP 0x32
       ///
       /// LOOP
-      /// LD R1, ISR_FLAG
+      /// LD  R1, ISR_FLAG
       /// BRz LOOP
       /// HALT
       ///
@@ -203,7 +203,7 @@ pub mod gpio {
       /// ISR
       /// AND R0, R0, #0
       /// ADD R0, R0, #1
-      /// ST R0, ISR_FLAG
+      /// ST  R0, ISR_FLAG
       /// RTI
       /// ```
       ///
@@ -237,7 +237,7 @@ pub mod gpio {
       /// The below sets [`G0`] to be an [Output], then immediately sets it
       /// to [Disabled]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x31
       /// TRAP 0x33
       ///
@@ -263,8 +263,8 @@ pub mod gpio {
       ///
       /// ## Usage
       ///
-      /// This TRAP returns the [mode] of the [GPIO] [Pin] indicated by [`R0`] by
-      /// writing a value to [`R0`]. The values are as follows:
+      /// This TRAP returns the [mode] of the [GPIO] [Pin] indicated by [`R0`]
+      /// by writing a value to [`R0`]. The values are as follows:
       ///
       /// | Mode          | Value |
       /// | ------------- | ----- |
@@ -284,7 +284,7 @@ pub mod gpio {
       /// The below sets [`G0`] to be an [Output], then reads [`G0`]'s mode
       /// into [`R0`]. [`R0`] will then contain the value 2.
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x31
       /// TRAP 0x34
       /// ```
@@ -322,18 +322,19 @@ pub mod gpio {
       ///
       /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
       ///
-      /// Attempting to write to a [GPIO] [Pin] that is not in [Output] mode does
-      /// nothing.
+      /// Attempting to write to a [GPIO] [Pin] that is not in [Output] mode
+      /// does nothing.
       ///
       /// All registers (including [`R0`] and [`R1`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`G0`] to be an [Output], then writes the value 1 to [`G0`]:
+      /// The below sets [`G0`] to be an [Output], then writes the value 1 to
+      /// [`G0`]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x31
-      /// AND R1, R1, #0
-      /// ADD R1, R1, #1
+      /// AND  R1, R1, #0
+      /// ADD  R1, R1, #1
       /// TRAP 0x35
       /// ```
       ///
@@ -370,9 +371,10 @@ pub mod gpio {
       /// All registers (including [`R0`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`G0`] to be an [Input], then reads from [`G0`] into [`R0`]:
+      /// The below sets [`G0`] to be an [Input], then reads from [`G0`] into
+      /// [`R0`]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x30
       /// TRAP 0x36
       /// ```
@@ -412,7 +414,7 @@ pub mod adc {
       /// ## Example
       /// The below sets [`A0`] to be an [Enabled]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x40
       /// ```
       ///
@@ -445,7 +447,7 @@ pub mod adc {
       /// The below sets [`A0`] to be an [Enabled], then immediately sets it
       /// to [Disabled]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x40
       /// TRAP 0x41
       /// ```
@@ -488,7 +490,7 @@ pub mod adc {
       /// The below sets [`A0`] to be an [Disabled], then reads [`A0`]'s mode
       /// into [`R0`]. [`R0`] will then contain the value 1.
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x41
       /// TRAP 0x42
       /// ```
@@ -530,9 +532,10 @@ pub mod adc {
       /// All registers (excluding [`R0`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`A0`] to be an [Enabled], then reads from [`A0`] into [`R0`]:
+      /// The below sets [`A0`] to be an [Enabled], then reads from [`A0`] into
+      /// [`R0`]:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x40
       /// TRAP 0x43
       /// ```
@@ -580,12 +583,12 @@ pub mod pwm {
       /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
-      /// *50%* duty cycle then halts:
+      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and
+      /// a *50%* duty cycle then halts:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LD R2, DUTY
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LD   R2, DUTY
       /// TRAP 0x50
       /// HALT
       ///
@@ -621,12 +624,12 @@ pub mod pwm {
       /// All registers (including [`R0`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
-      /// *50%* duty cycle, immediately sets it to [Disabled], then halts:
+      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and
+      /// a *50%* duty cycle, immediately sets it to [Disabled], then halts:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LD R2, DUTY
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LD   R2, DUTY
       /// TRAP 0x50
       /// TRAP 0x51
       /// HALT
@@ -671,13 +674,13 @@ pub mod pwm {
       /// All registers (excluding [`R0`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
-      /// *50%* duty cycle. It then reads the period of [`P0`] and results in the
-      /// value 20 in [`R0`] then halts:
+      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and
+      /// a *50%* duty cycle. It then reads the period of [`P0`] and results in
+      /// the value 20 in [`R0`] then halts:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LD R2, DUTY
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LD   R2, DUTY
       /// TRAP 0x50
       /// TRAP 0x52
       /// HALT
@@ -721,13 +724,13 @@ pub mod pwm {
       /// All registers (excluding [`R0`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and a
-      /// *50%* duty cycle. It then reads the duty cycle of [`P0`] and results in
-      /// the value 128 in [`R0`] then halts:
+      /// The below sets [`P0`] to be an [Enabled] with a period of *20 ms* and
+      /// a *50%* duty cycle. It then reads the duty cycle of [`P0`] and results
+      /// in the value 128 in [`R0`] then halts:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LD R2, DUTY
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LD   R2, DUTY
       /// TRAP 0x50
       /// TRAP 0x53
       /// HALT
@@ -775,34 +778,35 @@ pub mod timers {
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
       ///
-      /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is set.
+      /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is
+      /// set.
       ///
       /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
       ///
       /// ## Example
-      /// The below sets [`T0`] to be a [SingleShot] with a period of `3 seconds`
-      /// and sets the interrupt service routine to `ISR`. It will then spin
-      /// until [`T0`] fires an interrupt, after three seconds have passed,
+      /// The below sets [`T0`] to be a [SingleShot] with a period of `3
+      /// seconds` and sets the interrupt service routine to `ISR`. It will then
+      /// spin until [`T0`] fires an interrupt, after three seconds have passed,
       /// which will call `ISR`, set the `ISR_FLAG` to 1, and allow the main
       /// program to halt.
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LEA R2, ISR
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LEA  R2, ISR
       /// TRAP 0x60
       ///
       /// LOOP
-      /// LD R1, ISR_FLAG
-      /// BRz LOOP
+      /// LD   R1, ISR_FLAG
+      /// BRz  LOOP
       /// HALT
       ///
       /// PERIOD .FILL #3000
       /// ISR_FLAG .FILL #0
       ///
       /// ISR
-      /// AND R0, R0, #0
-      /// ADD R0, R0, #1
-      /// ST R0, ISR_FLAG
+      /// AND  R0, R0, #0
+      /// ADD  R0, R0, #1
+      /// ST   R0, ISR_FLAG
       /// RTI
       /// ```
       ///
@@ -828,11 +832,11 @@ pub mod timers {
       ///
       /// ## Usage
       ///
-      /// This TRAP puts the [Timer] indicated by [`R0`] into [Repeated]
-      /// mode. It also sets the period of the [Timer] as well as the entry
-      /// in the interrupt vector table corresponding to the [Timer]. The
-      /// period is measured in units of milliseconds and uses full 16-bit
-      /// words (i.e. the period will be a value in the range \[0, 65535\]).
+      /// This TRAP puts the [Timer] indicated by [`R0`] into [Repeated] mode.
+      /// It also sets the period of the [Timer] as well as the entry in the
+      /// interrupt vector table corresponding to the [Timer]. The period is
+      /// measured in units of milliseconds and uses full 16-bit words (i.e. the
+      /// period will be a value in the range \[0, 65535\]).
       ///
       /// In [Repeated] mode, the interrupt service routine triggers every
       /// period cycle until the [Timer] is disabled.
@@ -840,19 +844,20 @@ pub mod timers {
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
       ///
-      /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is set.
+      /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is
+      /// set.
       ///
       /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
       ///
       /// ## Example
       /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
       /// and sets the interrupt service routine to `ISR`. It will then spin
-      /// endlessly. When [`T0`] fires an interrupt every second, `ISR` is called,
-      /// which increments a counter:
+      /// endlessly. When [`T0`] fires an interrupt every second, `ISR` is
+      /// called, which increments a counter:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LEA R2, ISR
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LEA  R2, ISR
       /// TRAP 0x61
       ///
       /// LOOP
@@ -862,9 +867,9 @@ pub mod timers {
       /// COUNTER .FILL #0
       ///
       /// ISR
-      /// LD R0, COUNTER
+      /// LD  R0, COUNTER
       /// ADD R0, R0, #1
-      /// ST R0, COUNTER
+      /// ST  R0, COUNTER
       /// RTI
       /// ```
       ///
@@ -891,7 +896,8 @@ pub mod timers {
       /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
       ///
-      /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is set.
+      /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is
+      /// set.
       ///
       /// All registers (including [`R0`]) are preserved.
       ///
@@ -901,9 +907,9 @@ pub mod timers {
       /// disables [`T0`] It will then spin endlessly. Since [`T0`] is disabled,
       /// `ISR` is never called, and the counter never increments.
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LEA R2, ISR
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LEA  R2, ISR
       /// TRAP 0x61
       ///
       /// TRAP 0x62
@@ -915,9 +921,9 @@ pub mod timers {
       /// COUNTER .FILL #0
       ///
       /// ISR
-      /// LD R0, COUNTER
+      /// LD  R0, COUNTER
       /// ADD R0, R0, #1
-      /// ST R0, COUNTER
+      /// ST  R0, COUNTER
       /// RTI
       /// ```
       ///
@@ -964,9 +970,9 @@ pub mod timers {
       /// [mode] of [`T0`], which will write a value of 1 into [`R0`]. Then the
       /// program halts.
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LEA R2, ISR
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LEA  R2, ISR
       /// TRAP 0x60
       /// TRAP 0x63
       /// HALT
@@ -1021,9 +1027,9 @@ pub mod timers {
       /// period of [`T0`], which will write a value of `1000` into [`R0`].
       /// Then the program halts.
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
-      /// LD R1, PERIOD
-      /// LEA R2, ISR
+      /// AND  R0, R0, #0
+      /// LD   R1, PERIOD
+      /// LEA  R2, ISR
       /// TRAP 0x60
       /// TRAP 0x64
       /// HALT
@@ -1072,7 +1078,7 @@ pub mod clock {
       /// ## Example
       /// The below resets the [Clock]'s value:
       /// ```{ARM Assembly}
-      /// AND R0, R0, #0
+      /// AND  R0, R0, #0
       /// TRAP 0x70
       /// ```
       ///
