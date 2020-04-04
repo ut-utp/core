@@ -1033,13 +1033,12 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let state = Timers::get_state(interp.get_peripherals(), $id);
+                let mode = Timers::get_mode(interp.get_peripherals(), $id);
 
-                use lc3_traits::peripherals::timers::TimerState::*;
-                let word: Word = match state {
-                    Disabled => 0,
+                use lc3_traits::peripherals::timers::Mode::*;
+                let word: Word = match mode {
+                    SingleShot => 0,
                     Repeated => 1,
-                    SingleShot => 2,
                 };
 
                 Ok(Self::with_value(word))
@@ -1050,16 +1049,14 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                use lc3_traits::peripherals::timers::TimerState::*;
-
-                let state = match value.bits(0..1) {
-                    0 | 3 => Disabled,
-                    1 => Repeated,
-                    2 => SingleShot,
-                    _ => unreachable!(),
+                use lc3_traits::peripherals::timers::Mode::*;
+                let mode = if value.bit(0) {
+                    SingleShot
+                } else {
+                    Repeated
                 };
 
-                Timers::set_state(interp.get_peripherals_mut(), $id, state).unwrap(); // TODO: do something different on error?
+                Timers::set_mode(interp.get_peripherals_mut(), $id, mode);
 
                 Ok(())
             }
@@ -1118,9 +1115,15 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Timers::get_period(interp.get_peripherals(), $id);
+                let state = Timers::get_state(interp.get_peripherals(), $id);
 
-                Ok(Self::with_value(word))
+                use lc3_traits::peripherals::timers::State::*;
+                let value = match state {
+                    Disabled => 0,
+                    WithPeriod(period) => period.into(),
+                };
+
+                Ok(Self::with_value(value))
             }
 
             fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
@@ -1128,7 +1131,13 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                Timers::set_period(interp.get_peripherals_mut(), $id, value); // TODO: do something on failure
+                use lc3_traits::peripherals::timers::State::*;
+                use lc3_traits::peripherals::timers::Period;
+                let state = match value {
+                    0 => Disabled,
+                    nonzero => WithPeriod(Period::new(nonzero).unwrap()),
+                };
+                Timers::set_state(interp.get_peripherals_mut(), $id, state);
 
                 Ok(())
             }

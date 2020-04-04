@@ -20,8 +20,8 @@ use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcReadError, AdcState};
 use lc3_traits::peripherals::clock::Clock;
 use lc3_traits::peripherals::gpio::{Gpio, GpioPinArr, GpioReadError, GpioState};
 use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
-use lc3_traits::peripherals::timers::{TimerArr, TimerState, Timers};
-use lc3_traits::peripherals::Peripherals;
+use lc3_traits::peripherals::timers::{TimerArr, Timers};
+use lc3_traits::peripherals::{Peripherals, timers};
 
 // use core::future::Future;
 use core::marker::PhantomData;
@@ -547,12 +547,12 @@ where
         Adc::read_all(self.interp.get_peripherals())
     }
 
-    fn get_timer_states(&self) -> TimerArr<TimerState> {
-        Timers::get_states(self.interp.get_peripherals())
+    fn get_timer_modes(&self) -> TimerArr<timers::Mode> {
+        Timers::get_modes(self.interp.get_peripherals())
     }
 
-    fn get_timer_config(&self) -> TimerArr<Word> {
-        Timers::get_periods(self.interp.get_peripherals())
+    fn get_timer_states(&self) -> TimerArr<timers::State> {
+        Timers::get_states(self.interp.get_peripherals())
     }
 
     fn get_pwm_states(&self) -> PwmPinArr<PwmState> {
