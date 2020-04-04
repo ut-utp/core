@@ -124,7 +124,7 @@ pub enum State {
 /// Each timer initially returns SingleShot when the mode is read.
 /// The mode returned for a timer does not change until the mode is set to a different one.
 ///
-/// After being set to a new mode, the timer sets its state to disabled and any interrupts
+/// After being set to any mode, even the same one, the timer sets its state to disabled and any interrupts
 /// that were meant to occur in the future (as explained below) never occur.
 /// This is meant to avoid complications or confusion that may arise when changing a timer's mode
 /// at the middle or end of its period.
@@ -148,7 +148,7 @@ pub enum State {
 /// Each timer holds two possible main states. Either the timer has a period, representing how much time must
 /// elapse before an interrupt; or the timer is disabled, showing it will not cause any interrupts until it is next set.
 ///
-/// Whenever the period is changed, any interrupts that were meant to occur are no longer meant to occur.
+/// Whenever the period is set (even if it's the same), any interrupts that were meant to occur are no longer meant to occur.
 /// The timer starts, restarts, or stops with no memory of its previous requirement.
 ///
 /// When the state is set to disabled, no interrupts are meant to occur in the future.
