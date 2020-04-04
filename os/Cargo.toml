@@ -34,11 +34,16 @@ lc3-macros = { path = "../macros", version = "0.1.0" }
 lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0", default-features = false }
 
 lazy_static = "1.4.0"
-
+static_assertions = "1.1.0"
 
 [dev-dependencies]
-
+lc3-shims = { path = "../shims", version = "0.1.0", default-features = false }
 pretty_assertions = "0.6.1"
+
+
+[[test]]
+name = "trap_tests"
+path = "tests/trap_tests/mod.rs"
 
 
 [features]

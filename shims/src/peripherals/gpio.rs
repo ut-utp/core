@@ -126,11 +126,26 @@ impl GpioShim<'_> {
 impl<'a> Gpio<'a> for GpioShim<'a> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
         use GpioState::*;
-        self[pin] = match state {
-            Input => State::Input(false),
-            Output => State::Output(false),
-            Interrupt => State::Interrupt(false),
-            Disabled => State::Disabled,
+
+        // Retain the previous value when switching between input and interrupt
+        // modes and when switching to the mode we're already in:
+        self[pin] = match (self[pin], state) {
+            (State::Input(v), Input) |
+            (State::Interrupt(v), Input) => State::Input(v),
+            (State::Disabled, Input) |
+            (State::Output(_), Input) => State::Input(false),
+
+            (State::Output(v), Output) => State::Output(v),
+            (State::Disabled, Output) |
+            (State::Input(_), Output) |
+            (State::Interrupt(_), Output) => State::Output(false),
+
+            (State::Input(v), Interrupt) |
+            (State::Interrupt(v), Interrupt) => State::Interrupt(false),
+            (State::Disabled, Interrupt) |
+            (State::Output(_), Interrupt) => State::Interrupt(false),
+
+            (_, Disabled) => State::Disabled,
         };
 
         Ok(())

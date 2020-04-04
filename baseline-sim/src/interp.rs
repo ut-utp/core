@@ -200,7 +200,7 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 // }
 
 // #[derive(Debug, Default, Clone)] // TODO: Clone
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     memory: M,
     peripherals: P,
@@ -210,15 +210,13 @@ pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     state: MachineState,
 }
 
-// impl<'a, M: Memory, P> Default for Interpreter<'a, M, P>
-// where for <'p> P: Peripherals<'p> {
-//     fn default() -> Self {
-//         Self {
-//             memory: Default::default(),
-//             peripherals: P
-//         }
-//     }
-// }
+impl<'a, M: Memory + Default, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
+    fn default() -> Self {
+        InterpreterBuilder::new()
+            .with_defaults()
+            .build()
+    }
+}
 
 #[derive(Debug)]
 pub struct Set;
@@ -514,6 +512,17 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             pc,
             state,
         };
+
+        // TODO: we can't call this.
+        // This is a problem; we need to drop the `flags` field from `Interpreter` and
+        // make the builder ensure that flags (that live long enough) are actually
+        // passed in.
+        //
+        // Or rather we can have the flags field be of type
+        // `&'a PeripheralInterruptFlags`; the Default impl can use Box::leak to provide
+        // this.
+        //
+        // interp.init(&interp.flags);
 
         interp.reset(); // TODO: should we? won't that negate setting the regs and pc and stuff?
         interp
@@ -842,7 +851,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                 I!(PC <- PC + offset11)
             }
             Jsrr { base } => {
-                // TODO: add a test where base _is_ R7!!
                 let (pc, new_pc) = (self.get_pc(), self[base]);
                 I!(PC <- new_pc);
                 I!(R7 <- pc)
@@ -878,12 +886,15 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     }
 }
 
-use super::mem_mapped::{BSP, DDR, DSR, KBDR, KBSR, PSR};
 use super::mem_mapped::{
+    KBSR, KBDR,
+    DSR, DDR,
+    BSP, PSR,
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
-};
-use super::mem_mapped::{
-    T0CR, T1CR,
+    A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+    P0CR, P0DR, P1CR, P1DR,
+    CLKR,
+    T0CR, T0DR, T1CR, T1DR
 };
 use lc3_traits::peripherals::gpio::GPIO_PINS;
 use crate::mem_mapped::Interrupt;
@@ -956,8 +967,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             }
 
             devices!(
-                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
+                KBSR, KBDR,
+                DSR, DDR,
+                BSP, PSR,
+                G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+                A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+                P0CR, P0DR, P1CR, P1DR,
+                CLKR,
+                T0CR, T0DR, T1CR, T1DR
             )
         } else {
             self.set_word_force_memory_backed(addr, word)
@@ -979,8 +996,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             }
 
             devices!(
-                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
+                KBSR, KBDR,
+                DSR, DDR,
+                BSP, PSR,
+                G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+                A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+                P0CR, P0DR, P1CR, P1DR,
+                CLKR,
+                T0CR, T0DR, T1CR, T1DR
             )
         } else {
             self.get_word_force_memory_backed(addr)

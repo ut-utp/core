@@ -336,9 +336,9 @@ impl MemMapped for KBDR {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        Ok(Self::with_value(
-            Input::read_data(interp.get_peripherals()).unwrap() as Word,
-        )) // TODO: Do something on error
+        let data = (Input::read_data(interp.get_peripherals()).unwrap_or(0)) as Word;
+
+        Ok(Self::with_value(data))
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
@@ -583,7 +583,7 @@ macro_rules! gpio_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 use lc3_traits::peripherals::gpio::GpioState::*;
-                let state = match value.bits(0..2) {
+                let state = match value.bits(0..1) {
                     0 => Disabled,
                     1 => Output,
                     2 => Input,
@@ -651,7 +651,13 @@ macro_rules! gpio_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+                use lc3_traits::peripherals::gpio::GpioState::*;
+
+                let state = Gpio::get_state(interp.get_peripherals(), $pin);
+                let word: Word = match state {
+                    Input | Interrupt => Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000),
+                    Output | Disabled => Word::max_value(),
+                };
 
                 Ok(Self::with_value(word))
             }
@@ -661,9 +667,13 @@ macro_rules! gpio_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let bit: bool = value.bit(0);
-                Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
+                use lc3_traits::peripherals::gpio::GpioState::*;
 
+                let state = Gpio::get_state(interp.get_peripherals(), $pin);
+                if state == Output {
+                    let bit: bool = value.bit(0);
+                    Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
+                }
                 Ok(())
             }
         }
@@ -825,7 +835,13 @@ macro_rules! adc_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+                use lc3_traits::peripherals::adc::AdcState::*;
+
+                let state = Adc::get_state(interp.get_peripherals(), $pin);
+                let word: Word = match state {
+                    Enabled => Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000), // TODO: document and/or change the 'error' value
+                    Disabled => Word::max_value(),
+                };
 
                 Ok(Self::with_value(word))
             }
@@ -964,7 +980,13 @@ macro_rules! pwm_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word;
+                use lc3_traits::peripherals::pwm::PwmState::*;
+
+                let state = Pwm::get_state(interp.get_peripherals(), $pin);
+                let word = match state {
+                    Enabled(ref nzu8) => Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word,
+                    Disabled => Word::max_value(),
+                };
 
                 Ok(Self::with_value(word))
             }
@@ -1030,7 +1052,7 @@ macro_rules! timer_mem_mapped {
             {
                 use lc3_traits::peripherals::timers::TimerState::*;
 
-                let state = match value.bits(0..2) {
+                let state = match value.bits(0..1) {
                     0 | 3 => Disabled,
                     1 => Repeated,
                     2 => SingleShot,
