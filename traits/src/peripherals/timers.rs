@@ -91,9 +91,69 @@ pub enum State {
 /// To specify the action to take when the timer triggers an interrupt,
 /// users can write interrupt service routines as part of their LC-3 programs.
 ///
-/// # Simple Definition
+/// # Definition
 ///
-/// # General Definition
+/// Each timer can be set to one of two modes of operation
+/// and two main states representing either the time period the timer waits or the lack thereof.
+/// After the period elapses, the timer will begin showing that an interrupt occurred.
+///
+/// ## Interrupts
+///
+/// To allow the LC-3 to continue running simultaneously,
+/// the timers must show they are done by triggering interrupts in the machine.
+/// This interface provides no dedicated method meant for querying if a timer has completed a full period.
+/// Instead, it provides an interrupt interface to signal to the simulator to trigger interrupts.
+///
+/// Before anything else can work, a set of interrupt flags must be registered with the peripheral.
+/// These are to provide safe shared state between the simulator's process and the hardware's interrupt-handling processes.
+/// Until the flags are registered, the rest of the peripheral's behavior is undefined, though
+/// we recommend that other operations panic wherever they depend on the missing flags.
+///
+/// All interrupt flags must initially be false, indicating that no interrupts have occurred.
+///
+/// Getting whether an interrupt occurred returns true from when a timer's period has elapsed until
+/// that timer's interrupt flag is reset. We recommend implementing this behavior by simply returning the
+/// value of the flag to show when an interrupt occurred, and setting the flag to true when appropriate.
+///
+/// The last part of the interrupt interface shows whether interrupts are enabled for a given timer.
+/// If a timer is not in a disabled state, then its interrupts are enabled. This method is used
+/// to show the simulator when it is necessary to check whether interrupts occur on this peripheral.
+///
+/// ## Modes
+///
+/// Each timer initially returns SingleShot when the mode is read.
+/// The mode returned for a timer does not change until the mode is set to a different one.
+///
+/// After being set to a new mode, the timer sets its state to disabled and any interrupts
+/// that were meant to occur in the future (as explained below) never occur.
+/// This is meant to avoid complications or confusion that may arise when changing a timer's mode
+/// at the middle or end of its period.
+///
+/// There are two modes:
+/// - *SingleShot*: after being set to this mode, when the timer is set to a state with a period,
+///   it must show that an interrupt has occurred as soon as that period of time has elapsed from that point,
+///   and set itself to a disabled state.
+/// - *Repeated*: after being set to this mode, when the timer is set to a state with a period,
+///   it must show that an interrupt has occurred every time that period of time elapses from that point.
+///
+/// Put simply, when set to SingleShot, a timer will cause one interrupt after a specified length of time;
+/// when set to Repeated, it will cause interrupts periodically -- once after every interval of time of that length.
+///
+/// ## States
+///
+/// Each timer initially returns Disabled when the state is read.
+/// The state returned for a timer does not change until the state is set to a different one,
+/// unless disabled by a change in the mode.
+///
+/// Each timer holds two possible main states. Either the timer has a period, representing how much time must
+/// elapse before an interrupt; or the timer is disabled, showing it will not cause any interrupts until it is next set.
+///
+/// Whenever the period is changed, any interrupts that were meant to occur are no longer meant to occur.
+/// The timer starts, restarts, or stops with no memory of its previous requirement.
+///
+/// When the state is set to disabled, no interrupts are meant to occur in the future.
+/// When the state is set to have a period, the timer should be set to show an interrupt occurred after that period
+/// of time elapses from that point, either once or periodically as described in the section on Modes.
 ///
 /// # Reasoning
 ///
