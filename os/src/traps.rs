@@ -29,8 +29,10 @@
 //!     * If you follow this rule you can push/pop multiple things onto/off of
 //!       the stack in one go by decrementing/incrementing the stack pointer by
 //!       more than 1.
-//!  - The OS, by default, [provisions about a page](sp) (256 memory locations)
-//!    of stack space and sets the starting stack pointer accordingly.
+//!  - The OS, by default,
+//!    [provisions about a page](crate::OS_DEFAULT_STARTING_SP) (256 memory
+//!    locations) of stack space and sets the starting stack pointer
+//!    accordingly.
 //!     * If you overrun this, you'll start to write over the OS!
 //!  - Return from your ISRs with an [`RTI`]!
 //!     * Note that this means you cannot call your ISRs directly from user
@@ -38,7 +40,6 @@
 //!
 //! [`R6`]: lc3_isa::Reg::R6
 //! [`RTI`]: lc3_isa::Instruction::Rti
-//! [sp]: lc3_os::OS_DEFAULT_STARTING_SP
 
 
 use lc3_baseline_sim::mem_mapped as mm;
@@ -205,8 +206,6 @@ pub mod gpio {
       /// ST R0, ISR_FLAG
       /// RTI
       /// ```
-      // TODO: good ISRs must save all registers, not break the stack
-      // pointer (i.e. equal pushes and pops), and end with RTI.
       ///
       /// [GPIO]: lc3_traits::peripherals::Gpio
       /// [Interrupt]: lc3_traits::peripherals::gpio::GpioState::Interrupt
@@ -243,27 +242,6 @@ pub mod gpio {
       /// TRAP 0x33
       ///
       /// ```
-      ///
-      /// ```rust, {ARM Assembly}
-      /// # let program1 = "
-      /// AND R0, R0, #0
-      /// TRAP 0x31
-      /// ";
-      /// # let program2 = "
-      /// TRAP 0x33
-      /// ; 0xFE99 is 0x02
-      /// # ";
-      /// # sim.set_gpio(0, Output);
-      /// # assert_eq!(sim.get_gpio(0), Output);
-      /// # println!("Before: G0 {}", sim.get_gpio(0));
-      /// # let mem = assemble(program);
-      /// # run(sim, mem);
-      ///
-      /// # assert_eq!(sim.get_gpio(0), Disabled);
-      /// # println!("After: G0 {}", sim.get_gpio(0));
-      /// ```
-      ///
-      ///
       ///
       /// [GPIO]: lc3_traits::peripherals::Gpio
       /// [Disabled]: lc3_traits::peripherals::gpio::GpioState::Disabled
