@@ -1145,8 +1145,10 @@ pub mod builtin {
       ///
       /// ## Usage
       ///
-      /// The following description is from *Introduction to Computing
-      /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+      /// The following description is from *Introduction to Computing Systems:
+      /// From Bits and Gates to C and Beyond (Patt and Patel)*,
+      /// [Appendix A](http://highered.mheducation.com/sites/dl/free/0072467509/104691/pat67509_appa.pdf)
+      /// [Page 23](http://www.cs.unca.edu/~bruce/Spring14/109/Resources/lc3-isa.pdf#page=23).
       ///
       /// Read a single character from the keyboard. The character is not
       /// echoed onto the console. Its ASCII code is copied into R0. The high
@@ -1164,8 +1166,10 @@ pub mod builtin {
       ///
       /// ## Usage
       ///
-      /// The following description is from *Introduction to Computing
-      /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+      /// The following description is from *Introduction to Computing Systems:
+      /// From Bits and Gates to C and Beyond (Patt and Patel)*,
+      /// [Appendix A](http://highered.mheducation.com/sites/dl/free/0072467509/104691/pat67509_appa.pdf)
+      /// [Page 23](http://www.cs.unca.edu/~bruce/Spring14/109/Resources/lc3-isa.pdf#page=23).
       ///
       ///  Write a character in R0\[7:0\] to the console display.
       ///
@@ -1181,14 +1185,16 @@ pub mod builtin {
       ///
       /// ## Usage
       ///
-      /// The following description is from *Introduction to Computing
-      /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+      /// The following description is from *Introduction to Computing Systems:
+      /// From Bits and Gates to C and Beyond (Patt and Patel)*,
+      /// [Appendix A](http://highered.mheducation.com/sites/dl/free/0072467509/104691/pat67509_appa.pdf)
+      /// [Page 23](http://www.cs.unca.edu/~bruce/Spring14/109/Resources/lc3-isa.pdf#page=23).
       ///
-      /// Write a string of ASCII characters to the console display.
-      /// The characters are contained in consecutive memory locations,
-      /// one character per memory location, starting with the address
-      /// specified in R0. Writing terminates with the occurrence of
-      /// x0000 in a memory location.
+      /// Write a string of ASCII characters to the console display. The
+      /// characters are contained in consecutive memory locations, one
+      /// character per memory location, starting with the address specified in
+      /// [`R0`]. Writing terminates with the occurrence of `0x0000` in a memory
+      /// location.
       ///
       /// [`R0`]: lc3_isa::Reg::R0
       [0x22] PUTS,   // 0x22
@@ -1202,13 +1208,15 @@ pub mod builtin {
       ///
       /// ## Usage
       ///
-      /// The following description is from *Introduction to Computing
-      /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+      /// The following description is from *Introduction to Computing Systems:
+      /// From Bits and Gates to C and Beyond (Patt and Patel)*,
+      /// [Appendix A](http://highered.mheducation.com/sites/dl/free/0072467509/104691/pat67509_appa.pdf)
+      /// [Page 23](http://www.cs.unca.edu/~bruce/Spring14/109/Resources/lc3-isa.pdf#page=23).
       ///
-      /// Print a prompt on the screen and read a single character from
-      /// the keyboard. The character is echoed onto the console monitor,
-      /// and its ASCII code is copied into R0. The high eight bits of R0
-      /// are cleared.
+      /// Print a prompt on the screen and read a single character from the
+      /// keyboard. The character is echoed onto the console monitor, and its
+      /// ASCII code is copied into [`R0`]. The high eight bits of [`R0`] are
+      /// cleared.
       ///
       /// [`R0`]: lc3_isa::Reg::R0
       [0x23] IN,     // 0x23
@@ -1223,22 +1231,30 @@ pub mod builtin {
       ///
       /// ## Usage
       ///
-      /// The following description is from *Introduction to Computing
-      /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+      /// The following description is from *Introduction to Computing Systems:
+      /// From Bits and Gates to C and Beyond (Patt and Patel)*,
+      /// [Appendix A](http://highered.mheducation.com/sites/dl/free/0072467509/104691/pat67509_appa.pdf)
+      /// [Page 23](http://www.cs.unca.edu/~bruce/Spring14/109/Resources/lc3-isa.pdf#page=23).
       ///
-      /// Write a string of ASCII characters to the console. The
-      /// characters are contained in consecutive memory locations, two
-      /// characters per memory location, starting with the address
-      /// specified in R0. The ASCII code contained in bits \[7:0\] of a
-      /// memory location is written to the console first. Then the ASCII
-      /// code contained in bits \[15:8\] of that memory location is
-      /// written to the console. (A character string consisting of an
-      /// odd number of characters to be written will have x00 in bits
-      /// \[15:8\] of the memory location containing the last character to
-      /// be written.) Writing terminates with the occurrence of x0000
-      /// in a memory location.
+      /// Write a string of ASCII characters to the console. The characters are
+      /// contained in consecutive memory locations, two characters per memory
+      /// location, starting with the address specified in [`R0`]. The ASCII
+      /// code contained in bits \[7:0\] of a memory location is written to the
+      /// console first. Then the ASCII code contained in bits \[15:8\] of that
+      /// memory location is written to the console. (A character string
+      /// consisting of an odd number of characters to be written will have
+      /// `0x00` in bits \[15:8\] of the memory location containing the last
+      /// character to be written.) Writing terminates with the occurrence of
+      /// `0x0000` in a memory location.
+      ///
+      /// Note that our (and [lc3tools]') PUTSP implementation is more lenient
+      /// than this; if you have an odd number of characters, the `0x00` in
+      /// bits \[15:8\] of the last word is sufficient to terminate the string
+      /// and the last `0x0000` word can be omitted (we just look for the first
+      /// 0x00 character to terminate).
       ///
       /// [`R0`]: lc3_isa::Reg::R0
+      /// [lc3tools]: https://github.com/chiragsakhuja/lc3tools
       [0x24] PUTSP,  // 0x24
       /// Halt execution and print a message on the console.
       ///
@@ -1250,8 +1266,10 @@ pub mod builtin {
       ///
       /// ## Usage
       ///
-      /// The following description is from *Introduction to Computing
-      /// Systems: From Bits and Gates to C and Beyond (Patt and Patel)*.
+      /// The following description is from *Introduction to Computing Systems:
+      /// From Bits and Gates to C and Beyond (Patt and Patel)*,
+      /// [Appendix A](http://highered.mheducation.com/sites/dl/free/0072467509/104691/pat67509_appa.pdf)
+      /// [Page 23](http://www.cs.unca.edu/~bruce/Spring14/109/Resources/lc3-isa.pdf#page=23).
       ///
       /// Halt execution and print a message on the console.
       [0x25] HALT,   // 0x25
