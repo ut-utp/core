@@ -7,11 +7,9 @@ use lc3_macros::DisplayUsingDebug;
 
 use core::ops::{Deref, Index, IndexMut};
 use core::sync::atomic::AtomicBool;
+use core::num::NonZeroU16;
 
 use serde::{Deserialize, Serialize};
-
-// TODO: Add Errors
-// Timer periods: [0, core::u16::MAX)
 
 #[rustfmt::skip]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -70,43 +68,65 @@ impl<T> IndexMut<TimerId> for TimerArr<T> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TimerState {
+pub enum Mode {
     Repeated,
     SingleShot,
-    Disabled,
 }
 
+pub type Period = NonZeroU16;
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TimerMiscError;
+pub enum State {
+    Disabled,
+    WithPeriod(Period)
+}
 
-pub type TimerStateMismatch = (TimerId, TimerState);
-
+/// A Timers peripheral for an LC-3 simulator.
+///
+/// Used for scheduling actions (i.e. LC-3 routines).
+/// The peripheral consists of multiple timers which can be independently set to trigger
+/// interrupts at a specified length of time in the future.
+/// Alternatively, a timer can be set to trigger an interrupt periodically,
+/// with a specified length of time between triggers.
+/// To specify the action to take when the timer triggers an interrupt,
+/// users can write interrupt service routines as part of their LC-3 programs.
+///
+/// # Simple Definition
+///
+/// # General Definition
+///
+/// # Reasoning
+///
+/// We provide the Timers peripheral to enable simulator users to schedule or delay routines.
+/// By setting a timer, a user can toggle a "heartbeat" output which shows their program is running
+/// without requiring a main program loop dependent on instruction execution speed.
+/// A user could also cause their program to pause for a specified time without polling on Clock in a tight loop.
+///
+///
 peripheral_trait! {timers,
 pub trait Timers<'a>: Default {
-    fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError>;  // Should this be infallible (TODO)
-    fn get_state(&self, timer: TimerId) -> TimerState;
-    fn get_states(&self) -> TimerArr<TimerState> {
-        let mut states = TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]);
+    fn set_mode(&mut self, timer: TimerId, mode: Mode);
+    fn get_mode(&self, timer: TimerId) -> Mode;
+    fn get_modes(&self) -> TimerArr<Mode> {
+        let mut modes = TimerArr([Mode::SingleShot; TimerId::NUM_TIMERS]);
+
+        TIMERS
+            .iter()
+            .for_each(|t| modes[*t] = self.get_mode(*t));
+
+        modes
+    }
+
+    fn set_state(&mut self, timer: TimerId, state: State);
+    fn get_state(&self, timer: TimerId) -> State;
+    fn get_states(&self) -> TimerArr<State> {
+        let mut states = TimerArr([State::Disabled; TimerId::NUM_TIMERS]);
 
         TIMERS
             .iter()
             .for_each(|t| states[*t] = self.get_state(*t));
 
         states
-    }
-
-    // TODO: setting the period on an already running timer resets the timer, right?
-    // TODO: period of zero? disabled, right?
-    fn set_period(&mut self, timer: TimerId, ms: Word) -> Result<(), TimerMiscError>;  // Should this be infallible (TODO)
-    fn get_period(&self, timer: TimerId) -> Word; // should be fallible? (i.e. what happens when we're disabled?)
-    fn get_periods(&self) -> TimerArr<Word> {
-        let mut periods = TimerArr([0u16; TimerId::NUM_TIMERS]);
-
-        TIMERS
-            .iter()
-            .for_each(|t| periods[*t] = self.get_period(*t));
-
-        periods
     }
 
     fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>);
@@ -122,20 +142,20 @@ pub trait Timers<'a>: Default {
 using_std! {
     use std::sync::{Arc, RwLock};
     impl<'a, T: Timers<'a>> Timers<'a> for Arc<RwLock<T>> {
-        fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> { // TODO: Infallible?
-            RwLock::write(self).unwrap().set_state(timer, state)
+        fn set_mode(&mut self, timer: TimerId, mode: Mode) {
+            RwLock::write(self).unwrap().set_mode(timer, mode);
         }
 
-        fn get_state(&self, timer: TimerId) -> TimerState {
+        fn get_mode(&self, timer: TimerId) -> Mode {
+            RwLock::read(self).unwrap().get_mode(timer)
+        }
+
+        fn set_state(&mut self, timer: TimerId, state: State) {
+            RwLock::write(self).unwrap().set_state(timer, state);
+        }
+
+        fn get_state(&self, timer: TimerId) -> State {
             RwLock::read(self).unwrap().get_state(timer)
-        }
-
-        fn set_period(&mut self, timer: TimerId, ms: Word) -> Result<(), TimerMiscError> { // TODO: Infallible?
-            RwLock::write(self).unwrap().set_period(timer, ms)
-        }
-
-        fn get_period(&self, timer: TimerId) -> Word {
-            RwLock::read(self).unwrap().get_period(timer)
         }
 
         fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
