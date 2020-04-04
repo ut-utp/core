@@ -62,13 +62,14 @@ impl Pwm for PwmStub {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct TimersStub;
 
-use super::timers::{TimerId, TimerState, TimerMiscError, TimerArr};
+use super::timers::{TimerId, TimerArr};
+use super::timers;
 impl<'a> Timers<'a> for TimersStub {
-    fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> { Err(TimerMiscError) }
-    fn get_state(&self, timer: TimerId) -> TimerState { TimerState::Disabled }
+    fn set_mode(&mut self, timer: TimerId, mode: timers::Mode) { }
+    fn get_mode(&self, timer: TimerId) -> timers::Mode { timers::Mode::SingleShot }
 
-    fn set_period(&mut self, timer: TimerId, ms: Word) -> Result<(), TimerMiscError> { Err(TimerMiscError) }
-    fn get_period(&self, timer: TimerId) -> Word { 0 }
+    fn set_state(&mut self, timer: TimerId, state: timers::State) { }
+    fn get_state(&self, timer: TimerId) -> timers::State { timers::State::Disabled }
 
     fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {}
     fn interrupt_occurred(&self, timer: TimerId) -> bool { false }
@@ -104,6 +105,7 @@ impl<'a> Input<'a> for InputStub {
 pub struct OutputStub;
 
 use super::output::OutputError;
+
 impl<'a> Output<'a> for OutputStub {
     fn write_data(&mut self, c: u8) -> Result<(), OutputError> { Ok(()) }
     fn current_data_written(&self) -> bool { true }

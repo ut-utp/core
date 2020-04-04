@@ -349,8 +349,8 @@ where
                 (GetAdcStates => R::GetAdcStates(r)) with r = c.get_adc_states();
                 (GetAdcReadings => R::GetAdcReadings(r)) with r = c.get_adc_readings();
 
+                (GetTimerModes => R::GetTimerModes(r)) with r = c.get_timer_modes();
                 (GetTimerStates => R::GetTimerStates(r)) with r = c.get_timer_states();
-                (GetTimerConfig => R::GetTimerConfig(r)) with r = c.get_timer_config();
 
                 (GetPwmStates => R::GetPwmStates(r)) with r = c.get_pwm_states();
                 (GetPwmConfig => R::GetPwmConfig(r)) with r = c.get_pwm_config();
