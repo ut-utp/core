@@ -301,9 +301,30 @@ mod single_instructions {
 
         sequence! {
             jsrr_1,
-            insns: [ { ADD R0, R0, #1 }, { JSRR R0 }],
+            insns: [ { ADD R0, R0, #1 }, { JSRR R0 } ],
             steps: Some(2),
             ending_pc: 0x0001,
+            regs: { R7: 0x3002 },
+            memory: {}
+        }
+
+        // In an incorrect implementation (if we don't store the PC in an
+        // intermediary 'register'), this could happen:
+        //   R7 <- PC // base register value overwritten!!
+        //   PC <- R7
+        //
+        // When R7 isn't the register that's used with JSRR, this works:
+        //   R7 <- PC
+        //   PC <- R1
+        //
+        // On incorrect implementations, the below should fail. R7 will be
+        // 0x3002 as expected but the PC will be 0x3002 (making it seem as
+        // though the JSRR never really happened).
+        sequence! {
+            jsrr_r7,
+            insns: [ { ADD R7, R7, #0x08 }, { JSRR R7 } ],
+            steps: Some(2),
+            ending_pc: 0x0008,
             regs: { R7: 0x3002 },
             memory: {}
         }
