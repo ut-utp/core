@@ -407,9 +407,8 @@ dependencies = [
  "itertools 0.9.0",
  "lc3-isa",
  "lc3-macros",
- "lc3-shims",
+ "lc3-test-infrastructure",
  "lc3-traits",
- "pretty_assertions",
  "static_assertions",
 ]
 
@@ -442,9 +441,8 @@ dependencies = [
  "lc3-baseline-sim",
  "lc3-isa",
  "lc3-macros",
- "lc3-shims",
+ "lc3-test-infrastructure",
  "lc3-traits",
- "pretty_assertions",
  "static_assertions",
 ]
 
@@ -459,6 +457,18 @@ dependencies = [
  "pretty_assertions",
  "time",
  "timer",
+]
+
+[[package]]
+name = "lc3-test-infrastructure"
+version = "0.1.0"
+dependencies = [
+ "lc3-baseline-sim",
+ "lc3-isa",
+ "lc3-macros",
+ "lc3-shims",
+ "lc3-traits",
+ "pretty_assertions",
 ]
 
 [[package]]

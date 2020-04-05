@@ -8,6 +8,7 @@ members = [
     "macros",
     "os",
     "application-support",
+    "test-infrastructure",
 ]
 exclude = [ "misc/lc3-tm4c", "misc/serial" ]
 

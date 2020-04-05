@@ -11,3 +11,5 @@ mod misc;
 
 pub use runner::*;
 pub use misc::*;
+
+pub use pretty_assertions::*;
