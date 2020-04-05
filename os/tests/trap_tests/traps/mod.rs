@@ -16,3 +16,12 @@ use test_infrastructure::*;
 use lc3_isa::Reg::*;
 
 use pretty_assertions::assert_eq as eq;
+
+// mod adc;
+// mod clock;
+mod gpio;
+// mod pwm;
+// mod timers;
+
+// mod input;
+// mod output;
