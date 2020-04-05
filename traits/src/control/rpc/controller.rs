@@ -20,8 +20,7 @@ use crate::peripherals::{
     adc::{AdcPinArr, AdcState, AdcReadError},
     gpio::{GpioPinArr, GpioState, GpioReadError},
     pwm::{PwmPinArr, PwmState},
-    timers,
-    timers::{TimerArr},
+    timers::{TimerArr, TimerMode, TimerState},
 };
 
 use lc3_isa::{Reg, Addr, Word};

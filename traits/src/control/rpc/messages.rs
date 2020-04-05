@@ -12,8 +12,7 @@ use crate::peripherals::{
     adc::{AdcPinArr, AdcState, AdcReadError},
     gpio::{GpioPinArr, GpioState, GpioReadError},
     pwm::{PwmPinArr, PwmState},
-    timers,
-    timers::{TimerArr},
+    timers::{TimerArr, TimerMode, TimerState},
 };
 
 use lc3_isa::{Addr, Reg, Word};
@@ -161,8 +160,8 @@ pub enum ResponseMessage { // messages for everything but tick()
     GetGpioReadings(GpioPinArr<Result<bool, GpioReadError>>),
     GetAdcStates(AdcPinArr<AdcState>),
     GetAdcReadings(AdcPinArr<Result<u8, AdcReadError>>),
-    GetTimerModes(TimerArr<timers::Mode>),
-    GetTimerStates(TimerArr<timers::State>),
+    GetTimerModes(TimerArr<TimerMode>),
+    GetTimerStates(TimerArr<TimerState>),
     GetPwmStates(PwmPinArr<PwmState>),
     GetPwmConfig(PwmPinArr<u8>), // TODO
     GetClock(Word),

@@ -11,8 +11,7 @@ use crate::error::Error;
 use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
 use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
-use crate::peripherals::timers;
-use crate::peripherals::timers::{TimerArr};
+use crate::peripherals::timers::{TimerArr, TimerMode, TimerState};
 use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier};
 use super::load::{PageIndex, PageWriteStart, StartPageWriteError, PageChunkError, FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS};
 
@@ -174,8 +173,8 @@ pub trait Control {
     fn get_gpio_readings(&self) -> GpioPinArr<Result<bool, GpioReadError>>;
     fn get_adc_states(&self) -> AdcPinArr<AdcState>;
     fn get_adc_readings(&self) -> AdcPinArr<Result<u8, AdcReadError>>;
-    fn get_timer_modes(&self) -> TimerArr<timers::Mode>;
-    fn get_timer_states(&self) -> TimerArr<timers::State>;
+    fn get_timer_modes(&self) -> TimerArr<TimerMode>;
+    fn get_timer_states(&self) -> TimerArr<TimerState>;
     fn get_pwm_states(&self) -> PwmPinArr<PwmState>;
     fn get_pwm_config(&self) -> PwmPinArr<u8>; // TODO: ditto with using u8 here; probably should be some kind of enum (the conflict is then we're kinda pushing implementors to represent state a certain way.. or at least to have to translate it to our enum).
     fn get_clock(&self) -> Word;

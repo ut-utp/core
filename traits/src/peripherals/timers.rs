@@ -68,7 +68,7 @@ impl<T> IndexMut<TimerId> for TimerArr<T> {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Mode {
+pub enum TimerMode {
     Repeated,
     SingleShot,
 }
@@ -76,7 +76,7 @@ pub enum Mode {
 pub type Period = NonZeroU16;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum State {
+pub enum TimerState {
     Disabled,
     WithPeriod(Period)
 }
@@ -165,10 +165,10 @@ pub enum State {
 ///
 peripheral_trait! {timers,
 pub trait Timers<'a>: Default {
-    fn set_mode(&mut self, timer: TimerId, mode: Mode);
-    fn get_mode(&self, timer: TimerId) -> Mode;
-    fn get_modes(&self) -> TimerArr<Mode> {
-        let mut modes = TimerArr([Mode::SingleShot; TimerId::NUM_TIMERS]);
+    fn set_mode(&mut self, timer: TimerId, mode: TimerMode);
+    fn get_mode(&self, timer: TimerId) -> TimerMode;
+    fn get_modes(&self) -> TimerArr<TimerMode> {
+        let mut modes = TimerArr([TimerMode::SingleShot; TimerId::NUM_TIMERS]);
 
         TIMERS
             .iter()
@@ -177,10 +177,10 @@ pub trait Timers<'a>: Default {
         modes
     }
 
-    fn set_state(&mut self, timer: TimerId, state: State);
-    fn get_state(&self, timer: TimerId) -> State;
-    fn get_states(&self) -> TimerArr<State> {
-        let mut states = TimerArr([State::Disabled; TimerId::NUM_TIMERS]);
+    fn set_state(&mut self, timer: TimerId, state: TimerState);
+    fn get_state(&self, timer: TimerId) -> TimerState;
+    fn get_states(&self) -> TimerArr<TimerState> {
+        let mut states = TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]);
 
         TIMERS
             .iter()
@@ -192,29 +192,28 @@ pub trait Timers<'a>: Default {
     fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>);
     fn interrupt_occurred(&self, timer: TimerId) -> bool;
     fn reset_interrupt_flag(&mut self, timer: TimerId);
-    fn interrupts_enabled(&self, timer: TimerId) -> bool;
-
+    fn interrupts_enabled(&self, timer: TimerId) -> bool {
+        matches!(self.get_state(timer), TimerState::WithPeriod(_))
+    }
 }}
-
-// TODO: Into Error stuff (see Gpio)
 
 // TODO: roll this into the macro
 using_std! {
     use std::sync::{Arc, RwLock};
     impl<'a, T: Timers<'a>> Timers<'a> for Arc<RwLock<T>> {
-        fn set_mode(&mut self, timer: TimerId, mode: Mode) {
+        fn set_mode(&mut self, timer: TimerId, mode: TimerMode) {
             RwLock::write(self).unwrap().set_mode(timer, mode);
         }
 
-        fn get_mode(&self, timer: TimerId) -> Mode {
+        fn get_mode(&self, timer: TimerId) -> TimerMode {
             RwLock::read(self).unwrap().get_mode(timer)
         }
 
-        fn set_state(&mut self, timer: TimerId, state: State) {
+        fn set_state(&mut self, timer: TimerId, state: TimerState) {
             RwLock::write(self).unwrap().set_state(timer, state);
         }
 
-        fn get_state(&self, timer: TimerId) -> State {
+        fn get_state(&self, timer: TimerId) -> TimerState {
             RwLock::read(self).unwrap().get_state(timer)
         }
 

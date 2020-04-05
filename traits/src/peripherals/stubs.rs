@@ -62,19 +62,17 @@ impl Pwm for PwmStub {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct TimersStub;
 
-use super::timers::{TimerId, TimerArr};
-use super::timers;
+use super::timers::{TimerId, TimerArr, TimerMode, TimerState};
 impl<'a> Timers<'a> for TimersStub {
-    fn set_mode(&mut self, timer: TimerId, mode: timers::Mode) { }
-    fn get_mode(&self, timer: TimerId) -> timers::Mode { timers::Mode::SingleShot }
+    fn set_mode(&mut self, timer: TimerId, mode: TimerMode) { }
+    fn get_mode(&self, timer: TimerId) -> TimerMode { TimerMode::SingleShot }
 
-    fn set_state(&mut self, timer: TimerId, state: timers::State) { }
-    fn get_state(&self, timer: TimerId) -> timers::State { timers::State::Disabled }
+    fn set_state(&mut self, timer: TimerId, state: TimerState) { }
+    fn get_state(&self, timer: TimerId) -> TimerState { TimerState::Disabled }
 
     fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {}
     fn interrupt_occurred(&self, timer: TimerId) -> bool { false }
     fn reset_interrupt_flag(&mut self, timer: TimerId) { }
-    fn interrupts_enabled(&self, timer: TimerId) -> bool { false }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
