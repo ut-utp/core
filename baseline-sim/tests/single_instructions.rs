@@ -1,23 +1,15 @@
-use lc3_isa::{insn, Addr, Instruction, Reg, Word};
+extern crate lc3_test_infrastructure as lti;
 
-use lc3_shims::memory::MemoryShim;
-use lc3_shims::peripherals::PeripheralsShim;
-
-use lc3_baseline_sim::interp::PeripheralInterruptFlags;
-
-#[path = "test_infrastructure/mod.rs"]
-mod common;
+use lti::{insn, Addr, Instruction, Reg, Word};
+use lti::{MemoryShim, PeripheralsShim, PeripheralInterruptFlags};
 
 #[cfg(test)]
 mod single_instructions {
     use super::*;
-    use lc3_isa::Reg::R0;
-
     use Reg::*;
 
-    use pretty_assertions::assert_eq;
-
-    use common::{interp_test_runner, with_larger_stack};
+    use lti::assert_eq;
+    use lti::{interp_test_runner, with_larger_stack};
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
