@@ -8,7 +8,6 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 use std::u8::MAX;
-use time;
 use timer;
 use chrono;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -45,22 +44,22 @@ impl PwmShim {
     }
     pub fn get_pin_state(&self, pin: PwmPin) -> PwmState {
         self.states[pin].into()
-    } 
+    }
 
     pub fn set_duty_cycle_helper(&mut self, pin: PwmPin, period: NonZeroU8) {
 
 
         let timer = timer::Timer::new();
 
-       
+
         let (tx, rx) = channel();
-            
+
         let guard1 = {
 
             let pin_cl = self.bit_states.clone();
             self.timers[0].schedule_repeating(chrono::Duration::milliseconds(MAX as i64), move || {
 
-        
+
                 (*pin_cl.lock().unwrap())[pin]=true;
 
             })
@@ -78,7 +77,7 @@ impl PwmShim {
         let guard2 = {
 
             let pin_cl = self.bit_states.clone();
-    
+
             self.timers[1].schedule_repeating(chrono::Duration::milliseconds(MAX as i64), move || {
 
                 (*pin_cl.lock().unwrap())[pin]=false;
@@ -100,7 +99,7 @@ impl PwmShim {
                             if self.duty_cycle[pin] != 0 {
                                 self.set_duty_cycle_helper(pin, time);
 
-                            } 
+                            }
                         }
                         None => {
                             if self.duty_cycle[pin] != 0 {
@@ -123,7 +122,7 @@ impl PwmShim {
                     drop(g2);
                     self.guards2[pin] = None;
                 }
-                None => { } 
+                None => { }
             }
     }
 }
@@ -132,7 +131,7 @@ impl Pwm for PwmShim {
         use PwmState::*;
         self.states[pin] = match state {
             Enabled(time) => {
-                
+
                 self.start_timer(pin, state);
                 Enabled(time)
             }
@@ -154,7 +153,7 @@ impl Pwm for PwmShim {
 
     fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError> {
         self.duty_cycle[pin] = duty;
-        
+
         self.start_timer(pin, self.states[pin]);
 
         Ok(())
@@ -224,7 +223,7 @@ mod tests {
         let mut shim = PwmShim::new();
         let res0 = shim.set_state(P0, pwm::PwmState::Enabled(NonZeroU8::new(255).unwrap()));
         let res1 = shim.set_duty_cycle(P0, 100); // this starts pwm
-       
+
         let b = shim.get_pin(P0);
         thread::sleep(Duration::from_millis(100));
         let b2 = shim.get_pin(P0);
@@ -246,7 +245,7 @@ mod tests {
 
         }
 
-          
-           
-        
+
+
+
 }
