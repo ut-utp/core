@@ -1035,7 +1035,7 @@ macro_rules! timer_mem_mapped {
             {
                 let mode = Timers::get_mode(interp.get_peripherals(), $id);
 
-                use lc3_traits::peripherals::timers::Mode::*;
+                use lc3_traits::peripherals::timers::TimerMode::*;
                 let word: Word = match mode {
                     SingleShot => 0,
                     Repeated => 1,
@@ -1049,7 +1049,7 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                use lc3_traits::peripherals::timers::Mode::*;
+                use lc3_traits::peripherals::timers::TimerMode::*;
                 let mode = if value.bit(0) {
                     SingleShot
                 } else {
@@ -1117,7 +1117,7 @@ macro_rules! timer_mem_mapped {
             {
                 let state = Timers::get_state(interp.get_peripherals(), $id);
 
-                use lc3_traits::peripherals::timers::State::*;
+                use lc3_traits::peripherals::timers::TimerState::*;
                 let value = match state {
                     Disabled => 0,
                     WithPeriod(period) => period.into(),
@@ -1131,7 +1131,7 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                use lc3_traits::peripherals::timers::State::*;
+                use lc3_traits::peripherals::timers::TimerState::*;
                 use lc3_traits::peripherals::timers::Period;
                 let state = match value {
                     0 => Disabled,
