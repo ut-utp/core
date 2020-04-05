@@ -83,7 +83,7 @@ pub enum TimerState {
 }
 
 peripheral_trait! {timers,
-/// A Timer peripheral for an LC-3 simulator.
+/// A [Timer peripheral](Timers) for an LC-3 simulator.
 ///
 /// Used for scheduling actions (i.e. LC-3 routines). The peripheral consists of
 /// multiple timers which can be independently set to trigger interrupts at a
@@ -227,6 +227,7 @@ peripheral_trait! {timers,
 pub trait Timers<'a>: Default {
     fn set_mode(&mut self, timer: TimerId, mode: TimerMode);
     fn get_mode(&self, timer: TimerId) -> TimerMode;
+    #[inline]
     fn get_modes(&self) -> TimerArr<TimerMode> {
         let mut modes = TimerArr([TimerMode::SingleShot; TimerId::NUM_TIMERS]);
 
@@ -239,6 +240,7 @@ pub trait Timers<'a>: Default {
 
     fn set_state(&mut self, timer: TimerId, state: TimerState);
     fn get_state(&self, timer: TimerId) -> TimerState;
+    #[inline]
     fn get_states(&self) -> TimerArr<TimerState> {
         let mut states = TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]);
 
@@ -252,6 +254,7 @@ pub trait Timers<'a>: Default {
     fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>);
     fn interrupt_occurred(&self, timer: TimerId) -> bool;
     fn reset_interrupt_flag(&mut self, timer: TimerId);
+    #[inline]
     fn interrupts_enabled(&self, timer: TimerId) -> bool {
         matches!(self.get_state(timer), TimerState::WithPeriod(_))
     }
@@ -292,7 +295,5 @@ using_std! {
         fn interrupts_enabled(&self, timer: TimerId) -> bool {
             RwLock::read(self).unwrap().interrupts_enabled(timer)
         }
-
     }
-
 }

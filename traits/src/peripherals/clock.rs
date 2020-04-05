@@ -1,4 +1,4 @@
-//! [`Clock` trait](Clock).
+//! [`Clock` peripheral trait](Clock).
 
 use crate::peripheral_trait;
 
