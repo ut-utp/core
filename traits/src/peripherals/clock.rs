@@ -61,14 +61,14 @@ peripheral_trait! {clock,
 ///
 /// The purpose of the [`Clock`] peripheral is distinct from the [`Timers`]
 /// peripheral in that timers do not provide the amount of time they have been
-/// running, and so don't enable measuring time. As noted in the
-/// [timers peripheral module docs](../trait.Timers.html#reasoning), while both
+/// running, and so don't enable measuring time. As noted in the [timers
+/// peripheral module docs](../timers/trait.Timers.html#reasoning), while both
 /// these peripherals deal with time, timers are useful for scheduling events at
 /// known periods or lengths of time, while the clock is useful for measuring
 /// lengths of time that events take.
 ///
 /// [`Clock`]: Clock
-/// [`Timers`]: lc3_traits::peripherals::Timers
+/// [`Timers`]: super::Timers
 pub trait Clock: Default {
     fn get_milliseconds(&self) -> Word;
 

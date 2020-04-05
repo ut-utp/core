@@ -204,7 +204,7 @@ peripheral_trait! {timers,
 /// requiring a main program loop dependent on instruction execution speed.
 ///
 /// A user could also cause their program to pause for a specified time without
-/// polling on [`Clock`](lc3_traits::peripherals::Clock) in a tight loop.
+/// polling on [`Clock`] in a tight loop.
 ///
 /// Additionally, though this isn't explicitly a goal of this project, it has
 /// not escaped our attention that providing timer peripherals makes it feasible
@@ -217,12 +217,13 @@ peripheral_trait! {timers,
 /// is that we offer no way to read the running 'count' of a timer. This is
 /// intentional (for the sake of simplicity). We do appreciate that there are
 /// use cases that require this (i.e. measuring the time between events or the
-/// duration of an event) and for those we offer the
-/// [`Clock` peripheral](lc3_traits::peripherals::Clock).
+/// duration of an event) and for those situations we offer the
+/// [`Clock` peripheral](super::Clock).
 ///
 /// [`SingleShot`]: TimerMode::SingleShot
 /// [`Repeated`]: TimerMode::Repeated
 /// [`Disabled`]: TimerState::Disabled
+/// [`Clock`]: super::Clock
 ///
 pub trait Timers<'a>: Default {
     fn set_mode(&mut self, timer: TimerId, mode: TimerMode);

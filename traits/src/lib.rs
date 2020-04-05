@@ -49,8 +49,6 @@ macro_rules! using_std { ($($i:item)*) => ($(#[cfg(not(feature = "no_std"))]$i)*
 
 extern crate static_assertions as sa;
 
-pub mod test_infrastructure;
-
 pub mod error;
 
 pub mod control;
