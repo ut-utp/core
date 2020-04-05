@@ -304,16 +304,16 @@ macro_rules! func_sig {
     ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident($($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name($($idents : $types),*) -> $ret; $($rest)*); };
     // (self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(self, $($self:expr,)? $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(self$(,)? $($self:expr,)? $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(self, $($idents : $types),*) -> $ret; $($rest)*); };
     // (mut self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(mut self, $($idents : $types),*) -> $ret; $($rest)*); };
     // (&self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&self $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(&self, $($idents : $types),*) -> $ret; $($rest)*); };
     // (&mut self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self$(,)? $($idents:ident : $types:ty),*) -> $ret:ty $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(&mut self, $($idents : $types),*) -> $ret; $($rest)*); };
 
 
@@ -322,16 +322,16 @@ macro_rules! func_sig {
     ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident($($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name($($idents : $types),*) -> (); $($rest)*); };
     // (self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(self$(,)? $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(self, $($idents : $types),*) -> (); $($rest)*); };
     // (mut self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self$(,)? $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(mut self, $($idents : $types),*) -> (); $($rest)*); };
     // (&self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&self$(,)? $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(&self, $($idents : $types),*) -> (); $($rest)*); };
     // (&mut self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*); $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self$(,)? $($idents:ident : $types:ty),*); $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(&mut self, $($idents : $types),*) -> (); $($rest)*); };
 
 
@@ -340,16 +340,16 @@ macro_rules! func_sig {
     ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident( $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name($($idents : $types),*) -> (); $($rest)*); };
     // (self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(self$(,)? $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(self, $($idents : $types),*) -> (); $($rest)*); };
     // (mut self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(mut self$(,)? $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(mut self, $($idents : $types),*) -> (); $($rest)*); };
     // (&self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&self$(,)? $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(&self $($idents : $types),*) -> (); $($rest)*); };
     // (&mut self)
-    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self, $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
+    ($(+($indir:tt))?  $(%($i_im:ident, $i_mut:ident))? $($nom:ident)?, $(#[doc = $doc:expr])* fn $fn_name:ident(&mut self$(,)? $($idents:ident : $types:ty),*) $block:block $($rest:tt)*) => {
         $crate::func_sig!($(+($indir))? $(%($i_im, $i_mut))? $($nom)?, fn $fn_name(&mut self, $($idents : $types),*) -> (); $($rest)*); };
 
 
