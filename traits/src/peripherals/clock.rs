@@ -13,48 +13,62 @@ use lc3_isa::Word;
 // - Introduce more clocks
 //   - A low-precision (s) *and* high-precision (ms) clock
 
-/// A Clock peripheral for an LC-3 simulator.
+peripheral_trait! {clock,
+/// A [Clock peripheral](Clock) for an LC-3 simulator.
 ///
 /// Used for measuring lengths of time.
-/// The clock provides getter and setter methods for a value
-/// representing the time, in milliseconds, elapsed since its creation.
+///
+/// The clock provides [getter](Clock::get_milliseconds) and
+/// [setter](Clock::set_milliseconds) methods for a value representing the time,
+/// in milliseconds.
+///
+/// On startup the clock's time is equal to 0; until (unless) it is
+/// [set](Clock::set_milliseconds), the time it holds represents the time
+/// elapsed since startup.
 ///
 /// # Simple Definition
 ///
-/// Put simply, the clock behaves as if it holds a word-length value which increments every millisecond.
-/// The value starts at 0 and rolls back over to zero when its maximum value is reached.
-/// The value can be retrieved or directly set with "get" and "set" methods, respectively.
-/// After being set, the clock continues incrementing from the value that was set.
-/// For a more general definition, see below.
+/// Put simply, the clock behaves as if it holds a word-length value which
+/// increments every millisecond. The value starts at 0 and rolls back over to
+/// zero (0) when its maximum value is reached. The value can be retrieved or
+/// directly set with ["get"](Clock::get_milliseconds) and
+/// ["set"](Clock::set_milliseconds) methods, respectively. After being set, the
+/// clock continues incrementing from the value that was set. For a more general
+/// definition, see [below](#general-definition).
 ///
 /// # General Definition
 ///
-/// For the millisecond after creation, getting the value of the clock returns 0.
-/// In general, getting the value of the clock returns the number of milliseconds since creation.
-/// However, the value of the clock must be word-length. When the value of the clock reaches the maximum
-/// value representable in a word, it will "roll over" in the next millisecond, resetting to 0.
-/// So, more precisely, getting the value of the clock returns the number of milliseconds since creation
-/// modulo the maximum value representable in a word.
+/// For the millisecond after creation, getting the value of the clock returns
+/// 0. In general, getting the value of the clock returns the number of
+/// milliseconds since creation. However, the value of the clock must be
+/// word-length. When the value of the clock reaches the maximum value
+/// representable in a word, it will "roll over" in the next millisecond,
+/// resetting to 0. So, more precisely, getting the value of the clock returns
+/// the number of milliseconds since creation modulo the maximum value
+/// representable in a word.
 ///
-/// Setting the value of the clock should take a word,
-/// then cause subsequent calls to get the value to return that word plus the number of
-/// milliseconds since creation, all modulo the maximum value representable in a word.
-/// In other words, the clock will "restart" with its value at the given word
-/// and continue keeping track of the milliseconds and rolling over.
+/// Setting the value of the clock should take a word, then cause subsequent
+/// calls to get the value to return that word plus the number of milliseconds
+/// since creation, all modulo the maximum value representable in a word. In
+/// other words, the clock will "restart" with its value at the given word and
+/// continue keeping track of the milliseconds and rolling over.
 ///
 /// # Reasoning
 ///
-/// We provide the Clock peripheral to enable simulator users to measure lengths of time.
-/// By getting the clock's value twice within the rollover period, users can accurately
-/// measure (relatively short) time spans.
+/// We provide the [`Clock`] peripheral to enable simulator users to measure
+/// lengths of time. By getting the clock's value twice within the rollover
+/// period, users can accurately measure (relatively short) time spans.
 ///
-/// The purpose of the Clock peripheral is distinct from the Timers peripheral in that
-/// timers do not provide the amount of time they have been running, and so don't enable
-/// measuring time. While both deal with time, timers are useful for scheduling events
-/// at known periods or lengths of time, while the clock is useful for measuring lengths
-/// of time that events take.
+/// The purpose of the [`Clock`] peripheral is distinct from the [`Timers`]
+/// peripheral in that timers do not provide the amount of time they have been
+/// running, and so don't enable measuring time. As noted in the
+/// [timers peripheral module docs](../trait.Timers.html#reasoning), while both
+/// these peripherals deal with time, timers are useful for scheduling events at
+/// known periods or lengths of time, while the clock is useful for measuring
+/// lengths of time that events take.
 ///
-peripheral_trait! {clock,
+/// [`Clock`]: Clock
+/// [`Timers`]: lc3_traits::peripherals::Timers
 pub trait Clock: Default {
     fn get_milliseconds(&self) -> Word;
 
