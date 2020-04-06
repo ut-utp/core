@@ -59,3 +59,18 @@ pub fn with_larger_stack<F: FnOnce() + Send + 'static>(n: Option<String>, f: F) 
 
     child.join().unwrap();
 }
+
+// Won't work as expected for tolerances greater than half u16 width.
+// ...but that wouldn't test anything anyway.
+pub fn assert_is_about(actual: u16, expected: u16, tolerance: u16) {
+    let min = expected.wrapping_sub(tolerance);
+    let max = expected.wrapping_add(tolerance);
+    let above_min = min <= actual;
+    let below_max = actual <= max;
+    if min <= max {
+        assert!(above_min && below_max, "{:?} not between {:?} and {:?}", actual, min, max);
+    } else {
+        assert!(above_min || below_max, "{:?} not above {:?} or below {:?}", actual, min, max);
+    }
+}
+

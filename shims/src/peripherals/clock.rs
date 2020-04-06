@@ -40,22 +40,9 @@ mod tests {
     use std::thread::sleep;
 
     use pretty_assertions::{assert_eq, assert_ne};
+    use lc3_test_infrastructure::assert_is_about;
 
     const TOLERANCE: u16 = 5; // 5 ms
-
-    // Won't work as expected for tolerances greater than half the rollover period.
-    // ...but that wouldn't test anything anyway.
-    fn assert_is_about(actual: u16, expected: u16, tolerance: u16) {
-        let min = expected.wrapping_sub(tolerance);
-        let max = expected.wrapping_add(tolerance);
-        let above_min = min <= actual;
-        let below_max = actual <= max;
-        if min <= max {
-            assert!(above_min && below_max);
-        } else {
-            assert!(above_min || below_max);
-        }
-    }
 
     #[test]
     fn starts_at_0() {
