@@ -39,8 +39,7 @@ mod tests {
     use lc3_traits::peripherals::clock::Clock;
     use std::thread::sleep;
 
-    use pretty_assertions::{assert_eq, assert_ne};
-    use lc3_test_infrastructure::assert_is_about;
+    use lc3_test_infrastructure::{assert_eq, assert_ne, assert_is_about};
 
     const TOLERANCE: u16 = 5; // 5 ms
 

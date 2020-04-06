@@ -121,7 +121,7 @@ impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
 mod tests {
     use super::*;
 
-    use pretty_assertions::assert_eq;
+    use lc3_test_infrastructure::assert_eq;
 
     #[test]
     fn write_one() {

@@ -34,13 +34,13 @@ impl Default for TimersShim<'_> {
        Self {
             states: TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]),
             modes: TimerArr([TimerMode::SingleShot; TimerId::NUM_TIMERS]),
-            times: TimerArr([NonZeroU16::new(1).unwrap(); TimerId::NUM_TIMERS]), 
+            times: TimerArr([NonZeroU16::new(1).unwrap(); TimerId::NUM_TIMERS]),
             flags: None,
             flags1: Arc::new(Mutex::new(TimerArr([false, false]))),
             guards: TimerArr([None, None]),
             timer1: TimerArr([timer::Timer::new(), timer::Timer::new()]),
-           
-    
+
+
         }
     }
 }
@@ -59,20 +59,20 @@ impl TimersShim<'_> {
                 match mode {
 
                     Repeated => {
-                       
-                        
+
+
                         let guard1 = {
                             let flag_cl = self.flags1.clone();
-                           
+
                             self.timer1[timer].schedule_repeating(chrono::Duration::milliseconds(period.get() as i64), move || {
-                               
+
                                 (*flag_cl.lock().unwrap())[timer]=true;
                             })
-                        };  
-                        
+                        };
+
                         self.guards[timer] = Some(guard1);
-                       
-                        
+
+
                     },
                     SingleShot => {
                         //let timer1 = timer::Timer::new();
@@ -82,7 +82,7 @@ impl TimersShim<'_> {
                         });
 
                         rx.recv().unwrap();
-                        
+
                         self.guards[timer] = Some(guard1);
                         match self.flags {
                             Some(flag) => flag[timer].store(true, Ordering::SeqCst),
@@ -112,7 +112,7 @@ impl<'a> Timers<'a> for TimersShim<'a> {
                 match self.guards[timer] {
                     Some(_) => {
                         let g = self.guards[timer].take().unwrap();
-                        drop(g);  
+                        drop(g);
                         self.states[timer] = TimerState::Disabled;
                         mode
                     }
@@ -135,7 +135,7 @@ impl<'a> Timers<'a> for TimersShim<'a> {
 
 
     }
-    
+
     fn get_mode(&self, timer: TimerId) -> TimerMode {
         self.modes[timer]
     }
@@ -216,7 +216,7 @@ mod tests {
     use super::*;
     use lc3_traits::peripherals::timers::{TimerId::*, Timers};
 
-    use pretty_assertions::assert_eq;
+    use lc3_test_infrastructure::assert_eq;
 
     #[test]
     fn get_disabled() {
@@ -264,9 +264,9 @@ mod tests {
        shim.register_interrupt_flags(&FLAGS);
        shim.set_mode(T0, TimerMode::SingleShot);
        let period = NonZeroU16::new(200).unwrap();
-      
+
        shim.set_state(T0, TimerState::WithPeriod(period));
-       
+
        let sleep = Duration::from_millis(200);
        thread::sleep(sleep);
        assert_eq!(shim.interrupt_occurred(T0), true);
@@ -279,7 +279,7 @@ mod tests {
        shim.register_interrupt_flags(&FLAGS2);
        shim.set_mode(T0, TimerMode::Repeated);
        let period = NonZeroU16::new(200).unwrap();
-      
+
        shim.set_state(T0, TimerState::WithPeriod(period));
        let mut bool_arr = Vec::<bool>::new();
        let sleep = Duration::from_millis(200);
@@ -290,9 +290,9 @@ mod tests {
                 bool_arr.push(true);
             }
             shim.reset_interrupt_flag(T0);
-            
+
        }
-       
+
        assert_eq!(bool_arr.len(), 5);
    }
 

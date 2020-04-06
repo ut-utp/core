@@ -213,7 +213,7 @@ mod tests {
     use super::*;
     use lc3_traits::peripherals::gpio::{self, Gpio, GpioPin::*};
 
-    use pretty_assertions::assert_eq;
+    use lc3_test_infrastructure::assert_eq;
 
     #[test]
     fn get_state_disabled() {

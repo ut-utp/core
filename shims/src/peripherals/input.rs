@@ -171,5 +171,5 @@ impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
 mod tests {
     use super::*;
 
-    use pretty_assertions::{assert_eq, assert_ne};
+    use lc3_test_infrastructure::{assert_eq, assert_ne};
 }

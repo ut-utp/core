@@ -169,6 +169,8 @@ mod tests {
     use super::*;
     use lc3_traits::peripherals::pwm::{self, Pwm, PwmPin::*, PwmState};
 
+    use lc3_test_infrastructure::assert_eq;
+
     #[test]
     fn get_disabled() {
         let mut shim = PwmShim::new();

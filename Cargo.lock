@@ -441,7 +441,6 @@ dependencies = [
  "lc3-macros",
  "lc3-test-infrastructure",
  "lc3-traits",
- "pretty_assertions",
  "time",
  "timer",
 ]
