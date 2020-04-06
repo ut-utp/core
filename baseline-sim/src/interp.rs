@@ -14,6 +14,7 @@ use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
+use crate::mem_mapped::Interrupt;
 
 use core::any::TypeId;
 use core::convert::TryInto;
@@ -61,6 +62,8 @@ where
     fn update_special_reg<M: MemMappedSpecial>(&mut self, func: impl FnOnce(M) -> Word) {
         M::update(self, func).unwrap()
     }
+
+    fn reset_peripherals(&mut self);
 }
 
 pub trait InstructionInterpreter:
@@ -524,7 +527,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         //
         // interp.init(&interp.flags);
 
-        interp.reset(); // TODO: should we? won't that negate setting the regs and pc and stuff?
+        interp.reset(); // TODO: remove pc/regs options from the interpreter builder
         interp
     }
 }
@@ -557,9 +560,36 @@ impl<'a, M: Memory, P: Peripherals<'a>> DerefMut for Interpreter<'a, M, P> {
     }
 }
 
+use lc3_traits::peripherals::gpio::{GPIO_PINS, GpioPin, GpioState};
+use lc3_traits::peripherals::adc::{Adc, ADC_PINS, AdcPin, AdcState};
+use lc3_traits::peripherals::pwm::{Pwm, PWM_PINS, PwmPin, PwmState};
+use lc3_traits::peripherals::timers::{TIMERS, TimerId, TimerMode, TimerState};
+use lc3_traits::peripherals::clock::Clock;
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'a>
     for Interpreter<'a, M, P>
-{ }
+{
+    fn reset_peripherals(&mut self) {
+        for pin in GPIO_PINS.iter() {
+            Gpio::set_state(self.get_peripherals_mut(), *pin, GpioState::Disabled);
+            Gpio::reset_interrupt_flag(self.get_peripherals_mut(), *pin);
+        }
+        for pin in ADC_PINS.iter() {
+            Adc::set_state(self.get_peripherals_mut(), *pin, AdcState::Disabled);
+        }
+        for pin in PWM_PINS.iter() {
+            Pwm::set_state(self.get_peripherals_mut(), *pin, PwmState::Disabled);
+            Pwm::set_duty_cycle(self.get_peripherals_mut(), *pin, 0);
+        }
+        for id in TIMERS.iter() {
+            Timers::set_mode(self.get_peripherals_mut(), *id, TimerMode::SingleShot);
+            Timers::set_state(self.get_peripherals_mut(), *id, TimerState::Disabled);
+            Timers::reset_interrupt_flag(self.get_peripherals_mut(), *id);
+        }
+        Clock::set_milliseconds(self.get_peripherals_mut(), 0);
+        Input::reset_interrupt_flag(self.get_peripherals_mut());
+        Output::reset_interrupt_flag(self.get_peripherals_mut());
+    }
+}
 
 impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     pub fn init(&mut self, flags: &'a PeripheralInterruptFlags) {
@@ -678,6 +708,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         }
 
         // TODO: Set nzp to z here
+        self.set_cc(0);
 
         self.handle_exception(int_vec);
         self.get_special_reg::<PSR>().set_priority(self, priority);
@@ -896,8 +927,6 @@ use super::mem_mapped::{
     CLKR,
     T0CR, T0DR, T1CR, T1DR
 };
-use lc3_traits::peripherals::gpio::GPIO_PINS;
-use crate::mem_mapped::Interrupt;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");
@@ -1023,11 +1052,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     fn reset(&mut self) {
-        self.memory.reset();
-
-        // self.pc = 0; // TODO?
-        self.set_cc(0);
-
         // TODO: Reset Vector
         // On start!
         // PC = 0x200
@@ -1040,12 +1064,18 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.get_special_reg::<PSR>().set_priority(self, 7);
         self.get_special_reg::<MCR>().run(self);
 
-        // TODO: zero the registers
-        // TODO: what do we do about memory?
+        self[R0] = 0;
+        self[R1] = 0;
+        self[R2] = 0;
+        self[R3] = 0;
+        self[R4] = 0;
+        self[R5] = 0;
+        self[R6] = 0;
+        self[R7] = 0;
 
-        // TODO!
-        // unimplemented!();
-        self.state = MachineState::Running;
+        self.memory.reset();
+
+        self.reset_peripherals();
     }
 
     fn halt(&mut self) {
