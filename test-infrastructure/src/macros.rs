@@ -10,6 +10,7 @@ macro_rules! single_test {
         $name:ident,
         $(pre: |$peripherals_s:ident| $setup:block,)?
         $(prefill: { $($addr_p:literal: $val_p:expr),* $(,)?},)?
+        $(prefill_expr: { $(($addr_expr:expr): $val_expr:expr),* $(,)?},)?
         insns: [ $({ $($insn:tt)* }),* $(,)?],
         $(steps: $steps:expr,)?
         regs: { $($r:tt: $v:expr),* $(,)?},
@@ -23,6 +24,7 @@ macro_rules! single_test {
         $crate::single_test_inner!(
             $(pre: |$peripherals_s| $setup,)?
             $(prefill: { $($addr_p: $val_p),* },)?
+            $(prefill_expr: { $(($addr_expr): $val_expr),* },)?
             insns: [ $({ $($insn)* }),* ],
             $(steps: $steps,)?
             regs: { $($r: $v),* },
@@ -37,6 +39,7 @@ macro_rules! single_test {
 macro_rules! single_test_inner {
     (   $(pre: |$peripherals_s:ident| $setup:block,)?
         $(prefill: { $($addr_p:literal: $val_p:expr),* $(,)?},)?
+        $(prefill_expr: { $(($addr_expr:expr): $val_expr:expr),* $(,)?},)?
         insns: [ $({ $($insn:tt)* }),* $(,)?],
         $(steps: $steps:expr,)?
         regs: { $($r:tt: $v:expr),* $(,)?},
@@ -58,6 +61,7 @@ macro_rules! single_test_inner {
         #[allow(unused_mut)]
         let mut prefill: Vec<(Addr, Word)> = Vec::new();
         $($(prefill.push(($addr_p, $val_p));)*)?
+        $($(prefill.push(($addr_expr, $val_expr));)*)?
 
         #[allow(unused_mut)]
         let mut insns: Vec<Instruction> = Vec::new();
