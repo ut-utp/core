@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex, RwLock};
 pub struct Shims<'int> {
     pub gpio: Arc<RwLock<GpioShim<'int>>>,
     pub adc: Arc<RwLock<AdcShim>>,
-    pub pwm: Arc<RwLock<PwmShim>>,
-    pub timers: Arc<RwLock<TimersShim<'int>>>,
+    pub pwm: Arc<Mutex<PwmShim>>,
+    pub timers: Arc<Mutex<TimersShim<'int>>>,
     pub clock: Arc<RwLock<ClockShim>>,
 }
 
@@ -20,8 +20,8 @@ pub type ShimPeripheralSet<'int: 'io, 'io> = PeripheralSet<
     'int,
     Arc<RwLock<GpioShim<'int>>>,
     Arc<RwLock<AdcShim>>,
-    Arc<RwLock<PwmShim>>,
-    Arc<RwLock<TimersShim<'int>>>,
+    Arc<Mutex<PwmShim>>,
+    Arc<Mutex<TimersShim<'int>>>,
     Arc<RwLock<ClockShim>>,
     Arc<Mutex<InputShim<'io, 'int>>>,
     Arc<Mutex<OutputShim<'io, 'int>>>,
@@ -35,8 +35,8 @@ where
 {
     let gpio_shim = Arc::new(RwLock::new(GpioShim::default()));
     let adc_shim = Arc::new(RwLock::new(AdcShim::default()));
-    let pwm_shim = Arc::new(RwLock::new(PwmShim::default()));
-    let timer_shim = Arc::new(RwLock::new(TimersShim::default()));
+    let pwm_shim = Arc::new(Mutex::new(PwmShim::default()));
+    let timer_shim = Arc::new(Mutex::new(TimersShim::default()));
     let clock_shim = Arc::new(RwLock::new(ClockShim::default()));
 
     let input_shim = Arc::new(Mutex::new(InputShim::with_ref(input)));

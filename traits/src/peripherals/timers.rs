@@ -263,7 +263,10 @@ pub trait Timers<'a>: Default {
 
 // TODO: roll this into the macro
 using_std! {
-    use std::sync::{Arc, RwLock};
+    use std::sync::{Arc, Mutex, RwLock};
+
+    // This is adequate if your `Timers` impl is _already_ `Sync`. If it's not,
+    // you'll want the Mutex blanket impl below.
     impl<'a, T: Timers<'a>> Timers<'a> for Arc<RwLock<T>> {
         fn set_mode(&mut self, timer: TimerId, mode: TimerMode) {
             RwLock::write(self).unwrap().set_mode(timer, mode);
@@ -295,6 +298,40 @@ using_std! {
 
         fn interrupts_enabled(&self, timer: TimerId) -> bool {
             RwLock::read(self).unwrap().interrupts_enabled(timer)
+        }
+    }
+
+    impl<'a, T: Timers<'a>> Timers<'a> for Arc<Mutex<T>> {
+        fn set_mode(&mut self, timer: TimerId, mode: TimerMode) {
+            Mutex::lock(self).unwrap().set_mode(timer, mode);
+        }
+
+        fn get_mode(&self, timer: TimerId) -> TimerMode {
+            Mutex::lock(self).unwrap().get_mode(timer)
+        }
+
+        fn set_state(&mut self, timer: TimerId, state: TimerState) {
+            Mutex::lock(self).unwrap().set_state(timer, state);
+        }
+
+        fn get_state(&self, timer: TimerId) -> TimerState {
+            Mutex::lock(self).unwrap().get_state(timer)
+        }
+
+        fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
+            Mutex::lock(self).unwrap().register_interrupt_flags(flags)
+        }
+
+        fn interrupt_occurred(&self, timer: TimerId) -> bool {
+            Mutex::lock(self).unwrap().interrupt_occurred(timer)
+        }
+
+        fn reset_interrupt_flag(&mut self, timer: TimerId) {
+            Mutex::lock(self).unwrap().reset_interrupt_flag(timer)
+        }
+
+        fn interrupts_enabled(&self, timer: TimerId) -> bool {
+            Mutex::lock(self).unwrap().interrupts_enabled(timer)
         }
     }
 }

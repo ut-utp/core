@@ -116,7 +116,10 @@ pub trait Pwm: Default {
 
 // TODO: roll this into the macro
 using_std! {
-    use std::sync::{Arc, RwLock};
+    use std::sync::{Arc, Mutex, RwLock};
+
+    // This is adequate if your `Pwm` impl is _already_ `Sync`. If it's not,
+    // you'll want the Mutex blanket impl below.
     impl<P: Pwm> Pwm for Arc<RwLock<P>> {
         fn set_state(&mut self, pin: PwmPin, state: PwmState) -> Result<(), PwmSetPeriodError> {
             RwLock::write(self).unwrap().set_state(pin, state)
@@ -135,6 +138,27 @@ using_std! {
 
         fn get_duty_cycle(&self, pin: PwmPin) -> u8 {
             RwLock::read(self).unwrap().get_duty_cycle(pin)
+        }
+    }
+
+    impl<P: Pwm> Pwm for Arc<Mutex<P>> {
+        fn set_state(&mut self, pin: PwmPin, state: PwmState) -> Result<(), PwmSetPeriodError> {
+            Mutex::lock(self).unwrap().set_state(pin, state)
+        }
+
+        fn get_state(&self, pin: PwmPin) -> PwmState {
+            Mutex::lock(self).unwrap().get_state(pin)
+        }
+        fn get_pin(&self, pin: PwmPin) -> bool {
+            Mutex::lock(self).unwrap().get_pin(pin)
+        }
+
+        fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError> {
+            Mutex::lock(self).unwrap().set_duty_cycle(pin, duty)
+        }
+
+        fn get_duty_cycle(&self, pin: PwmPin) -> u8 {
+            Mutex::lock(self).unwrap().get_duty_cycle(pin)
         }
     }
 }
