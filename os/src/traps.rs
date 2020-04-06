@@ -1,5 +1,103 @@
 //! Trap vector numbers and documentation.
 //!
+//! # Quick Reference Table
+//! | Vector #   | Name | Inputs | Outputs | Description |
+//! |:----------:| :--- | :----- | :------ | :---------- |
+//! | **`0x20`** | [GETC]             | TODO!                                                                 | TODO!                              | TODO!                                                                          |
+//! | **`0x21`** | [OUT]              | TODO!                                                                 | TODO!                              | TODO!                                                                          |
+//! | **`0x22`** | [PUTS]             | TODO!                                                                 | TODO!                              | TODO!                                                                          |
+//! | **`0x23`** | [IN]               | TODO!                                                                 | TODO!                              | TODO!                                                                          |
+//! | **`0x24`** | [PUTSP]            | TODO!                                                                 | TODO!                              | TODO!                                                                          |
+//! | **`0x25`** | [HALT]             | TODO!                                                                 | TODO!                              | TODO!                                                                          |
+//! | **`0x30`** | [GPIO_INPUT]       | [`R0`] - [pin][gpin] #                                                | `n` bit                            | Puts a [GPIO] [pin][gpin] in [Input mode][gInput].                             |
+//! | **`0x31`** | [GPIO_OUTPUT]      | [`R0`] - [pin][gpin] #                                                | `n` bit                            | Puts a [GPIO] [pin][gpin] in [Output mode][gOutput].                           |
+//! | **`0x32`** | [GPIO_INTERRUPT]   | [`R0`] - [pin][gpin] # <br>[`R1`] - address of ISR                    | `n` bit                            | Puts a [GPIO] in [Interrupt mode][gInterrupt] and sets the ISR.                |
+//! | **`0x33`** | [GPIO_DISABLED]    | [`R0`] - [pin][gpin] #                                                | `n` bit                            | Puts a [GPIO] [pin][gpin] in [Disabled mode][gDisabled].                       |
+//! | **`0x34`** | [GPIO_GET_MODE]    | [`R0`] - [pin][gpin] #                                                | [`R0`] - [GPIO mode] <br>`n` bit   | Returns the [mode][gmode] of a [GPIO] [pin][gpin].                             |
+//! | **`0x35`** | [GPIO_WRITE]       | [`R0`] - [pin][gpin] # <br>[`R1`] - data to write                     | `n` bit                            | Writes to a [GPIO] [pin][gpin] in [Output mode][gOutput].                      |
+//! | **`0x36`** | [GPIO_READ]        | [`R0`] - [pin][gpin] #                                                | [`R0`] - data from pin <br>`n` bit | Reads data from a [GPIO] [pin][gpin].                                          |
+//! | **`0x40`** | [ADC_ENABLE]       | [`R0`] - [pin][apin] #                                                | `n` bit                            | Puts an [ADC] [pin][apin] in [Enabled mode][aEnabled].                         |
+//! | **`0x41`** | [ADC_DISABLE]      | [`R0`] - [pin][apin] #                                                | `n` bit                            | Puts an [ADC] [pin][apin] in [Disabled mode][aDisabled].                       |
+//! | **`0x42`** | [ADC_GET_MODE]     | [`R0`] - [pin][apin] #                                                | [`R0`] - [ADC mode] <br>`n` bit    | Returns the mode of an [ADC] [pin][apin].                                      |
+//! | **`0x43`** | [ADC_READ]         | [`R0`] - [pin][apin] #                                                | [`R0`] - data from pin <br>`n` bit | Reads data from an [ADC] [pin][apin].                                          |
+//! | **`0x50`** | [PWM_ENABLE]       | [`R0`] - [pin][ppin] # <br>[`R1`] - period <br>[`R2`] - duty cycle    | `n` bit                            | Puts a [PWM] in [Enabled mode][pEnabled], with period and duty cycle.          |
+//! | **`0x51`** | [PWM_DISABLE]      | [`R0`] - [pin][ppin] #                                                | `n` bit                            | Puts a [PWM] [pin][ppin] in [Disabled mode][pDisabled].                        |
+//! | **`0x52`** | [PWM_GET_PERIOD]   | [`R0`] - [pin][ppin] #                                                | [`R0`] - period <br>`n` bit        | Returns the period of a [PWM pin][ppin].                                       |
+//! | **`0x53`** | [PWM_GET_DUTY]     | [`R0`] - [pin][ppin] #                                                | [`R0`] - duty cycle <br>`n` bit    | Returns the duty cycle of a [PWM pin][ppin].                                   |
+//! | **`0x60`** | [TIMER_SINGLESHOT] | [`R0`] - [id][tid] # <br>[`R1`] - period <br>[`R2`] - address of ISR  | `n` bit                            | Puts a [Timer] in [SingleShot mode][tSingleShot] with period and sets the ISR. |
+//! | **`0x61`** | [TIMER_REPEATED]   | [`R0`] - [id][tid] # <br>[`R1`] - period <br>[`R2`] - address of ISR  | `n` bit                            | Puts a [Timer] in [Repeated mode][tRepeated] with period and sets the ISR.     |
+//! | **`0x62`** | [TIMER_DISABLE]    | [`R0`] - [id][tid] #                                                  | `n` bit                            | Puts a [Timer] in [Disabled mode][tDisabled].                                  |
+//! | **`0x63`** | [TIMER_GET_MODE]   | [`R0`] - [id][tid] #                                                  | [`R0`] - [Timer mode] <br>`n` bit  | Returns the [mode][tMode] of a [Timer].                                        |
+//! | **`0x64`** | [TIMER_GET_PERIOD] | [`R0`] - [id][tid] #                                                  | [`R0`] - period                    | Returns the [period][tState] of a [Timer].                                     |
+//! | **`0x70`** | [CLOCK_SET]        | [`R0`] - value to set                                                 | none                               | Sets the value of the [Clock].                                                 |
+//! | **`0x71`** | [CLOCK_GET]        | none                                                                  | [`R0`] - value of clock            | Gets the value of the [Clock].                                                 |
+//!
+//! [GETC]: builtin::GETC
+//! [OUT]: builtin::OUT
+//! [PUTS]: builtin::PUTS
+//! [IN]: builtin::IN
+//! [PUTSP]: builtin::PUTSP
+//! [HALT]: builtin::HALT
+//!
+//! [GPIO_INPUT]: gpio::INPUT
+//! [GPIO_OUTPUT]: gpio::OUTPUT
+//! [GPIO_INTERRUPT]: gpio::INTERRUPT
+//! [GPIO_DISABLED]: gpio::DISABLED
+//! [GPIO_GET_MODE]: gpio::GET_MODE
+//! [GPIO_WRITE]: gpio::WRITE
+//! [GPIO_READ]: gpio::READ
+//! [ADC_ENABLE]: adc::ENABLE
+//! [ADC_DISABLE]: adc::DISABLE
+//! [ADC_GET_MODE]: adc::GET_MODE
+//! [ADC_READ]: adc::READ
+//! [PWM_ENABLE]: pwm::ENABLE
+//! [PWM_DISABLE]: pwm::DISABLE
+//! [PWM_GET_PERIOD]: pwm::GET_PERIOD
+//! [PWM_GET_DUTY]: pwm::GET_DUTY
+//! [TIMER_SINGLESHOT]: timers::SINGLESHOT
+//! [TIMER_REPEATED]: timers::REPEATED
+//! [TIMER_DISABLE]: timers::DISABLE
+//! [TIMER_GET_MODE]: timers::GET_MODE
+//! [TIMER_GET_PERIOD]: timers::GET_PERIOD
+//! [CLOCK_SET]: clock::SET
+//! [CLOCK_GET]: clock::GET
+//!
+//! [`R0`]: lc3_isa::Reg::R0
+//! [`R1`]: lc3_isa::Reg::R1
+//! [`R2`]: lc3_isa::Reg::R2
+//!
+//! [GPIO]: lc3_traits::peripherals::gpio::Gpio
+//! [gpin]: lc3_traits::peripherals::gpio::GpioPin
+//! [gmode]: lc3_traits::peripherals::gpio::GpioState
+//! [gInput]: lc3_traits::peripherals::gpio::GpioState::Input
+//! [gOutput]: lc3_traits::peripherals::gpio::GpioState::Output
+//! [gInterrupt]: lc3_traits::peripherals::gpio::GpioState::Interrupt
+//! [gDisabled]: lc3_traits::peripherals::gpio::GpioState::Disabled
+//!
+//! [ADC]: lc3_traits::peripherals::adc::Adc
+//! [apin]: lc3_traits::peripherals::adc::AdcPin
+//! [aEnabled]: lc3_traits::peripherals::adc::AdcState::Enabled
+//! [aDisabled]: lc3_traits::peripherals::adc::AdcState::Disabled
+//!
+//! [PWM]: lc3_traits::peripherals::pwm::Pwm
+//! [ppin]: lc3_traits::peripherals::pwm::PwmPin
+//! [pEnabled]: lc3_traits::peripherals::pwm::PwmState::Enabled
+//! [pDisabled]: lc3_traits::peripherals::pwm::PwmState::Disabled
+//!
+//! [Timer]: lc3_traits::peripherals::timers::Timers
+//! [tid]: lc3_traits::peripherals::timers::TimerId
+//! [tSingleShot]: lc3_traits::peripherals::timers::TimerMode::SingleShot
+//! [tRepeated]: lc3_traits::peripherals::timers::TimerMode::Repeated
+//! [tDisabled]: lc3_traits::peripherals::timers::TimerState::Disabled
+//! [tMode]: lc3_traits::peripherals::timers::TimerMode
+//! [tState]: lc3_traits::peripherals::timers::TimerState
+//!
+//! [Clock]: lc3_traits::peripherals::clock::Clock
+//!
+//! [GPIO Mode]: lc3_traits::peripherals::gpio::GpioState
+//! [ADC Mode]: lc3_traits::peripherals::adc::AdcState
+//! [Timer Mode]: lc3_traits::peripherals::timers::TimerMode
+//!
 //! # Guidelines on Writing ISRs
 //!
 //! Properly written ISRs should:
