@@ -563,6 +563,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             interp.init(r);
         } else {
             // warn!("unsupported, sorry!");
+            // TODO: let's just do this instead of using OwnedOrRef.
+            // at some point we should just strip out all of the OwnedOrRef stuff.
+            static INTERNAL_INACCESSIBLE_PERIPHERAL_FLAGS: PeripheralInterruptFlags = PeripheralInterruptFlags::new();
+            interp.init(&INTERNAL_INACCESSIBLE_PERIPHERAL_FLAGS);
         }
 
         interp.reset(); // TODO: remove pc/regs options from the interpreter builder

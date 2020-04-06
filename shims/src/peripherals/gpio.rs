@@ -176,11 +176,15 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
         }
     }
 
-    // TODO: decide functionality when no previous flag registered
+    // TODO: officially note that impls must accept register_interrupt_flags being
+    // called multiple times.
     fn register_interrupt_flags(&mut self, flags: &'a GpioPinArr<AtomicBool>) {
         self.flags = match self.flags {
             None => Some(flags),
-            Some(_) => unreachable!(), // TODO: is this what we really want?
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flags)
+            }
         }
     }
 

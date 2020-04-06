@@ -69,7 +69,10 @@ impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
-            Some(_) => unreachable!(),
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flag)
+            }
         };
 
         flag.store(true, Ordering::SeqCst);

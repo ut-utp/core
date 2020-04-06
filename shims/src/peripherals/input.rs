@@ -126,7 +126,10 @@ impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
-            Some(_) => unreachable!(),
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flag)
+            }
         }
     }
 

@@ -176,7 +176,10 @@ impl<'a> Timers<'a> for TimersShim<'a> {
 
         self.flags = match self.flags {
             None => Some(flags),
-            Some(_) => unreachable!(),
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flags)
+            }
         }
     }
 
