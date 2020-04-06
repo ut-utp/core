@@ -169,8 +169,8 @@ pub mod gpio {
       /// ## Usage
       ///
       /// This TRAP puts the [GPIO] [Pin] indicated by [`R0`] into [Interrupt]
-      /// mode. This TRAP also sets the corresponding interrupt vector table entry
-      /// for this [GPIO] [Pin] to the address indicated by [`R1`].
+      /// mode. This TRAP also sets the corresponding interrupt vector table
+      /// entry for this [GPIO] [Pin] to the address indicated by [`R1`].
       ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
@@ -1177,6 +1177,9 @@ pub mod builtin {
   define!([0x20] <- {
       /// Reads a character from the keyboard.
       ///
+      /// This TRAP will block until a character is available from the [`Input`]
+      /// peripheral (a.k.a. the keyboard).
+      ///
       /// ## Inputs
       ///  - None
       ///
@@ -1195,8 +1198,12 @@ pub mod builtin {
       /// eight bits of R0 are cleared.
       ///
       /// [`R0`]: lc3_isa::Reg::R0
+      /// [`Input`]: lc3_traits::peripherals::input::Input
       [0x20] GETC,   // 0x20
       /// Writes a character to the console display.
+      ///
+      /// This TRAP will block until the [`Output`] peripheral (a.k.a. the
+      /// display) has accepted the character.
       ///
       /// ## Inputs
       ///  - [`R0`]: Character to write.
@@ -1214,8 +1221,12 @@ pub mod builtin {
       ///  Write a character in R0\[7:0\] to the console display.
       ///
       /// [`R0`]: lc3_isa::Reg::R0
+      /// [`Output`]: lc3_traits::peripherals::output::Output
       [0x21] OUT,    // 0x21
       /// Writes a string of ASCII characters to the console display.
+      ///
+      /// This TRAP will block until the [`Output`] peripheral (a.k.a. the
+      /// display) has accepted the all the characters in the string.
       ///
       /// ## Inputs
       ///  - [`R0`]: Address of first character.
@@ -1237,8 +1248,13 @@ pub mod builtin {
       /// location.
       ///
       /// [`R0`]: lc3_isa::Reg::R0
+      /// [`Output`]: lc3_traits::peripherals::output::Output
       [0x22] PUTS,   // 0x22
       /// Prints a prompt and reads a character from the keyboard.
+      ///
+      /// This TRAP will block until the [`Output`] peripheral has accepted
+      /// all the characters in the prompt **and** then until the [`Input`]
+      /// peripheral provides a character.
       ///
       /// ## Inputs
       ///  - None
@@ -1259,9 +1275,14 @@ pub mod builtin {
       /// cleared.
       ///
       /// [`R0`]: lc3_isa::Reg::R0
+      /// [`Output`]: lc3_traits::peripherals::output::Output
+      /// [`Input`]: lc3_traits::peripherals::input::Input
       [0x23] IN,     // 0x23
       /// Writes a string of ASCII characters stored compactly to the
       /// console display.
+      ///
+      /// This TRAP will block until the [`Output`] peripheral (a.k.a. the
+      /// display) has accepted the all the characters in the string.
       ///
       /// ## Inputs
       ///  - [`R0`]: Address of first characters.
@@ -1294,6 +1315,7 @@ pub mod builtin {
       /// 0x00 character to terminate).
       ///
       /// [`R0`]: lc3_isa::Reg::R0
+      /// [`Output`]: lc3_traits::peripherals::output::Output
       /// [lc3tools]: https://github.com/chiragsakhuja/lc3tools
       [0x24] PUTSP,  // 0x24
       /// Halt execution and print a message on the console.
