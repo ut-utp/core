@@ -1456,22 +1456,24 @@ fn os() -> AssembledProgram {
         // R1 = period to be set
         // R2 = address of interrupt service routine
         @TRAP_SET_TIMER_SINGLESHOT
-            ADD R6, R6, #-2;                // Save R1, R7 on stack
-            STR R1, R6, #1;
-            STR R7, R6, #0;
+            ADD R6, R6, #-2;                // Save R7, R1 on stack
+            STR R7, R6, #1;
+            STR R1, R6, #0;
 
-            JSR @SKIP_WRITE_TIMER_PERIOD;
+            AND R1, R1, #0;
+            ADD R1, R1, #1;
+            JSR @SET_TIMER_MODE;
+
+            LDR R1, R6, #0;                 // Restore R1
+            ADD R6, R6, #1;
+            JSR @WRITE_TIMER_PERIOD;
 
             LD R1, @OS_TIMER_BASE_INTVEC;
             ADD R1, R1, R0;
             STR R2, R1, #0;
 
-            AND R1, R1, #0;
-            ADD R1, R1, #2;
-            JSR @SET_TIMER_MODE;
-            LDR R7, R6, #0;                 // Restore R1, R7
-            LDR R1, R6, #1;
-            ADD R6, R6, #2;
+            LDR R7, R6, #0;                 // Restore R7
+            ADD R6, R6, #1;
             RTI;
 
         // Sets timer to Repeated mode with period
@@ -1479,33 +1481,34 @@ fn os() -> AssembledProgram {
         // R1 = period to be set
         // R2 = address of interrupt service routine
         @TRAP_SET_TIMER_REPEAT
-            ADD R6, R6, #-2;                // Save R1, R7 on stack
-            STR R1, R6, #1;
-            STR R7, R6, #0;
+            ADD R6, R6, #-2;                // Save R7, R1 on stack
+            STR R7, R6, #1;
+            STR R1, R6, #0;
 
+            AND R1, R1, #0;
+            JSR @SET_TIMER_MODE;
+
+            LDR R1, R6, #0;                 // Restore R1
+            ADD R6, R6, #1;
             JSR @WRITE_TIMER_PERIOD;
 
             LD R1, @OS_TIMER_BASE_INTVEC;
             ADD R1, R1, R0;
             STR R2, R1, #0;
 
-            AND R1, R1, #0;
-            ADD R1, R1, #1;
-            JSR @SET_TIMER_MODE;
-            LDR R7, R6, #0;                 // Restore R1, R7
-            LDR R1, R6, #1;
-            ADD R6, R6, #2;
+            LDR R7, R6, #0;                 // Restore R7
+            ADD R6, R6, #1;
             RTI;
 
-        // Sets timer to Disabled mode
+        // Sets timer's state to Disabled
         // R0 = Timer pin to disable
-            @TRAP_SET_TIMER_DISABLE
+        @TRAP_SET_TIMER_DISABLE
             ADD R6, R6, #-2;                // Save R1, R7 on stack
             STR R1, R6, #1;
             STR R7, R6, #0;
 
             AND R1, R1, #0;
-            JSR @SET_TIMER_MODE;
+            JSR @WRITE_TIMER_PERIOD;
             LDR R7, R6, #0;                 // Restore R1, R7
             LDR R1, R6, #1;
             ADD R6, R6, #2;
