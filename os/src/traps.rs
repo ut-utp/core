@@ -771,7 +771,12 @@ pub mod timers {
       /// words (i.e. the period will be a value in the range \[0, 65535\]).
       ///
       /// In [SingleShot] mode, the interrupt service routine is only
-      /// triggered one time. The [Timer] will then set itself to [Disabled].
+      /// triggered one time. The [Timer] will then set its state to [Disabled].
+      ///
+      /// Setting the mode or period of a [Timer] will overwrite the previous
+      /// [Timer]. In other words, if this TRAP is called on a [Timer] that is
+      /// currently running, the interrupt service routine will only trigger
+      /// after the newly set period elapses.
       ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
@@ -815,7 +820,7 @@ pub mod timers {
       ///
       /// [Timer]: lc3_traits::peripherals::timers
       /// [Disabled]: lc3_traits::peripherals::timers::TimerState::Disabled
-      /// [SingleShot]: lc3_traits::peripherals::timers::TimerState::SingleShot
+      /// [SingleShot]: lc3_traits::peripherals::timers::TimerMode::SingleShot
       /// [ID]: lc3_traits::peripherals::timers::TimerId
       /// [`R0`]: lc3_isa::Reg::R0
       /// [`R1`]: lc3_isa::Reg::R1
@@ -843,6 +848,11 @@ pub mod timers {
       ///
       /// In [Repeated] mode, the interrupt service routine triggers every
       /// period cycle until the [Timer] is disabled.
+      ///
+      /// Setting the mode or period of a [Timer] will overwrite the previous
+      /// [Timer]. In other words, if this TRAP is called on a [Timer] that is
+      /// currently running, the interrupt service routine will only trigger
+      /// after the newly set period elapses.
       ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
@@ -888,7 +898,7 @@ pub mod timers {
       /// ```
       ///
       /// [Timer]: lc3_traits::peripherals::timers
-      /// [Repeated]: lc3_traits::peripherals::timers::TimerState::Repeated
+      /// [Repeated]: lc3_traits::peripherals::timers::TimerMode::Repeated
       /// [ID]: lc3_traits::peripherals::timers::TimerId
       /// [`R0`]: lc3_isa::Reg::R0
       /// [`R1`]: lc3_isa::Reg::R1
@@ -906,8 +916,10 @@ pub mod timers {
       ///
       /// ## Usage
       ///
-      /// This TRAP puts the [Timer] indicated by [`R0`] into [Disabled]
-      /// mode. When [`R0`] contains a valid pin number (i.e. when [`R0`] is
+      /// This TRAP sets the state of the [Timer] indicated by [`R0`] to
+      /// [Disabled]. It does this by setting the period of the [Timer] to zero.
+      ///
+      /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
       ///
       /// When [`R0`] does not hold a valid timer [ID] number, the `n` bit is set.
@@ -957,7 +969,7 @@ pub mod timers {
       /// ```
       ///
       /// [Timer]: lc3_traits::peripherals::timers
-      /// [Repeated]: lc3_traits::peripherals::timers::TimerState::Repeated
+      /// [Repeated]: lc3_traits::peripherals::timers::TimerMode::Repeated
       /// [Disabled]: lc3_traits::peripherals::timers::TimerState::Disabled
       /// [ID]: lc3_traits::peripherals::timers::TimerId
       /// [`R0`]: lc3_isa::Reg::R0
@@ -984,7 +996,6 @@ pub mod timers {
       /// | -------------- | ----- |
       /// | [`Repeated`]   | 0     |
       /// | [`SingleShot`] | 1     |
-      /// | [`Disabled`]   | 2     |
       ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
@@ -1013,19 +1024,18 @@ pub mod timers {
       /// ```
       ///
       /// [Timer]: lc3_traits::peripherals::timers
-      /// [`Repeated`]: lc3_traits::peripherals::timers::TimerState::Repeated
-      /// [`SingleShot`]: lc3_traits::peripherals::timers::TimerState::SingleShot
-      /// [`Disabled`]: lc3_traits::peripherals::timers::TimerState::Disabled
-      /// [SingleShot]: lc3_traits::peripherals::timers::TimerState::SingleShot
+      /// [`Repeated`]: lc3_traits::peripherals::timers::TimerMode::Repeated
+      /// [`SingleShot`]: lc3_traits::peripherals::timers::TimerMode::SingleShot
+      /// [SingleShot]: lc3_traits::peripherals::timers::TimerMode::SingleShot
       /// [ID]: lc3_traits::peripherals::timers::TimerId
       /// [`R0`]: lc3_isa::Reg::R0
       /// [`R1`]: lc3_isa::Reg::R1
       /// [`R2`]: lc3_isa::Reg::R2
       /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
       /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
-      /// [mode]: lc3_traits::peripherals::timers::TimerState
+      /// [mode]: lc3_traits::peripherals::timers::TimerMode
       [0x63] GET_MODE,
-      /// Returns the period of a [Timer] in [SingleShot] or [Repeated] mode.
+      /// Returns the period of a [Timer].
       ///
       /// ## Inputs
       ///  - [`R0`]: A [Timer] [ID] number.
@@ -1040,13 +1050,13 @@ pub mod timers {
       /// writing a value to [`R0`]. The period will be a value in the range
       /// \[0, 65535\] and is measured in milliseconds.
       ///
+      /// Reading the period of a [Timer] that is [Disabled] will return a
+      /// value of zero.
+      ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.
       ///
       /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
-      ///
-      /// Attempting to read the period of a [Timer] not in [SingleShot] or
-      /// [Repeated] modes will return 0.
       ///
       /// All registers (**excluding** [`R0`]) are preserved.
       ///
@@ -1070,15 +1080,16 @@ pub mod timers {
       /// ```
       ///
       /// [Timer]: lc3_traits::peripherals::timers
-      /// [SingleShot]: lc3_traits::peripherals::timers::TimerState::SingleShot
-      /// [Repeated]: lc3_traits::peripherals::timers::TimerState::Repeated
+      /// [SingleShot]: lc3_traits::peripherals::timers::TimerMode::SingleShot
+      /// [Repeated]: lc3_traits::peripherals::timers::TimerMode::Repeated
+      /// [Disabled]: lc3_traits::peripherals::timers::TimerState::Disabled
       /// [ID]: lc3_traits::peripherals::timers::TimerId
       /// [`R0`]: lc3_isa::Reg::R0
       /// [`R1`]: lc3_isa::Reg::R1
       /// [`R2`]: lc3_isa::Reg::R2
       /// [`NUM_TIMERS`]: lc3_traits::peripherals::timers::TimerId::NUM_TIMERS
       /// [`T0`]: lc3_traits::peripherals::timers::TimerId::T0
-      /// [mode]: lc3_traits::peripherals::timers::TimerState
+      /// [mode]: lc3_traits::peripherals::timers::TimerMode
       [0x64] GET_PERIOD,
   });
 
