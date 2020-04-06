@@ -28,11 +28,11 @@ impl Default for TimersShim<'_> {
        Self {
             states: TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]),
             modes: TimerArr([TimerMode::SingleShot; TimerId::NUM_TIMERS]),
-            times: TimerArr([NonZeroU16::new(0).unwrap(); TimerId::NUM_TIMERS]), 
+            times: TimerArr([NonZeroU16::new(1).unwrap(); TimerId::NUM_TIMERS]),
             flags: None,
             guards: TimerArr([None, None]),
             timer1: timer::Timer::new()
-    
+
         }
     }
 }
@@ -59,9 +59,9 @@ impl TimersShim<'_> {
                         };
                         let _guard2s = timer1.schedule_with_delay(chrono::Duration::milliseconds(i64::from(self.times[timer].get())), move || {
                             let _ignored = tx.send(());
-                
+
                         });
-                
+
                         rx.recv().unwrap();
                         match self.flags {
                             Some(flag) => flag[timer].store(true, Ordering::SeqCst),
@@ -107,7 +107,7 @@ impl<'a> Timers<'a> for TimersShim<'a> {
                 match self.guards[timer] {
                     Some(_) => {
                         let g = self.guards[timer].take().unwrap();
-                        drop(g);  
+                        drop(g);
                         self.states[timer] = TimerState::Disabled;
                         mode
                     }
@@ -130,7 +130,7 @@ impl<'a> Timers<'a> for TimersShim<'a> {
 
 
     }
-    
+
     fn get_mode(&self, timer: TimerId) -> TimerMode {
         self.modes[timer]
     }
