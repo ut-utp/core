@@ -44,6 +44,9 @@ macro_rules! single_test_inner {
         $(post: |$peripherals_t:ident| $teardown:block)? $(,)?
         $(with os { $os:expr } @ $os_addr:expr)? $(,)?
     ) => {{
+        use $crate::{Word, Reg, Instruction, PeripheralsShim, MemoryShim};
+        use $crate::{PeripheralInterruptFlags, Interpreter, InstructionInterpreterPeripheralAccess};
+
         #[allow(unused_mut)]
         let mut regs: [Option<Word>; Reg::NUM_REGS] = [None, None, None, None, None, None, None, None];
         $(regs[Into::<u8>::into($r) as usize] = Some($v);)*
@@ -65,8 +68,8 @@ macro_rules! single_test_inner {
         $(let setup_func = |$peripherals_s: &mut PeripheralsShim| $setup;)?
 
         #[allow(unused)]
-        let teardown_func = |_p: &PeripheralsShim| { }; // no-op if not specified
-        $(let teardown_func = |$peripherals_t: &PeripheralsShim| $teardown;)?
+        let teardown_func = |_p: &Interpreter<MemoryShim, PeripheralsShim>| { }; // no-op if not specified
+        $(let teardown_func = |$peripherals_t: &Interpreter<MemoryShim, PeripheralsShim>| $teardown;)?
 
         #[allow(unused)]
         let steps: Option<usize> = None;
