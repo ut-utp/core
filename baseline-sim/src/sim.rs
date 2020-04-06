@@ -21,7 +21,7 @@ use lc3_traits::peripherals::clock::Clock;
 use lc3_traits::peripherals::gpio::{Gpio, GpioPinArr, GpioReadError, GpioState};
 use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
 use lc3_traits::peripherals::timers::{Timers, TimerArr, TimerMode, TimerState};
-use lc3_traits::peripherals::{Peripherals};
+use lc3_traits::peripherals::Peripherals;
 
 // use core::future::Future;
 use core::marker::PhantomData;

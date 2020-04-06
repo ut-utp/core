@@ -63,7 +63,37 @@ where
         M::update(self, func).unwrap()
     }
 
-    fn reset_peripherals(&mut self);
+    fn reset_peripherals(&mut self) {
+        use lc3_traits::peripherals::gpio::{GPIO_PINS, GpioPin, GpioState};
+        use lc3_traits::peripherals::adc::{Adc, ADC_PINS, AdcPin, AdcState};
+        use lc3_traits::peripherals::pwm::{Pwm, PWM_PINS, PwmPin, PwmState};
+        use lc3_traits::peripherals::timers::{TIMERS, TimerId, TimerMode, TimerState};
+        use lc3_traits::peripherals::clock::Clock;
+
+        for pin in GPIO_PINS.iter() {
+            Gpio::set_state(self.get_peripherals_mut(), *pin, GpioState::Disabled);
+            Gpio::reset_interrupt_flag(self.get_peripherals_mut(), *pin);
+        }
+
+        for pin in ADC_PINS.iter() {
+            Adc::set_state(self.get_peripherals_mut(), *pin, AdcState::Disabled);
+        }
+
+        for pin in PWM_PINS.iter() {
+            Pwm::set_state(self.get_peripherals_mut(), *pin, PwmState::Disabled);
+            Pwm::set_duty_cycle(self.get_peripherals_mut(), *pin, 0);
+        }
+
+        for id in TIMERS.iter() {
+            Timers::set_mode(self.get_peripherals_mut(), *id, TimerMode::SingleShot);
+            Timers::set_state(self.get_peripherals_mut(), *id, TimerState::Disabled);
+            Timers::reset_interrupt_flag(self.get_peripherals_mut(), *id);
+        }
+
+        Clock::set_milliseconds(self.get_peripherals_mut(), 0);
+        Input::reset_interrupt_flag(self.get_peripherals_mut());
+        Output::reset_interrupt_flag(self.get_peripherals_mut());
+    }
 }
 
 pub trait InstructionInterpreter:
@@ -207,7 +237,8 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     memory: M,
     peripherals: P,
-    flags: OwnedOrRef<'a, PeripheralInterruptFlags>,
+    // flags: OwnedOrRef<'a, PeripheralInterruptFlags>,
+    flags: PhantomData<OwnedOrRef<'a, PeripheralInterruptFlags>>,
     regs: [Word; Reg::NUM_REGS],
     pc: Word, //TODO: what should the default for this be
     state: MachineState,
@@ -510,7 +541,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         let mut interp = Self {
             memory,
             peripherals,
-            flags,
+            flags: PhantomData,
             regs,
             pc,
             state,
@@ -526,6 +557,13 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // this.
         //
         // interp.init(&interp.flags);
+
+        // For now, the following workaround:
+        if let OwnedOrRef::Ref(r) = flags {
+            interp.init(r);
+        } else {
+            // warn!("unsupported, sorry!");
+        }
 
         interp.reset(); // TODO: remove pc/regs options from the interpreter builder
         interp
@@ -560,36 +598,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> DerefMut for Interpreter<'a, M, P> {
     }
 }
 
-use lc3_traits::peripherals::gpio::{GPIO_PINS, GpioPin, GpioState};
-use lc3_traits::peripherals::adc::{Adc, ADC_PINS, AdcPin, AdcState};
-use lc3_traits::peripherals::pwm::{Pwm, PWM_PINS, PwmPin, PwmState};
-use lc3_traits::peripherals::timers::{TIMERS, TimerId, TimerMode, TimerState};
-use lc3_traits::peripherals::clock::Clock;
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreterPeripheralAccess<'a>
     for Interpreter<'a, M, P>
-{
-    fn reset_peripherals(&mut self) {
-        for pin in GPIO_PINS.iter() {
-            Gpio::set_state(self.get_peripherals_mut(), *pin, GpioState::Disabled);
-            Gpio::reset_interrupt_flag(self.get_peripherals_mut(), *pin);
-        }
-        for pin in ADC_PINS.iter() {
-            Adc::set_state(self.get_peripherals_mut(), *pin, AdcState::Disabled);
-        }
-        for pin in PWM_PINS.iter() {
-            Pwm::set_state(self.get_peripherals_mut(), *pin, PwmState::Disabled);
-            Pwm::set_duty_cycle(self.get_peripherals_mut(), *pin, 0);
-        }
-        for id in TIMERS.iter() {
-            Timers::set_mode(self.get_peripherals_mut(), *id, TimerMode::SingleShot);
-            Timers::set_state(self.get_peripherals_mut(), *id, TimerState::Disabled);
-            Timers::reset_interrupt_flag(self.get_peripherals_mut(), *id);
-        }
-        Clock::set_milliseconds(self.get_peripherals_mut(), 0);
-        Input::reset_interrupt_flag(self.get_peripherals_mut());
-        Output::reset_interrupt_flag(self.get_peripherals_mut());
-    }
-}
+{ }
 
 impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     pub fn init(&mut self, flags: &'a PeripheralInterruptFlags) {
@@ -1064,18 +1075,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.get_special_reg::<PSR>().set_priority(self, 7);
         self.get_special_reg::<MCR>().run(self);
 
-        self[R0] = 0;
-        self[R1] = 0;
-        self[R2] = 0;
-        self[R3] = 0;
-        self[R4] = 0;
-        self[R5] = 0;
-        self[R6] = 0;
-        self[R7] = 0;
+        self.regs = [0; Reg::NUM_REGS];
 
         self.memory.reset();
 
         self.reset_peripherals();
+        self.state = MachineState::Running;
     }
 
     fn halt(&mut self) {
