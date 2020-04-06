@@ -139,9 +139,9 @@ mod states {
                 steps: GpioPin::NUM_PINS * 3,
                 regs: { },
                 memory: { },
-                post: |p| {
+                post: |i| {
                     for (pin, state) in GPIO_PINS.iter().zip(states.clone()) {
-                        let got = Gpio::get_state(p, *pin);
+                        let got = Gpio::get_state(i.get_peripherals(), *pin);
                         eq!(
                             *state, got,
                             "Gpio Pin {}: expected state `{:?}`, got `{:?}`.\
@@ -173,7 +173,7 @@ mod states {
         steps: 3,
         regs: { R0: 0b01 },
         memory: { },
-        post: |p| { eq!(Output, Gpio::get_state(p, G0)); }
+        post: |i| { eq!(Output, Gpio::get_state(i.get_peripherals(), G0)); }
     }
 
     // We should also test that we actually only use the lower two bits of the
@@ -185,7 +185,7 @@ mod states {
         steps: 3,
         regs: { R0: 0b1101 },
         memory: { },
-        post: |p| { eq!(Output, Gpio::get_state(p, G0)); }
+        post: |i| { eq!(Output, Gpio::get_state(i.get_peripherals(), G0)); }
     }
 }
 

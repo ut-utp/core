@@ -81,6 +81,7 @@ peripheral_trait! {adc,
 pub trait Adc: Default {
     fn set_state(&mut self, pin: AdcPin, state: AdcState) -> Result<(), ()>;
     fn get_state(&self, pin: AdcPin) -> AdcState;
+    #[inline]
     fn get_states(&self) -> AdcPinArr<AdcState> {
         let mut states = AdcPinArr([AdcState::Disabled; AdcPin::NUM_PINS]);
 
@@ -92,6 +93,7 @@ pub trait Adc: Default {
     }
 
     fn read(&self, pin: AdcPin) -> Result<u8, AdcReadError>;
+    #[inline]
     fn read_all(&self) -> AdcPinArr<Result<u8, AdcReadError>> {
         // TODO: Error conversion impl (see Gpio)
         let mut readings = AdcPinArr([Ok(0u8); AdcPin::NUM_PINS]); // TODO: that we need a default value here is weird and bad...

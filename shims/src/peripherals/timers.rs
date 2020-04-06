@@ -1,5 +1,5 @@
 use lc3_traits::peripherals::timers::{
-    TimerArr, TimerId, TimerMiscError, TimerState, TimerStateMismatch, Timers,
+    Timers, TimerArr, TimerId, TimerMode, TimerState,
 };
 
 // timing errors occuring during scan cycles (input and ouput errors)
@@ -8,26 +8,31 @@ use lc3_isa::Word;
 //use std::time::Duration;
 use core::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-
+use core::num::NonZeroU16;
 use time;
 use timer;
-
+use std::sync::mpsc::channel;
 // The term “Single Shot” signifies a single pulse output of some duration.
-#[derive(Clone)] // TODO: Debug
+
 pub struct TimersShim<'a> {
     states: TimerArr<TimerState>,
-    times: TimerArr<Word>,
+    modes: TimerArr<TimerMode>,
+    times: TimerArr<NonZeroU16>,
     flags: Option<&'a TimerArr<AtomicBool>>,
     guards: TimerArr<Option<timer::Guard>>,
+    timer1: timer::Timer
 }
 
 impl Default for TimersShim<'_> {
     fn default() -> Self {
-        Self {
+       Self {
             states: TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]),
-            times: TimerArr([0u16; TimerId::NUM_TIMERS]), // unlike gpio, interrupts occur on time - not on bit change
+            modes: TimerArr([TimerMode::SingleShot; TimerId::NUM_TIMERS]),
+            times: TimerArr([NonZeroU16::new(1).unwrap(); TimerId::NUM_TIMERS]),
             flags: None,
             guards: TimerArr([None, None]),
+            timer1: timer::Timer::new()
+
         }
     }
 }
@@ -36,21 +41,77 @@ impl TimersShim<'_> {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn start_timer(&mut self, timer: TimerId, mode: TimerMode, state: TimerState) {
+        use TimerMode::*;
+        use TimerState::*;
+
+         match state {
+            WithPeriod(period) => {
+                match mode {
+
+                    Repeated => {
+                        let timer1 = timer::Timer::new();
+                        let max = 65536;
+                        let (tx, rx) = channel();
+                        let guard1 = {
+                            self.timer1.schedule_repeating(chrono::Duration::milliseconds(max as i64), move || {})
+                        };
+                        let _guard2s = timer1.schedule_with_delay(chrono::Duration::milliseconds(i64::from(self.times[timer].get())), move || {
+                            let _ignored = tx.send(());
+
+                        });
+
+                        rx.recv().unwrap();
+                        match self.flags {
+                            Some(flag) => flag[timer].store(true, Ordering::SeqCst),
+                            None => unreachable!(),
+                        }
+                        self.guards[timer] = Some(guard1);
+                    },
+                    SingleShot => {
+                        let timer1 = timer::Timer::new();
+                        let max = 65536;
+                        let (tx, rx) = channel();
+                        let guard = timer1.schedule_with_delay(chrono::Duration::milliseconds(i64::from(self.times[timer].get())), move || {
+                            let _ignored = tx.send(());
+                        });
+
+                        rx.recv().unwrap();
+                        match self.flags {
+                            Some(flag) => flag[timer].store(true, Ordering::SeqCst),
+                            None => unreachable!(),
+                        }
+                        self.guards[timer] = Some(guard);
+                    }
+                }
+
+            },
+            Disabled => {}
+
+        }
+
+
+
+
+    }
+
+
 }
 
 impl<'a> Timers<'a> for TimersShim<'a> {
-    fn set_state(&mut self, timer: TimerId, state: TimerState) -> Result<(), TimerMiscError> {
-        use TimerState::*;
-        self.states[timer] = match state {
+    fn set_mode(&mut self, timer: TimerId, mode: TimerMode) {
+        use TimerMode::*;
+        self.modes[timer] = match mode {
             Repeated => {
                 match self.guards[timer] {
                     Some(_) => {
                         let g = self.guards[timer].take().unwrap();
                         drop(g);
-                        // drop(x);
-                        state
+                        self.states[timer] = TimerState::Disabled;
+                        mode
                     }
-                    None => state,
+                    None => mode,
                 }
             }
             SingleShot => {
@@ -58,90 +119,50 @@ impl<'a> Timers<'a> for TimersShim<'a> {
                     Some(_) => {
                         let g = self.guards[timer].take().unwrap();
                         drop(g);
-                        //drop(x);
-                        state
+                        self.states[timer] = TimerState::Disabled;
+                        mode
                     }
-                    None => state,
+                    None => mode,
                 }
             }
-            Disabled => state,
+            Disabled => mode,
         };
 
-        Ok(())
+
+    }
+
+    fn get_mode(&self, timer: TimerId) -> TimerMode {
+        self.modes[timer]
+    }
+
+
+    fn set_state(&mut self, timer: TimerId, state: TimerState) {
+    use TimerState::*;
+
+    self.states[timer] = match state {
+        WithPeriod(period) => {
+            if period == NonZeroU16::new(0).unwrap() {
+                let g = self.guards[timer].take().unwrap();
+                drop(g);
+                state
+            } else {
+                self.times[timer] = period;
+                self.start_timer(timer, self.modes[timer], self.states[timer]);
+                state
+            }
+        },
+        Disabled => {
+            state
+        }
+    };
+
     }
 
     fn get_state(&self, timer: TimerId) -> TimerState {
         self.states[timer]
     }
 
-    fn set_period(&mut self, timer: TimerId, milliseconds: Word) -> Result<(), TimerMiscError> {
-        //  use TimerState::*;
-        //  self.times[timer] = milliseconds;
-        //  let timer_init = timer::Timer::new();
-
-        // match self.guards[timer] {
-        //      Some(_) => {
-        //          let g = self.guards[timer].take().unwrap();
-        //          drop(g);
-
-        //      },
-        //      None => {}
-        //  }
-
-        //  match self.states[timer] {
-        //      Repeated => {
-        //          match self.flags[timer] {
-        //              Some(b) => {
-        //                  let guard = {
-        //                      timer_init.schedule_repeating(time::Duration::milliseconds(milliseconds as i64), move || {
-        //                      //self.flags[timer].unwrap().store(true, Ordering::SeqCst);
-        //                      b.store(true, Ordering::SeqCst);
-        //                      })
-
-        //                  };
-
-        //                  self.guards[timer] = Some(guard);
-        //              },
-        //              None => {
-        //                  unreachable!();
-        //              }
-
-        //          }
-        //      },
-        //      SingleShot => {
-        //          match self.flags[timer] {
-        //              Some(b) => {
-        //                  let guard = {
-        //                          timer_init.schedule_with_delay(time::Duration::milliseconds(milliseconds as i64), move || {
-        //                      //self.flags[timer].unwrap().store(true, Ordering::SeqCst);
-        //                          b.store(true, Ordering::SeqCst);
-        //                      })
-        //                   };
-
-        //                   self.guards[timer] = Some(guard);
-        //              }
-        //              None => {
-        //                  unreachable!();
-        //              }
-        //          }
-        //      },
-        //      Disabled => {
-        //          unreachable!();
-        //      }
-
-        //  }
-
-        //  Ok(())
-
-        unimplemented!()
-    }
-
-    fn get_period(&self, timer: TimerId) -> Word {
-        self.times[timer]
-    }
-
     fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
-        // TODO: decide what we want to do for repeated settings of this (see gpio's shim)
 
         self.flags = match self.flags {
             None => Some(flags),
@@ -163,15 +184,6 @@ impl<'a> Timers<'a> for TimersShim<'a> {
         match self.flags {
             Some(flag) => flag[timer].store(false, Ordering::SeqCst),
             None => unreachable!(),
-        }
-    }
-
-    // TODO: review whether we want Interrupt state or interrupts_enabled bool state
-    fn interrupts_enabled(&self, timer: TimerId) -> bool {
-        match self.get_state(timer) {
-            SingleShot => true,
-            Repeating => true,
-            Disabled => false,
         }
     }
 }

@@ -20,7 +20,7 @@ use crate::peripherals::{
     adc::{AdcPinArr, AdcState, AdcReadError},
     gpio::{GpioPinArr, GpioState, GpioReadError},
     pwm::{PwmPinArr, PwmState},
-    timers::{TimerArr, TimerState},
+    timers::{TimerArr, TimerMode, TimerState},
 };
 
 use lc3_isa::{Reg, Addr, Word};
@@ -279,8 +279,8 @@ where
     fn get_gpio_readings(&self) -> GpioPinArr<Result<bool, GpioReadError>> { ctrl!(self, GetGpioReadings, R::GetGpioReadings(r), r) }
     fn get_adc_states(&self) -> AdcPinArr<AdcState> { ctrl!(self, GetAdcStates, R::GetAdcStates(r), r) }
     fn get_adc_readings(&self) -> AdcPinArr<Result<u8, AdcReadError>> { ctrl!(self, GetAdcReadings, R::GetAdcReadings(r), r) }
+    fn get_timer_modes(&self) -> TimerArr<TimerMode> { ctrl!(self, GetTimerModes, R::GetTimerModes(r), r) }
     fn get_timer_states(&self) -> TimerArr<TimerState> { ctrl!(self, GetTimerStates, R::GetTimerStates(r), r) }
-    fn get_timer_config(&self) -> TimerArr<Word> { ctrl!(self, GetTimerConfig, R::GetTimerConfig(r), r) }
     fn get_pwm_states(&self) -> PwmPinArr<PwmState> { ctrl!(self, GetPwmStates, R::GetPwmStates(r), r) }
     fn get_pwm_config(&self) -> PwmPinArr<u8> { ctrl!(self, GetPwmConfig, R::GetPwmConfig(r), r) }
     fn get_clock(&self) -> Word { ctrl!(self, GetClock, R::GetClock(r), r) }

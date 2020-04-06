@@ -851,7 +851,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                 I!(PC <- PC + offset11)
             }
             Jsrr { base } => {
-                // TODO: add a test where base _is_ R7!!
                 let (pc, new_pc) = (self.get_pc(), self[base]);
                 I!(PC <- new_pc);
                 I!(R7 <- pc)
@@ -887,12 +886,15 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     }
 }
 
-use super::mem_mapped::{BSP, DDR, DSR, KBDR, KBSR, PSR};
 use super::mem_mapped::{
+    KBSR, KBDR,
+    DSR, DDR,
+    BSP, PSR,
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
-};
-use super::mem_mapped::{
-    T0CR, T1CR,
+    A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+    P0CR, P0DR, P1CR, P1DR,
+    CLKR,
+    T0CR, T0DR, T1CR, T1DR
 };
 use lc3_traits::peripherals::gpio::GPIO_PINS;
 use crate::mem_mapped::Interrupt;
@@ -965,8 +967,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             }
 
             devices!(
-                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
+                KBSR, KBDR,
+                DSR, DDR,
+                BSP, PSR,
+                G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+                A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+                P0CR, P0DR, P1CR, P1DR,
+                CLKR,
+                T0CR, T0DR, T1CR, T1DR
             )
         } else {
             self.set_word_force_memory_backed(addr, word)
@@ -988,8 +996,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             }
 
             devices!(
-                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
+                KBSR, KBDR,
+                DSR, DDR,
+                BSP, PSR,
+                G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+                A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+                P0CR, P0DR, P1CR, P1DR,
+                CLKR,
+                T0CR, T0DR, T1CR, T1DR
             )
         } else {
             self.get_word_force_memory_backed(addr)

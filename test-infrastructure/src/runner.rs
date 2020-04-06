@@ -2,7 +2,9 @@ use lc3_isa::{Addr, Instruction, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;
 
-use lc3_baseline_sim::interp::{PeripheralInterruptFlags, InstructionInterpreter, Interpreter, InterpreterBuilder, MachineState};
+use lc3_baseline_sim::interp::{PeripheralInterruptFlags, InstructionInterpreter,
+    Interpreter, InterpreterBuilder, MachineState
+};
 
 use core::convert::{TryFrom, TryInto};
 
@@ -23,7 +25,11 @@ pub fn interp_test_runner<'a, M: Memory + Default + Clone, P: Peripherals<'a>, P
 )
 where
     for<'p> PF: FnOnce(&'p mut P),
-    for<'p> TF: FnOnce(&'p P),
+    for<'p> TF: FnOnce(&'p Interpreter<M, P>), // Note: we could pass by value
+                                               // since this is the last thing
+                                               // we do.
+    // Interpreter<'a, M, P>: core::ops::Deref<Target = P>,
+    // Interpreter<'a, M, P>: InstructionInterpreterPeripheralAccess<'a>,
 {
     let mut addr = 0x3000;
 
@@ -118,5 +124,5 @@ where
     }
 
     // Run the teardown func:
-    teardown_func(&*interp);
+    teardown_func(&interp);
 }

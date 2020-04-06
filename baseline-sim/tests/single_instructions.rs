@@ -1,23 +1,15 @@
-use lc3_isa::{insn, Addr, Instruction, Reg, Word};
+extern crate lc3_test_infrastructure as lti;
 
-use lc3_shims::memory::MemoryShim;
-use lc3_shims::peripherals::PeripheralsShim;
-
-use lc3_baseline_sim::interp::PeripheralInterruptFlags;
-
-#[path = "test_infrastructure/mod.rs"]
-mod common;
+use lti::{insn, Addr, Instruction, Reg, Word};
+use lti::{MemoryShim, PeripheralsShim, PeripheralInterruptFlags};
 
 #[cfg(test)]
 mod single_instructions {
     use super::*;
-    use lc3_isa::Reg::R0;
-
     use Reg::*;
 
-    use pretty_assertions::assert_eq;
-
-    use common::{interp_test_runner, with_larger_stack};
+    use lti::assert_eq;
+    use lti::{interp_test_runner, with_larger_stack};
 
     // Test that the instructions work
     // Test that the unimplemented instructions do <something>
@@ -301,9 +293,30 @@ mod single_instructions {
 
         sequence! {
             jsrr_1,
-            insns: [ { ADD R0, R0, #1 }, { JSRR R0 }],
+            insns: [ { ADD R0, R0, #1 }, { JSRR R0 } ],
             steps: Some(2),
             ending_pc: 0x0001,
+            regs: { R7: 0x3002 },
+            memory: {}
+        }
+
+        // In an incorrect implementation (if we don't store the PC in an
+        // intermediary 'register'), this could happen:
+        //   R7 <- PC // base register value overwritten!!
+        //   PC <- R7
+        //
+        // When R7 isn't the register that's used with JSRR, this works:
+        //   R7 <- PC
+        //   PC <- R1
+        //
+        // On incorrect implementations, the below should fail. R7 will be
+        // 0x3002 as expected but the PC will be 0x3002 (making it seem as
+        // though the JSRR never really happened).
+        sequence! {
+            jsrr_r7,
+            insns: [ { ADD R7, R7, #0x08 }, { JSRR R7 } ],
+            steps: Some(2),
+            ending_pc: 0x0008,
             regs: { R7: 0x3002 },
             memory: {}
         }
