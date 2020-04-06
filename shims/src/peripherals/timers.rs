@@ -151,26 +151,17 @@ impl<'a> Timers<'a> for TimersShim<'a> {
     }
 
     fn interrupt_occurred(&self, timer: TimerId) -> bool {
-
-        match self.modes[timer] {
-            TimerMode::Repeated => {
-                let occurred = (*self.flags1.lock().unwrap())[timer];
-                self.interrupts_enabled(timer) && occurred
+        use TimerMode::*;
+        let occurred = match self.modes[timer] {
+            Repeated => {
+                (*self.flags1.lock().unwrap())[timer]
             },
-            TimerMode::SingleShot => {
-                match self.flags {
-                    Some(flags) => {
-                        let occurred = flags[timer].load(Ordering::SeqCst);
-                        self.interrupts_enabled(timer) && occurred
-                    },
-                    None => unreachable!(),
-                }
-            }
-
-
-        }
-
-
+            SingleShot => {
+                let flags = self.flags.unwrap();
+                flags[timer].load(Ordering::SeqCst)
+            },
+        };
+        self.interrupts_enabled(timer) && occurred
     }
 
     fn reset_interrupt_flag(&mut self, timer: TimerId) {
@@ -243,7 +234,6 @@ mod tests {
    }
 
 
-    // TODO: flaky
     static FLAGS2: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
     #[test]
     fn get_repeated_interrupt_occured() {
@@ -254,7 +244,7 @@ mod tests {
 
         shim.set_state(T0, TimerState::WithPeriod(period));
         let mut bool_arr = Vec::<bool>::new();
-        let sleep = Duration::from_millis(200);
+        let sleep = Duration::from_millis(205);
 
         let mut count = 0;
         for i in 1..=5 {
