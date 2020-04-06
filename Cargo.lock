@@ -439,6 +439,7 @@ dependencies = [
  "chrono",
  "lc3-isa",
  "lc3-macros",
+ "lc3-test-infrastructure",
  "lc3-traits",
  "pretty_assertions",
  "time",
