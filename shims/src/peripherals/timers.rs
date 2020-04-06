@@ -101,71 +101,38 @@ impl TimersShim<'_> {
 
     }
 
+    fn stop_timer(&mut self, timer: TimerId) {
+        if let Some(guard) = self.guards[timer].take() {
+            drop(guard);
+        }
+    }
 
 }
 
 impl<'a> Timers<'a> for TimersShim<'a> {
     fn set_mode(&mut self, timer: TimerId, mode: TimerMode) {
-        use TimerMode::*;
-        self.modes[timer] = match mode {
-            Repeated => {
-                match self.guards[timer] {
-                    Some(_) => {
-                        let g = self.guards[timer].take().unwrap();
-                        drop(g);
-                        self.states[timer] = TimerState::Disabled;
-                        mode
-                    }
-                    None => mode,
-                }
-            }
-            SingleShot => {
-                match self.guards[timer] {
-                    Some(_) => {
-                        let g = self.guards[timer].take().unwrap();
-                        drop(g);
-                        self.states[timer] = TimerState::Disabled;
-                        mode
-                    }
-                    None => mode,
-                }
-            }
-            Disabled => mode,
-        };
-
-
+        self.set_state(timer, TimerState::Disabled);
+        self.modes[timer] = mode;
     }
 
     fn get_mode(&self, timer: TimerId) -> TimerMode {
         self.modes[timer]
     }
 
-
     fn set_state(&mut self, timer: TimerId, state: TimerState) {
-    use TimerState::*;
+        use TimerState::*;
 
-    self.states[timer] = match state {
-        WithPeriod(period) => {
-            if period.get() == 0 {
-                match self.guards[timer] {
-                    Some(_) => {
-                        let g = self.guards[timer].take().unwrap();
-                        drop(g);
-                        Disabled
-                    },
-                    None => Disabled,
-                }
-            } else {
+        match state {
+            WithPeriod(period) => {
                 self.times[timer] = period;
                 self.start_timer(timer, self.modes[timer], state);
-                state
+            },
+            Disabled => {
+                self.stop_timer(timer);
             }
-        },
-        Disabled => {
-            state
-        }
-    };
+        };
 
+        self.states[timer] = state;
     }
 
     fn get_state(&self, timer: TimerId) -> TimerState {
@@ -275,28 +242,29 @@ mod tests {
        assert_eq!(shim.interrupt_occurred(T0), true);
    }
 
-   static FLAGS2: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
+
+    // TODO: flaky
+    static FLAGS2: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
     #[test]
     fn get_repeated_interrupt_occured() {
-       let mut shim = TimersShim::new();
-       shim.register_interrupt_flags(&FLAGS2);
-       shim.set_mode(T0, TimerMode::Repeated);
-       let period = NonZeroU16::new(200).unwrap();
+        let mut shim = TimersShim::new();
+        shim.register_interrupt_flags(&FLAGS2);
+        shim.set_mode(T0, TimerMode::Repeated);
+        let period = NonZeroU16::new(200).unwrap();
 
-       shim.set_state(T0, TimerState::WithPeriod(period));
-       let mut bool_arr = Vec::<bool>::new();
-       let sleep = Duration::from_millis(200);
-       for i in 1..6 {
+        shim.set_state(T0, TimerState::WithPeriod(period));
+        let mut bool_arr = Vec::<bool>::new();
+        let sleep = Duration::from_millis(200);
+
+        let mut count = 0;
+        for i in 1..=5 {
             thread::sleep(sleep);
-            let interrupt_occurred = shim.interrupt_occurred(T0);
-            if interrupt_occurred {
-                bool_arr.push(true);
+            if shim.interrupt_occurred(T0) {
+                count += 1;
+                shim.reset_interrupt_flag(T0);
             }
-            shim.reset_interrupt_flag(T0);
-
-       }
-
-       assert_eq!(bool_arr.len(), 5);
+        }
+        assert_eq!(count, 5);
    }
 
 
