@@ -1075,13 +1075,16 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         // pri = 7
         // MCR = 0;
         self.pc = lc3_isa::OS_START_ADDR;
-        self.set_cc(0);
+
+        // Reset memory _before_ setting the PSR and MCR so we don't wipe out
+        // their values.
+        self.memory.reset();
+
         self.get_special_reg::<PSR>().set_priority(self, 7);
         self.get_special_reg::<MCR>().run(self);
+        self.set_cc(0);
 
         self.regs = [0; Reg::NUM_REGS];
-
-        self.memory.reset();
 
         self.reset_peripherals();
         self.state = MachineState::Running;
