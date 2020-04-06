@@ -6,6 +6,9 @@ use lc3_traits::peripherals::timers::{
 // errors handling overwriting handlers? Can timers have multiple handlers?
 use lc3_isa::Word;
 //use std::time::Duration;
+
+use std::sync::Arc;
+use std::sync::Mutex;
 use core::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use core::num::NonZeroU16;
@@ -21,6 +24,7 @@ pub struct TimersShim<'a> {
     modes: TimerArr<TimerMode>,
     times: TimerArr<NonZeroU16>,
     flags: Option<&'a TimerArr<AtomicBool>>,
+    flags1: Arc<Mutex<TimerArr<bool>>>,
     guards: TimerArr<Option<timer::Guard>>,
     timer1: TimerArr<timer::Timer>,
 }
@@ -32,6 +36,7 @@ impl Default for TimersShim<'_> {
             modes: TimerArr([TimerMode::SingleShot; TimerId::NUM_TIMERS]),
             times: TimerArr([NonZeroU16::new(1).unwrap(); TimerId::NUM_TIMERS]), 
             flags: None,
+            flags1: Arc::new(Mutex::new(TimerArr([false, false]))),
             guards: TimerArr([None, None]),
             timer1: TimerArr([timer::Timer::new(), timer::Timer::new()]),
            
@@ -54,33 +59,31 @@ impl TimersShim<'_> {
                 match mode {
 
                     Repeated => {
-                        let (tx, rx) = channel();
+                       
+                        
                         let guard1 = {
-                            let tx2 = tx.clone();
+                            let flag_cl = self.flags1.clone();
+                           
                             self.timer1[timer].schedule_repeating(chrono::Duration::milliseconds(period.get() as i64), move || {
-                                let _ignored = tx2.send(());
-                
+                               
+                                (*flag_cl.lock().unwrap())[timer]=true;
                             })
                         };  
-                        rx.recv().unwrap();
                         
-                       self.guards[timer] = Some(guard1);
-                        match self.flags {
-                            Some(flag) => flag[timer].store(true, Ordering::SeqCst),
-                            None => {},
-                        };
+                        self.guards[timer] = Some(guard1);
+                       
+                        
                     },
                     SingleShot => {
                         //let timer1 = timer::Timer::new();
                         let (tx, rx) = channel();
-                        let guard = self.timer1[timer].schedule_with_delay(chrono::Duration::milliseconds(i64::from(period.get())), move || {
+                        let guard1 = self.timer1[timer].schedule_with_delay(chrono::Duration::milliseconds(period.get() as i64), move || {
                             let _ignored = tx.send(());
                         });
 
                         rx.recv().unwrap();
-
-                        self.guards[timer] = Some(guard);
-
+                        
+                        self.guards[timer] = Some(guard1);
                         match self.flags {
                             Some(flag) => flag[timer].store(true, Ordering::SeqCst),
                             None => {},
@@ -178,13 +181,26 @@ impl<'a> Timers<'a> for TimersShim<'a> {
     }
 
     fn interrupt_occurred(&self, timer: TimerId) -> bool {
-        match self.flags {
-            Some(flags) => {
-                let occurred = flags[timer].load(Ordering::SeqCst);
+
+        match self.modes[timer] {
+            TimerMode::Repeated => {
+                let occurred = (*self.flags1.lock().unwrap())[timer];
                 self.interrupts_enabled(timer) && occurred
+            },
+            TimerMode::SingleShot => {
+                match self.flags {
+                    Some(flags) => {
+                        let occurred = flags[timer].load(Ordering::SeqCst);
+                        self.interrupts_enabled(timer) && occurred
+                    },
+                    None => unreachable!(),
+                }
             }
-            None => unreachable!(),
+
+
         }
+
+
     }
 
     fn reset_interrupt_flag(&mut self, timer: TimerId) {
@@ -268,7 +284,6 @@ mod tests {
        let mut bool_arr = Vec::<bool>::new();
        let sleep = Duration::from_millis(200);
        for i in 1..6 {
-           
             thread::sleep(sleep);
             let interrupt_occurred = shim.interrupt_occurred(T0);
             if interrupt_occurred {
