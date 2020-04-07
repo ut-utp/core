@@ -87,12 +87,12 @@ pub fn run_periodically_for_a_time<R, F: FnMut(Duration) -> R>(
     );
 
     while Instant::now().duration_since(start) <= duration {
-        let elapsed = Instant::now().duration_since(start);
-        record.push((elapsed, (func)(elapsed)));
-
         let next_wake_time = period * (record.len() as u32 + 1);
         let sleep_time = next_wake_time - Instant::now().duration_since(start);
         thread::sleep(sleep_time);
+
+        let elapsed = Instant::now().duration_since(start);
+        record.push((elapsed, (func)(elapsed)));
     }
 
     record

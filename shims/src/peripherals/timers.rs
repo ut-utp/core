@@ -120,8 +120,8 @@ impl<'a> Timers<'a> for TimersShim<'a> {
     fn interrupt_occurred(&self, timer: TimerId) -> bool {
         use Ordering::SeqCst;
 
-        let occurred = self.external_flags.unwrap()[timer].load(SeqCst);
-        self.internal_flags[timer].store(occurred, SeqCst);
+        let occurred = self.internal_flags[timer].load(SeqCst);
+        self.external_flags.unwrap()[timer].store(occurred, SeqCst);
 
         self.interrupts_enabled(timer) && occurred
     }
@@ -164,14 +164,14 @@ mod tests {
     #[test]
     fn get_singleshot() {
         let mut shim = TimersShim::new();
-        let res = shim.set_mode(T0, SingleShot);
+        shim.set_mode(T0, SingleShot);
         assert_eq!(shim.get_mode(T0), SingleShot);
     }
 
     #[test]
     fn get_repeated() {
         let mut shim = TimersShim::new();
-        let res = shim.set_mode(T0, Repeated);
+        shim.set_mode(T0, Repeated);
         assert_eq!(shim.get_mode(T0), Repeated);
 
         // T1 should still be in single shot mode.
@@ -319,10 +319,10 @@ mod tests {
         assert_eq!(num_times_fired, 4);
         record.iter()
             .map(|(t, (_, f))| (t, f))
-            .filter(|(t, f)| **f)
-            .map(|(t, f)| t.as_millis() as u16)
+            .filter(|(_, f)| **f)
+            .map(|(t, _)| t.as_millis() as u16)
             .enumerate()
-            .map(|(idx, t)| assert_is_about(t, idx as u16 * 50, 2));
+            .for_each(|(idx, t)| assert_is_about(t, idx as u16 * 50, 2));
     }
 
    //  #[test]
