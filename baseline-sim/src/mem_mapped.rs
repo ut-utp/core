@@ -19,22 +19,29 @@ pub const GPIO_OFFSET: u8 = 0x30;
 const GPIO_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (GPIO_OFFSET as Addr);
 const GPIO_PIN_ADDRS: Addr = 2;
 
-pub const G0CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 0; // xFE30
-pub const G0DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 1; // xFE31
-pub const G1CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 0; // xFE32
-pub const G1DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 1; // xFE33
-pub const G2CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 0; // xFE34
-pub const G2DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 1; // xFE35
-pub const G3CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 0; // xFE36
-pub const G3DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 1; // xFE37
-pub const G4CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 0; // xFE38
-pub const G4DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 1; // xFE39
-pub const G5CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 0; // xFE3A
-pub const G5DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 1; // xFE3B
-pub const G6CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 0; // xFE3C
-pub const G6DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 1; // xFE3D
-pub const G7CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 0; // xFE3E
-pub const G7DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 1; // xFE3F
+pub const G0CR_ADDR: Addr = gpio_cr_addr(0); // xFE30
+pub const G0DR_ADDR: Addr = gpio_dr_addr(0); // xFE31
+pub const G1CR_ADDR: Addr = gpio_cr_addr(1); // xFE32
+pub const G1DR_ADDR: Addr = gpio_dr_addr(1); // xFE33
+pub const G2CR_ADDR: Addr = gpio_cr_addr(2); // xFE34
+pub const G2DR_ADDR: Addr = gpio_dr_addr(2); // xFE35
+pub const G3CR_ADDR: Addr = gpio_cr_addr(3); // xFE36
+pub const G3DR_ADDR: Addr = gpio_dr_addr(3); // xFE37
+pub const G4CR_ADDR: Addr = gpio_cr_addr(4); // xFE38
+pub const G4DR_ADDR: Addr = gpio_dr_addr(4); // xFE39
+pub const G5CR_ADDR: Addr = gpio_cr_addr(5); // xFE3A
+pub const G5DR_ADDR: Addr = gpio_dr_addr(5); // xFE3B
+pub const G6CR_ADDR: Addr = gpio_cr_addr(6); // xFE3C
+pub const G6DR_ADDR: Addr = gpio_dr_addr(6); // xFE3D
+pub const G7CR_ADDR: Addr = gpio_cr_addr(7); // xFE3E
+pub const G7DR_ADDR: Addr = gpio_dr_addr(7); // xFE3F
+
+const fn gpio_cr_addr(i: u16) -> Addr {
+    GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * i
+}
+const fn gpio_dr_addr(i: u16) -> Addr {
+    gpio_cr_addr(i) + 1
+}
 
 pub const GPIODR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 8 + 0;
 
@@ -1051,9 +1058,9 @@ macro_rules! timer_mem_mapped {
             {
                 use lc3_traits::peripherals::timers::TimerMode::*;
                 let mode = if value.bit(0) {
-                    SingleShot
-                } else {
                     Repeated
+                } else {
+                    SingleShot
                 };
 
                 Timers::set_mode(interp.get_peripherals_mut(), $id, mode);

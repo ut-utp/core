@@ -51,6 +51,7 @@ impl TimersShim<'_> {
         use TimerMode::*;
 
         let duration = chrono::Duration::milliseconds(period.get() as i64);
+
         let flags = self.internal_flags.clone();
 
         // Register the current time as the start time for this timer:
