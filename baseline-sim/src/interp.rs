@@ -716,7 +716,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn handle_interrupt(&mut self, int_vec: u8, priority: u8) -> bool {
         // TODO: check that the ordering here is right
 
-        println!("handling interrupt: vec {:#x?}, priority {:?}", int_vec, priority);
         // Make sure that the priority is high enough to interrupt:
         if self.get_special_reg::<PSR>().get_priority() >= priority {
             // Gotta wait.
@@ -1001,9 +1000,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     // Unchecked access:
     #[forbid(unreachable_patterns)]
     fn set_word_unchecked(&mut self, addr: Addr, word: Word) {
-        println!("Setting: {:#x?} to {:#x?}", addr, word);
         if addr >= MEM_MAPPED_START_ADDR {
-            println!("Setting mem-mapped: {:#x?} to {:#x?}", addr, word);
             macro_rules! devices {
                 ($($dev:ty),*) => {
                     match addr {
@@ -1017,6 +1014,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
                 KBSR, KBDR,
                 DSR, DDR,
                 BSP, PSR,
+                MCR,
                 G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
                 A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
                 P0CR, P0DR, P1CR, P1DR,
@@ -1030,7 +1028,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
     #[forbid(unreachable_patterns)]
     fn get_word_unchecked(&self, addr: Addr) -> Word {
-        // println!("Getting: {:#x?}", addr);
         if addr >= MEM_MAPPED_START_ADDR {
             // TODO: mem mapped peripherals!
             macro_rules! devices {
