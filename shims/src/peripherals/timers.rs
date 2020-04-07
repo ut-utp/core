@@ -143,6 +143,129 @@ impl<'a> Timers<'a> for TimersShim<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct TimersSnapshot {
+    states: TimerArr<TimerState>,
+    modes: TimerArr<TimerMode>,
+
+    flags: TimerArr<bool>,
+    start_times: TimerArr<Option<Instant>>,
+    snapshot_time: Instant,
+}
+
+impl<'a> Snapshot for TimersShim<'a> {
+    type Snap = TimersSnapshot;
+    type Err = core::convert::Infallible;
+
+    fn record(&self) -> Result<Self::Snap, Self::Err> {
+        Ok(TimersSnapshot {
+            states: TimerArr([
+                *self.states[TimerId::T0].lock().unwrap(),
+                *self.states[TimerId::T1].lock().unwrap(),
+            ]),
+            modes: self.modes.clone(),
+
+            flags: TimerArr([
+                self.internal_flags[TimerId::T0].load(Ordering::SeqCst),
+                self.internal_flags[TimerId::T1].load(Ordering::SeqCst),
+            ]),
+            start_times: self.start_times.clone(),
+            snapshot_time: Instant::now(),
+        })
+    }
+
+    fn restore(&mut self, snap: Self::Snap) -> Result<(), Self::Err> {
+        // Stop all running timers:
+        TIMERS.iter().for_each(|t| self.stop_timer(*t));
+
+        // States and modes we can restore without much fuss. Flags too.
+        TIMERS.iter().for_each(|t| {
+            let mut state = self.states[*t].lock().unwrap();
+
+            *state = snap.states[*t];
+        });
+        self.modes = snap.modes;
+
+        self.start_times = snap.start_times;
+
+        for t in TIMERS.iter() {
+            self.internal_flags[*t].store(snap.flags[*t], Ordering::SeqCst);
+            self.external_flags.unwrap()[*t].store(snap.flags[*t], Ordering::SeqCst);
+        }
+
+        // The problem is dealing with timers that were already running at the
+        // time the snapshot was taken.
+        for t in TIMERS.iter() {
+            use TimerState::*;
+            use TimerMode::*;
+
+            fn remaining_time(start: &Option<Instant>, snap_time: Instant, p: Period) -> (Duration, Duration) {
+                let start_time = start
+                        .expect("running timers should have a start time");
+
+                let elapsed = snap_time.duration_since(start_time);
+                let remaining = Duration::from_millis(p.get().into()) - elapsed;
+
+                (elapsed, remaining)
+            }
+
+            let state = *self.states[*t].lock().unwrap();
+            match (state, self.modes[*t]) {
+                // For SingleShot timers, this is simple enough:
+                (WithPeriod(p), SingleShot) => {
+                    // We just need to schedule the timer again _once_ for the
+                    // time it would have fired at. All we need to do is
+                    // calculate how much time was left on it's clock:
+                    // let start_time = self.start_times[*t]
+                    //     .expect("running timers should have a start time");
+
+                    // let elapsed = snap.snapshot_time.duration_since(start_time);
+                    // let remaining = Duration::from_millis(p.get().into()) - elapsed;
+
+                    let (elapsed, remaining) = remaining_time(&self.start_times[*t], snap.snapshot_time, p);
+
+                    // And schedule a timer for that time:
+                    self.start_timer(*t, Period::new(remaining.as_millis().max(1) as u16).unwrap());
+
+                    // Update the start time to reflect how much of the period
+                    // has already elapsed (in case a snapshot is taken again
+                    // before this timer fires (or is dropped)).
+                    *self.start_times[*t].as_mut().unwrap() -= elapsed;
+                },
+
+                // Repeated timers are a little tricker.
+                (WithPeriod(p), Repeated) => {
+                    // We want to run the timer next after the remaining time
+                    // (like with the singleshot timer) but then every period
+                    // *starting after the remaining amount of time*.
+                    //
+                    // Luckily, `timer` has our back; `timer::Timer::schedule`
+                    // does exactly this.
+                    let (elapsed, remaining) = remaining_time(&self.start_times[*t], snap.snapshot_time, p);
+
+                    let remaining = chrono::Duration::from_std(remaining).unwrap();
+                    let period = chrono::Duration::milliseconds(p.get() as i64);
+                    let flags = self.internal_flags.clone();
+
+                    let guard = self.timers[*t].schedule(chrono::Utc::now() + remaining, Some(period), move || {
+                        flags[*t].store(true, Ordering::SeqCst)
+                    });
+
+                    self.guards[*t] = Some(guard);
+
+                    // As with SingleShot, update the start time to reflect the
+                    // progress made.
+                    self.start_times[*t] = Some(Instant::now() - elapsed);
+                },
+
+                (Disabled, _) => {},
+            }
+        }
+
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
