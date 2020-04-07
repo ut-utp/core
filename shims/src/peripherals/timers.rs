@@ -17,6 +17,7 @@ use timer;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::thread;
 use std::time::Duration;
+use lc3_traits::control::Snapshot;
 // The term “Single Shot” signifies a single pulse output of some duration.
 
 pub struct TimersShim<'a> {
@@ -54,51 +55,23 @@ impl TimersShim<'_> {
         use TimerMode::*;
         use TimerState::*;
 
-         match state {
-            WithPeriod(period) => {
-                match mode {
-
-                    Repeated => {
-
-
-                        let guard1 = {
-                            let flag_cl = self.flags1.clone();
-
-                            self.timer1[timer].schedule_repeating(chrono::Duration::milliseconds(period.get() as i64), move || {
-
-                                (*flag_cl.lock().unwrap())[timer]=true;
-                            })
-                        };
-
-                        self.guards[timer] = Some(guard1);
-
-
-                    },
-                    SingleShot => {
-                        //let timer1 = timer::Timer::new();
-                        let (tx, rx) = channel();
-                        let guard1 = self.timer1[timer].schedule_with_delay(chrono::Duration::milliseconds(period.get() as i64), move || {
-                            let _ignored = tx.send(());
-                        });
-
-                        rx.recv().unwrap();
-
-                        self.guards[timer] = Some(guard1);
-                        match self.flags {
-                            Some(flag) => flag[timer].store(true, Ordering::SeqCst),
-                            None => {},
-                        };
-                    }
-                }
-
-            },
-            Disabled => {}
-
+        if let WithPeriod(period) = state {
+            let duration = chrono::Duration::milliseconds(period.get() as i64);
+            let flag_cl = self.flags1.clone();
+            let guard = match mode {
+                Repeated => {
+                    self.timer1[timer].schedule_repeating(duration, move || {
+                        (*flag_cl.lock().unwrap())[timer] = true;
+                    })
+                },
+                SingleShot => {
+                    self.timer1[timer].schedule_with_delay(duration, move || {
+                        (*flag_cl.lock().unwrap())[timer] = true;
+                    })
+                },
+            };
+            self.guards[timer] = Some(guard);
         }
-
-
-
-
     }
 
     fn stop_timer(&mut self, timer: TimerId) {
@@ -152,15 +125,7 @@ impl<'a> Timers<'a> for TimersShim<'a> {
 
     fn interrupt_occurred(&self, timer: TimerId) -> bool {
         use TimerMode::*;
-        let occurred = match self.modes[timer] {
-            Repeated => {
-                (*self.flags1.lock().unwrap())[timer]
-            },
-            SingleShot => {
-                let flags = self.flags.unwrap();
-                flags[timer].load(Ordering::SeqCst)
-            },
-        };
+        let occurred = (*self.flags1.lock().unwrap())[timer];
         self.interrupts_enabled(timer) && occurred
     }
 
@@ -186,31 +151,35 @@ mod tests {
     }
 
     #[test]
-     fn get_singleshot() {
+    fn get_singleshot() {
         let mut shim = TimersShim::new();
         let res = shim.set_mode(T0, TimerMode::SingleShot);
         assert_eq!(shim.get_mode(T0), TimerMode::SingleShot);
     }
 
     #[test]
-     fn get_repeated() {
+    fn get_repeated() {
         let mut shim = TimersShim::new();
         let res = shim.set_mode(T0, TimerMode::Repeated);
         assert_eq!(shim.get_mode(T0), TimerMode::Repeated);
     }
 
+    static FLAGS_GSPS: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
     #[test]
-     fn get_set_period_singleshot() {
+    fn get_set_period_singleshot() {
         let mut shim = TimersShim::new();
+        shim.register_interrupt_flags(&FLAGS_GSPS);
         let res = shim.set_mode(T0, TimerMode::SingleShot);
         let period = NonZeroU16::new(200).unwrap();
         shim.set_state(T0, TimerState::WithPeriod(period));
         assert_eq!(shim.get_state(T0), TimerState::WithPeriod(period));
     }
 
+    static FLAGS_GSPR: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
     #[test]
-     fn get_set_period_repeated() {
+    fn get_set_period_repeated() {
         let mut shim = TimersShim::new();
+        shim.register_interrupt_flags(&FLAGS_GSPR);
         let res = shim.set_mode(T0, TimerMode::Repeated);
         let period = NonZeroU16::new(200).unwrap();
         shim.set_state(T0, TimerState::WithPeriod(period));
@@ -228,7 +197,7 @@ mod tests {
 
        shim.set_state(T0, TimerState::WithPeriod(period));
 
-       let sleep = Duration::from_millis(200);
+       let sleep = Duration::from_millis(205);
        thread::sleep(sleep);
        assert_eq!(shim.interrupt_occurred(T0), true);
    }
