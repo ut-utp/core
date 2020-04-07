@@ -1,41 +1,43 @@
-use lc3_traits::peripherals::timers::{Timers, TimerArr, TimerId, TimerMode, TimerState, Period};
 
-// timing errors occuring during scan cycles (input and ouput errors)
-// errors handling overwriting handlers? Can timers have multiple handlers?
-use lc3_isa::Word;
-//use std::time::Duration;
+use lc3_traits::peripherals::timers::{
+    Timers, TimerArr, TimerId, TimerMode, TimerState, Period
+};
+use lc3_traits::control::Snapshot;
+
+use timer;
 
 use std::sync::Arc;
-use std::sync::Mutex;
-use core::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use core::num::NonZeroU16;
-use time;
-use timer;
-use std::sync::mpsc::{channel, Sender, Receiver};
-use std::thread;
-use std::time::Duration;
-use lc3_traits::control::Snapshot;
-// The term “Single Shot” signifies a single pulse output of some duration.
+use std::time::Instant;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 pub struct TimersShim<'a> {
     states: TimerArr<TimerState>,
     modes: TimerArr<TimerMode>,
-    _flags: Option<TimerArr<&'a AtomicBool>>,
-    flags: Arc<Mutex<TimerArr<bool>>>,
+
+    external_flags: Option<&'a TimerArr<AtomicBool>>,
+    internal_flags: Arc<TimerArr<AtomicBool>>,
+
     guards: TimerArr<Option<timer::Guard>>,
     timers: TimerArr<timer::Timer>,
+
+    start_times: TimerArr<Option<Instant>>,
 }
+
+macro_rules! arr { ($v:expr) => { TimerArr([$v, $v]) }; }
 
 impl Default for TimersShim<'_> {
     fn default() -> Self {
        Self {
-            states: TimerArr([TimerState::Disabled; TimerId::NUM_TIMERS]),
-            modes: TimerArr([TimerMode::SingleShot; TimerId::NUM_TIMERS]),
-            _flags: None,
-            flags: Arc::new(Mutex::new(TimerArr([false, false]))),
-            guards: TimerArr([None, None]),
-            timers: TimerArr([timer::Timer::new(), timer::Timer::new()]),
+            states: arr!(TimerState::Disabled),
+            modes: arr!(TimerMode::SingleShot),
+
+            external_flags: None,
+            internal_flags: Arc::new(arr!(AtomicBool::new(false))),
+
+            guards: arr!(None),
+            timers: arr!(timer::Timer::new()),
+
+            start_times: arr!(None),
         }
     }
 }
@@ -45,29 +47,33 @@ impl TimersShim<'_> {
         Self::default()
     }
 
-    pub fn start_timer(&mut self, timer: TimerId, period: Period) {
+    fn start_timer(&mut self, timer: TimerId, period: Period) {
         use TimerMode::*;
+
         let duration = chrono::Duration::milliseconds(period.get() as i64);
-        let flags_cl = self.flags.clone();
+        let flags = self.internal_flags.clone();
+
+        // Register the current time as the start time for this timer:
+        self.start_times[timer] = Some(Instant::now());
+
         let guard = match self.get_mode(timer) {
             Repeated => {
                 self.timers[timer].schedule_repeating(duration, move || {
-                    (*flags_cl.lock().unwrap())[timer] = true;
+                    flags[timer].store(true, Ordering::SeqCst)
                 })
             },
             SingleShot => {
                 self.timers[timer].schedule_with_delay(duration, move || {
-                    (*flags_cl.lock().unwrap())[timer] = true;
+                    flags[timer].store(true, Ordering::SeqCst)
                 })
             },
         };
+
         self.guards[timer] = Some(guard);
     }
 
     fn stop_timer(&mut self, timer: TimerId) {
-        if let Some(guard) = self.guards[timer].take() {
-            drop(guard);
-        }
+        drop(self.guards[timer].take())
     }
 
 }
@@ -85,7 +91,9 @@ impl<'a> Timers<'a> for TimersShim<'a> {
     fn set_state(&mut self, timer: TimerId, state: TimerState) {
         use TimerState::*;
 
+        // Stop any existing `timer::Timer`s for this timer:
         self.stop_timer(timer);
+
         if let WithPeriod(period) = state {
             self.start_timer(timer, period);
         }
@@ -97,17 +105,33 @@ impl<'a> Timers<'a> for TimersShim<'a> {
         self.states[timer]
     }
 
-    fn register_interrupt_flags(&mut self, _: &'a TimerArr<AtomicBool>) {
-        // TODO: try to use these flags?
+    fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
+        self.external_flags = match self.external_flags {
+            None => Some(flags),
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flags)
+            }
+        }
     }
 
+    // Whenever we're 'polled' about the state of a timer, we'll update the
+    // external flags.
     fn interrupt_occurred(&self, timer: TimerId) -> bool {
-        let occurred = (*self.flags.lock().unwrap())[timer];
+        use Ordering::SeqCst;
+
+        let occurred = self.external_flags.unwrap()[timer].load(SeqCst);
+        self.internal_flags[timer].store(occurred, SeqCst);
+
         self.interrupts_enabled(timer) && occurred
     }
 
+    // Here, we'll clear both the internal and external flags.
     fn reset_interrupt_flag(&mut self, timer: TimerId) {
-        (*self.flags.lock().unwrap())[timer] = false;
+        use Ordering::SeqCst;
+
+        self.external_flags.unwrap()[timer].store(false, SeqCst);
+        self.internal_flags[timer].store(false, SeqCst);
     }
 }
 
