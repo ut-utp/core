@@ -131,9 +131,11 @@ peripheral_trait! {timers,
 /// disabled state (and flags are registered), then its interrupts are enabled.
 /// This method is used to show the simulator when it is necessary to check
 /// whether interrupts occur on this peripheral. Note this function has a
-/// default implementation that does literally the above (returns `true` when a
-/// pin's state indicates that it is not [`Disabled`]. This should be suitable
-/// for most implementors.
+/// default implementation that does almost literally the above; it returns
+/// `true` when a pin's state indicates that it is not [`Disabled`] but also
+/// returns `true` when a pin is [`Disabled`] but has a unchecked pending
+/// interrupt (as a [`SingleShot`] timer will have since it disables itself as
+/// soon as it triggers). This should be suitable for most implementors.
 ///
 /// ## Modes
 ///
@@ -257,7 +259,8 @@ pub trait Timers<'a>: Default {
     fn reset_interrupt_flag(&mut self, timer: TimerId);
     #[inline]
     fn interrupts_enabled(&self, timer: TimerId) -> bool {
-        matches!(self.get_state(timer), TimerState::WithPeriod(_))
+        matches!(self.get_state(timer), TimerState::WithPeriod(_)) ||
+        (self.get_state(timer) == TimerState::Disabled && self.interrupt_occurred(timer))
     }
 }}
 

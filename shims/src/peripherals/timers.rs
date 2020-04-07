@@ -131,7 +131,7 @@ impl<'a> Timers<'a> for TimersShim<'a> {
         let occurred = self.internal_flags[timer].load(SeqCst);
         self.external_flags.unwrap()[timer].store(occurred, SeqCst);
 
-        self.interrupts_enabled(timer) && occurred
+        /*self.interrupts_enabled(timer) && */occurred
     }
 
     // Here, we'll clear both the internal and external flags.
@@ -154,8 +154,6 @@ mod tests {
         assert_eq, assert_is_about, run_periodically_for_a_time
     };
 
-    use std::time::Duration;
-    use std::num::NonZeroU16;
     use std::thread::sleep;
 
     #[test]
@@ -199,7 +197,7 @@ mod tests {
         }};
     }
 
-    macro_rules! p { ($expr:expr) => {WithPeriod(NonZeroU16::new($expr).unwrap())}; }
+    macro_rules! p { ($expr:expr) => {WithPeriod(Period::new($expr).unwrap())}; }
 
     #[test]
     fn get_set_period_singleshot() {
@@ -253,12 +251,22 @@ mod tests {
         // Give it some wiggle room:
         sleep(Duration::from_millis(1));
 
+        let mut fired = false;
+
         let record = run_periodically_for_a_time(
             Duration::from_millis(20),   // Every 20 milliseconds..
             Duration::from_millis(500),  // ..for the next 500 milliseconds..
             move |_| {
                 let res = shim.interrupt_occurred(T0);
-                if res { shim.reset_interrupt_flag(T0); }
+                if res { shim.reset_interrupt_flag(T0); fired = true; }
+
+                if fired {
+                    assert_eq!(shim.get_state(T0), Disabled,
+                        "Once a SingleShot timer fires, it should disable itself.");
+
+                    assert_eq!(shim.interrupts_enabled(T0), false,
+                        "Once a SingleShot timer fires and is checked, interrupts should be disabled.");
+                }
 
                 res
             }, // ..check if T0 fired and so on.
