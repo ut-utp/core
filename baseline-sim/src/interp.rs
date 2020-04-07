@@ -1013,8 +1013,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             devices!(
                 KBSR, KBDR,
                 DSR, DDR,
-                BSP, PSR,
-                MCR,
+                BSP, PSR, MCR,
                 G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
                 A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
                 P0CR, P0DR, P1CR, P1DR,
@@ -1043,7 +1042,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             devices!(
                 KBSR, KBDR,
                 DSR, DDR,
-                BSP, PSR,
+                BSP, PSR, MCR,
                 G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
                 A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
                 P0CR, P0DR, P1CR, P1DR,
