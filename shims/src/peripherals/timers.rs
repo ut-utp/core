@@ -138,92 +138,211 @@ impl<'a> Timers<'a> for TimersShim<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lc3_traits::peripherals::timers::{TimerId::*, Timers};
+    use lc3_traits::peripherals::timers::{
+        TimerId::*, TimerMode::*, TimerState::*
+    };
 
-    use lc3_test_infrastructure::assert_eq;
+    use lc3_test_infrastructure::{
+        assert_eq, assert_as_about, run_periodically_for_a_time
+    };
+
+    use std::time::Duration;
+    use std::num::NonZeroU16;
 
     #[test]
     fn get_disabled() {
         let shim = TimersShim::new();
-        assert_eq!(shim.get_state(T0), TimerState::Disabled);
+        assert_eq!(shim.get_state(T0), Disabled);
+        assert_eq!(shim.get_state(T1), Disabled);
+    }
+
+    #[test]
+    fn default_mode_is_singleshot() {
+        assert_eq!(TimersShim::new().get_mode(T0), SingleShot);
     }
 
     #[test]
     fn get_singleshot() {
         let mut shim = TimersShim::new();
-        let res = shim.set_mode(T0, TimerMode::SingleShot);
-        assert_eq!(shim.get_mode(T0), TimerMode::SingleShot);
+        let res = shim.set_mode(T0, SingleShot);
+        assert_eq!(shim.get_mode(T0), SingleShot);
     }
 
     #[test]
     fn get_repeated() {
         let mut shim = TimersShim::new();
-        let res = shim.set_mode(T0, TimerMode::Repeated);
-        assert_eq!(shim.get_mode(T0), TimerMode::Repeated);
+        let res = shim.set_mode(T0, Repeated);
+        assert_eq!(shim.get_mode(T0), Repeated);
+
+        // T1 should still be in single shot mode.
+        assert_eq!(shim.get_mode(T1), SingleShot);
     }
 
-    static FLAGS_GSPS: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
+    macro_rules! shim {
+        () => {{
+            let mut _shim = TimersShim::new();
+            _shim.register_interrupt_flags(shim!(flags));
+            _shim
+        }};
+        (flags) => {{
+            static _FLAGS: TimerArr<AtomicBool> = arr!(AtomicBool::new(false));
+            _FLAGS
+        }};
+    }
+
+    macro_rules! p { ($expr:expr) => {WithPeriod(NonZeroU16($expr).unwrap())}; }
+
     #[test]
     fn get_set_period_singleshot() {
-        let mut shim = TimersShim::new();
-        shim.register_interrupt_flags(&FLAGS_GSPS);
-        let res = shim.set_mode(T0, TimerMode::SingleShot);
-        let period = NonZeroU16::new(200).unwrap();
-        shim.set_state(T0, TimerState::WithPeriod(period));
-        assert_eq!(shim.get_state(T0), TimerState::WithPeriod(period));
+        let mut shim = shim!();
+
+        shim.set_mode(T0, SingleShot);
+        shim.set_state(T0, p!(200));
+
+        shim.set_mode(T1, SingleShot);
+        shim.set_state(T1, p!(1024));
+
+        assert_eq!(shim.get_state(T0), p!(200));
+        assert_eq!(shim.get_state(T1), p!(1024));
     }
 
-    static FLAGS_GSPR: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
+    #[test]
+    fn setting_mode_disables_timer() {
+        let mut shim = shim!();
+
+        shim.set_state(T0, p!(20_000));
+        assert_eq!(shim.get_mode(T0), SingleShot);
+        assert_eq!(shim.get_state(T0), p!(20_000));
+
+        // Even though this is the mode we're already in, this should disable
+        // the timer.
+        shim.set_mode(T0, SingleShot);
+        assert_eq!(shim.get_state(T0), Disabled);
+    }
+
     #[test]
     fn get_set_period_repeated() {
-        let mut shim = TimersShim::new();
-        shim.register_interrupt_flags(&FLAGS_GSPR);
-        let res = shim.set_mode(T0, TimerMode::Repeated);
-        let period = NonZeroU16::new(200).unwrap();
-        shim.set_state(T0, TimerState::WithPeriod(period));
-        assert_eq!(shim.get_state(T0), TimerState::WithPeriod(period));
+        let mut shim = shim!();
+
+        shim.set_mode(T1, Repeated);
+        shim.set_state(T1, p!(65_535));
+
+        assert_eq!(shim.get_mode(T1), Repeated);
+        assert_eq!(shim.get_state(T1), p!(65_535));
+
+        assert_eq!(shim.get_mode(T0), SingleShot);
+        assert_eq!(shim.get_state(T0), Disabled);
     }
 
-
-    static FLAGS: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
     #[test]
-    fn get_singleshot_interrupt_occured() {
-       let mut shim = TimersShim::new();
-       shim.register_interrupt_flags(&FLAGS);
-       shim.set_mode(T0, TimerMode::SingleShot);
-       let period = NonZeroU16::new(200).unwrap();
+    fn get_singleshot_interrupt_occurred() {
+        let mut shim = shim!();
 
-       shim.set_state(T0, TimerState::WithPeriod(period));
+        shim.set_mode(T0, SingleShot);
+        shim.set_state(T0, p!(200));
 
-       let sleep = Duration::from_millis(205);
-       thread::sleep(sleep);
-       assert_eq!(shim.interrupt_occurred(T0), true);
-   }
+        let record = run_periodically_for_a_time(
+            Duration::from_millis(20),   // Every 20 milliseconds..
+            Duration::from_millis(240),  // ..for the next 240 milliseconds..
+            move |_| shim.interrupt_occurred(T0), // ..check if T0 fired.
+        );
 
+        for (time, fired) in record {
+            let expected = time.as_millis() > 200;
 
-    static FLAGS2: TimerArr<AtomicBool> = TimerArr([AtomicBool::new(false), AtomicBool::new(false)]);
-    #[test]
-    fn get_repeated_interrupt_occured() {
-        let mut shim = TimersShim::new();
-        shim.register_interrupt_flags(&FLAGS2);
-        shim.set_mode(T0, TimerMode::Repeated);
-        let period = NonZeroU16::new(200).unwrap();
-
-        shim.set_state(T0, TimerState::WithPeriod(period));
-        let mut bool_arr = Vec::<bool>::new();
-        let sleep = Duration::from_millis(205);
-
-        let mut count = 0;
-        for i in 1..=5 {
-            thread::sleep(sleep);
-            if shim.interrupt_occurred(T0) {
-                count += 1;
-                shim.reset_interrupt_flag(T0);
-            }
+            assert_eq!(
+                fired,
+                expected,
+                "Expected T0 (SingleShot, 200ms) to {} fired at {}. \
+                Full record: {:?}.",
+                if expected { "have" } else { "have not" },
+                time,
+                record,
+            );
         }
-        assert_eq!(count, 5);
    }
 
 
+    #[test]
+    fn concurrent_singleshot_and_repeated() {
+        let mut shim = shim!();
 
+        shim.set_mode(T0, SingleShot);
+        shim.set_state(T0, p!(200));
+
+        shim.set_mode(T1, Repeated);
+        shim.set_state(T1, p!(50));
+
+        let record = run_periodically_for_a_time(
+            Duration::from_millis(24),
+            Duration::from_millis(240),
+            move |_| {
+                let res = (shim.interrupt_occurred(T0), shim.interrupt_occurred(T1));
+
+                if res.0 { shim.reset_interrupt_flag(T0) }
+                if res.1 { shim.reset_interrupt_flag(T1) }
+
+                res
+            }
+        );
+
+        // Check T0's record:
+        let mut fired_on_last_step = false;
+        let mut num_times_fired = 0;
+        for (t, (f0, _)) in record {
+            if fired_on_last_step {
+                assert_eq!(f0, false, "T0's `interrupt_occurred` failed to reset at {}.", t);
+            }
+
+            if f0 { num_times_fired += 1; }
+
+            fired_on_last_step = f0;
+        }
+
+        assert_eq!(num_times_fired, 1);
+        let fired_at = record.map(|(t, (f, _))| (t, f)).filter(|(t, f)| f).next().unwrap();
+        assert!(assert_is_about(fired_at.as_millis() as u16, 200, 10));
+
+        // Check T1's record:
+        let mut fired_on_last_step = false;
+        let mut num_times_fired = 0;
+        for (t, (_, f1)) in record {
+            if fired_on_last_step {
+                assert_eq!(f1, false, "T0's `interrupt_occurred` failed to reset at {}.", t);
+            }
+
+            if f1 { num_times_fired += 1; }
+
+            fired_on_last_step = f1;
+        }
+
+        assert_eq!(num_times_fired, 4);
+        record.map(|(t, (_, f))| (t, f))
+            .filter(|(t, f)| f)
+            .map(|(t, f)| t.as_millis() as u16)
+            .enumerate()
+            .map(|(idx, t)| assert_is_about(t, idx * 50, 2));
+    }
+
+   //  #[test]
+   //  fn get_repeated_interrupt_occured() {
+   //      let mut shim = shim!();
+
+   //      shim.set_mode(T0, TimerMode::Repeated);
+   //      let period = NonZeroU16::new(200).unwrap();
+
+   //      shim.set_state(T0, TimerState::WithPeriod(period));
+   //      let mut bool_arr = Vec::<bool>::new();
+   //      let sleep = Duration::from_millis(205);
+
+   //      let mut count = 0;
+   //      for i in 1..=5 {
+   //          thread::sleep(sleep);
+   //          if shim.interrupt_occurred(T0) {
+   //              count += 1;
+   //              shim.reset_interrupt_flag(T0);
+   //          }
+   //      }
+   //      assert_eq!(count, 5);
+   // }
 }

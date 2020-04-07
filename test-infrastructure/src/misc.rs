@@ -1,6 +1,7 @@
 //! Utilities for test running.
 
 use std::thread;
+use std::time::{Instant, Duration};
 
 const STACK_SIZE: usize = 32 * 1024 * 1024;
 
@@ -72,5 +73,28 @@ pub fn assert_is_about(actual: u16, expected: u16, tolerance: u16) {
     } else {
         assert!(above_min || below_max, "{:?} not above {:?} or below {:?}", actual, min, max);
     }
+}
+
+pub fn run_periodically_for_a_time<R, F: FnMut(Duration) -> R>(
+    period: Duration,
+    duration: Duration,
+    mut func: F,
+) -> Vec<(Duration, R)> {
+    let start = Instant::now();
+    let mut record = Vec::with_capacity(
+        /*duration / period*/
+        (duration.as_millis() / period.as_millis()) as usize
+    );
+
+    while Instant::now().duration_since(start) <= duration {
+        let elapsed = Instant::now().duration_since(start);
+        record.push((elapsed, (func)(elapsed)));
+
+        let next_wake_time = period * (record.len() as u32 + 1);
+        let sleep_time = next_wake_time - Instant::now().duration_since(start);
+        thread::sleep(sleep_time);
+    }
+
+    record
 }
 
