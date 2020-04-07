@@ -143,7 +143,7 @@ mod tests {
     };
 
     use lc3_test_infrastructure::{
-        assert_eq, assert_as_about, run_periodically_for_a_time
+        assert_eq, assert_is_about, run_periodically_for_a_time
     };
 
     use std::time::Duration;
@@ -186,11 +186,11 @@ mod tests {
         }};
         (flags) => {{
             static _FLAGS: TimerArr<AtomicBool> = arr!(AtomicBool::new(false));
-            _FLAGS
+            &_FLAGS
         }};
     }
 
-    macro_rules! p { ($expr:expr) => {WithPeriod(NonZeroU16($expr).unwrap())}; }
+    macro_rules! p { ($expr:expr) => {WithPeriod(NonZeroU16::new($expr).unwrap())}; }
 
     #[test]
     fn get_set_period_singleshot() {
@@ -247,13 +247,13 @@ mod tests {
             move |_| shim.interrupt_occurred(T0), // ..check if T0 fired.
         );
 
-        for (time, fired) in record {
+        for (time, fired) in &record {
             let expected = time.as_millis() > 200;
 
             assert_eq!(
-                fired,
+                *fired,
                 expected,
-                "Expected T0 (SingleShot, 200ms) to {} fired at {}. \
+                "Expected T0 (SingleShot, 200ms) to {} fired at {:?}. \
                 Full record: {:?}.",
                 if expected { "have" } else { "have not" },
                 time,
@@ -289,39 +289,40 @@ mod tests {
         // Check T0's record:
         let mut fired_on_last_step = false;
         let mut num_times_fired = 0;
-        for (t, (f0, _)) in record {
+        for (t, (f0, _)) in &record {
             if fired_on_last_step {
-                assert_eq!(f0, false, "T0's `interrupt_occurred` failed to reset at {}.", t);
+                assert_eq!(*f0, false, "T0's `interrupt_occurred` failed to reset at {:?}.", t);
             }
 
-            if f0 { num_times_fired += 1; }
+            if *f0 { num_times_fired += 1; }
 
-            fired_on_last_step = f0;
+            fired_on_last_step = *f0;
         }
 
         assert_eq!(num_times_fired, 1);
-        let fired_at = record.map(|(t, (f, _))| (t, f)).filter(|(t, f)| f).next().unwrap();
-        assert!(assert_is_about(fired_at.as_millis() as u16, 200, 10));
+        let fired_at = record.iter().map(|(t, (f, _))| (t, f)).filter(|(_, f)| **f).next().unwrap();
+        assert_is_about(fired_at.0.as_millis() as u16, 200, 10);
 
         // Check T1's record:
         let mut fired_on_last_step = false;
         let mut num_times_fired = 0;
-        for (t, (_, f1)) in record {
+        for (t, (_, f1)) in &record {
             if fired_on_last_step {
-                assert_eq!(f1, false, "T0's `interrupt_occurred` failed to reset at {}.", t);
+                assert_eq!(*f1, false, "T0's `interrupt_occurred` failed to reset at {:?}.", t);
             }
 
-            if f1 { num_times_fired += 1; }
+            if *f1 { num_times_fired += 1; }
 
-            fired_on_last_step = f1;
+            fired_on_last_step = *f1;
         }
 
         assert_eq!(num_times_fired, 4);
-        record.map(|(t, (_, f))| (t, f))
-            .filter(|(t, f)| f)
+        record.iter()
+            .map(|(t, (_, f))| (t, f))
+            .filter(|(t, f)| **f)
             .map(|(t, f)| t.as_millis() as u16)
             .enumerate()
-            .map(|(idx, t)| assert_is_about(t, idx * 50, 2));
+            .map(|(idx, t)| assert_is_about(t, idx as u16 * 50, 2));
     }
 
    //  #[test]
