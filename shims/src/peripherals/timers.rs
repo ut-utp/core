@@ -149,6 +149,7 @@ mod tests {
 
     use std::time::Duration;
     use std::num::NonZeroU16;
+    use std::thread::sleep;
 
     #[test]
     fn get_disabled() {
@@ -242,14 +243,23 @@ mod tests {
         shim.set_mode(T0, SingleShot);
         shim.set_state(T0, p!(200));
 
+        // Give it some wiggle room:
+        sleep(Duration::from_millis(1));
+
         let record = run_periodically_for_a_time(
             Duration::from_millis(20),   // Every 20 milliseconds..
-            Duration::from_millis(240),  // ..for the next 240 milliseconds..
-            move |_| shim.interrupt_occurred(T0), // ..check if T0 fired.
+            Duration::from_millis(500),  // ..for the next 500 milliseconds..
+            move |_| {
+                let res = shim.interrupt_occurred(T0);
+                if res { shim.reset_interrupt_flag(T0); }
+
+                res
+            }, // ..check if T0 fired and so on.
         );
 
+        let mut already_fired = false;
         for (time, fired) in &record {
-            let expected = time.as_millis() > 200;
+            let expected = (time.as_millis() >= 200) && !already_fired;
 
             assert_eq!(
                 *fired,
@@ -260,9 +270,10 @@ mod tests {
                 time,
                 record,
             );
+
+            if *fired { already_fired = true; }
         }
    }
-
 
     #[test]
     fn concurrent_singleshot_and_repeated() {
@@ -274,8 +285,11 @@ mod tests {
         shim.set_mode(T1, Repeated);
         shim.set_state(T1, p!(50));
 
+        // Give it some wiggle room:
+        sleep(Duration::from_millis(1));
+
         let record = run_periodically_for_a_time(
-            Duration::from_millis(24),
+            Duration::from_millis(10),
             Duration::from_millis(240),
             move |_| {
                 let res = (shim.interrupt_occurred(T0), shim.interrupt_occurred(T1));
@@ -302,7 +316,7 @@ mod tests {
 
         assert_eq!(num_times_fired, 1);
         let fired_at = record.iter().map(|(t, (f, _))| (t, f)).filter(|(_, f)| **f).next().unwrap();
-        assert_is_about(fired_at.0.as_millis() as u16, 200, 10);
+        assert_is_about(fired_at.0.as_millis() as u16, 200, 2);
 
         // Check T1's record:
         let mut fired_on_last_step = false;
@@ -323,28 +337,30 @@ mod tests {
             .filter(|(_, f)| **f)
             .map(|(t, _)| t.as_millis() as u16)
             .enumerate()
-            .for_each(|(idx, t)| assert_is_about(t, idx as u16 * 50, 2));
+            .for_each(|(idx, t)| assert_is_about(t, (idx + 1) as u16 * 50, 2));
     }
 
-   //  #[test]
-   //  fn get_repeated_interrupt_occured() {
-   //      let mut shim = shim!();
+    #[test]
+    fn get_repeated_interrupt_occurred() {
+        let mut shim = shim!();
 
-   //      shim.set_mode(T0, TimerMode::Repeated);
-   //      let period = NonZeroU16::new(200).unwrap();
+        shim.set_mode(T0, Repeated);
+        shim.set_state(T0, p!(200));
 
-   //      shim.set_state(T0, TimerState::WithPeriod(period));
-   //      let mut bool_arr = Vec::<bool>::new();
-   //      let sleep = Duration::from_millis(205);
+        let sleep_time = Duration::from_millis(200);
 
-   //      let mut count = 0;
-   //      for i in 1..=5 {
-   //          thread::sleep(sleep);
-   //          if shim.interrupt_occurred(T0) {
-   //              count += 1;
-   //              shim.reset_interrupt_flag(T0);
-   //          }
-   //      }
-   //      assert_eq!(count, 5);
-   // }
+        // Wiggle room.
+        sleep(Duration::from_millis(2));
+
+        let mut count = 0;
+        for _ in 1..=5 {
+            sleep(sleep_time);
+            if shim.interrupt_occurred(T0) {
+                count += 1;
+                shim.reset_interrupt_flag(T0);
+            }
+        }
+
+        assert_eq!(count, 5);
+    }
 }
