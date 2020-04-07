@@ -1,17 +1,17 @@
 
 use lc3_traits::peripherals::timers::{
-    Timers, TimerArr, TimerId, TimerMode, TimerState, Period
+    Timers, TimerArr, TimerId, TimerMode, TimerState, Period, TIMERS
 };
 use lc3_traits::control::Snapshot;
 
 use timer;
 
-use std::sync::Arc;
-use std::time::Instant;
+use std::sync::{Arc, Mutex};
+use std::time::{Instant, Duration};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 pub struct TimersShim<'a> {
-    states: TimerArr<TimerState>,
+    states: Arc<TimerArr<Mutex<TimerState>>>,
     modes: TimerArr<TimerMode>,
 
     external_flags: Option<&'a TimerArr<AtomicBool>>,
@@ -28,7 +28,7 @@ macro_rules! arr { ($v:expr) => { TimerArr([$v, $v]) }; }
 impl Default for TimersShim<'_> {
     fn default() -> Self {
        Self {
-            states: arr!(TimerState::Disabled),
+            states: Arc::new(arr!(Mutex::new(TimerState::Disabled))),
             modes: arr!(TimerMode::SingleShot),
 
             external_flags: None,
@@ -64,8 +64,14 @@ impl TimersShim<'_> {
                 })
             },
             SingleShot => {
+                let states = self.states.clone();
+
                 self.timers[timer].schedule_with_delay(duration, move || {
-                    flags[timer].store(true, Ordering::SeqCst)
+                    flags[timer].store(true, Ordering::SeqCst);
+
+                    let mut state = states[timer].lock().unwrap();
+
+                    *state = TimerState::Disabled;
                 })
             },
         };
@@ -99,11 +105,12 @@ impl<'a> Timers<'a> for TimersShim<'a> {
             self.start_timer(timer, period);
         }
 
-        self.states[timer] = state;
+        let mut guard = self.states[timer].lock().unwrap();
+        *guard = state;
     }
 
     fn get_state(&self, timer: TimerId) -> TimerState {
-        self.states[timer]
+        *self.states[timer].lock().unwrap()
     }
 
     fn register_interrupt_flags(&mut self, flags: &'a TimerArr<AtomicBool>) {
