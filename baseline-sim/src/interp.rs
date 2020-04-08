@@ -125,7 +125,7 @@ pub trait InstructionInterpreter:
     fn halt(&mut self); // TODO: have the MCR set this, etc.
 
     fn set_error(&mut self, err: Error);
-    fn get_error(&self) -> Option<Error>;
+    fn get_error(&self) -> Option<&Error>;
 
     // Taken straight from Memory:
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
@@ -1110,8 +1110,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.error = Some(err);
     }
 
-    fn get_error(&self) -> Option<Error> {
-        self.error
+    fn get_error(&self) -> Option<&Error> {
+        self.error.as_ref()     // TODO: implement Copy on Option<Error> instead?
     }
 
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
