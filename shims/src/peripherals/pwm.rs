@@ -95,7 +95,7 @@ impl PwmShim {
 }
 
 impl Pwm for PwmShim {
-    fn set_state(&mut self, pin: PwmPin, state: PwmState) {
+    fn set_state(&mut self, pin: PwmPin, state: PwmState)  {
         use PwmState::*;
         match state {
             Enabled(period) => {
@@ -129,8 +129,9 @@ mod tests {
     use super::*;
     use lc3_traits::peripherals::pwm::{self, Pwm, PwmPin::*, PwmState};
 
-    use lc3_test_infrastructure::assert_eq;
-
+    use lc3_test_infrastructure::{
+        assert_eq, assert_is_about, run_periodically_for_a_time
+    };
     #[test]
     fn get_disabled() {
         let mut shim = PwmShim::new();
@@ -191,14 +192,256 @@ mod tests {
     }
 
     #[test]
-    fn test_duty_cycle() {
+    fn P0_toggle_once_check() {
         let mut shim = PwmShim::new();
 
         let res = shim.set_state(P0, pwm::PwmState::Enabled((NonZeroU8::new(MAX_PERIOD)).unwrap()));
 
         shim.set_duty_cycle(P0, MAX_DUTY_CYCLE / 2);
-        thread::sleep(Duration::from_millis(MAX_DUTY_CYCLE as u64)); // run twice then disable
+        let pin_state = shim.get_pin(P0);
+        thread::sleep(Duration::from_millis(1 as u64));
+        let mut toggle_flag = 0;
+        for i in 0..4 { // let it  run for 2 complete cycles
+            if shim.get_pin(P0) != pin_state {
+                toggle_flag = 1;
+            }
+            thread::sleep(Duration::from_millis((MAX_DUTY_CYCLE/2) as u64));
+        }
+        assert_eq!(toggle_flag,  1);
         shim.set_state(P0, pwm::PwmState::Disabled);
     }
+
+
+    #[test]
+    fn P1_toggle_once_check() {
+        let mut shim = PwmShim::new();
+
+        let res = shim.set_state(P1, pwm::PwmState::Enabled((NonZeroU8::new(MAX_PERIOD)).unwrap()));
+
+        shim.set_duty_cycle(P1, MAX_DUTY_CYCLE / 2);
+        let pin_state = shim.get_pin(P1);
+
+        thread::sleep(Duration::from_millis(1 as u64));
+        let mut toggle_flag = 0;
+        for i in 0..4 { // let it run for 2 complete cycles
+            if shim.get_pin(P1) != pin_state {
+                toggle_flag = 1;
+            }
+            thread::sleep(Duration::from_millis((MAX_DUTY_CYCLE/2) as u64));
+        }
+        assert_eq!(toggle_flag,  1);
+       
+        shim.set_state(P1, pwm::PwmState::Disabled);
+    }
+
+
+    #[test]
+    fn P0_duty_cycle() {
+
+        let mut shim = PwmShim::new();
+
+        shim.set_state(P0, pwm::PwmState::Enabled((NonZeroU8::new(MAX_DUTY_CYCLE)).unwrap()));
+        
+        let num_cycles = 5;
+        let duty_cycle_ratio: u8 = 5;
+
+        
+
+        let mut p0_count = 0;
+
+        let oncycle = (MAX_DUTY_CYCLE/duty_cycle_ratio) as u64;
+        let offcycle = (MAX_DUTY_CYCLE - MAX_DUTY_CYCLE/duty_cycle_ratio) as u64;
+
+        shim.set_duty_cycle(P0, MAX_DUTY_CYCLE/duty_cycle_ratio);
+        thread::sleep(Duration::from_millis(1 as u64));  // give wiggle room
+        
+        let mut actual_cycles = Arc::new(Mutex::new(0));
+
+        let timer = timer::Timer::new();
+        let duration = chrono::Duration::milliseconds(MAX_DUTY_CYCLE as i64);
+        
+        
+        
+        let guard = {
+            let actual_cycles = actual_cycles.clone();
+            timer.schedule_repeating(duration, move | | {
+                *actual_cycles.lock().unwrap() += 1;
+            })
+        };
+        while p0_count < num_cycles {
+            let state_p0 = shim.get_pin(P0); // on
+            if state_p0 == true {
+                thread::sleep(Duration::from_millis(oncycle));
+            } else {
+                thread::sleep(Duration::from_millis(offcycle));
+            }
+            let new_state_p0 = shim.get_pin(P0);
+
+            if new_state_p0 == true {
+                thread::sleep(Duration::from_millis(oncycle));
+            } else {
+                thread::sleep(Duration::from_millis(offcycle));
+            }
+
+            if state_p0 != new_state_p0 { // we are looking for num_cycles # of toggles 
+                p0_count += 1;
+            } 
+
+
+
+        };
+        shim.set_state(P0, pwm::PwmState::Disabled);
+        drop(guard);
+
+        let p0_check = p0_count >= num_cycles;
+      
+       assert_eq!(p0_check, true);
+       assert_eq!(*actual_cycles.lock().unwrap(), num_cycles); 
+       
+
+    }
+
+    #[test]
+    fn P1_duty_cycle() {
+
+        let mut shim = PwmShim::new();
+
+        shim.set_state(P1, pwm::PwmState::Enabled((NonZeroU8::new(MAX_DUTY_CYCLE)).unwrap()));
+        
+        let num_cycles = 5;
+        let duty_cycle_ratio: u8 = 5;
+        let mut p1_count = 0;
+
+        let oncycle = (MAX_DUTY_CYCLE/duty_cycle_ratio) as u64;
+        let offcycle = (MAX_DUTY_CYCLE - MAX_DUTY_CYCLE/duty_cycle_ratio) as u64;
+
+        shim.set_duty_cycle(P1, MAX_DUTY_CYCLE/duty_cycle_ratio);
+        thread::sleep(Duration::from_millis(1 as u64));  // give wiggle room
+        
+        let mut actual_cycles = Arc::new(Mutex::new(0));
+
+        let timer = timer::Timer::new();
+        let duration = chrono::Duration::milliseconds(MAX_DUTY_CYCLE as i64);
+        
+        
+        
+        let guard = {
+            let actual_cycles = actual_cycles.clone();
+            timer.schedule_repeating(duration, move | | {
+                *actual_cycles.lock().unwrap() += 1;
+            })
+        };
+        while p1_count < num_cycles {
+            let state_p1 = shim.get_pin(P1); // on
+            if state_p1 == true {
+                thread::sleep(Duration::from_millis(oncycle));
+            } else {
+                thread::sleep(Duration::from_millis(offcycle));
+            }
+            let new_state_p1 = shim.get_pin(P1);
+
+            if new_state_p1 == true {
+                thread::sleep(Duration::from_millis(oncycle));
+            } else {
+                thread::sleep(Duration::from_millis(offcycle));
+            }
+
+            if state_p1 != new_state_p1 { // we are looking for num_cycles # of toggles 
+                p1_count += 1;
+            } 
+
+
+
+        };
+        shim.set_state(P1, pwm::PwmState::Disabled);
+        drop(guard);
+
+        let p1_check = p1_count >= num_cycles;
+      
+       assert_eq!(p1_check, true);
+       assert_eq!(*actual_cycles.lock().unwrap(), num_cycles); 
+       
+
+    }
+        // #[test]
+        // fn test_multi_duty_cycle() {
+
+        //     let mut shim = PwmShim::new();
+
+        //     shim.set_state(P0, pwm::PwmState::Enabled((NonZeroU8::new(MAX_DUTY_CYCLE)).unwrap()));
+        //     shim.set_state(P1, pwm::PwmState::Enabled((NonZeroU8::new(MAX_DUTY_CYCLE)).unwrap()));
+            
+        //     let num_cycles = 5;
+        //     let duty_cycle_ratio: u8 = 5;
+
+            
+
+        //     let mut p0_count = 0;
+        //     let mut p1_count = 0;
+        //     let oncycle = (MAX_DUTY_CYCLE/duty_cycle_ratio) as u64;
+        //     let offcycle = (MAX_DUTY_CYCLE - MAX_DUTY_CYCLE/duty_cycle_ratio) as u64;
+        //     shim.set_duty_cycle(P0, MAX_DUTY_CYCLE/duty_cycle_ratio);
+        //     shim.set_duty_cycle(P1, MAX_DUTY_CYCLE/duty_cycle_ratio);
+
+
+
+        //    thread::sleep(Duration::from_millis(1 as u64));  // give wiggle room
+            
+        //     let mut actual_cycles = Arc::new(Mutex::new(0));
+
+        //     let timer = timer::Timer::new();
+        //     let duration = chrono::Duration::milliseconds(MAX_DUTY_CYCLE as i64);
+            
+            
+            
+        //     let guard = {
+        //         let actual_cycles = actual_cycles.clone();
+        //         timer.schedule_repeating(duration, move | | {
+        //             *actual_cycles.lock().unwrap() += 1;
+        //         })
+        //     };
+            
+
+
+        //     while p0_count < num_cycles || p1_count < num_cycles {
+        //         let state_p0 = shim.get_pin(P0); // on
+        //         let state_p1 = shim.get_pin(P1); // on
+                
+        //         if state_p0 == true || state_p1 == true{ // not good, these aren't happening at similar enough times 
+        //             thread::sleep(Duration::from_millis(oncycle));
+        //         } else {
+        //             thread::sleep(Duration::from_millis(offcycle));
+        //         }
+
+        //         let new_state_p0 = shim.get_pin(P0);
+        //         let new_state_p1 = shim.get_pin(P1);
+
+        //         if new_state_p0 == true || new_state_p1 == true { 
+        //             thread::sleep(Duration::from_millis(oncycle));
+        //         } else {
+        //             thread::sleep(Duration::from_millis(offcycle));
+        //         }
+
+
+        //         if state_p0 != new_state_p0 { // we are looking for num_cycles # of toggles 
+        //             p0_count += 1;
+        //         } 
+
+        //         if state_p1 != new_state_p1 {
+        //             p1_count += 1;
+        //         }
+
+
+        //     };
+        //     shim.set_state(P0, pwm::PwmState::Disabled);
+        //     shim.set_state(P1, pwm::PwmState::Disabled);
+        //     drop(guard);
+
+        //     let p0_check = p0_count >= num_cycles;
+        //     let p1_check = p1_count >= num_cycles;
+        //    assert_eq!(p0_check, true);
+        //    assert_eq!(*actual_cycles.lock().unwrap(), num_cycles);
+        // }
+
 
 }
