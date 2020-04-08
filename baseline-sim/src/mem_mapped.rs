@@ -343,7 +343,13 @@ impl MemMapped for KBDR {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        let data = (Input::read_data(interp.get_peripherals()).unwrap_or(0)) as Word;
+        let data = match Input::read_data(interp.get_peripherals()) {
+            Ok(val) => val as Word,
+            Err(err) => {
+                // TODO: Set error in interp
+                0
+            }
+        };
 
         Ok(Self::with_value(data))
     }
@@ -598,9 +604,13 @@ macro_rules! gpio_mem_mapped {
                     _ => unreachable!()
                 };
 
-                Gpio::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
-
-                Ok(())
+                match Gpio::set_state(interp.get_peripherals_mut(), $pin, state) {
+                    Ok(()) => Ok(()),
+                    Err(err) => {
+                        // TODO: set err in interp
+                        Ok(())
+                    }
+                }
             }
         }
 
@@ -660,10 +670,12 @@ macro_rules! gpio_mem_mapped {
             {
                 use lc3_traits::peripherals::gpio::GpioState::*;
 
-                let state = Gpio::get_state(interp.get_peripherals(), $pin);
-                let word: Word = match state {
-                    Input | Interrupt => Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000),
-                    Output | Disabled => Word::max_value(),
+                let word = match Gpio::read(interp.get_peripherals(), $pin) {
+                    Ok(val) => val as Word,
+                    Err(err) => {
+                        // TODO: set err in interp
+                        0x8000
+                    }
                 };
 
                 Ok(Self::with_value(word))
@@ -676,12 +688,14 @@ macro_rules! gpio_mem_mapped {
             {
                 use lc3_traits::peripherals::gpio::GpioState::*;
 
-                let state = Gpio::get_state(interp.get_peripherals(), $pin);
-                if state == Output {
-                    let bit: bool = value.bit(0);
-                    Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
+                let bit: bool = value.bit(0);
+                match Gpio::write(interp.get_peripherals_mut(), $pin, bit) {
+                    Ok(()) => Ok(()),
+                    Err(err) => {
+                        // TODO: set err in interp
+                        Ok(())
+                    }
                 }
-                Ok(())
             }
         }
     };
@@ -699,8 +713,8 @@ gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR, G6_INT_VEC);
 gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR, G7_INT_VEC);
 
 pub struct GPIODR(Word);
-
 impl Deref for GPIODR {
+
     type Target = Word;
 
     fn deref(&self) -> &Self::Target { &self.0 }
@@ -815,9 +829,13 @@ macro_rules! adc_mem_mapped {
                     true => Enabled,
                 };
 
-                Adc::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
-
-                Ok(())
+                match Adc::set_state(interp.get_peripherals_mut(), $pin, state) {
+                    Ok(()) => Ok(()),
+                    Err(err) => {
+                       // TODO: set err in interp
+                       Ok(())
+                    }
+                }
             }
         }
 
@@ -844,10 +862,12 @@ macro_rules! adc_mem_mapped {
             {
                 use lc3_traits::peripherals::adc::AdcState::*;
 
-                let state = Adc::get_state(interp.get_peripherals(), $pin);
-                let word: Word = match state {
-                    Enabled => Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000), // TODO: document and/or change the 'error' value
-                    Disabled => Word::max_value(),
+                let word = match Adc::read(interp.get_peripherals(), $pin) {
+                    Ok(val) => val as Word,
+                    Err(err) => {
+                        // TODO: set err in interp
+                        0x8000
+                    }
                 };
 
                 Ok(Self::with_value(word))
@@ -989,11 +1009,7 @@ macro_rules! pwm_mem_mapped {
             {
                 use lc3_traits::peripherals::pwm::PwmState::*;
 
-                let state = Pwm::get_state(interp.get_peripherals(), $pin);
-                let word = match state {
-                    Enabled(ref nzu8) => Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word,
-                    Disabled => Word::max_value(),
-                };
+                let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word; // TODO: verify that as of 4/7/2020 this should not fail?
 
                 Ok(Self::with_value(word))
             }
@@ -1004,6 +1020,7 @@ macro_rules! pwm_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 let duty_val: u8 = value as u8;
+
                 Pwm::set_duty_cycle(interp.get_peripherals_mut(), $pin, duty_val);
 
                 Ok(())
@@ -1142,7 +1159,7 @@ macro_rules! timer_mem_mapped {
                 use lc3_traits::peripherals::timers::Period;
                 let state = match value {
                     0 => Disabled,
-                    nonzero => WithPeriod(Period::new(nonzero).unwrap()),
+                    nonzero => WithPeriod(Period::new(nonzero).unwrap()), // TODO: will this fail?
                 };
                 Timers::set_state(interp.get_peripherals_mut(), $id, state);
 

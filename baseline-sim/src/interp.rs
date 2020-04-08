@@ -14,6 +14,7 @@ use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
+use lc3_traits::error::Error;
 use crate::mem_mapped::Interrupt;
 
 use core::any::TypeId;
@@ -122,6 +123,9 @@ pub trait InstructionInterpreter:
     fn get_machine_state(&self) -> MachineState;
     fn reset(&mut self);
     fn halt(&mut self); // TODO: have the MCR set this, etc.
+
+    fn set_error(&mut self, err: Error);
+    fn get_error(&self) -> Option<&Error>;
 
     // Taken straight from Memory:
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
@@ -242,6 +246,7 @@ pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     regs: [Word; Reg::NUM_REGS],
     pc: Word, //TODO: what should the default for this be
     state: MachineState,
+    error: Option<Error>,
 }
 
 impl<'a, M: Memory + Default, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
@@ -545,6 +550,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             regs,
             pc,
             state,
+            error: None,
         };
 
         // TODO: we can't call this.
@@ -1088,6 +1094,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
         self.reset_peripherals();
         self.state = MachineState::Running;
+
+        self.error = None;
     }
 
     fn halt(&mut self) {
@@ -1096,6 +1104,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
 
         self.state = MachineState::Halted;
+    }
+
+    fn set_error(&mut self, err: Error) {
+        self.error = Some(err);
+    }
+
+    fn get_error(&self) -> Option<&Error> {
+        self.error.as_ref()     // TODO: implement Copy on Option<Error> instead?
     }
 
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
