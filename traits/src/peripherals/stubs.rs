@@ -47,15 +47,14 @@ impl Adc for AdcStub {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PwmStub;
 
-use super::pwm::{PwmPin, PwmState, PwmSetPeriodError, PwmPinArr, PwmSetDutyError};
+use super::pwm::{PwmPin, PwmState, PwmPinArr, PwmDutyCycle};
 impl Pwm for PwmStub {
-    fn set_state(&mut self, pin: PwmPin, _state: PwmState) -> Result<(), PwmSetPeriodError> { Err(PwmSetPeriodError(pin)) }
+    fn set_state(&mut self, _pin: PwmPin, _state: PwmState) { }
     fn get_state(&self, _pin: PwmPin) -> PwmState { PwmState::Disabled }
 
-    fn get_pin(&self, _pin: PwmPin) -> bool { false }
-    fn set_duty_cycle(&mut self, pin: PwmPin, _duty: u8) -> Result<(), PwmSetDutyError> { Err(PwmSetDutyError(pin)) }
+    fn set_duty_cycle(&mut self, _pin: PwmPin, _duty: PwmDutyCycle) { }
 
-    fn get_duty_cycle(&self, _pin: PwmPin) -> u8 { 0 }
+    fn get_duty_cycle(&self, _pin: PwmPin) -> PwmDutyCycle { 0 }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]

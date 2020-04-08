@@ -1,6 +1,6 @@
 use core::num::NonZeroU8;
 use lc3_traits::peripherals::pwm::{
-    Pwm, PwmPin, PwmPinArr, PwmSetDutyError, PwmSetPeriodError, PwmState,
+    Pwm, PwmPin, PwmPinArr, PwmState,
 };
 use std::sync::mpsc;
 use std::sync::Arc;
@@ -47,91 +47,81 @@ impl PwmShim {
     }
 
     pub fn set_duty_cycle_helper(&mut self, pin: PwmPin, period: NonZeroU8) {
-
-
         let timer = timer::Timer::new();
 
-
         let (tx, rx) = channel();
-
         let guard1 = {
-
             let pin_cl = self.bit_states.clone();
             self.timers[0].schedule_repeating(chrono::Duration::milliseconds(MAX as i64), move || {
-
-
                 (*pin_cl.lock().unwrap())[pin]=true;
-
             })
         };
 
-
         let _guard2s = timer.schedule_with_delay(chrono::Duration::milliseconds((self.duty_cycle[pin]) as i64), move || {
             let _ignored = tx.send(());
-
         });
 
         rx.recv().unwrap();
 
-
         let guard2 = {
-
             let pin_cl = self.bit_states.clone();
-
             self.timers[1].schedule_repeating(chrono::Duration::milliseconds(MAX as i64), move || {
-
                 (*pin_cl.lock().unwrap())[pin]=false;
-
             })
         };
+
         self.guards1[pin] = Some(guard1);
         self.guards2[pin] = Some(guard2);
-
-        }
+    }
 
     fn start_timer(&mut self, pin: PwmPin, state: PwmState) {
-            use PwmState::*;
-            match state {
-                Enabled(time) => {
-                    match self.guards1[pin] {
-                        Some(_) => {
-                            self.stop_timer(pin);
-                            if self.duty_cycle[pin] != 0 {
-                                self.set_duty_cycle_helper(pin, time);
+        use PwmState::*;
+        match state {
+            Enabled(time) => {
+                match self.guards1[pin] {
+                    Some(_) => {
+                        self.stop_timer(pin);
+                        if self.duty_cycle[pin] != 0 {
+                            self.set_duty_cycle_helper(pin, time);
 
-                            }
                         }
-                        None => {
-                            if self.duty_cycle[pin] != 0 {
-                                self.set_duty_cycle_helper(pin, time);
-                            }
+                    }
+                    None => {
+                        if self.duty_cycle[pin] != 0 {
+                            self.set_duty_cycle_helper(pin, time);
                         }
                     }
                 }
-                Disabled => {}
             }
+            Disabled => {}
+        }
      }
 
     fn stop_timer(&mut self, pin: PwmPin) {
-            match self.guards1[pin] {
-                Some(_) => {
-                    let g = self.guards1[pin].take().unwrap();
-                    drop(g);
-                    self.guards1[pin] = None;
-                    let g2 = self.guards2[pin].take().unwrap();
-                    drop(g2);
-                    self.guards2[pin] = None;
-                }
-                None => { }
+        match self.guards1[pin] {
+            Some(_) => {
+                let g = self.guards1[pin].take().unwrap();
+                drop(g);
+                self.guards1[pin] = None;
+                let g2 = self.guards2[pin].take().unwrap();
+                drop(g2);
+                self.guards2[pin] = None;
             }
+            None => { }
+        }
     }
+
+    fn get_pin(&self, pin: PwmPin) -> bool {
+        return (*self.bit_states.lock().unwrap())[pin];
+    }
+
 }
+
 impl Pwm for PwmShim {
-    fn set_state(&mut self, pin: PwmPin, state: PwmState) -> Result<(), PwmSetPeriodError> {
+    fn set_state(&mut self, pin: PwmPin, state: PwmState) {
         use PwmState::*;
         self.states[pin] = match state {
             Enabled(time) => {
-
                 self.start_timer(pin, state);
                 Enabled(time)
             }
@@ -140,23 +130,15 @@ impl Pwm for PwmShim {
                 Disabled
             }
         };
-        Ok(())
     }
 
     fn get_state(&self, pin: PwmPin) -> PwmState {
         self.states[pin]
     }
 
-    fn get_pin(&self, pin: PwmPin) -> bool {
-        return (*self.bit_states.lock().unwrap())[pin];
-    }
-
-    fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) -> Result<(), PwmSetDutyError> {
+    fn set_duty_cycle(&mut self, pin: PwmPin, duty: u8) {
         self.duty_cycle[pin] = duty;
-
         self.start_timer(pin, self.states[pin]);
-
-        Ok(())
     }
 
     fn get_duty_cycle(&self, pin: PwmPin) -> u8 {
@@ -184,7 +166,6 @@ mod tests {
     fn get_enabled() {
         let mut shim = PwmShim::new();
         let res = shim.set_state(P0, pwm::PwmState::Enabled(NonZeroU8::new(MAX).unwrap()));
-        assert_eq!(res, Ok(()));
         let val = shim.get_state(P0);
         assert_eq!(val, pwm::PwmState::Enabled((NonZeroU8::new(MAX)).unwrap()));
     }
@@ -193,9 +174,7 @@ mod tests {
     fn get_duty() {
         let mut shim = PwmShim::new();
         let res = shim.set_state(P0, pwm::PwmState::Enabled(NonZeroU8::new(MAX).unwrap()));
-        assert_eq!(res, Ok(()));
         let res2 = shim.set_duty_cycle(P0, 100);
-        assert_eq!(res2, Ok(()));
         assert_eq!(shim.get_duty_cycle(P0), 100);
         shim.set_state(P0, pwm::PwmState::Disabled);
     }
@@ -233,21 +212,15 @@ mod tests {
         assert_eq!(b, b2);
     }
 
-        #[test]
-        fn test_duty_cycle() {
+    #[test]
+    fn test_duty_cycle() {
+        let mut shim = PwmShim::new();
 
-            let mut shim = PwmShim::new();
+        let res = shim.set_state(P0, pwm::PwmState::Enabled((NonZeroU8::new(MAX)).unwrap()));
 
-            let res = shim.set_state(P0, pwm::PwmState::Enabled((NonZeroU8::new(MAX)).unwrap()));
-            assert_eq!(res, Ok(()));
-
-            shim.set_duty_cycle(P0, MAX/2);
-            thread::sleep(Duration::from_millis(MAX as u64)); // run twice then disable
-            shim.set_state(P0, pwm::PwmState::Disabled);
-
-        }
-
-
-
+        shim.set_duty_cycle(P0, MAX / 2);
+        thread::sleep(Duration::from_millis(MAX as u64)); // run twice then disable
+        shim.set_state(P0, pwm::PwmState::Disabled);
+    }
 
 }

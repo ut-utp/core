@@ -957,10 +957,10 @@ macro_rules! pwm_mem_mapped {
                 let state_val: u8 = value as u8;
                 let state = match state_val {
                     0 => Disabled,
-                    _ => Enabled(NonZeroU8::new(state_val).unwrap()),  // TODO: Will this fail?
+                    _ => Enabled(NonZeroU8::new(state_val).unwrap()),
                 };
 
-                Pwm::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
+                Pwm::set_state(interp.get_peripherals_mut(), $pin, state);
 
                 Ok(())
             }
@@ -1004,7 +1004,7 @@ macro_rules! pwm_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 let duty_val: u8 = value as u8;
-                Pwm::set_duty_cycle(interp.get_peripherals_mut(), $pin, duty_val); // TODO: do something on failure
+                Pwm::set_duty_cycle(interp.get_peripherals_mut(), $pin, duty_val);
 
                 Ok(())
             }
