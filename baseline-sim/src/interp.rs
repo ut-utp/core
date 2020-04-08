@@ -14,6 +14,7 @@ use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
+use lc3_traits::error::Error;
 use crate::mem_mapped::Interrupt;
 
 use core::any::TypeId;
@@ -242,6 +243,7 @@ pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     regs: [Word; Reg::NUM_REGS],
     pc: Word, //TODO: what should the default for this be
     state: MachineState,
+    error: Option<Error>,
 }
 
 impl<'a, M: Memory + Default, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
@@ -545,6 +547,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             regs,
             pc,
             state,
+            error: None,
         };
 
         // TODO: we can't call this.
@@ -781,6 +784,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         } else {
             false
         }
+    }
+
+    fn set_error(&mut self, err: Error) {
+        self.error = Some(err);
     }
 
     fn instruction_step_inner(&mut self, insn: Instruction) -> Result<(), Acv> {
@@ -1088,6 +1095,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
         self.reset_peripherals();
         self.state = MachineState::Running;
+
+        self.error = None;
     }
 
     fn halt(&mut self) {
