@@ -3,12 +3,12 @@
 //! # Quick Reference Table
 //! | Vector #   | Name | Inputs | Outputs | Description |
 //! |:----------:| :--- | :----- | :------ | :---------- |
-//! | **`0x20`** | [GETC]             | TODO!                                                                 | TODO!                              | TODO!                                                                          |
-//! | **`0x21`** | [OUT]              | TODO!                                                                 | TODO!                              | TODO!                                                                          |
-//! | **`0x22`** | [PUTS]             | TODO!                                                                 | TODO!                              | TODO!                                                                          |
-//! | **`0x23`** | [IN]               | TODO!                                                                 | TODO!                              | TODO!                                                                          |
-//! | **`0x24`** | [PUTSP]            | TODO!                                                                 | TODO!                              | TODO!                                                                          |
-//! | **`0x25`** | [HALT]             | TODO!                                                                 | TODO!                              | TODO!                                                                          |
+//! | **`0x20`** | [GETC]             | none                                                                  | [`R0`] - character from keyboard   | Reads a character from the keyboard.                                           |
+//! | **`0x21`** | [OUT]              | [`R0`] - character to write                                           | none                               | Writes a character to the console display.                                     |
+//! | **`0x22`** | [PUTS]             | [`R0`] - address of first character                                   | none                               | Writes a string of ASCII characters to the console display.                    |
+//! | **`0x23`** | [IN]               | none                                                                  | [`R0`] - character from keyboard   | Prints a prompt and reads a character from the keyboard.                       |
+//! | **`0x24`** | [PUTSP]            | [`R0`] - address of first characters                                  | none                               | Writes a string of ASCII characters, stored compactly, to the console display. |
+//! | **`0x25`** | [HALT]             | none                                                                  | none                               | Halt execution and print a message on the console.                             |
 //! | **`0x30`** | [GPIO_INPUT]       | [`R0`] - [pin][gpin] #                                                | `n` bit                            | Puts a [GPIO] [pin][gpin] in [Input mode][gInput].                             |
 //! | **`0x31`** | [GPIO_OUTPUT]      | [`R0`] - [pin][gpin] #                                                | `n` bit                            | Puts a [GPIO] [pin][gpin] in [Output mode][gOutput].                           |
 //! | **`0x32`** | [GPIO_INTERRUPT]   | [`R0`] - [pin][gpin] # <br>[`R1`] - address of ISR                    | `n` bit                            | Puts a [GPIO] in [Interrupt mode][gInterrupt] and sets the ISR.                |
@@ -276,6 +276,9 @@ pub mod gpio {
       /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
       ///
       /// All registers (including [`R0`] and [`R1`]) are preserved.
+      ///
+      /// Be sure to follow the
+      /// [guidelines for writing ISRs](../index.html#guidelines-on-writing-isrs).
       ///
       /// ## Example
       /// The below sets [`G0`] to be an [Interrupt] and sets the interrupt
@@ -892,6 +895,9 @@ pub mod timers {
       ///
       /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
       ///
+      /// Be sure to follow the
+      /// [guidelines for writing ISRs](../index.html#guidelines-on-writing-isrs).
+      ///
       /// ## Example
       /// The below sets [`T0`] to be a [SingleShot] with a period of `3
       /// seconds` and sets the interrupt service routine to `ISR`. It will then
@@ -968,6 +974,9 @@ pub mod timers {
       /// set.
       ///
       /// All registers (including [`R0`], [`R1`], and [`R2`]) are preserved.
+      ///
+      /// Be sure to follow the
+      /// [guidelines for writing ISRs](../index.html#guidelines-on-writing-isrs).
       ///
       /// ## Example
       /// The below sets [`T0`] to be a [Repeated] with a period of `1 second`
@@ -1387,7 +1396,7 @@ pub mod builtin {
       /// [`Output`]: lc3_traits::peripherals::output::Output
       /// [`Input`]: lc3_traits::peripherals::input::Input
       [0x23] IN,     // 0x23
-      /// Writes a string of ASCII characters stored compactly to the
+      /// Writes a string of ASCII characters, stored compactly, to the
       /// console display.
       ///
       /// This TRAP will block until the [`Output`] peripheral (a.k.a. the
