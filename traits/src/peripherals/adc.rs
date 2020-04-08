@@ -4,6 +4,7 @@ use crate::peripheral_trait;
 
 use lc3_macros::DisplayUsingDebug;
 
+use core::convert::TryFrom;
 use core::ops::{Deref, Index, IndexMut};
 
 use serde::{Deserialize, Serialize};
@@ -115,7 +116,30 @@ pub type AdcStateMismatch = (AdcPin, AdcState);
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdcReadError(pub AdcStateMismatch);
 
-// TODO: Into Error stuff (see Gpio)
+pub type AdcStateMismatches = AdcPinArr<Option<AdcStateMismatch>>;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AdcReadErrors(pub AdcStateMismatches);
+
+impl TryFrom<AdcPinArr<Result<u8, AdcReadError>>> for AdcReadErrors {
+    type Error = ();
+
+    fn try_from(read_errors: AdcPinArr<Result<u8, AdcReadError>>) -> Result<Self, Self::Error> {
+        let mut errors: AdcStateMismatches = AdcPinArr([None; AdcPin::NUM_PINS]);
+
+        read_errors
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, res)| {
+                res.map_err(|adc_read_error| (idx, adc_read_error)).err()
+            })
+            .for_each(|(idx, adc_read_error)| {
+                errors.0[idx] = Some(adc_read_error.0);
+            });
+
+        Ok(AdcReadErrors(errors))
+    }
+}
 
 // TODO: roll this into the macro
 using_std! {

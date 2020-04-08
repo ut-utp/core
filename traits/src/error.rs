@@ -61,6 +61,10 @@ macro_rules! err {
 }
 
 err!(GpioWriteError, Error::InvalidGpioWrite);
+err!(GpioWriteErrors, Error::InvalidGpioWrites);
+err!(GpioReadError, Error::InvalidGpioRead);
+err!(GpioReadErrors, Error::InvalidGpioReads);
+err!(GpioMiscError, Error::GpioMiscError);
 // TODO: finish
 
 /// Just some musings; if we go with something like this it won't live here.
