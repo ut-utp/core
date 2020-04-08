@@ -2,6 +2,9 @@ use super::peripherals::gpio::{
     GpioMiscError, /* GpioInterruptRegisterError */
     GpioReadError, GpioReadErrors, GpioWriteError, GpioWriteErrors,
 };
+use super::peripherals::adc::{AdcReadError, AdcReadErrors, AdcMiscError};
+use super::peripherals::input::InputError;
+use super::peripherals::output::OutputError;
 use lc3_isa::Word;
 
 use core::fmt::Display;
@@ -26,7 +29,13 @@ pub enum Error {
     InvalidGpioReads(GpioReadErrors),
     GpioMiscError(GpioMiscError), // Unclear if we want to expose these kind of errors in the Control interface or just make the interpreter deal with them (probably expose...) (TODO)
                                   // InvalidGpioInterruptRegistration(GpioInterruptRegisterError),
-                                  ///// TODO: finish
+    InvalidAdcRead(AdcReadError),
+    InvalidAdcReads(AdcReadErrors),
+    AdcMiscError(AdcMiscError),
+
+    InputError(InputError),
+    OutputError(OutputError),
+    ///// TODO: finish
 }
 
 impl Display for Error {
@@ -65,6 +74,11 @@ err!(GpioWriteErrors, Error::InvalidGpioWrites);
 err!(GpioReadError, Error::InvalidGpioRead);
 err!(GpioReadErrors, Error::InvalidGpioReads);
 err!(GpioMiscError, Error::GpioMiscError);
+err!(AdcReadError, Error::InvalidAdcRead);
+err!(AdcReadErrors, Error::InvalidAdcReads);
+err!(AdcMiscError, Error::AdcMiscError);
+err!(InputError, Error::InputError);
+err!(OutputError, Error::OutputError);
 // TODO: finish
 
 /// Just some musings; if we go with something like this it won't live here.
@@ -95,6 +109,13 @@ impl From<Error> for ErrorHandlingStrategy {
                 // TODO: set all the mismatched bits to 0, etc.
             }
             GpioMiscError(_) => Silent,
+            InvalidAdcRead(_) => DefaultValue(0u16),
+            InvalidAdcReads(_) => {
+                unimplemented!()
+            }
+            AdcMiscError(_) => Silent,
+            InputError(_) => Silent,        // TODO: what to actually do here?
+            OutputError(_) => Silent,       // TODO: and here?
         }
     }
 }
