@@ -124,6 +124,9 @@ pub trait InstructionInterpreter:
     fn reset(&mut self);
     fn halt(&mut self); // TODO: have the MCR set this, etc.
 
+    fn set_error(&mut self, err: Error);
+    fn get_error(&self) -> Option<Error>;
+
     // Taken straight from Memory:
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
 
@@ -786,10 +789,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         }
     }
 
-    fn set_error(&mut self, err: Error) {
-        self.error = Some(err);
-    }
-
     fn instruction_step_inner(&mut self, insn: Instruction) -> Result<(), Acv> {
         use Instruction::*;
 
@@ -1105,6 +1104,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
 
         self.state = MachineState::Halted;
+    }
+
+    fn set_error(&mut self, err: Error) {
+        self.error = Some(err);
+    }
+
+    fn get_error(&self) -> Option<Error> {
+        self.error
     }
 
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
