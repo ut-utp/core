@@ -23,6 +23,7 @@ use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
 use core::sync::atomic::AtomicBool;
 use core::ops::{Deref, DerefMut};
+use core::cell::Cell;
 
 // TODO: Break up this file!
 
@@ -124,8 +125,8 @@ pub trait InstructionInterpreter:
     fn reset(&mut self);
     fn halt(&mut self); // TODO: have the MCR set this, etc.
 
-    fn set_error(&mut self, err: Error);
-    fn get_error(&self) -> Option<&Error>;
+    fn set_error(&self, err: Error);
+    fn get_error(&self) -> Option<Error>;
 
     // Taken straight from Memory:
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
@@ -246,7 +247,7 @@ pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
     regs: [Word; Reg::NUM_REGS],
     pc: Word, //TODO: what should the default for this be
     state: MachineState,
-    error: Option<Error>,
+    error: Cell<Option<Error>>,
 }
 
 impl<'a, M: Memory + Default, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
@@ -550,7 +551,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             regs,
             pc,
             state,
-            error: None,
+            error: Cell::new(None),
         };
 
         // TODO: we can't call this.
@@ -1095,7 +1096,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.reset_peripherals();
         self.state = MachineState::Running;
 
-        self.error = None;
+        self.error.set(None);
     }
 
     fn halt(&mut self) {
@@ -1106,12 +1107,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.state = MachineState::Halted;
     }
 
-    fn set_error(&mut self, err: Error) {
-        self.error = Some(err);
+    fn set_error(&self, err: Error) {
+        self.error.set(Some(err));
     }
 
-    fn get_error(&self) -> Option<&Error> {
-        self.error.as_ref()     // TODO: implement Copy on Option<Error> instead?
+    fn get_error(&self) -> Option<Error> {
+        self.error.take()
     }
 
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
