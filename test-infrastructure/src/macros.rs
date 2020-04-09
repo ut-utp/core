@@ -82,8 +82,8 @@ macro_rules! single_test_inner {
         let flags = PeripheralInterruptFlags::new();
 
         #[allow(unused)]
-        let os = None;
-        $(let os = Some(($os, $os_addr));)?
+        let mut os: Option<(MemoryShim, Addr)> = None;
+        $(os = Some(($os, $os_addr));)?
 
         interp_test_runner::<MemoryShim, PeripheralsShim, _, _>(
             prefill,
