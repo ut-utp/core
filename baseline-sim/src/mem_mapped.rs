@@ -109,6 +109,7 @@ use crate::interp::InstructionInterpreterPeripheralAccess;
 use core::ops::Deref;
 use lc3_isa::{Addr, Bits, SignedWord, Word, MCR as MCR_ADDR, PSR as PSR_ADDR, WORD_MAX_VAL};
 use lc3_traits::peripherals::Peripherals;
+use lc3_traits::error::Error;
 
 use crate::interp::{Acv, InstructionInterpreter, WriteAttempt};
 
@@ -346,7 +347,7 @@ impl MemMapped for KBDR {
         let data = match Input::read_data(interp.get_peripherals()) {
             Ok(val) => val as Word,
             Err(err) => {
-                // TODO: Set error in interp
+                interp.set_error(Error::from(err));
                 0
             }
         };
@@ -607,7 +608,7 @@ macro_rules! gpio_mem_mapped {
                 match Gpio::set_state(interp.get_peripherals_mut(), $pin, state) {
                     Ok(()) => Ok(()),
                     Err(err) => {
-                        // TODO: set err in interp
+                        interp.set_error(Error::from(err));
                         Ok(())
                     }
                 }
@@ -624,7 +625,6 @@ macro_rules! gpio_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 Gpio::interrupt_occurred(interp.get_peripherals(), $pin)
-                // TODO: When to reset interrupt occurred flag?
             }
 
             fn interrupt_enabled<'a, I>(interp: &I) -> bool
@@ -673,7 +673,7 @@ macro_rules! gpio_mem_mapped {
                 let word = match Gpio::read(interp.get_peripherals(), $pin) {
                     Ok(val) => val as Word,
                     Err(err) => {
-                        // TODO: set err in interp
+                        interp.set_error(Error::from(err));
                         0x8000
                     }
                 };
@@ -692,7 +692,7 @@ macro_rules! gpio_mem_mapped {
                 match Gpio::write(interp.get_peripherals_mut(), $pin, bit) {
                     Ok(()) => Ok(()),
                     Err(err) => {
-                        // TODO: set err in interp
+                        interp.set_error(Error::from(err));
                         Ok(())
                     }
                 }
@@ -832,8 +832,8 @@ macro_rules! adc_mem_mapped {
                 match Adc::set_state(interp.get_peripherals_mut(), $pin, state) {
                     Ok(()) => Ok(()),
                     Err(err) => {
-                       // TODO: set err in interp
-                       Ok(())
+                        interp.set_error(Error::from(err));
+                        Ok(())
                     }
                 }
             }
@@ -865,7 +865,7 @@ macro_rules! adc_mem_mapped {
                 let word = match Adc::read(interp.get_peripherals(), $pin) {
                     Ok(val) => val as Word,
                     Err(err) => {
-                        // TODO: set err in interp
+                        interp.set_error(Error::from(err));
                         0x8000
                     }
                 };
@@ -1009,7 +1009,7 @@ macro_rules! pwm_mem_mapped {
             {
                 use lc3_traits::peripherals::pwm::PwmState::*;
 
-                let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word; // TODO: verify that as of 4/7/2020 this should not fail?
+                let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word;
 
                 Ok(Self::with_value(word))
             }
