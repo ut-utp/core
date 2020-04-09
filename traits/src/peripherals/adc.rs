@@ -80,7 +80,7 @@ peripheral_trait! {adc,
 
 /// Adc access for the interpreter.
 pub trait Adc: Default {
-    fn set_state(&mut self, pin: AdcPin, state: AdcState) -> Result<(), ()>;
+    fn set_state(&mut self, pin: AdcPin, state: AdcState) -> Result<(), AdcMiscError>;
     fn get_state(&self, pin: AdcPin) -> AdcState;
     #[inline]
     fn get_states(&self) -> AdcPinArr<AdcState> {
@@ -146,7 +146,7 @@ impl TryFrom<AdcPinArr<Result<u8, AdcReadError>>> for AdcReadErrors {
 using_std! {
     use std::sync::{Arc, RwLock};
     impl<A: Adc> Adc for Arc<RwLock<A>> {
-        fn set_state(&mut self, pin: AdcPin, state: AdcState) -> Result<(), ()> {
+        fn set_state(&mut self, pin: AdcPin, state: AdcState) -> Result<(), AdcMiscError> {
             RwLock::write(self).unwrap().set_state(pin, state)
         }
 
