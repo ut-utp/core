@@ -117,8 +117,9 @@ pub type AdcStateMismatch = (AdcPin, AdcState);
 pub struct AdcReadError(pub AdcStateMismatch);
 
 pub type AdcStateMismatches = AdcPinArr<Option<AdcStateMismatch>>;
+impl Copy for AdcStateMismatches { }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AdcReadErrors(pub AdcStateMismatches);
 
 impl TryFrom<AdcPinArr<Result<u8, AdcReadError>>> for AdcReadErrors {
