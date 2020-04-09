@@ -4,6 +4,72 @@ use lti::{insn, Addr, Instruction, Reg, Word};
 use lti::{MemoryShim, PeripheralsShim, PeripheralInterruptFlags};
 
 #[cfg(test)]
+mod lc3tools {
+    use super::*;
+    use lti::assert_eq;
+    use lti::{lc3tools_tester, with_larger_stack};
+
+    macro_rules! lc3_sequence {
+        ($(|$panics:literal|)? $name:ident, insns: [ $({ $($insn:tt)* }),* ], lc3_insns: [ $($lc3_insn:expr),* ]) => {
+        $(#[doc = $panics] #[should_panic])?
+        #[test]
+        fn $name() { with_larger_stack(/*Some(stringify!($name).to_string())*/ None, || {
+
+          
+
+            #[allow(unused_mut)]
+            let mut insns: Vec<Instruction> = Vec::new();
+            $(insns.push(insn!($($insn)*));)*
+
+            #[allow(unused_mut)]
+            let mut lc3_insns: Vec<String> = Vec::new();
+            $(
+                lc3_insns.push($lc3_insn);
+            )*
+
+            let flags = PeripheralInterruptFlags::new();
+
+            lc3tools_tester::<MemoryShim, PeripheralsShim, _, _>(
+                Vec::new(),
+                insns,
+                lc3_insns,
+                (|_p| {}), // (no-op)
+                (|_p| {}), // (no-op)
+                &flags,
+                &None
+            );
+        })}};
+    }
+
+
+mod prog {
+    use super::*;
+
+    lc3_sequence!{
+        add_one,
+        insns: [ { ADD R0, R0, #1 }, { ADD R1, R1, #1 }, { ADD R2, R2, #1 }, { ADD R3, R3, #1 }, { ADD R4, R4, #1 }, { ADD R5, R5, #1 }, { ADD R6, R6, #1 }, { ADD R7, R7, #1 } ],
+        lc3_insns: [ "add r0, r0, #1".to_string(), "add r1, r1, #1".to_string(), "add r2, r2, #1".to_string(), "add r3, r3, #1".to_string(), "add r4, r4, #1".to_string(), "add r5, r5, #1".to_string(), "add r6, r6, #1".to_string(), "add r7, r7, #1".to_string() ]
+    }
+
+    lc3_sequence!{
+        set_memory,
+        insns: [ { ADD R0, R0, #1 }, { ST R0, #5 }, { LD R1, #4} ],
+        lc3_insns: [ "add r0, r0, #1".to_string(), "st r0, #5".to_string(), "ld r1, #4".to_string()]
+    }
+    lc3_sequence!{
+        add_and_set,
+        insns: [ { ADD R0, R0, #1 }, { AND R0, R1, R0 }, { ADD R2, R2, #1 }, { ADD R0, R2, R2 }, { AND R0, R0, R2 }, { ADD R5, R5, #1 }, { LD R5, #10 }, { ADD R7, R7, #1 }, { ST R0, #5 }, { LD R1, #4} ],
+        lc3_insns: [ "add r0, r0, #1".to_string(),"and r0, r1, r0".to_string(), "add r2, r2, #1".to_string(), "add r0, r2, r2".to_string(), "and r0, r0, r2".to_string(), "add r5, r5, #1".to_string(), "ld r5, #10".to_string(), "add r7, r7, #1".to_string(), "st r0, #5".to_string(), "ld r1, #4".to_string()]
+    }
+
+
+
+}
+
+
+}
+
+#[cfg(test)]
 mod single_instructions {
     use super::*;
     use Reg::*;
