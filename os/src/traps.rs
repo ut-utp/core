@@ -370,10 +370,10 @@ pub mod gpio {
       ///
       /// | Mode          | Value |
       /// | ------------- | ----- |
-      /// | [`Input`]     | 0     |
+      /// | [`Disabled`]  | 0     |
       /// | [`Output`]    | 1     |
-      /// | [`Interrupt`] | 2     |
-      /// | [`Disabled`]  | 3     |
+      /// | [`Input`]     | 2     |
+      /// | [`Interrupt`] | 3     |
       ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_GPIO_PINS`])), this TRAP is _infallible_.
@@ -578,8 +578,8 @@ pub mod adc {
       ///
       /// | Mode          | Value |
       /// | ------------- | ----- |
-      /// | [`Enabled`]   | 0     |
-      /// | [`Disabled`]  | 1     |
+      /// | [`Disabled`]  | 0     |
+      /// | [`Enabled`]   | 1     |
       ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_ADC_PINS`])), this TRAP is _infallible_.
@@ -1112,8 +1112,8 @@ pub mod timers {
       ///
       /// | Mode           | Value |
       /// | -------------- | ----- |
-      /// | [`Repeated`]   | 0     |
-      /// | [`SingleShot`] | 1     |
+      /// | [`SingleShot`] | 0     |
+      /// | [`Repeated`]   | 1     |
       ///
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_TIMERS`])), this TRAP is _infallible_.

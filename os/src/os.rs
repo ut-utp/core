@@ -1461,7 +1461,6 @@ fn os() -> AssembledProgram {
             STR R1, R6, #0;
 
             AND R1, R1, #0;
-            ADD R1, R1, #1;
             JSR @SET_TIMER_MODE;
 
             LDR R1, R6, #0;                 // Restore R1
@@ -1486,6 +1485,7 @@ fn os() -> AssembledProgram {
             STR R1, R6, #0;
 
             AND R1, R1, #0;
+            ADD R1, R1, #1;
             JSR @SET_TIMER_MODE;
 
             LDR R1, R6, #0;                 // Restore R1
