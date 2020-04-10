@@ -1,6 +1,8 @@
 use super::*;
 
-use lc3_traits::peripherals::gpio::{Gpio, GpioPin, GpioState, GPIO_PINS};
+use lc3_traits::peripherals::gpio::{Gpio, GpioPin, GpioState, GPIO_PINS, GpioWriteError, GpioReadError};
+use lc3_traits::error::Error;
+use lc3_baseline_sim::interp::InstructionInterpreter;
 use lc3_baseline_sim::mem_mapped::{
     G0CR_ADDR, G0DR_ADDR, G0_INT_VEC,
     G1CR_ADDR, G1DR_ADDR, G1_INT_VEC,
@@ -186,6 +188,36 @@ mod states {
         regs: { R0: 0b1101 },
         memory: { },
         post: |i| { eq!(Output, Gpio::get_state(i.get_peripherals(), G0)); }
+    }
+
+    single_test! {
+        gpio_write_error_disabled,
+        prefill: { 0x3010: G0DR_ADDR },
+        insns: [ { STI R0, #0xF } ],
+        steps: 1,
+        regs: { },
+        memory: { },
+        post: |i| { eq!(Error::from(GpioWriteError((G0, Disabled))), InstructionInterpreter::get_error(i).unwrap()); }
+    }
+
+    single_test! {
+        gpio_write_error_input,
+        prefill: { 0x3010: G0CR_ADDR, 0x3011: G0DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b10 }, { STI R0, #0xD }, { STI R0, #0xD } ],
+        steps: 4,
+        regs: { R0: 0b10 },
+        memory: { },
+        post: |i| { eq!(Error::from(GpioWriteError((G0, Input))), InstructionInterpreter::get_error(i).unwrap()); }
+    }
+
+    single_test! {
+        gpio_read_error_output,
+        prefill: { 0x3010: G0CR_ADDR, 0x3011: G0DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01 }, { STI R0, #0xD }, { LDI R0, #0xD } ],
+        steps: 4,
+        regs: { R0: 0x8000 },
+        memory: { },
+        post: |i| { eq!(Error::from(GpioReadError((G0, Output))), InstructionInterpreter::get_error(i).unwrap()); }
     }
 }
 
