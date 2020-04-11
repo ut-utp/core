@@ -96,7 +96,6 @@ pub const T0_INT_VEC: u8 = 128 + TIMER_OFFSET + 0; // xE0
 pub const T1_INT_VEC: u8 = 128 + TIMER_OFFSET + 1; // xE1;
 pub const TIMER_INT_PRIORITY: u8 = 4;
 
-// TODO: redo with MISC_OFFSET: u8 = 0x70
 // (For one off peripherals like the clock and the display, etc.)
 pub const MISC_OFFSET: u8 = 0x70;
 const MISC_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (MISC_OFFSET as Addr);
