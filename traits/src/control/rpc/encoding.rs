@@ -982,14 +982,14 @@ mod tests {
 
             impl Encode<$src> for $unit {
                 type Encoded = $dest;
-                fn encode(m: $src) -> $dest { m as $dest }
+                fn encode(&mut self, m: $src) -> $dest { m as $dest }
             }
 
             impl Decode<$src> for $unit {
                 type Encoded = $dest;
                 type Err = core::num::TryFromIntError;
 
-                fn decode(e: &$dest) -> Result<$src, Self::Err> {
+                fn decode(&mut self, e: &$dest) -> Result<$src, Self::Err> {
                     core::convert::TryInto::try_into(*e)
                 }
             }
@@ -1004,8 +1004,8 @@ mod tests {
     #[test]
     fn transparent() {
         fn check<T: Debug + Clone + Eq>(inp: T) {
-            assert_eq!(inp, Transparent::<T>::encode(inp.clone()));
-            assert_eq!(inp, Transparent::<T>::decode(&inp).unwrap());
+            assert_eq!(inp, Transparent::default().encode(inp.clone()));
+            assert_eq!(inp, Transparent::default().decode(&inp).unwrap());
         }
 
         #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -1020,8 +1020,8 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // blanket impl works.
     fn encoding_blanket_impl() {
-        fn ser<M: Debug, E: Encoding<M>>(m: M) -> <E as Encode<M>>::Encoded { E::encode(m) }
-        fn de<M: Debug, E: Encoding<M>>(e: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { E::decode(&e) }
+        fn ser<M: Debug, E: Default + Encoding<M>>(m: M) -> <E as Encode<M>>::Encoded { E::default().encode(m) }
+        fn de<M: Debug, E: Default + Encoding<M>>(e: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { E::default().decode(&e) }
 
 
         let a: u16 = ser::<_, U8ToU16>(255u8);
@@ -1041,8 +1041,8 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // `ChainedEncoding` types and functions work.
     fn chained_encoding() {
-        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> <E as Encode<M>>::Encoded { E::encode(m) }
-        fn de<M: Debug, E: Encoding<M>>(_e: E, e: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { E::decode(&e) }
+        fn ser<M: Debug, E: Encoding<M>>(e: E, m: M) -> <E as Encode<M>>::Encoded { e.encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(e: E, enc: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { e.decode(&enc) }
 
         let chain = ChainedEncoding::new(U8ToU16)
             .chain(U16ToU32)
@@ -1059,7 +1059,7 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // `ChainedEncode` types and functions work.
     fn chained_back_encode() {
-        fn ser<M: Debug, E: Encode<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
+        fn ser<M: Debug, E: Encode<M>>(e: E, m: M) -> E::Encoded { e.encode(m) }
 
         let chain = ChainedEncode::new(U64ToU128)
             .chain_back(U32ToU64)
@@ -1073,7 +1073,7 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // `ChainedDecode` types and functions work.
     fn chained_back_decode() {
-        fn de<M: Debug, E: Decode<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+        fn de<M: Debug, E: Decode<M>>(e: E, enc: E::Encoded) -> Result<M, E::Err> { e.decode(&enc) }
 
         let chain = ChainedDecode::new(U64ToU128)
             .chain_back(U32ToU64)
@@ -1087,7 +1087,7 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // `ChainedEncode` types and functions work.
     fn chained_encode() {
-        fn ser<M: Debug, E: Encode<M>>(_e: E, m: M) -> E::Encoded { E::encode(m) }
+        fn ser<M: Debug, E: Encode<M>>(e: E, m: M) -> E::Encoded { e.encode(m) }
 
         let chain = ChainedEncode::new(U8ToU16)
             .chain(U16ToU32)
@@ -1101,7 +1101,7 @@ mod tests {
     // This really does nothing at run time; if this function compiles, the
     // `ChainedDecode` types and functions work.
     fn chained_decode() {
-        fn de<M: Debug, E: Decode<M>>(_e: E, e: E::Encoded) -> Result<M, E::Err> { E::decode(&e) }
+        fn de<M: Debug, E: Decode<M>>(e: E, enc: E::Encoded) -> Result<M, E::Err> { e.decode(&enc) }
 
         let chain = ChainedDecode::new(U8ToU16)
             .chain(U16ToU32)
@@ -1117,8 +1117,8 @@ mod tests {
     fn pair() {
         // This is basically the same test as `chained_encoding` except we
         // assemble the encode pipeline and the decode pipeline ourselves.
-        fn ser<M: Debug, E: Encoding<M>>(_e: E, m: M) -> <E as Encode<M>>::Encoded { E::encode(m) }
-        fn de<M: Debug, E: Encoding<M>>(_e: E, e: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { E::decode(&e) }
+        fn ser<M: Debug, E: Encoding<M>>(e: E, m: M) -> <E as Encode<M>>::Encoded { e.encode(m) }
+        fn de<M: Debug, E: Encoding<M>>(e: E, enc: <E as Encode<M>>::Encoded) -> Result<M, <E as Decode<M>>::Err> { e.decode(&enc) }
 
         fn check<M: Debug + Copy + PartialEq, E: Copy + Encoding<M>>(chain: E, m: M) where <E as Decode<M>>::Err: PartialEq {
             assert_eq!(Ok(m), de(chain, ser(chain, m)));
