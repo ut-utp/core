@@ -161,6 +161,11 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::convert::Infallible;
 
+// Note: all the things with `/* const */` in this file are not currently const
+// because they're blocked on `#![feature(const_fn)]`; specifically, allowing
+// real bounds on const fns.
+// TODO(once const fn is stable..)
+
 // TODO: fix all the stuff with `Default`
 
 // Implementors provide:
@@ -344,7 +349,7 @@ where
     Enc: Encode<Message>,
     Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
 {
-    pub const fn with(enc: Enc, dec: Dec) -> Self {
+    pub /*const*/ fn with(enc: Enc, dec: Dec) -> Self {
         Self { enc, dec, _m: PhantomData }
     }
 }
@@ -416,7 +421,7 @@ where
     Outer: Encode<A, Encoded = B>,
     Inner: Encode<B>,
 {
-    pub const fn with(outer: Outer, inner: Inner) -> Self {
+    pub /*const*/ fn with(outer: Outer, inner: Inner) -> Self {
         Self {
             outer,
             inner,
@@ -438,7 +443,7 @@ where
     A: Debug,
     Outer: Encode<A>,
 {
-    pub const fn new(outer: Outer) -> Self {
+    pub /*const*/ fn new(outer: Outer) -> Self {
         // Self::with(outer, Transparent::default())
         // Self {
         //     outer,
@@ -514,7 +519,7 @@ where
     Outer: Encode<A, Encoded = B>,
     Inner: Encode<B>,
 {
-    pub const fn chain_back<Z: Debug, NewOuter: Encode<Z, Encoded = A>>(self, new_outer: NewOuter) -> ChainedEncode<Z, A, NewOuter, Self> {
+    pub /*const*/ fn chain_back<Z: Debug, NewOuter: Encode<Z, Encoded = A>>(self, new_outer: NewOuter) -> ChainedEncode<Z, A, NewOuter, Self> {
         ChainedEncode::with(new_outer, self)
         // ChainedEncode {
         //     outer: new_outer,
@@ -523,7 +528,7 @@ where
         // }
     }
 
-    pub const fn chain_front<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+    pub /*const*/ fn chain_front<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
         ChainedEncode::with(self, new_inner)
         // ChainedEncode {
         //     outer: self,
@@ -533,7 +538,7 @@ where
     }
 
     // an alias for chain_front
-    pub const fn chain<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+    pub /*const*/ fn chain<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
         self.chain_front(new_inner)
     }
 }
@@ -591,7 +596,7 @@ where
     Outer: Decode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
 {
-    pub const fn with(outer: Outer, inner: Inner) -> Self {
+    pub /*const*/ fn with(outer: Outer, inner: Inner) -> Self {
         Self {
             outer,
             inner,
@@ -621,7 +626,7 @@ where
     // Infallible: Into<<Outer as Decode<A>>::Err>,
     // !: Into<<Outer as Decode<A>>::Err>,
 {
-    pub const fn new(outer: Outer) -> Self {
+    pub /*const*/ fn new(outer: Outer) -> Self {
         // Not using `Transparent::default()` that we can be const:
         Self::with(outer, Transparent(PhantomData))
     }
@@ -670,14 +675,14 @@ where
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>, // These two should be
     <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>, // eq, but alas.
 {
-    pub const fn chain_back<Z: Debug, NewOuter: Decode<Z, Encoded = A>>(self, new_outer: NewOuter) -> ChainedDecode<Z, A, NewOuter, Self>
+    pub /*const*/ fn chain_back<Z: Debug, NewOuter: Decode<Z, Encoded = A>>(self, new_outer: NewOuter) -> ChainedDecode<Z, A, NewOuter, Self>
     where
         <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>
     {
         ChainedDecode::with(new_outer, self)
     }
 
-    pub const fn chain_front<Z: Debug, NewInner>(self, new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    pub /*const*/ fn chain_front<Z: Debug, NewInner>(self, new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
     where
         NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
         <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
@@ -686,7 +691,7 @@ where
     }
 
     // an alias for chain_front
-    pub const fn chain<Z: Debug, NewInner>(self, new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    pub /*const*/ fn chain<Z: Debug, NewInner>(self, new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
     where
         NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
         <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
@@ -770,7 +775,7 @@ where
     Outer: Decode<A, Encoded = B> + Encode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>
 {
-    pub const fn with(outer: Outer, inner: Inner) -> Self {
+    pub /*const*/ fn with(outer: Outer, inner: Inner) -> Self {
         Self {
             outer,
             inner,
@@ -798,7 +803,7 @@ where
     <Outer as Decode<A>>::Err: From<Infallible>,
     // !: Into<<Outer as Encoding<A>>::Err>,
 {
-    pub const fn new(outer: Outer) -> Self {
+    pub /*const*/ fn new(outer: Outer) -> Self {
         // Not using `Transparent::default()` that we can be const:
         Self::with(outer, Transparent(PhantomData))
     }
@@ -862,7 +867,7 @@ where
     Outer: Decode<A, Encoded = B> + Encode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
 {
-    pub const fn chain_back<Z, NewOuter>(self, new_outer: NewOuter) -> ChainedEncoding<Z, A, NewOuter, Self>
+    pub /*const*/ fn chain_back<Z, NewOuter>(self, new_outer: NewOuter) -> ChainedEncoding<Z, A, NewOuter, Self>
     where
         Z: Debug,
         NewOuter: Encode<Z, Encoded = A>,
@@ -873,7 +878,7 @@ where
         ChainedEncoding::with(new_outer, self)
     }
 
-    pub const fn chain_front<Z, NewInner>(self, new_inner: NewInner) -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    pub /*const*/ fn chain_front<Z, NewInner>(self, new_inner: NewInner) -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
     where
         Z: Debug,
         NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
@@ -885,7 +890,7 @@ where
     }
 
     // an alias for chain_front
-    pub const fn chain<Z, NewInner>(self, new_inner: NewInner) -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    pub /*const*/ fn chain<Z, NewInner>(self, new_inner: NewInner) -> ChainedEncoding<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
     where
         Z: Debug,
         NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>,
