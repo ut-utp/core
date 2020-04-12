@@ -319,18 +319,23 @@ impl<Message: Debug + Clone> Decode<Message> for Transparent<Message> {
 //      \-------/
 //
 // Note that this should get an impl of `Encoding` for free.
-pub struct Pair<Message: Debug, Enc, Dec>(PhantomData<(Message, Enc, Dec)>)
-where
-    Enc: Encode<Message>,
-    Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>;
-
-impl<Message: Debug, Enc, Dec> Default for Pair<Message, Enc, Dec>
+pub struct Pair<Message: Debug, Enc, Dec>
 where
     Enc: Encode<Message>,
     Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
 {
+    enc: Enc,
+    dec: Dec,
+    _m: PhantomData<Message>,
+}
+
+impl<Message: Debug, Enc, Dec> Default for Pair<Message, Enc, Dec>
+where
+    Enc: Default + Encode<Message>,
+    Dec: Default + Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
+{
     fn default() -> Self {
-        Self(PhantomData)
+        Self::with(Default::default(), Default::default())
     }
 }
 
@@ -339,8 +344,8 @@ where
     Enc: Encode<Message>,
     Dec: Decode<Message, Encoded = <Enc as Encode<Message>>::Encoded>
 {
-    pub /*const*/ fn with(_enc: Enc, _dec: Dec) -> Self {
-        Default::default()
+    pub const fn with(enc: Enc, dec: Dec) -> Self {
+        Self { enc, dec, _m: PhantomData }
     }
 }
 
@@ -352,8 +357,9 @@ where
 {
     type Encoded = <Enc as Encode<Message>>::Encoded;
 
-    fn encode(message: Message) -> Self::Encoded {
-        <Enc as Encode<Message>>::encode(message)
+    fn encode(&mut self, message: Message) -> Self::Encoded {
+        self.enc.encode(message)
+        // <Enc as Encode<Message>>::encode(message)
     }
 }
 
@@ -365,8 +371,9 @@ where
     type Encoded = <Enc as Encode<Message>>::Encoded;
     type Err = <Dec as Decode<Message>>::Err;
 
-    fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err> {
-        <Dec as Decode<Message>>::decode(encoded)
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<Message, Self::Err> {
+        self.dec.decode(encoded)
+        // <Dec as Decode<Message>>::decode(encoded)
     }
 }
 
@@ -384,28 +391,24 @@ where
 //
 // Which we can squish into one encode:
 //   [A] -> [Inner::Encoded]
-pub struct ChainedEncode<A: Debug, B: Debug, Outer, Inner>(PhantomData<(A, B, Outer, Inner)>)
+pub struct ChainedEncode<A: Debug, B: Debug, Outer, Inner>
 where
     Outer: Encode<A, Encoded = B>,
-    Inner: Encode<B>;
+    Inner: Encode<B>
+{
+    outer: Outer,
+    inner: Inner,
+    _p: PhantomData<(A, B)>,
+}
 
 impl<A: Debug, B: Debug, Outer, Inner> Default for ChainedEncode<A, B, Outer, Inner>
 where
-    Outer: Encode<A, Encoded = B>,
-    Inner: Encode<B>,
+    Outer: Default + Encode<A, Encoded = B>,
+    Inner: Default + Encode<B>,
 {
     fn default() -> Self {
-        Self(PhantomData)
+        Self::with(Default::default(), Default::default())
     }
-}
-
-impl<A, Outer> ChainedEncode<A, <Outer as Encode<A>>::Encoded, Outer, Transparent<<Outer as Encode<A>>::Encoded>>
-where
-    A: Debug,
-    Outer: Encode<A>,
-{
-    pub /*const*/ fn new_detached() -> Self { Default::default() }
-    pub /*const*/ fn new(_outer: Outer) -> Self { Self::new_detached() }
 }
 
 impl<A: Debug, B: Debug, Outer, Inner> ChainedEncode<A, B, Outer, Inner>
@@ -413,33 +416,126 @@ where
     Outer: Encode<A, Encoded = B>,
     Inner: Encode<B>,
 {
-    pub /*const*/ fn chain_back_detached<Z: Debug, NewOuter: Encode<Z, Encoded = A>>() -> ChainedEncode<Z, A, NewOuter, Self> {
+    pub const fn with(outer: Outer, inner: Inner) -> Self {
+        Self {
+            outer,
+            inner,
+            _p: PhantomData,
+        }
+    }
+}
+
+impl<A, Outer> ChainedEncode<A, <Outer as Encode<A>>::Encoded, Outer, Transparent<<Outer as Encode<A>>::Encoded>>
+where
+    A: Debug,
+    Outer: Default + Encode<A>,
+{
+    pub fn new_detached() -> Self { Default::default() }
+}
+
+impl<A, Outer> ChainedEncode<A, <Outer as Encode<A>>::Encoded, Outer, Transparent<<Outer as Encode<A>>::Encoded>>
+where
+    A: Debug,
+    Outer: Encode<A>,
+{
+    pub const fn new(outer: Outer) -> Self {
+        // Self::with(outer, Transparent::default())
+        // Self {
+        //     outer,
+        //     inner: Transparent::default(),
+        //     _p: PhantomData,
+        // }
+        // Not the above two so that we can be const:
+
+
+        // Not using `Transparent::default()` that we can be const:
+        Self::with(outer, Transparent(PhantomData))
+    }
+}
+
+// impl<A: Debug, B: Debug, Outer, Inner> ChainedEncode<A, B, Outer, Inner>
+// where
+//     Outer: Default + Encode<A, Encoded = B>,
+//     Inner: Default + Encode<B>,
+// {
+//     pub /*const*/ fn chain_back_detached<Z: Debug, NewOuter: Encode<Z, Encoded = A>>() -> ChainedEncode<Z, A, NewOuter, Self>
+//     where
+//         NewOuter: Default
+//     {
+//         Default::default()
+//     }
+
+//     pub fn chain_front_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+//     where
+//         NewInner: Default
+//     {
+//         Default::default()
+//     }
+
+//     // an alias for chain_front_detatched
+//     pub fn chain_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+//     where
+//         NewInner: Default
+//     {
+//         Self::chain_front_detatched()
+//     }
+// }
+
+impl<A: Debug, B: Debug, Outer, Inner> ChainedEncode<A, B, Outer, Inner>
+where
+    Outer: Default + Encode<A, Encoded = B>,
+    Inner: Default + Encode<B>,
+{
+    pub fn chain_back_detached<Z: Debug, NewOuter: Encode<Z, Encoded = A>>() -> ChainedEncode<Z, A, NewOuter, Self>
+    where
+        NewOuter: Default,
+    {
         Default::default()
     }
 
-    pub /*const*/ fn chain_back<Z: Debug, NewOuter: Encode<Z, Encoded = A>>(self, _new_outer: NewOuter) -> ChainedEncode<Z, A, NewOuter, Self> {
-        Self::chain_back_detached()
-    }
-
-    pub fn chain_front_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+    pub fn chain_front_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Default,
+    {
         Default::default()
-    }
-
-    pub fn chain_front<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, _new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
-        Self::chain_front_detatched()
     }
 
     // an alias for chain_front_detatched
-    pub fn chain_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+    pub fn chain_detatched<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>() -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Default,
+    {
         Self::chain_front_detatched()
+    }
+}
+
+impl<A: Debug, B: Debug, Outer, Inner> ChainedEncode<A, B, Outer, Inner>
+where
+    Outer: Encode<A, Encoded = B>,
+    Inner: Encode<B>,
+{
+    pub const fn chain_back<Z: Debug, NewOuter: Encode<Z, Encoded = A>>(self, new_outer: NewOuter) -> ChainedEncode<Z, A, NewOuter, Self> {
+        ChainedEncode::with(new_outer, self)
+        // ChainedEncode {
+        //     outer: new_outer,
+        //     inner: self,
+        //     _p: PhantomData,
+        // }
+    }
+
+    pub const fn chain_front<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+        ChainedEncode::with(self, new_inner)
+        // ChainedEncode {
+        //     outer: self,
+        //     inner: new_inner,
+        //     _p: PhantomData,
+        // }
     }
 
     // an alias for chain_front
-    pub fn chain<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, _new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
-        Self::chain_detatched()
+    pub const fn chain<Z: Debug, NewInner: Encode<<Inner as Encode<B>>::Encoded, Encoded = Z>>(self, new_inner: NewInner) -> ChainedEncode<A, <Inner as Encode<B>>::Encoded, Self, NewInner> {
+        self.chain_front(new_inner)
     }
-
-
 }
 
 impl<A: Debug, B: Debug, Outer, Inner> Encode<A> for ChainedEncode<A, B, Outer, Inner>
@@ -449,9 +545,9 @@ where
 {
     type Encoded = <Inner as Encode<B>>::Encoded;
 
-    fn encode(message: A) -> Self::Encoded {
-        let b: B = <Outer as Encode<A>>::encode(message);
-        <Inner as Encode<B>>::encode(b)
+    fn encode(&mut self, message: A) -> Self::Encoded {
+        let b: B = <Outer as Encode<A>>::encode(&mut self.outer, message);
+        <Inner as Encode<B>>::encode(&mut self.inner, b)
     }
 }
 
@@ -467,35 +563,105 @@ where
 //
 // Which we can squish into one decode:
 //   [Inner::Encoded] -> [A]
-pub struct ChainedDecode<A: Debug, B: Debug, Outer, Inner>(PhantomData<(A, B, Outer, Inner)>)
+pub struct ChainedDecode<A: Debug, B: Debug, Outer, Inner>
 where
     Inner: Decode<B>,
     Outer: Decode<A, Encoded = B>,
-    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>;
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>
+{
+    outer: Outer,
+    inner: Inner,
+    _p: PhantomData<(A, B)>,
+}
 
 impl<A: Debug, B: Debug, Outer, Inner> Default for ChainedDecode<A, B, Outer, Inner>
+where
+    Inner: Default + Decode<B>,
+    Outer: Default + Decode<A, Encoded = B>,
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
+{
+    fn default() -> Self {
+        Self::with(Default::default(), Default::default())
+    }
+}
+
+impl<A: Debug, B: Debug, Outer, Inner> ChainedDecode<A, B, Outer, Inner>
 where
     Inner: Decode<B>,
     Outer: Decode<A, Encoded = B>,
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>,
 {
-    fn default() -> Self {
-        Self(PhantomData)
+    pub const fn with(outer: Outer, inner: Inner) -> Self {
+        Self {
+            outer,
+            inner,
+            _p: PhantomData
+        }
     }
 }
 
 impl<A, Outer> ChainedDecode<A, <Outer as Decode<A>>::Encoded, Outer, Transparent<<Outer as Decode<A>>::Encoded>>
 where
     A: Debug,
+    Outer: Default + Decode<A>,
     <Outer as Decode<A>>::Encoded: Clone, // Needed to use a transparent encoding!
-    Outer: Decode<A>,
     <Transparent<<Outer as Decode<A>>::Encoded> as Decode<<Outer as Decode<A>>::Encoded>>::Err: Into<<Outer as Decode<A>>::Err>,
     // Infallible: Into<<Outer as Decode<A>>::Err>,
     // !: Into<<Outer as Decode<A>>::Err>,
 {
-    pub /*const*/ fn new_detached() -> Self { Default::default() }
-    pub /*const*/ fn new(_outer: Outer) -> Self { Self::new_detached() }
+    pub fn new_detached() -> Self { Default::default() }
 }
+
+impl<A, Outer> ChainedDecode<A, <Outer as Decode<A>>::Encoded, Outer, Transparent<<Outer as Decode<A>>::Encoded>>
+where
+    A: Debug,
+    Outer: Decode<A>,
+    <Outer as Decode<A>>::Encoded: Clone, // Needed to use a transparent encoding!
+    <Transparent<<Outer as Decode<A>>::Encoded> as Decode<<Outer as Decode<A>>::Encoded>>::Err: Into<<Outer as Decode<A>>::Err>,
+    // Infallible: Into<<Outer as Decode<A>>::Err>,
+    // !: Into<<Outer as Decode<A>>::Err>,
+{
+    pub const fn new(outer: Outer) -> Self {
+        // Not using `Transparent::default()` that we can be const:
+        Self::with(outer, Transparent(PhantomData))
+    }
+}
+
+impl<A: Debug, B: Debug, Outer, Inner> ChainedDecode<A, B, Outer, Inner>
+where
+    Inner: Default + Decode<B>,
+    Outer: Default + Decode<A, Encoded = B>,
+    <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>, // These two should be
+    <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>, // eq, but alas.
+{
+    pub fn chain_back_detached<Z: Debug, NewOuter: Decode<Z, Encoded = A>>() -> ChainedDecode<Z, A, NewOuter, Self>
+    where
+        <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>,
+        NewOuter: Default,
+    {
+        Default::default()
+    }
+
+    pub fn chain_front_detatched<Z: Debug, NewInner>() -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
+        NewInner: Default,
+    {
+        Default::default()
+    }
+
+    // an alias for chain_front_detatched
+    pub fn chain_detatched<Z: Debug, NewInner>() -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    where
+        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
+        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
+        NewInner: Default,
+    {
+        Self::chain_front_detatched()
+    }
+}
+
 
 impl<A: Debug, B: Debug, Outer, Inner> ChainedDecode<A, B, Outer, Inner>
 where
@@ -504,54 +670,29 @@ where
     <Inner as Decode<B>>::Err: Into<<Outer as Decode<A>>::Err>, // These two should be
     <Outer as Decode<A>>::Err: From<<Inner as Decode<B>>::Err>, // eq, but alas.
 {
-    pub /*const*/ fn chain_back_detached<Z: Debug, NewOuter: Decode<Z, Encoded = A>>() -> ChainedDecode<Z, A, NewOuter, Self>
+    pub const fn chain_back<Z: Debug, NewOuter: Decode<Z, Encoded = A>>(self, new_outer: NewOuter) -> ChainedDecode<Z, A, NewOuter, Self>
     where
         <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>
     {
-        Default::default()
+        ChainedDecode::with(new_outer, self)
     }
 
-    pub /*const*/ fn chain_back<Z: Debug, NewOuter: Decode<Z, Encoded = A>>(self, _new_outer: NewOuter) -> ChainedDecode<Z, A, NewOuter, Self>
-    where
-        <Outer as Decode<A>>::Err: Into<<NewOuter as Decode<Z>>::Err>
-    {
-        Self::chain_back_detached()
-    }
-
-    pub fn chain_front_detatched<Z: Debug, NewInner>() -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    pub const fn chain_front<Z: Debug, NewInner>(self, new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
     where
         NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
         <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
     {
-        Default::default()
-    }
-
-    pub fn chain_front<Z: Debug, NewInner>(self, _new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
-    where
-        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
-        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
-    {
-        Self::chain_front_detatched()
-    }
-
-    // an alias for chain_front_detatched
-    pub fn chain_detatched<Z: Debug, NewInner>() -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
-    where
-        NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
-        <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
-    {
-        Self::chain_front_detatched()
+        ChainedDecode::with(self, new_inner)
     }
 
     // an alias for chain_front
-    pub fn chain<Z: Debug, NewInner>(self, _new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
+    pub const fn chain<Z: Debug, NewInner>(self, new_inner: NewInner) -> ChainedDecode<A, <Inner as Decode<B>>::Encoded, Self, NewInner>
     where
         NewInner: Decode<<Inner as Decode<B>>::Encoded, Encoded = Z>,
         <Outer as Decode<A>>::Err: From<<NewInner as Decode<<Inner as Decode<B>>::Encoded>>::Err>,
     {
-        Self::chain_detatched()
+        self.chain_front(new_inner)
     }
-
 }
 
 impl<A: Debug, B: Debug, Outer, Inner> Decode<A> for ChainedDecode<A, B, Outer, Inner>
@@ -564,9 +705,9 @@ where
     type Encoded = <Inner as Decode<B>>::Encoded;
     type Err = <Outer as Decode<A>>::Err;
 
-    fn decode(encoded: &Self::Encoded) -> Result<A, Self::Err> {
-        let b: B = <Inner as Decode<B>>::decode(encoded)?;
-        <Outer as Decode<A>>::decode(&b)
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<A, Self::Err> {
+        let b: B = <Inner as Decode<B>>::decode(&mut self.inner, encoded)?;
+        <Outer as Decode<A>>::decode(&mut self.outer, &b)
     }
 }
 
