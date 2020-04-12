@@ -172,9 +172,11 @@ where
     C: Control,
     // <C as Control>::EventFuture: Unpin,
 {
-    _encoding: PhantomData<(Req, Resp, ReqDec, RespEnc)>,
+    _encoded_formats: PhantomData<(Req, Resp)>,
     _control_impl: PhantomData<C>,
     pub transport: T,
+    enc: RespEnc,
+    dec: ReqDec,
     // pending_event_future: Option<Pin<C::EventFuture>>,
     pending_event_future: Option<C::EventFuture>,
 }
@@ -198,12 +200,14 @@ where
     // Note: we take `decode` and `encode` as parameters here even though the
     // actual value is never used so that users don't have to resort to using
     // the turbofish syntax to specify what they want the encoding layer to be.
-    pub /*const*/ fn new(_enc: E, _dec: D, transport: T) -> Self {
+    pub /*const*/ fn new(enc: E, dec: D, transport: T) -> Self {
         Self {
             // encoding,
-            _encoding: PhantomData,
+            _encoded_formats: PhantomData,
             _control_impl: PhantomData,
             transport,
+            enc,
+            dec,
             pending_event_future: None,
         }
     }
@@ -281,12 +285,12 @@ where
                 // println!("device future is done!");
                 self.pending_event_future = None;
 
-                let enc = E::encode(R::RunUntilEvent(event).into());
+                let enc = self.enc.encode(R::RunUntilEvent(event).into());
                 self.transport.send(enc).unwrap(); // TODO: don't panic?
             }
         }
 
-        while let Ok(m) = self.transport.get().map(|enc| D::decode(&enc).unwrap().into()) {
+        while let Ok(m) = self.transport.get().map(|enc| self.dec.decode(&enc).unwrap().into()) {
             num_processed_messages += 1;
 
             macro_rules! dev {
@@ -299,11 +303,11 @@ where
                             } else {
                                 // self.pending_event_future = Some(Pin::new(c.run_until_event()));
                                 self.pending_event_future = Some(c.run_until_event());
-                                self.transport.send(E::encode(R::RunUntilEventAck.into())).unwrap()
+                                self.transport.send(self.enc.encode(R::RunUntilEventAck.into())).unwrap()
                             }
                         },
                         $(
-                            $req => self.transport.send(E::encode({
+                            $req => self.transport.send(self.enc.encode({
                                 let $r = $resp_expr;
                                 $($resp)+
                             }.into())).unwrap(),
