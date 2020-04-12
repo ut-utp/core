@@ -2,15 +2,8 @@ use super::*;
 
 use lc3_traits::peripherals::gpio::{Gpio, GpioPin, GpioState, GPIO_PINS};
 use lc3_baseline_sim::mem_mapped::{
-    G0CR_ADDR, G0DR_ADDR, G0_INT_VEC,
-    G1CR_ADDR, G1DR_ADDR, G1_INT_VEC,
-    G2CR_ADDR, G2DR_ADDR, G2_INT_VEC,
-    G3CR_ADDR, G3DR_ADDR, G3_INT_VEC,
-    G4CR_ADDR, G4DR_ADDR, G4_INT_VEC,
-    G5CR_ADDR, G5DR_ADDR, G5_INT_VEC,
-    G6CR_ADDR, G6DR_ADDR, G6_INT_VEC,
-    G7CR_ADDR, G7DR_ADDR, G7_INT_VEC,
-    GPIODR_ADDR,
+    G0_INT_VEC, G1_INT_VEC, G2_INT_VEC, G3_INT_VEC,
+    G4_INT_VEC, G5_INT_VEC, G6_INT_VEC, G7_INT_VEC,
 };
 
 use GpioState::*;
@@ -18,4 +11,76 @@ use GpioPin::*;
 
 mod states {
     use super::*;
+
+    single_test! {
+        input,
+        pre: |p| { },
+        prefill: { },
+        insns: [
+            { AND R0, R0, #0 },
+            { TRAP #0x30 },
+            { TRAP #0x25 },
+        ],
+        regs: { },
+        memory: { },
+        post: |i| {
+            let p = i.get_peripherals();
+            eq!(Gpio::get_state(p, G0), Input);
+        },
+        with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
+    }
+
+    single_test! {
+        output,
+        pre: |p| { },
+        prefill: { },
+        insns: [
+            { AND R0, R0, #0 },
+            { TRAP #0x31 },
+            { TRAP #0x25 },
+        ],
+        regs: { },
+        memory: { },
+        post: |i| {
+            let p = i.get_peripherals();
+            eq!(Gpio::get_state(p, G0), Output);
+        },
+        with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
+    }
+
+    // TODO: TRAP x32 -- INTERRUPT (requires triggering Gpio interrupt externally)
+
+    single_test! {
+        disabled,
+        pre: |p| { Gpio::set_state(p, G0, Output); },
+        prefill: { },
+        insns: [
+            { AND R0, R0, #0 },
+            { TRAP #0x33 },
+            { TRAP #0x25 },
+        ],
+        regs: { },
+        memory: { },
+        post: |i| {
+            let p = i.get_peripherals();
+            eq!(Gpio::get_state(p, G0), Disabled);
+        },
+        with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
+    }
+
+    single_test! {
+        get_mode,
+        pre: |p| { Gpio::set_state(p, G0, Output); },
+        prefill: { 0x3004: 0 },
+        insns: [
+            { AND R0, R0, #0 },
+            { TRAP #0x34 },
+            { ST R0, #1 },
+            { TRAP #0x25 },
+        ],
+        regs: { },
+        memory: { },
+        post: |i| { eq!(i.get_word_unchecked(0x3004), 1); },
+        with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
+    }
 }

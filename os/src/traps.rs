@@ -384,11 +384,11 @@ pub mod gpio {
       ///
       /// ## Example
       /// The below sets [`G0`] to be an [Output], then reads [`G0`]'s mode
-      /// into [`R0`]. [`R0`] will then contain the value 2.
+      /// into [`R0`]. [`R0`] will then contain the value 1.
       /// ```{ARM Assembly}
       /// AND R0, R0, #0      ; Sets R0 to 0
       /// TRAP 0x31           ; Sets G0 to Output
-      /// TRAP 0x34           ; Reads G0's mode, sets R0 to 2
+      /// TRAP 0x34           ; Reads G0's mode, sets R0 to 1
       /// ```
       ///
       /// [GPIO]: lc3_traits::peripherals::Gpio

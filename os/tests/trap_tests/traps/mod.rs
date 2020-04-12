@@ -12,6 +12,10 @@ use lti::Reg::*;
 
 use lti::assert_eq as eq;
 
+use lc3_baseline_sim::interp::InstructionInterpreter;
+use lc3_os::OS_IMAGE;
+use lc3_isa::OS_START_ADDR;
+
 // mod adc;
 mod clock;
 mod gpio;

@@ -1,8 +1,5 @@
 use super::*;
 
-use lc3_os::OS_IMAGE;
-use lc3_isa::OS_START_ADDR;
-use lc3_baseline_sim::interp::InstructionInterpreter;
 use std::thread::sleep;
 use std::time::Duration;
 use super::lti::{assert_is_about, single_test};
