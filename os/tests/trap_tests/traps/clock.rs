@@ -25,3 +25,21 @@ single_test! {
     post: |i| { assert_is_about(i.get_word_unchecked(0x3003), 200, TOLERANCE); },
     with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
 }
+
+single_test! {
+    set,
+    pre: |p| { },
+    prefill: { 0x3006: 400 },
+    insns: [
+        { LD R0, #5 },
+        { TRAP #0x70 },
+        { AND R0, R0, #0 },
+        { TRAP #0x71 },
+        { ST R0, #1 },
+        { TRAP #0x25 },
+    ],
+    regs: { },
+    memory: { },
+    post: |i| { assert_is_about(i.get_word_unchecked(0x3006), 400, TOLERANCE); },
+    with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
+}
