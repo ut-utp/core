@@ -14,7 +14,7 @@ const TOLERANCE: u16 = 5;
 single_test! {
     get,
     pre: |p| { sleep(Duration::from_millis(200)); },
-    prefill: { 0x3004: 0 },
+    prefill: { 0x3003: 0 },
     insns: [
         { TRAP #0x71 },
         { ST R0, #1 },
@@ -22,6 +22,6 @@ single_test! {
     ],
     regs: { },
     memory: { },
-    post: |i| { assert_is_about(i.get_word_unchecked(0x3004), 200, TOLERANCE); },
+    post: |i| { assert_is_about(i.get_word_unchecked(0x3003), 200, TOLERANCE); },
     with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
 }
