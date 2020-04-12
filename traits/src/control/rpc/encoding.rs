@@ -56,7 +56,7 @@
 //! equivalent to the above, I think.
 //!
 //! But, again, the orphan impl rules get in our way. Users in downstream crates
-//! can't, for example, write impls of `Env` on the message types that are
+//! can't, for example, write impls of `Enc` on the message types that are
 //! defined in this crate (`ResponseMessage`, `RequestMessage) which
 //! significantly limits how useful all of this is.
 //!
@@ -168,10 +168,10 @@ use core::convert::Infallible;
 //
 // Encoding is assumed to be an infallible process so there is no associated
 // error type on this trait.
-pub trait Encode<Message: Debug>: Default {
+pub trait Encode<Message: Debug> {
     type Encoded: Debug;
 
-    fn encode(message: Message) -> Self::Encoded;
+    fn encode(&mut self, message: Message) -> Self::Encoded;
 }
 
 // Implementors provide:
@@ -179,11 +179,11 @@ pub trait Encode<Message: Debug>: Default {
 //
 // Decoding is assumed to be _fallible_ so this trait has an associated error
 // type (`Err`).
-pub trait Decode<Message: Debug>: Default {
+pub trait Decode<Message: Debug> {
     type Encoded: Debug;
     type Err: Debug;
 
-    fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err>;
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<Message, Self::Err>;
 }
 
 // In a softer world:
@@ -204,7 +204,7 @@ where
     Message: Debug + Into<Encoded>,
 {
     type Encoded = Encoded;
-    fn encode(message: Message) -> Self::Encoded { message.into() }
+    fn encode(&mut self, message: Message) -> Self::Encoded { message.into() }
 }
 
 impl<Encoded, Message> Decode<Message> for CoreConvert<Encoded>
@@ -216,7 +216,7 @@ where
     type Encoded = Encoded;
     type Err = <Message as TryFrom<Encoded>>::Error;
 
-    fn decode(encoded: &Self::Encoded) -> Result<Message, Self::Err> {
+    fn decode(&mut self, encoded: &Self::Encoded) -> Result<Message, Self::Err> {
         TryFrom::try_from(encoded.clone())
     }
 }
@@ -290,7 +290,7 @@ impl<T: Debug> Default for Transparent<T> {
 impl<Message: Debug> Encode<Message> for Transparent<Message> {
     type Encoded = Message;
 
-    fn encode(message: Message) -> Self::Encoded {
+    fn encode(&mut self, message: Message) -> Self::Encoded {
         message
     }
 }
@@ -299,7 +299,7 @@ impl<Message: Debug + Clone> Decode<Message> for Transparent<Message> {
     type Encoded = Message;
     type Err = Infallible;
 
-    fn decode(message: &Self::Encoded) -> Result<Message, Self::Err> {
+    fn decode(&mut self, message: &Self::Encoded) -> Result<Message, Self::Err> {
         Ok(message.clone())
     }
 }
