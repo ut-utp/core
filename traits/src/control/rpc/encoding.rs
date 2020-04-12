@@ -954,7 +954,7 @@ using_std! {
     impl<Message: Debug> Encode<Message> for JsonEncoding {
         type Encoded = String;
 
-        fn encode(message: Message) -> Self::Encoded {
+        fn encode(&mut self, message: Message) -> Self::Encoded {
             serde_json::to_string(&message).unwrap()
         }
     }
@@ -963,7 +963,7 @@ using_std! {
     impl<Message: Debug> Decode<Message> for JsonEncoding {
         type Err = serde_json::error::Error;
 
-        fn decode(encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
+        fn decode(&mut self, encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
             serde_json::from_str(encoded)
         }
     }
