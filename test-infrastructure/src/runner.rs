@@ -1,16 +1,10 @@
 use lc3_isa::{Addr, Instruction, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;
-use std::fs::{File, remove_file};
 use std::io::prelude::*;
-use std::io::BufReader;
-use std::process::Command;
-use std::io::Write;
 use lc3_baseline_sim::interp::{PeripheralInterruptFlags, InstructionInterpreter,
     Interpreter, InterpreterBuilder, MachineState
 };
-extern crate rand;
-use rand::Rng;
 use core::convert::{TryFrom, TryInto};
 
 use pretty_assertions::assert_eq;
