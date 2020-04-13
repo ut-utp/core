@@ -1010,7 +1010,7 @@ fn os() -> AssembledProgram {
         // R0 = value to check
         // R4 = max value
         // -> cc = n if out of bounds
-        //         p if within bounds
+        //         z or p if within bounds
         // Does not modify R0
         // Destroys R1
         @CHECK_OUT_OF_BOUNDS
@@ -1019,8 +1019,8 @@ fn os() -> AssembledProgram {
             NOT R4, R4;                     // Negate R4
             ADD R4, R4, #1;
             ADD R4, R0, R4;                 // Check if R0 is less than R4
-            BRp @OUT_OF_BOUNDS;
-            ADD R0, R0, #0;                 // If not, set cc to p
+            BRzp @OUT_OF_BOUNDS;
+            ADD R0, R0, #0;                 // If not, set cc to z or p
             BR @OUT_OF_BOUNDS_RET;
         @OUT_OF_BOUNDS
             NOT R4, R0;                     // Set cc to n
@@ -1195,6 +1195,50 @@ fn os() -> AssembledProgram {
             LDR R4, R6, #1;
             ADD R6, R6, #2;
             RTI;
+//
+//        @TRAP_TEST_GPIO
+//            ADD R2, R0, #0;
+//            ADD R3, R1, #0;
+//            JSR @SET_GPIO_MODE_GPIO;
+//            BRn @FALSE_ASSERT;
+//            AND R6, R6, #0;
+//        @FALSE_ASSERT_GPIO
+//            AND R6, R6, #0;
+//            ADD R6, R6, #1;
+//            RET;
+//
+//        @TRAP_TEST_ADC
+//            ADD R2, R0, #0;
+//            ADD R3, R1, #0;
+//            JSR @SET_ADC_MODE;
+//            BRn @FALSE_ASSERT_ADC;
+//            AND R6, R6, #0;
+//        @FALSE_ASSERT_ADC;
+//            AND R6, R6, #0;
+//            ADD R6, R6, #1;
+//            RET;
+//
+//        @TRAP_TEST_TIMER
+//            ADD R2, R0, #0;
+//            ADD R3, R1, #0;
+//            JSR @SET_TIMER_MODE;
+//            BRn @FALSE_ASSERT_TIMER;
+//            AND R6, R6, #0;
+//        @FALSE_ASSERT_TIMER;
+//            AND R6, R6, #0;
+//            ADD R6, R6, #1;
+//            RET;
+//
+//        @TRAP_TEST_PWM
+//            ADD R2, R0, #0;
+//            ADD R3, R1, #0;
+//            JSR @SET_PWM_MODE;
+//            BRn @FALSE_ASSERT_PWM;
+//            AND R6, R6, #0;
+//        @FALSE_ASSERT_PWM;
+//            AND R6, R6, #0;
+//            ADD R6, R6, #1;
+//            RET;
 
         // Sets mode of ADC pin
         // R0 = ADC pin to set mode of

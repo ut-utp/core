@@ -192,16 +192,178 @@ mod states {
 }
 
 mod read {
+    use super::*;
+    use lc3_traits::peripherals::gpio::*;
     // Test that reads of [0, 1] work for all the pins when everything is
     // configured as inputs (i think we can skip the full 2 ^ 8 possibilities
     // this time)
 
     // Test that each pin works (0 and 1) as an input individually
+    single_test! {
+        gpio_cr_pin0_read_input1,
+        pre: |i| { Gpio::set_state(i, G0, Input).unwrap();},{Gpio::write(i, G0, #0b00001101).unwrap();},
+        prefill: { 0x3010: G0DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: { },
+        post: |i| { Gpio::read(i.get_peripherals(), G0); }
+    }
 
+    single_test! {
+        gpio_cr_pin2_read_input,
+        pre: |i| { Gpio::set_state(i, G2, Input).unwrap(); },
+        prefill: { 0x3010: G2DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01111111 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b01111111},
+        memory: { },
+        post: |i| { assert_eq!(0b01111111, Gpio::read(i.get_peripherals(), G2)); }
+    }
+    single_test! {
+        gpio_cr_pin3_read_input,
+        pre: |i| { Gpio::set_state(i, G3, Input).unwrap(); },
+        prefill: { 0x3010: G3DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00000000 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00000000},
+        memory: { },
+        post: |i| { assert_eq!(0b00000000, Gpio::read(i.get_peripherals(), G3)); }
+    }
+    single_test! {
+        gpio_cr_pin4_read_input,
+        pre: |i| { Gpio::set_state(i, G4, Input).unwrap(); },
+        prefill: { 0x3010: G4DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G4)); }
+    }
+    single_test! {
+        gpio_cr_pin1_read_input,
+        pre: |i| { Gpio::set_state(i, G1, Input).unwrap(); },
+        prefill: { 0x3010: G1DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G1)); }
+    }
+    single_test! {
+        gpio_cr_pin5_read_input,
+        pre: |i| { Gpio::set_state(i, G5, Input).unwrap(); },
+        prefill: { 0x3010: G5DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00000101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00000101},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G5)); }
+    }
+    single_test! {
+        gpio_cr_pin6_read_input,
+        pre: |i| { Gpio::set_state(i, G6, Input).unwrap(); },
+        prefill: { 0x3010: G6DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00101111},
+        memory: { },
+        post: |i| { assert_eq!(0b00101111, Gpio::read(i.get_peripherals(), G6)); }
+    }
+    single_test! {
+        gpio_cr_pin7_read_input,
+        pre: |i| { Gpio::set_state(i, G7, Input).unwrap(); },
+        prefill: { 0x3010: G7DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00000001 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00000001},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G7)); }
+    }
     // Test that reads when in interrupt mode work (0 and 1; be sure to set
     // the value and then switch to interrupt mode so you don't trigger an
     // interrupt); test this on all pins
+    single_test! {
+        gpio_cr_pin0_read_input1,
+        pre: |i| { Gpio::set_state(i, G0, Input).unwrap(); },
+        prefill: {0x3010: G0DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G0)); }
+    }
 
+    single_test! {
+        gpio_cr_pin2_read_input,
+        pre: |i| { Gpio::set_state(i, G2, Input).unwrap(); },
+        prefill: { 0x3010: G2DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01111111 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b01111111},
+        memory: { },
+        post: |i| { assert_eq!(0b01111111, Gpio::read(i.get_peripherals(), G2)); }
+    }
+    single_test! {
+        gpio_cr_pin3_read_input,
+        pre: |i| { Gpio::set_state(i, G3, Input).unwrap(); },
+        prefill: { 0x3010: G3DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00000000 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00000000},
+        memory: { },
+        post: |i| { assert_eq!(0b00000000, Gpio::read(i.get_peripherals(), G3)); }
+    }
+    single_test! {
+        gpio_cr_pin4_read_input,
+        pre: |i| { Gpio::set_state(i, G4, Input).unwrap(); },
+        prefill: { 0x3010: G4DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G4)); }
+    }
+    single_test! {
+        gpio_cr_pin1_read_input,
+        pre: |i| { Gpio::set_state(i, G1, Input).unwrap(); },
+        prefill: { 0x3010: G1DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G1)); }
+    }
+    single_test! {
+        gpio_cr_pin5_read_input,
+        pre: |i| { Gpio::set_state(i, G5, Input).unwrap(); },
+        prefill: { 0x3010: G5DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00000101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00000101},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G5)); }
+    }
+    single_test! {
+        gpio_cr_pin6_read_input,
+        pre: |i| { Gpio::set_state(i, G6, Input).unwrap(); },
+        prefill: { 0x3010: G6DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00101111},
+        memory: { },
+        post: |i| { assert_eq!(0b00101111, Gpio::read(i.get_peripherals(), G6)); }
+    }
+    single_test! {
+        gpio_cr_pin7_read_input,
+        pre: |i| { Gpio::set_state(i, G7, Input).unwrap(); },
+        prefill: { 0x3010: G7DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00000001 },{STI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00000001},
+        memory: { },
+        post: |i| { assert_eq!(0b00001101, Gpio::read(i.get_peripherals(), G7)); }
+    }
     // Test that reads when in output mode work (i.e. they set the high bit)
     // be sure to also test this with more than 1 pin in output mode
 
@@ -228,47 +390,119 @@ mod read {
 }
 
 mod write {
-    // Literally the same as the read tests except you get different behavior
-    // if you try to write to a pin that's in interrupt mode (as in: it
-    // shouldn't work).
+    use super::*;
+    use lc3_traits::peripherals::gpio::*;
+        single_test! {
+        gpio_cr_pin0_write_input1,
+        pre: |i| { Gpio::set_state(i, G0, Output).unwrap(); }, {Gpio::write(i, G0, #0b00001101).unwrap();},
+        prefill: {0x3010: G0DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: {G0DR_ADDR, #0b00001101},
+    }
+
+    single_test! {
+        gpio_cr_pin1_write_input1,
+        pre: |i| { Gpio::set_state(i, G1, Output).unwrap(); }, {Gpio::write(i, G1, #0b00000001).unwrap();},
+        prefill: {0x3010: G1DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00000001 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00000001},
+        memory: {G1DR_ADDR, #0b00000001}
+    }
+    single_test! {
+        gpio_cr_pin2_write_input1,
+        pre: |i| { Gpio::set_state(i, G2, Output).unwrap(); }, {Gpio::write(i, G2, #0b00001101).unwrap();},
+        prefill: {0x3010: G2DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: {G2DR_ADDR, #0b00001101}
+    }
+    single_test! {
+        gpio_cr_pin3_write_input1,
+        pre: |i| { Gpio::set_state(i, G3, Output).unwrap(); }, {Gpio::write(i, G3, #0b00001101).unwrap();},
+        prefill: {0x3010: G3DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: {G3DR_ADDR, #0b00001101}
+    }
+    single_test! {
+        gpio_cr_pin4_write_input1,
+        pre: |i| { Gpio::set_state(i, G4, Output).unwrap(); }, {Gpio::write(i, G4, #0b00001101).unwrap();},
+        prefill: {0x3010: G4DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: {G4DR_ADDR, #0b00001101}
+    }
+    single_test! {
+        gpio_cr_pin5_write_input1,
+        pre: |i| { Gpio::set_state(i, G5, Output).unwrap(); }, {Gpio::write(i, G5, #0b00001101).unwrap();},
+        prefill: {0x3010: G5DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: {G5DR_ADDR, #0b00001101}
+    }
+    single_test! {
+        gpio_cr_pin6_write_input1,
+        pre: |i| { Gpio::set_state(i, G6, Output).unwrap(); }, {Gpio::write(i, G6, #0b00001101).unwrap();},
+        prefill: {0x3010: G0DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: {G6DR_ADDR, #0b00001101}
+    }
+    single_test! {
+        gpio_cr_pin7_write_input1,
+        pre: |i| { Gpio::set_state(i, G7, Output).unwrap(); }, {Gpio::write(i, G7, #0b00001101).unwrap();},
+        prefill: {0x3010: G7DR_ADDR },
+        insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b00001101 },{LDI R0, #0xD }],
+        steps: 3,
+        regs: { R0: 0b00001101},
+        memory: {G7DR_ADDR, #0b00001101},
+    }
 }
 
-mod interrupt {
-    // Reading from pins in interrupt mode should already be covered; the only
-    // thing left is to test that interrupts actually trigger.
-
-    // Here are the variables:
-    //   - rising edge or falling edge
-    //   - in interrupt mode or some other mode (i.e. 3 other modes)
-
-    // Interrupts should only trigger on rising edges AND when interrupts are
-    // enabled AND when in interrupt mode. If we do an exhaustive test, this
-    // is (2 * 4) ^ 8 = 16,777,216 states...
-    //
-    // So, maybe don't do an exhaustive test or randomly pick a few thousand
-    // combinations from the full set of possibilities.
-
-    // Should also test that multiple interrupts are handled (i.e. they all
-    // run).
-
-    // Also need to test that when multiple interrupts occur, they trigger in
-    // the documented order!
-    //
-    // i.e. if G0 through G7 all trigger, G0 runs first, then G1, then G2, etc.
-    //
-    // One way we can actually test this is to have each handler increment R0
-    // and to have each handler store R0 into a fixed memory location for that
-    // handler.
-    //
-    // i.e. G0's handler -> 0x1000
-    //      G1's handler -> 0x1001
-    //      G2's handler -> 0x1002
-    //      G3's handler -> 0x1003
-    //      etc.
-    //
-    // If the handlers trigger in the right order, the values in 0x1000..0x1007
-    // should be sequential; if the handlers get run out of order they won't be.
-}
+//mod interrupt {
+//    // Reading from pins in interrupt mode should already be covered; the only
+//    // thing left is to test that interrupts actually trigger.
+//
+//    // Here are the variables:
+//    //   - rising edge or falling edge
+//    //   - in interrupt mode or some other mode (i.e. 3 other modes)
+//
+//    // Interrupts should only trigger on rising edges AND when interrupts are
+//    // enabled AND when in interrupt mode. If we do an exhaustive test, this
+//    // is (2 * 4) ^ 8 = 16,777,216 states...
+//    //
+//    // So, maybe don't do an exhaustive test or randomly pick a few thousand
+//    // combinations from the full set of possibilities.
+//
+//    // Should also test that multiple interrupts are handled (i.e. they all
+//    // run).
+//
+//    // Also need to test that when multiple interrupts occur, they trigger in
+//    // the documented order!
+//    //
+//    // i.e. if G0 through G7 all trigger, G0 runs first, then G1, then G2, etc.
+//    //
+//    // One way we can actually test this is to have each handler increment R0
+//    // and to have each handler store R0 into a fixed memory location for that
+//    // handler.
+//    //
+//    // i.e. G0's handler -> 0x1000
+//    //      G1's handler -> 0x1001
+//    //      G2's handler -> 0x1002
+//    //      G3's handler -> 0x1003
+//    //      etc.
+//    //
+//    // If the handlers trigger in the right order, the values in 0x1000..0x1007
+//    // should be sequential; if the handlers get run out of order they won't be.
+//}
 
 mod errors {
     use super::*;

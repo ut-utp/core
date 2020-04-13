@@ -65,4 +65,3 @@ single_test! {
     memory: { }
     post: |i| { assert_is_about(i.get_register(R0), 1000, TOLERANCE); }
 }
-
