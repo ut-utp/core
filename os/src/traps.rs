@@ -590,11 +590,11 @@ pub mod adc {
       ///
       /// ## Example
       /// The below sets [`A0`] to be an [Disabled], then reads [`A0`]'s mode
-      /// into [`R0`]. [`R0`] will then contain the value 1.
+      /// into [`R0`]. [`R0`] will then contain the value 0.
       /// ```{ARM Assembly}
       /// AND R0, R0, #0      ; Sets R0 to 0
       /// TRAP 0x41           ; Sets A0 to Disabled
-      /// TRAP 0x42           ; Reads A0's mode, sets R0 to 1
+      /// TRAP 0x42           ; Reads A0's mode, sets R0 to 0
       /// ```
       ///
       /// [ADC]: lc3_traits::peripherals::adc
