@@ -19,7 +19,7 @@ use lc3_isa::OS_START_ADDR;
 mod adc;
 mod clock;
 mod gpio;
-// mod pwm;
+mod pwm;
 mod timers;
 
 // mod input;

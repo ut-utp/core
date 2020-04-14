@@ -1420,8 +1420,12 @@ fn os() -> AssembledProgram {
             ADD R4, R4, R0;                 // Calculate pin address offset by doubling pin number
             ADD R4, R4, R0;                 // R3 contains control address of pin number in R0
             LDR R0, R4, #0;                 // Reads mode from pin into R0
+            BRnzp @END_READ_PWM_PERIOD;
 
         @SKIP_READ_PWM_PERIOD
+            AND R0, R0, #0;                 // Return error code 0 (period always nonzero)
+
+        @END_READ_PWM_PERIOD
             LDR R7, R6, #0;                 // Restore R4, R7
             LDR R4, R6, #1;
             ADD R6, R6, #2;

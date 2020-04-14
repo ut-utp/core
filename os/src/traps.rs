@@ -771,7 +771,7 @@ pub mod pwm {
       /// When [`R0`] contains a valid pin number (i.e. when [`R0`] is
       /// ∈ \[0, [`NUM_PWM_PINS`])), this TRAP is _infallible_.
       ///
-      /// When [`R0`] does not hold a valid pin number, the `n` bit is set.
+      /// When [`R0`] does not hold a valid pin number, 0 is returned in [`R0`].
       ///
       /// Attempting to read the period from a [PWM] [Pin] that is in [Disabled]
       /// mode returns 0 in [`R0`].
