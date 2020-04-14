@@ -23,4 +23,4 @@ mod gpio;
 mod timers;
 
 // mod input;
-// mod output;
+mod output;
