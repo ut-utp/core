@@ -725,11 +725,12 @@ fn os() -> AssembledProgram {
         //
         // Takes a pointer to a string in R0.
         @TRAP_PUTSP
-            ADD R6, R6, #-4;         // Save R0, R1, R2, and R3
-            STR R0, R6, #3;
-            STR R1, R6, #2;
-            STR R2, R6, #1;
-            STR R3, R6, #0;
+            ADD R6, R6, #-5;         // Save R0 through R4
+            STR R0, R6, #4;
+            STR R1, R6, #3;
+            STR R2, R6, #2;
+            STR R3, R6, #1;
+            STR R4, R6, #0;
 
             ADD R1, R0, #0;             // Copy over the string pointer (R0 -> R1).
 
@@ -748,15 +749,16 @@ fn os() -> AssembledProgram {
                 ADD R3, R0, #8;         // Set R3 to 8: the number of iterations
                                         // we need to run to move the upper byte.
 
-                ADD R2, R2, #0;         // Set the condition codes on R2 once.
-
                 @TRAP_PUTSP_UPPER_BYTE_LOOP
+                    AND R4, R4, #0;
+                    ADD R2, R2, #0;         // Set the condition codes on R2.
                     BRzp @TRAP_PUTSP_CURRENT_MSB_LOW;
-                    ADD R0, R0, #1;         // If the current MSB is set, append
-                                            // a 1 to the output.
+                    ADD R4, R4, #1;
 
                     @TRAP_PUTSP_CURRENT_MSB_LOW
                     ADD R0, R0, R0;         // Shift the output left.
+                    ADD R0, R0, R4;         // If the current MSB is set, append
+                                            // a 1 to the output.
 
                     ADD R3, R3, #-1;        // Decrement the counter and break
                     BRz @TRAP_PUTSP_UPPER;  // from this loop if we're done.
@@ -773,11 +775,12 @@ fn os() -> AssembledProgram {
                     BRnzp @TRAP_PUTSP_LOOP; // and repeat.
 
         @TRAP_PUTSP_RETURN
-            LDR R3, R6, #0;          // Restore R0, R1, R2, and R3
-            LDR R2, R6, #1;
-            LDR R1, R6, #2;
-            LDR R0, R6, #3;
-            ADD R6, R6, #4;
+            LDR R4, R6, #0; // Restore R0 through R4
+            LDR R3, R6, #1;
+            LDR R2, R6, #2;
+            LDR R1, R6, #3;
+            LDR R0, R6, #4;
+            ADD R6, R6, #5;
             RTI;
 
         // HALT: Halts the machine!
