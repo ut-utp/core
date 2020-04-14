@@ -3,6 +3,7 @@ use super::*;
 // TODO: test for correct output.
 // currently only testing that the machine halts.
 
+// Print "!"
 single_test! {
     out,
     pre: |p| { },
@@ -18,6 +19,7 @@ single_test! {
     with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
 }
 
+// Print "(!)"
 single_test! {
     puts,
     pre: |p| { },
@@ -38,6 +40,7 @@ single_test! {
     with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
 }
 
+// Print "(!)"
 single_test! {
     putsp,
     pre: |p| { },
