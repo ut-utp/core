@@ -78,7 +78,7 @@ single_test! {
     read,
     pre: |p| {
         Adc::set_state(p, A0, Enabled);
-        AdcShim::set_value(p.get_adc(), A0, 10);
+        AdcShim::set_value(p.get_adc_mut(), A0, 10);
     },
     prefill: { 0x3004: 0 },
     insns: [

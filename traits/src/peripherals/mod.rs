@@ -134,7 +134,11 @@ where
         &self.gpio
     }
 
-    pub fn get_adc(&mut self) -> &mut A {
+    pub fn get_adc(&mut self) -> &A {
+        &self.adc
+    }
+
+    pub fn get_adc_mut(&mut self) -> &mut A {
         &mut self.adc
     }
 
