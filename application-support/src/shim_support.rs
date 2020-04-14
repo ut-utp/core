@@ -3,10 +3,12 @@
 use crate::io_peripherals::{InputSink, OutputSource};
 
 use lc3_traits::peripherals::PeripheralSet;
-use lc3_shims::peripherals::{Source, Sink};
+use lc3_shims::peripherals::{Source, Sink, SharablePeripheralsShim};
 use lc3_shims::peripherals::{GpioShim, AdcShim, PwmShim, TimersShim, ClockShim, InputShim, OutputShim};
 
 use std::sync::{Arc, Mutex, RwLock};
+
+pub type ShimPeripheralSet<'int, 'io> = SharablePeripheralsShim<'int, 'io>;
 
 pub struct Shims<'int> {
     pub gpio: Arc<RwLock<GpioShim<'int>>>,
@@ -15,17 +17,6 @@ pub struct Shims<'int> {
     pub timers: Arc<Mutex<TimersShim<'int>>>,
     pub clock: Arc<RwLock<ClockShim>>,
 }
-
-pub type ShimPeripheralSet<'int: 'io, 'io> = PeripheralSet<
-    'int,
-    Arc<RwLock<GpioShim<'int>>>,
-    Arc<RwLock<AdcShim>>,
-    Arc<Mutex<PwmShim>>,
-    Arc<Mutex<TimersShim<'int>>>,
-    Arc<RwLock<ClockShim>>,
-    Arc<Mutex<InputShim<'io, 'int>>>,
-    Arc<Mutex<OutputShim<'io, 'int>>>,
->;
 
 pub fn new_shim_peripherals_set<'int: 'io, 'io, I, O>(input: &'io I, output: &'io O)
         -> (ShimPeripheralSet<'int, 'io>, &'io impl InputSink, &'io impl OutputSource)

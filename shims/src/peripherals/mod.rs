@@ -22,6 +22,18 @@ pub use timers::TimersShim;
 pub use input::{InputShim, Source, SourceShim};
 pub use output::{OutputShim, Sink};
 use std::ops::{Deref, DerefMut};
+use std::sync::{Arc, RwLock, Mutex};
+
+pub type SharablePeripheralsShim<'int: 'io, 'io> = PeripheralSet<
+    'int,
+    Arc<RwLock<GpioShim<'int>>>,
+    Arc<RwLock<AdcShim>>,
+    Arc<Mutex<PwmShim>>,
+    Arc<Mutex<TimersShim<'int>>>,
+    Arc<RwLock<ClockShim>>,
+    Arc<Mutex<InputShim<'io, 'int>>>,
+    Arc<Mutex<OutputShim<'io, 'int>>>,
+>;
 
 pub type PeripheralsShim<'s> = PeripheralSet<
     's,
