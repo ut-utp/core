@@ -20,7 +20,7 @@ mod adc;
 mod clock;
 mod gpio;
 // mod pwm;
-// mod timers;
+mod timers;
 
 // mod input;
 // mod output;

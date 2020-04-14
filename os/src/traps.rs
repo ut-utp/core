@@ -1125,14 +1125,14 @@ pub mod timers {
       /// ## Example
       /// The below sets [`T0`] to be a [SingleShot] with a period of `1 second`
       /// and sets the interrupt service routine to `ISR`. It then gets the
-      /// [mode] of [`T0`], which will write a value of 1 into [`R0`]. Then the
+      /// [mode] of [`T0`], which will write a value of 0 into [`R0`]. Then the
       /// program halts.
       /// ```{ARM Assembly}
       /// AND R0, R0, #0      ; Sets R0 to 0
       /// LD R1, PERIOD       ; Sets R1 to 1000
       /// LEA R2, ISR         ; Sets R2 to address of ISR
       /// TRAP 0x60           ; Sets T0 to SingleShot w/ period of 1000 and ISR
-      /// TRAP 0x63           ; Reads T0's mode, sets R0 to 1
+      /// TRAP 0x63           ; Reads T0's mode, sets R0 to 0
       /// HALT
       ///
       /// PERIOD .FILL #1000
