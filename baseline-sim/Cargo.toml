@@ -7,7 +7,7 @@ edition = "2018"
 workspace = ".."
 
 description = "An instruction level simulator for the LC-3."
-homepage = "https://ut-utp.github.io"
+homepage = "https://utp.tools"
 repository = "http://github.com/ut-utp/prototype"
 
 readme = "README.md"
