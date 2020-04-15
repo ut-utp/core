@@ -113,10 +113,18 @@ impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
     }
 
     fn current_data_written(&self) -> bool {
-        match self.flag {
+        // eprintln!("Output Polled for readiness: {:?}", self.flag.unwrap().load(Ordering::SeqCst));
+
+        let val = match self.flag {
             Some(f) => f.load(Ordering::SeqCst),
             None => unreachable!(),
+        };
+
+        if !val {
+            self.flag.unwrap().store(true, Ordering::SeqCst);
         }
+
+        true
     }
 }
 
