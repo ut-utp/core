@@ -58,14 +58,14 @@ fn hex_string_to_integer(s: String) -> u16 {
             '8' =>{
                 value += 8*u16::pow(16, ctr);
             }
-            
+
             '7' =>{
                 value += 7*u16::pow(16, ctr);
             }
             '6' =>{
                value += 6*u16::pow(16, ctr);
             }
-            
+
             '5' =>{
                 value += 5*u16::pow(16, ctr);
             }
@@ -85,9 +85,9 @@ fn hex_string_to_integer(s: String) -> u16 {
                 value += 0;
             }
             _=>{
-                
+
             }
-            
+
         }
         if (ctr>0){
         ctr = ctr-1;
@@ -108,13 +108,13 @@ pub fn lc3tools_tester<'a, M: Memory + Default + Clone, P: Peripherals<'a>, PF, 
 )
 where
     for<'p> PF: FnOnce(&'p mut P),
-    for<'p> TF: FnOnce(&'p Interpreter<M, P>), 
-    
+    for<'p> TF: FnOnce(&'p Interpreter<M, P>),
+
     {
     let mut rng = rand::thread_rng();
     let n1: u8 = rng.gen();
     let file1_str = &format!("./test_lc3_{}.txt", n1);
-   
+
     let file1 = File::create(file1_str.to_string());
 
     let mut insns_lc3tools = Vec::<String>::new();
@@ -123,7 +123,7 @@ where
     insns_lc3tools.push(".orig x3000".to_string());
     for lc3_insn in lc3_insns {
         insns_lc3tools.push(lc3_insn);
-    } 
+    }
     insns_lc3tools.push(".end".to_string());
     let mut string_insns = insns_lc3tools.join("\n");
 
@@ -180,7 +180,7 @@ where
     }
 
     for insn in insns {
-        
+
         interp.set_word_unchecked(addr, insn.into());
 
         addr += 1;
@@ -196,21 +196,21 @@ where
         //println!("{:?}", line);
 
         if !line.is_empty(){
-        
+
             let address = &line[0..2];
             if address == "0x" {
 
                 let value: u16 = hex_string_to_integer(line.split(" ").collect::<Vec<&str>>()[1].to_string());
-                
+
                 let mem_location: u16 = hex_string_to_integer(line.split(" ").collect::<Vec<&str>>()[0].to_string().replace(":", ""));
                 //println!("{:?}", mem_location);
                  vec_mem.push(memory{mem_loc: mem_location, val: value});
-                
+
             }
             else if address == "PC" {
                 pc = line.split(" ").collect::<Vec<&str>>()[1].to_string();
 
-                
+
 
             }
             else if address == "PSR" {
@@ -221,7 +221,7 @@ where
             }
             else if address == "MCR" {
                 mcr = line.split(" ").collect::<Vec<&str>>()[1].to_string();
-            } 
+            }
 
             if line.contains("R0:"){
                 vec_registers = Vec::<strings>::new();
@@ -238,13 +238,13 @@ where
                 vec_registers.push(strings{temp_string: hex_string_to_integer(registers4567[4].split(" ").collect::<Vec<&str>>()[1].to_string())});
             }
         }
- 
+
     }
 
 
      // Check registers:
      for (idx, r) in vec_registers.iter().enumerate() {
-            let reg_word = r.temp_string; 
+            let reg_word = r.temp_string;
             let val = interp.get_register((idx as u8).try_into().unwrap());
             assert_eq!(
                 reg_word,
@@ -254,7 +254,7 @@ where
                 reg_word,
                 val,
             );
-        
+
     }
 
     // Check memory:
@@ -267,9 +267,9 @@ where
                 word, val,
                 "Expected memory location {:#04X} to be {:#04X}",
                 addr, val
-            ); 
+            );
         }
-        
+
     }
 
     // Run the teardown func:
@@ -282,8 +282,8 @@ where
 
 }
 
-
-pub fn interp_test_runner<'a, M: Memory + Default + Clone, P: Peripherals<'a>, PF, TF>
+#[inline]
+pub fn interp_test_runner<'flags, M: Memory + Default + Clone, P: Peripherals<'flags>, PF, TF>
 (
     prefilled_memory_locations: Vec<(Addr, Word)>,
     insns: Vec<Instruction>,
@@ -293,12 +293,12 @@ pub fn interp_test_runner<'a, M: Memory + Default + Clone, P: Peripherals<'a>, P
     memory_locations: Vec<(Addr, Word)>,
     setup_func: PF,
     teardown_func: TF,
-    flags: &'a PeripheralInterruptFlags,
-    alt_memory: &Option<(M, Addr)>,
+    flags: &'flags PeripheralInterruptFlags,
+    alt_memory: Option<(M, Addr)>,
 )
 where
     for<'p> PF: FnOnce(&'p mut P),
-    for<'p> TF: FnOnce(&'p Interpreter<M, P>), // Note: we could pass by value
+    for<'i> TF: FnOnce(&'i Interpreter<'flags, M, P>), // Note: we could pass by value
                                                // since this is the last thing
                                                // we do.
     // Interpreter<'a, M, P>: core::ops::Deref<Target = P>,
@@ -309,11 +309,11 @@ where
     let mut interp: Interpreter<M, P> = if let Some((mem, addr)) = alt_memory {
         let mut int: Interpreter<M, P> = InterpreterBuilder::new()
             .with_defaults()
-            .with_memory(mem.clone())
+            .with_memory(mem)
             .build();
 
         int.reset();
-        int.set_pc(*addr);
+        int.set_pc(addr);
 
         int
     } else {

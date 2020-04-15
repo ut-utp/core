@@ -15,7 +15,7 @@ mod lc3tools {
         #[test]
         fn $name() { with_larger_stack(/*Some(stringify!($name).to_string())*/ None, || {
 
-          
+
 
             #[allow(unused_mut)]
             let mut insns: Vec<Instruction> = Vec::new();
@@ -110,7 +110,7 @@ mod single_instructions {
                 (|_p| {}), // (no-op)
                 (|_p| {}), // (no-op)
                 &flags,
-                &None
+                None
             );
         })}};
     }
