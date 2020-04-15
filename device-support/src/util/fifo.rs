@@ -1,6 +1,7 @@
 //! Stack allocated FIFO. (TODO)
 
 use core::{
+    fmt::{self, Debug},
     iter::{ExactSizeIterator, Iterator, FusedIterator},
     mem::{replace, size_of, transmute, transmute_copy, MaybeUninit},
 };
@@ -34,6 +35,41 @@ pub struct Fifo<T> {
     /// Points to the next empty slot.
     /// Valid when `length` < CAPACITY.
     ending: Cur,
+}
+
+impl<T: Debug> Debug for Fifo<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // write!(f, "Fifo<{}> {{ ", core::any::type_name::<T>())?;
+        write!(f, "{} {{ ", core::any::type_name::<Self>())?;
+
+        let contents = self.as_slice();
+
+        if self.length() >= 15 {
+            for elem in contents.iter().take(7) {
+                elem.fmt(f)?;
+                write!(f, ", ")?;
+            }
+
+            write!(f, "...")?;
+
+            for elem in contents.iter().skip(self.length() - 7) {
+                write!(f, ", ")?;
+                elem.fmt(f)?;
+            }
+        } else {
+            let mut iter = contents.iter().take(self.length() - 1);
+            for elem in &mut iter {
+                elem.fmt(f)?;
+                write!(f, ", ")?;
+            }
+
+            if let Some(last) = iter.next() {
+                last.fmt(f)?;
+            }
+        }
+
+        write!(f, " }}")
+    }
 }
 
 impl<T> Default for Fifo<T> {
@@ -144,6 +180,7 @@ impl<T> Fifo<T> {
     /// Adds a value to the `Fifo`, if possible.
     ///
     /// Returns `Err(())` if the `Fifo` is currently full.
+    #[inline]
     pub fn push(&mut self, datum: T) -> Result<(), ()> {
         if self.is_full() {
             Err(())
@@ -162,6 +199,7 @@ impl<T> Fifo<T> {
     /// that.
     ///
     /// [`pop`]: Fifo::pop
+    #[inline]
     pub fn peek(&self) -> Option<&T> {
         if self.is_empty() {
             None
@@ -179,13 +217,14 @@ impl<T> Fifo<T> {
     // Updates the starting and length count to 'consume' some number of
     // elements.
     fn advance(&mut self, num: Cur) {
-        assert!((num as usize) <= self.length);
+        debug_assert!((num as usize) <= self.length);
 
         self.length -= num as usize;
         self.starting = Self::add(self.starting, num);
     }
 
     /// Pops a value from the Fifo, if available.
+    #[inline]
     pub fn pop(&mut self) -> Option<T> {
         if Self::is_empty(self) {
             None
@@ -207,6 +246,7 @@ impl<T> Fifo<T> {
 
     /// Returns a slice consisting of the data currently in the `Fifo` without
     /// removing it.
+    #[inline]
     pub fn as_slice(&self) -> &[T] {
         // starting == ending can either mean a full fifo or an empty one so
         // we use our length field to handle this case separately
@@ -359,7 +399,7 @@ impl<T: Clone> Fifo<T> {
             *elem = MaybeUninit::new(val.clone());
         }
 
-        assert_eq!(
+        debug_assert_eq!(
             size_of::<[MaybeUninit<T>; CAPACITY]>(),
             size_of::<[T; CAPACITY]>()
         );
