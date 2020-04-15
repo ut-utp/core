@@ -16,7 +16,9 @@ use AdcPin::*;
 mod states {
     use super::*;
 
-    single_test! {
+    // TODO: Clean this up!
+
+/*    single_test! {
         Adc_cr_pin0_read_output,
         pre: |p| { Adc::set_state(p, A0, Output).unwrap(); },
         prefill: { 0x3010: A0CR_ADDR },
@@ -193,13 +195,16 @@ mod read {
         regs: { R0: 0b00000101},
         memory: { },
         post: |i| { assert_eq!(0b00001101, Adc::read(i.get_peripherals(), A5)); }
-    }
+    }*/
 }
 
 mod write {
     use super::*;
     use lc3_traits::peripherals::Adc::*;
-    single_test! {
+
+    // TODO: Clean this up!
+
+    /*single_test! {
         Adc_cr_pin0_write_input1,
         pre: |i| { Adc::set_state(i, A0, Output).unwrap(); }, {Adc::write(i, A0, #0b00001101).unwrap();},
         prefill: {0x3010: A0DR_ADDR },
@@ -253,5 +258,5 @@ mod write {
         steps: 3,
         regs: { R0: 0b00001101},
         memory: {A5DR_ADDR, #0b00001101}
-    }
+    }*/
 }
