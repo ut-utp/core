@@ -1195,50 +1195,6 @@ fn os() -> AssembledProgram {
             LDR R4, R6, #1;
             ADD R6, R6, #2;
             RTI;
-//
-//        @TRAP_TEST_GPIO
-//            ADD R2, R0, #0;
-//            ADD R3, R1, #0;
-//            JSR @SET_GPIO_MODE_GPIO;
-//            BRn @FALSE_ASSERT;
-//            AND R6, R6, #0;
-//        @FALSE_ASSERT_GPIO
-//            AND R6, R6, #0;
-//            ADD R6, R6, #1;
-//            RET;
-//
-//        @TRAP_TEST_ADC
-//            ADD R2, R0, #0;
-//            ADD R3, R1, #0;
-//            JSR @SET_ADC_MODE;
-//            BRn @FALSE_ASSERT_ADC;
-//            AND R6, R6, #0;
-//        @FALSE_ASSERT_ADC;
-//            AND R6, R6, #0;
-//            ADD R6, R6, #1;
-//            RET;
-//
-//        @TRAP_TEST_TIMER
-//            ADD R2, R0, #0;
-//            ADD R3, R1, #0;
-//            JSR @SET_TIMER_MODE;
-//            BRn @FALSE_ASSERT_TIMER;
-//            AND R6, R6, #0;
-//        @FALSE_ASSERT_TIMER;
-//            AND R6, R6, #0;
-//            ADD R6, R6, #1;
-//            RET;
-//
-//        @TRAP_TEST_PWM
-//            ADD R2, R0, #0;
-//            ADD R3, R1, #0;
-//            JSR @SET_PWM_MODE;
-//            BRn @FALSE_ASSERT_PWM;
-//            AND R6, R6, #0;
-//        @FALSE_ASSERT_PWM;
-//            AND R6, R6, #0;
-//            ADD R6, R6, #1;
-//            RET;
 
         // Sets mode of ADC pin
         // R0 = ADC pin to set mode of
