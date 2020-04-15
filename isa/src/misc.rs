@@ -336,6 +336,16 @@ pub mod util {
 
             self
         }
+
+        // TODO: provide a trait for this too
+        // TODO: does it make sense to impl FromIterator for any of these types?
+        pub fn layer_iterator<I: Iterator<Item = (Addr, Word)>>(&mut self, iter: I) -> &mut Self {
+            for (addr, word) in iter {
+                self[addr as usize] = word;
+            }
+
+            self
+        }
     }
 
     type AssembledProgramInner = [(Word, bool); ADDR_SPACE_SIZE_IN_WORDS];
