@@ -31,8 +31,8 @@ impl<W: Write> Sink for Mutex<W> {
 }
 
 // #[derive(Clone)] // TODO: Debug
-pub struct OutputShim<'o, 'int> {
-    sink: OwnedOrRef<'o, dyn Sink + Send + Sync + 'o>,
+pub struct OutputShim<'out, 'int> {
+    sink: OwnedOrRef<'out, dyn Sink + Send + Sync + 'out>,
     flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
 }
@@ -65,7 +65,7 @@ impl<'o, 'int> OutputShim<'o, 'int> {
     }
 }
 
-impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
+impl<'int: 'out, 'out> Output<'int> for OutputShim<'out, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),

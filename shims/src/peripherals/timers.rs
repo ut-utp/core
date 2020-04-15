@@ -10,11 +10,11 @@ use std::sync::{Arc, Mutex};
 use std::time::{Instant, Duration};
 use core::sync::atomic::{AtomicBool, Ordering};
 
-pub struct TimersShim<'a> {
+pub struct TimersShim<'tint> {
     states: Arc<TimerArr<Mutex<TimerState>>>,
     modes: TimerArr<TimerMode>,
 
-    external_flags: Option<&'a TimerArr<AtomicBool>>,
+    external_flags: Option<&'tint TimerArr<AtomicBool>>,
     internal_flags: Arc<TimerArr<AtomicBool>>,
 
     guards: TimerArr<Option<timer::Guard>>,

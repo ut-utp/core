@@ -57,8 +57,8 @@ impl Source for SourceShim {
 }
 
 // #[derive(Clone)] // TODO: Debug
-pub struct InputShim<'i, 'int> {
-    source: OwnedOrRef<'i, dyn Source + Send + Sync + 'i>,
+pub struct InputShim<'inp, 'int> {
+    source: OwnedOrRef<'inp, dyn Source + Send + Sync + 'inp>,
     flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
     data: Cell<Option<u8>>,
@@ -122,7 +122,7 @@ impl<'int, 'i> InputShim<'i, 'int> {
     }
 }
 
-impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
+impl<'int: 'inp, 'inp> Input<'int> for InputShim<'inp, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),

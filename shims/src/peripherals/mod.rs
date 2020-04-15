@@ -35,7 +35,7 @@ pub type ShareablePeripheralsShim<'int: 'io, 'io> = PeripheralSet<
     Arc<Mutex<OutputShim<'io, 'int>>>,
 >;
 
-sa::assert_impl_all!(SharablePeripheralsShim: Sync, Send);
+sa::assert_impl_all!(ShareablePeripheralsShim: Sync, Send);
 
 pub type PeripheralsShim<'s> = PeripheralSet<
     's,
