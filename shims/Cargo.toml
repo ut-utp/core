@@ -37,6 +37,8 @@ timer = "0.2.0"
 time = "0.1.42"
 chrono = "0.4.11"
 
+static_assertions = "1.1.0"
+
 
 [dev-dependencies]
 lc3-test-infrastructure = { path = "../test-infrastructure", version = "0.1.0" }
