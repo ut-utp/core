@@ -24,7 +24,7 @@ pub use output::{OutputShim, Sink};
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock, Mutex};
 
-pub type SharablePeripheralsShim<'int: 'io, 'io> = PeripheralSet<
+pub type ShareablePeripheralsShim<'int: 'io, 'io> = PeripheralSet<
     'int,
     Arc<RwLock<GpioShim<'int>>>,
     Arc<RwLock<AdcShim>>,

@@ -47,7 +47,7 @@ macro_rules! single_test_inner {
         $(post: |$peripherals_t:ident| $teardown:block)? $(,)?
         $(with os { $os:expr } @ $os_addr:expr)? $(,)?
     ) => {{
-        use $crate::{Word, Reg, Instruction, SharablePeripheralsShim, MemoryShim};
+        use $crate::{Word, Reg, Instruction, ShareablePeripheralsShim, MemoryShim};
         use $crate::{PeripheralInterruptFlags, Interpreter, InstructionInterpreterPeripheralAccess};
 
         #[allow(unused_mut)]
@@ -68,12 +68,12 @@ macro_rules! single_test_inner {
         $(insns.push(insn!($($insn)*));)*
 
         #[allow(unused)]
-        let setup_func = |_p: &mut SharablePeripheralsShim| { }; // no-op if not specified
-        $(let setup_func = |$peripherals_s: &mut SharablePeripheralsShim| $setup;)?
+        let setup_func = |_p: &mut ShareablePeripheralsShim| { }; // no-op if not specified
+        $(let setup_func = |$peripherals_s: &mut ShareablePeripheralsShim| $setup;)?
 
         #[allow(unused)]
-        let teardown_func = |_p: &Interpreter<MemoryShim, SharablePeripheralsShim>| { }; // no-op if not specified
-        $(let teardown_func = |$peripherals_t: &Interpreter<MemoryShim, SharablePeripheralsShim>| $teardown;)?
+        let teardown_func = |_p: &Interpreter<MemoryShim, ShareablePeripheralsShim>| { }; // no-op if not specified
+        $(let teardown_func = |$peripherals_t: &Interpreter<MemoryShim, ShareablePeripheralsShim>| $teardown;)?
 
         #[allow(unused)]
         let steps: Option<usize> = None;
@@ -85,7 +85,7 @@ macro_rules! single_test_inner {
         let mut os: Option<(MemoryShim, Addr)> = None;
         $(os = Some(($os, $os_addr));)?
 
-        interp_test_runner::<MemoryShim, SharablePeripheralsShim, _, _>(
+        interp_test_runner::<MemoryShim, ShareablePeripheralsShim, _, _>(
             prefill,
             insns,
             steps,
