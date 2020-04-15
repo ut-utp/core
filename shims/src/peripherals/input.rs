@@ -5,7 +5,7 @@ use lc3_traits::peripherals::input::{Input, InputError};
 use core::cell::Cell;
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::io::{stdin, Read};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// The source from which Inputs will read characters.
 /// Generally expected to behave as a one-character buffer holding the latest
@@ -19,6 +19,12 @@ pub trait Source {
     /// only the newest character is expected to be returned
     /// (i.e. this shouldn't behave as a multi-character buffer).
     fn get_char(&self) -> Option<u8>;
+}
+
+impl<S: Source> Source for Arc<Mutex<S>> {
+    fn get_char(&self) -> Option<u8> {
+        self.lock().unwrap().get_char()
+    }
 }
 
 pub struct SourceShim {
@@ -115,6 +121,10 @@ impl<'a> InputShim<'a, '_> {
                 None => unreachable!(),
             }
         }
+    }
+
+    pub fn get_inner_ref(&self) -> &(dyn Source + Send + Sync + 'a) {
+        &*self.source
     }
 }
 
