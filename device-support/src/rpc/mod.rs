@@ -812,6 +812,52 @@
 //!  - The Controller/Device and Transport layer should add logging letting us
 //!    know when things are getting dropped/retried!
 
+//! ## The (Ebb and) Flow of Bytes
+//!
+//! ### Ideally (DMA, zero-copy, etc.):
+//!
+//! ```text
+//! [UART IN] → [UART Interrupt on (FIFO Full || Timeout)] ⇒ { S/W FIFO }
+//!
+//! { DMA UART OUT Buffer } → µDMA ⇒ [UART OUT]
+//!
+//!
+//! Transport.get :: { S/W FIFO }.peek, until 0:
+//!     → chk length
+//!        → lease out buffer to Decode ⇒ ReqMsg
+//!
+//! Transport.send :: ← RespMsg
+//!     → encode into a buffer
+//!        → DMA this very buffer
+//!
+//! (This is where the zero-copy dream dies since it's hard to get Encode to
+//!  stick its stuff into a buffer with the current interface; in a better world
+//!  Decode would take a Read implementor and Encode would take a Write
+//!  implementor and then Transport would handle making these buffers and
+//!  passing them in and making sure incoming stuff gets put into a read buffer
+//!  and outgoing stuff gets stuck in a write buffer. Unfortunately, the Read
+//!  Write traits aren't available on #![no_std] and the Encode and Decode
+//!  traits aren't set up like this.
+//!
+//!  It turns out we can muddy the Encoding and Transport layer divide a little
+//!  bit to get what we want: if the Encode layer returns a bunch of 'static
+//!  references to an internal pool of buffers, we can have the transport go off
+//!  and drain the returned buffer however it chooses to do so. This special
+//!  Encode can go and panic if it ever runs out of internal buffers (since that
+//!  means that the transport isn't draining them properly). This isn't great
+//!  since it kind of couples the transport and encoding layers in a gross way
+//!  but I think it's an acceptable workaround.)
+//!
+//! ### The Unoptimized (but totally embedded-hal based!) Interrupt-Free Way:
+//!
+//! Transport.get :: uart.rx fifo rx until empty, do nothing until 0:
+//!      → chk length
+//!         → decode the buffer ⇒ ReqMsg
+//!
+//! Transport.send :: ← RespMsg
+//!      → encode
+//!         → drain the buffer by busy waiting on uart.tx
+
 
 pub mod encoding;
 pub mod transport;
