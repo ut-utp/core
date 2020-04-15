@@ -52,7 +52,6 @@ mod states {
 
 mod read {
     use super::*;
-    use lc3_traits::peripherals::Adc::*;
 
     single_test! {
         Adc_cr_pin0_read_input1,
@@ -200,7 +199,6 @@ mod read {
 
 mod write {
     use super::*;
-    use lc3_traits::peripherals::Adc::*;
 
     // TODO: Clean this up!
 
