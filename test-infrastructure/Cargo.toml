@@ -19,9 +19,7 @@ categories = ["simulation", "development-tools::testing"]
 license = "MPL-2.0"
 
 [badges]
-# Note: this is (intentionally) not _explicitly_ tested in CI; actual tests depend on
-# this crate though.
-# github-actions = { repository = "ut-utp/prototype", workflow = "_" }
+github-actions = { repository = "ut-utp/prototype", workflow = "test-infrastructure" }
 codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
 
 is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }
