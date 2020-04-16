@@ -14,15 +14,11 @@ mod states {
 
     single_test! {
         input,
-        pre: |p| { },
-        prefill: { },
         insns: [
             { AND R0, R0, #0 },
             { TRAP #0x30 },
             { TRAP #0x25 },
         ],
-        regs: { },
-        memory: { },
         post: |i| {
             let p = i.get_peripherals();
             eq!(Gpio::get_state(p, G0), Input);
@@ -32,15 +28,11 @@ mod states {
 
     single_test! {
         output,
-        pre: |p| { },
-        prefill: { },
         insns: [
             { AND R0, R0, #0 },
             { TRAP #0x31 },
             { TRAP #0x25 },
         ],
-        regs: { },
-        memory: { },
         post: |i| {
             let p = i.get_peripherals();
             eq!(Gpio::get_state(p, G0), Output);
@@ -52,15 +44,12 @@ mod states {
 
     single_test! {
         disabled,
-        pre: |p| { Gpio::set_state(p, G0, Output); },
-        prefill: { },
         insns: [
             { AND R0, R0, #0 },
             { TRAP #0x33 },
             { TRAP #0x25 },
         ],
-        regs: { },
-        memory: { },
+        pre: |p| { Gpio::set_state(p, G0, Output); },
         post: |i| {
             let p = i.get_peripherals();
             eq!(Gpio::get_state(p, G0), Disabled);
@@ -70,7 +59,6 @@ mod states {
 
     single_test! {
         get_mode,
-        pre: |p| { Gpio::set_state(p, G0, Output); },
         prefill: { 0x3004: 0 },
         insns: [
             { AND R0, R0, #0 },
@@ -78,8 +66,7 @@ mod states {
             { ST R0, #1 },
             { TRAP #0x25 },
         ],
-        regs: { },
-        memory: { },
+        pre: |p| { Gpio::set_state(p, G0, Output); },
         post: |i| { eq!(i.get_word_unchecked(0x3004), 1); },
         with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
     }
