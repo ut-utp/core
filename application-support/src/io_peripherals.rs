@@ -8,7 +8,7 @@ use lc3_shims::peripherals::{Sink, SourceShim};
 
 use std::io::{Read, Write};
 use std::ops::Deref;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// A trait for [`Input`] Peripherals that lets us, a controller, supply the
 /// inputs to the peripheral.
@@ -88,6 +88,14 @@ impl InputSink for SourceShim {
     }
 }
 
+// Mirrors the impl on `SourceShim`.
+impl InputSink for Arc<SourceShim> {
+    fn put_char(&self, c: char) -> Option<()> {
+        self.push(c);
+        Some(())
+    }
+}
+
 // Mirrors the blanket impl that `Sink` has but also requires `Read` support so
 // that we can actually implement OutputSource.
 impl<W: Write> OutputSource for Mutex<W>
@@ -110,5 +118,12 @@ where
             .ok()
             .filter(|n| *n > 0)
             .map(|_| s)
+    }
+}
+
+// Mirrors the blanket impl that `Sink` has.
+impl<O: OutputSource> OutputSource for Arc<O> {
+    fn get_chars(&self) -> Option<String> {
+        self.get_chars()
     }
 }
