@@ -17,40 +17,33 @@ single_test! {
     prefill: { 0x3010: CLKR_ADDR },
     insns: [ { LDI R0, #0xF } ],
     steps: 1,
-    regs: { },
-    memory: { }
     post: |i| { assert_is_about(i.get_register(R0), 0, TOLERANCE); }
 }
 
 single_test! {
     get_after_100ms,
-    pre: |p| { sleep(Duration::from_millis(100)); },
     prefill: { 0x3010: CLKR_ADDR },
     insns: [ { LDI R0, #0xF } ],
     steps: 1,
-    regs: { },
-    memory: { }
+    pre: |p| { sleep(Duration::from_millis(100)); },
     post: |i| { assert_is_about(i.get_register(R0), 100, TOLERANCE); }
 }
 
 single_test! {
     reset,
-    pre: |p| { sleep(Duration::from_millis(100)); },
     prefill: { 0x3010: CLKR_ADDR },
     insns: [
         { AND R0, R0, #0 },
         { STI R0, #0xE },
-        { LDI R0, #0xD }
+        { LDI R0, #0xD },
     ],
     steps: 3,
-    regs: { },
-    memory: { }
+    pre: |p| { sleep(Duration::from_millis(100)); },
     post: |i| { assert_is_about(i.get_register(R0), 0, TOLERANCE); }
 }
 
 single_test! {
     set_higher,
-    pre: |p| { sleep(Duration::from_millis(100)); },
     prefill: {
         0x3010: CLKR_ADDR,
         0x3011: 1000,
@@ -61,7 +54,6 @@ single_test! {
         { LDI R0, #0xD }
     ],
     steps: 3,
-    regs: { },
-    memory: { }
+    pre: |p| { sleep(Duration::from_millis(100)); },
     post: |i| { assert_is_about(i.get_register(R0), 1000, TOLERANCE); }
 }

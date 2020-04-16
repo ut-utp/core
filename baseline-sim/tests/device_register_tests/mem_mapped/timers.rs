@@ -43,8 +43,6 @@ single_test! {
         { ST R1, #9 },
         { RTI } // 0x300C
     ],
-    regs: { },
-    memory: { }
 }
 
 // TODO: flaky (sometimes hangs)
@@ -80,6 +78,4 @@ single_test! {
         { ST R1, #9 },
         { RTI } // 0x300D
     ],
-    regs: { },
-    memory: { }
 }

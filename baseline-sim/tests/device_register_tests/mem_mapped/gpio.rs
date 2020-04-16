@@ -53,11 +53,6 @@ mod states {
         for states in permutations {
             // Read test:
             single_test_inner! {
-                pre: |p| {
-                    for (pin, state) in GPIO_PINS.iter().zip(states.clone()) {
-                        Gpio::set_state(p, *pin, *state).unwrap();
-                    }
-                },
                 prefill: {
                     0x3010: G0CR_ADDR,
                     0x3011: G1CR_ADDR,
@@ -89,20 +84,24 @@ mod states {
                     R6: state_to_word(*states[6]) as Word,
                     R7: state_to_word(*states[7]) as Word,
                 },
-                memory: { }
+                pre: |p| {
+                    for (pin, state) in GPIO_PINS.iter().zip(states.clone()) {
+                        Gpio::set_state(p, *pin, *state).unwrap();
+                    }
+                },
             }
 
             // Write test:
             single_test_inner! {
-                prefill: {
-                    /*(0x3020 + (0 * 3) + 2)*/ 0x3022: G0CR_ADDR,
-                    /*(0x3020 + (1 * 3) + 2)*/ 0x3025: G1CR_ADDR,
-                    /*(0x3020 + (2 * 3) + 2)*/ 0x3028: G2CR_ADDR,
-                    /*(0x3020 + (3 * 3) + 2)*/ 0x302B: G3CR_ADDR,
-                    /*(0x3020 + (4 * 3) + 2)*/ 0x302E: G4CR_ADDR,
-                    /*(0x3020 + (5 * 3) + 2)*/ 0x3031: G5CR_ADDR,
-                    /*(0x3020 + (6 * 3) + 2)*/ 0x3034: G6CR_ADDR,
-                    /*(0x3020 + (7 * 3) + 2)*/ 0x3037: G7CR_ADDR
+                prefill_expr: {
+                    (0x3020 + (0 * 3) + 2) /*0x3022*/: G0CR_ADDR,
+                    (0x3020 + (1 * 3) + 2) /*0x3025*/: G1CR_ADDR,
+                    (0x3020 + (2 * 3) + 2) /*0x3028*/: G2CR_ADDR,
+                    (0x3020 + (3 * 3) + 2) /*0x302B*/: G3CR_ADDR,
+                    (0x3020 + (4 * 3) + 2) /*0x302E*/: G4CR_ADDR,
+                    (0x3020 + (5 * 3) + 2) /*0x3031*/: G5CR_ADDR,
+                    (0x3020 + (6 * 3) + 2) /*0x3034*/: G6CR_ADDR,
+                    (0x3020 + (7 * 3) + 2) /*0x3037*/: G7CR_ADDR,
                 },
                 insns: [
                     { AND R0, R0, #0 },
@@ -138,8 +137,6 @@ mod states {
                     { STI R7, #0x1F }, // G7
                 ],
                 steps: GpioPin::NUM_PINS * 3,
-                regs: { },
-                memory: { },
                 post: |i| {
                     for (pin, state) in GPIO_PINS.iter().zip(states.clone()) {
                         let got = Gpio::get_state(i.get_peripherals(), *pin);
@@ -159,12 +156,11 @@ mod states {
     // pins, we do a couple of hardcoded tests:
     single_test! {
         gpio_cr_pin0_read_output,
-        pre: |p| { Gpio::set_state(p, G0, Output).unwrap(); },
         prefill: { 0x3010: G0CR_ADDR },
         insns: [ { LDI R0, #0xF } ],
         steps: 1,
         regs: { R0: 0b01 },
-        memory: { }
+        pre: |p| { Gpio::set_state(p, G0, Output).unwrap(); },
     }
 
     single_test! {
@@ -173,7 +169,6 @@ mod states {
         insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01 }, { STI R0, #0xD } ],
         steps: 3,
         regs: { R0: 0b01 },
-        memory: { },
         post: |i| { eq!(Output, Gpio::get_state(i.get_peripherals(), G0)); }
     }
 
@@ -185,7 +180,6 @@ mod states {
         insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b1101 }, { STI R0, #0xD } ],
         steps: 3,
         regs: { R0: 0b1101 },
-        memory: { },
         post: |i| { eq!(Output, Gpio::get_state(i.get_peripherals(), G0)); }
     }
 
@@ -527,8 +521,6 @@ mod errors {
         prefill: { 0x3010: G0DR_ADDR },
         insns: [ { STI R0, #0xF } ],
         steps: 1,
-        regs: { },
-        memory: { },
         post: |i| { eq!(Error::from(GpioWriteError((G0, Disabled))), InstructionInterpreter::get_error(i).unwrap()); }
     }
 
@@ -538,7 +530,6 @@ mod errors {
         insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b10 }, { STI R0, #0xD }, { STI R0, #0xD } ],
         steps: 4,
         regs: { R0: 0b10 },
-        memory: { },
         post: |i| { eq!(Error::from(GpioWriteError((G0, Input))), InstructionInterpreter::get_error(i).unwrap()); }
     }
 
@@ -547,8 +538,6 @@ mod errors {
         prefill: { 0x3010: G0DR_ADDR },
         insns: [ { LDI R0, #0xF } ],
         steps: 1,
-        regs: { },
-        memory: { },
         post: |i| { eq!(Error::from(GpioReadError((G0, Disabled))), InstructionInterpreter::get_error(i).unwrap()); }
     }
 
@@ -558,7 +547,6 @@ mod errors {
         insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01 }, { STI R0, #0xD }, { LDI R0, #0xD } ],
         steps: 4,
         regs: { R0: 0x8000 },
-        memory: { },
         post: |i| { eq!(Error::from(GpioReadError((G0, Output))), InstructionInterpreter::get_error(i).unwrap()); }
     }
 }
