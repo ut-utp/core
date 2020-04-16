@@ -313,8 +313,8 @@ where
         interp_builder
     };
 
-    let mut interp: Interpreter<M, P> = if let Some((mem, addr)) = alt_memory {
-        let mut int: Interpreter<M, P> = interp_builder
+    let mut interp: Interpreter<'flags, M, P> = if let Some((mem, addr)) = alt_memory {
+        let mut int: Interpreter<'flags, M, P> = interp_builder
             .with_memory(mem)
             .build();
 

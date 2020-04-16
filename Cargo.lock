@@ -457,6 +457,7 @@ dependencies = [
 name = "lc3-test-infrastructure"
 version = "0.1.0"
 dependencies = [
+ "lc3-application-support",
  "lc3-baseline-sim",
  "lc3-isa",
  "lc3-macros",

@@ -14,33 +14,33 @@ pub use crate::single_test;
 macro_rules! single_test {
     ($(|$panics:literal|)?
         $name:ident,
-        $(with io peripherals: ($inp:ident, $out:ident))? $(,)?
-        $(with custom peripherals: $custom_per:block -> [$custom_per_ty:ty])? $(,)?
-        $(pre: |$peripherals_s:ident| $setup:block,)?
-        $(prefill: { $($addr_p:literal: $val_p:expr),* $(,)?},)?
-        $(prefill_expr: { $(($addr_expr:expr): $val_expr:expr),* $(,)?},)?
-        insns: [ $({ $($insn:tt)* }),* $(,)?],
+        $(prefill: { $($addr_p:literal: $val_p:expr),* $(,)?} $(,)?)?
+        $(prefill_expr: { $(($addr_expr:expr): $val_expr:expr),* $(,)?} $(,)?)?
+        insns: [ $({ $($insn:tt)* }),* $(,)?] $(,)?
         $(steps: $steps:expr,)?
-        regs: { $($r:tt: $v:expr),* $(,)?},
-        memory: { $($addr:literal: $val:expr),* $(,)?} $(,)?
-        $(post: |$peripherals_t:ident| $teardown:block)? $(,)?
-        $(with os { $os:expr } @ $os_addr:expr)? $(,)?
+        $(regs: { $($r:tt: $v:expr),* $(,)?} $(,)?)?
+        $(memory: { $($addr:literal: $val:expr),* $(,)?} $(,)?)?
+        $(with io peripherals: { source as $inp:ident, sink as $out:ident } $(,)?)?
+        $(with custom peripherals: $custom_per:block -> [$custom_per_ty:tt] $(,)?)?
+        $(pre: |$peripherals_s:ident| $setup:block $(,)?)?
+        $(post: |$peripherals_t:ident| $teardown:block $(,)?)?
+        $(with os { $os:expr } @ $os_addr:expr $(,)?)?
     ) => {
     $(#[doc = $panics] #[should_panic])?
     #[test]
-    fn $name() { with_larger_stack(/*Some(stringify!($name).to_string())*/ None, ||
+    fn $name() { $crate::with_larger_stack(/*Some(stringify!($name).to_string())*/ None, ||
         $crate::single_test_inner!(
-            $(pre: |$peripherals_s| $setup,)?
             $(prefill: { $($addr_p: $val_p),* },)?
             $(prefill_expr: { $(($addr_expr): $val_expr),* },)?
             insns: [ $({ $($insn)* }),* ],
             $(steps: $steps,)?
-            regs: { $($r: $v),* },
-            memory: { $($addr: $val),* }
-            $(post: |$peripherals_t| $teardown)?
-            $(with os { $os } @ $os_addr)?
-            $(with io peripherals: ($inp, $out))?
-            $(with custom peripherals: $custom_per -> $custom_per_ty)?
+            $(regs: { $($r: $v),* },)?
+            $(memory: { $($addr: $val),* },)?
+            $(with io peripherals: { source as $inp, sink as $out },)?
+            $(with custom peripherals: $custom_per -> [$custom_per_ty],)?
+            $(pre: |$peripherals_s| $setup,)?
+            $(post: |$peripherals_t| $teardown,)?
+            $(with os { $os } @ $os_addr,)?
         ));
     }};
 }
@@ -57,22 +57,29 @@ macro_rules! __perip_type {
 
 #[macro_export]
 macro_rules! single_test_inner {
-    (   $(with io peripherals: ($inp:ident, $out:ident))? $(,)?
-        $(with custom peripherals: $custom_per:block -> [$custom_per_ty:ty])? $(,)?
-        $(pre: |$peripherals_s:ident| $setup:block,)?
-        $(prefill: { $($addr_p:literal: $val_p:expr),* $(,)?},)?
-        $(prefill_expr: { $(($addr_expr:expr): $val_expr:expr),* $(,)?},)?
-        insns: [ $({ $($insn:tt)* }),* $(,)?],
+    (   $(prefill: { $($addr_p:literal: $val_p:expr),* $(,)?} $(,)?)?
+        $(prefill_expr: { $(($addr_expr:expr): $val_expr:expr),* $(,)?} $(,)?)?
+        insns: [ $({ $($insn:tt)* }),* $(,)?]  $(,)?
         $(steps: $steps:expr,)?
-        regs: { $($r:tt: $v:expr),* $(,)?},
-        memory: { $($addr:literal: $val:expr),* $(,)?} $(,)?
-        $(post: |$peripherals_t:ident| $teardown:block)? $(,)?
-        $(with os { $os:expr } @ $os_addr:expr)? $(,)?
+        $(regs: { $($r:tt: $v:expr),* $(,)?} $(,)?)?
+        $(memory: { $($addr:literal: $val:expr),* $(,)?} $(,)?)?
+        $(with io peripherals: { source as $inp:ident, sink as $out:ident } $(,)?)?
+        $(with custom peripherals: $custom_per:block -> [$custom_per_ty:tt] $(,)?)?
+        $(pre: |$peripherals_s:ident| $setup:block $(,)?)?
+        $(post: |$peripherals_t:ident| $teardown:block $(,)?)?
+        $(with os { $os:expr } @ $os_addr:expr $(,)?)?
     ) => {{
-        use $crate::{Word, Reg, Instruction, ShareablePeripheralsShim, MemoryShim};
-        use $crate::{PeripheralInterruptFlags, Interpreter, InstructionInterpreterPeripheralAccess};
-        use $crate::{SourceShim, new_shim_peripherals_set};
+        #[allow(unused_imports)]
+        use super::*;
 
+        #[allow(unused_imports)]
+        use $crate::{
+            Addr, Word, Reg, Instruction, insn, Reg::*,
+            ShareablePeripheralsShim, MemoryShim, SourceShim, new_shim_peripherals_set,
+            PeripheralInterruptFlags, Interpreter, InstructionInterpreterPeripheralAccess,
+        };
+
+        #[allow(unused_imports)]
         use std::sync::Mutex;
 
         let flags = PeripheralInterruptFlags::new();
@@ -85,11 +92,11 @@ macro_rules! single_test_inner {
 
         #[allow(unused_mut)]
         let mut regs: [Option<Word>; Reg::NUM_REGS] = [None, None, None, None, None, None, None, None];
-        $(regs[Into::<u8>::into($r) as usize] = Some($v);)*
+        $($(regs[Into::<u8>::into($r) as usize] = Some($v);)*)?
 
         #[allow(unused_mut)]
         let mut checks: Vec<(Addr, Word)> = Vec::new();
-        $(checks.push(($addr, $val));)*
+        $($(checks.push(($addr, $val));)*)?
 
         #[allow(unused_mut)]
         let mut prefill: Vec<(Addr, Word)> = Vec::new();
@@ -109,15 +116,15 @@ macro_rules! single_test_inner {
         $(let os = Some(($os, $os_addr));)?
 
         #[allow(unused)]
-        let custom_peripherals: Option<Per> = None;
+        let custom_peripherals: Option<Per<'_, '_>> = None;
 
         $(
             #[allow(unused)]
             let $inp = SourceShim::new();
             #[allow(unused)]
-            let $out = Mutex::new(Vec<u8>);
+            let $out = Mutex::new(Vec::<u8>::new());
 
-            let (custom_peripherals, _, _): (Per, _, _) =
+            let (custom_peripherals, _, _): (Per<'_, '_>, _, _) =
                 new_shim_peripherals_set(&$inp, &$out);
             #[allow(unused)]
             let custom_peripherals = Some(custom_peripherals);
@@ -139,15 +146,15 @@ macro_rules! single_test_inner {
         }
 
         #[allow(unused)]
-        let setup_func = setup_func_cast(|_p: &mut Per| { }, &flags); // no-op if not specified
-        $(let setup_func = setup_func_cast(|$peripherals_s: &mut Per| $setup, &flags);)?
+        let setup_func = setup_func_cast(|_p: &mut Per<'_, '_>| { }, &flags); // no-op if not specified
+        $(let setup_func = setup_func_cast(|$peripherals_s: &mut Per<'_, '_>| $setup, &flags);)?
 
         #[allow(unused)]
-        let teardown_func = teardown_func_cast(|_p: &Interpreter<'_, MemoryShim, Per>| { }, &flags); // no-op if not specified
-        $(let teardown_func = teardown_func_cast(|$peripherals_t: &Interpreter<'_, MemoryShim, Per>| $teardown, &flags);)?
+        let teardown_func = teardown_func_cast(|_p: &Interpreter<'_, MemoryShim, Per<'_, '_>>| { }, &flags); // no-op if not specified
+        $(let teardown_func = teardown_func_cast(|$peripherals_t: &Interpreter<'_, MemoryShim, Per<'_, '_>>| $teardown, &flags);)?
 
 
-        interp_test_runner::<'_, MemoryShim, Per, _, _>(
+        $crate::interp_test_runner::<'_, MemoryShim, Per<'_, '_>, _, _>(
             prefill,
             insns,
             steps,
