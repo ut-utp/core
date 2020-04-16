@@ -165,6 +165,142 @@ macro_rules! single_test_inner {
             teardown_func,
             &flags,
             os,
+            custom_peripherals,
         );
     }};
+}
+
+#[cfg(test)]
+mod smoke_tests {
+    use super::*;
+    use crate::InstructionInterpreter;
+
+    use lc3_traits::peripherals::stubs::PeripheralsStub;
+    use lc3_traits::peripherals::clock::Clock;
+
+    use std::default::Default;
+    use std::io::Read;
+
+    // // Just some compile tests:
+    fn io_perip() {
+        single_test_inner! {
+            insns: [ { LDI R0, #0xF }, ],
+            with io peripherals: { source as inp, sink as out },
+        }
+    }
+
+    fn io_perip_used() {
+        single_test_inner! {
+            insns: [{ LDI R0, #0xF }],
+            with io peripherals: { source as inp, sink as out },
+            pre: |_p| {
+                inp.push('a');
+            }
+            post: |_i| {
+                inp.push('b');
+            }
+        }
+    }
+
+    #[allow(unused_lifetimes)]
+    type PeripheralsStubAlias<'int, 'io> = PeripheralsStub<'int>;
+
+    fn custom_perip() {
+        single_test_inner! {
+            insns: [],
+            with custom peripherals: { PeripheralsStub::default() } -> [PeripheralsStubAlias],
+        }
+    }
+
+    // These should not compile since `with io peripherals` and `with custom peripherals`
+    // want different types for the peripherals.
+    /*
+    fn io_and_custom_perip() {
+        single_test_inner! {
+            insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01 }, { STI R0, #0xD } ],
+            with io peripherals: { source as inp, sink as out },
+            with custom peripherals: { PeripheralsStub::default() } -> [PeripheralsStubAlias],
+            pre: |p| {
+                p.get_milliseconds();
+            }
+            post: |i| {
+                i.get_pc();
+            }
+        }
+    }
+
+    fn io_and_custom_perip_used() {
+        single_test_inner! {
+            insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01 }, { STI R0, #0xD } ],
+            with io peripherals: { source as inp, sink as out },
+            with custom peripherals: { PeripheralsStub::default() } -> [PeripheralsStubAlias],
+            pre: |p| {
+                inp.push('a');
+                out.lock().unwrap().read_to_string();
+                p.get_milliseconds();
+            }
+            post: |i| {
+                i.get_pc();
+                inp.push('b');
+                out.lock().unwrap().read_to_string();
+            }
+        }
+    }
+    */
+
+    fn all_with_custom_and_commas() {
+        single_test_inner! {
+            prefill: {
+                0x3000: 2_109 * 1,
+            },
+            prefill_expr: {
+                (0x3000 + 1): 'f' as Word,
+            },
+            insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01 }, { STI R0, #0xD } ],
+            steps: 890 * 0x789,
+            regs: {
+                R0: 0 * 7 + 3,
+                R1: 1,
+                R2: 2,
+                R3: 3,
+            },
+            memory: {
+                0x3000: 2343 - 234,
+            },
+            with custom peripherals: { PeripheralsStub::default() } -> [PeripheralsStubAlias],
+            pre: |p| {
+                p.get_milliseconds();
+            },
+            post: |i| {
+                i.get_pc();
+            },
+        }
+    }
+
+    fn all_with_io_and_no_commas() {
+        single_test_inner! {
+            prefill: { 0x3000: 2_109 * 1, }
+            prefill_expr: { (0x3000 + 1): 'f' as Word, }
+            insns: [ { AND R0, R0, #0 }, { ADD R0, R0, #0b01 }, { STI R0, #0xD } ]
+            steps: 890 * 0x789,
+            regs: { R0: 0 * 7 + 3, R1: 1 }
+            memory: { 0x3000: 2343 - 234 }
+            with io peripherals: { source as inp, sink as out },
+            pre: |p| {
+                inp.push('a');
+
+                out.lock().unwrap().drain(..);
+
+                p.get_milliseconds();
+            }
+            post: |i| {
+                i.get_pc();
+                inp.push('b');
+
+                let mut s = String::new();
+
+                <&[u8]>::read_to_string(&mut out.lock().unwrap().as_ref(), &mut s);
+            }
+        }
+    }
 }
