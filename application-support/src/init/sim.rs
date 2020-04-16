@@ -98,6 +98,24 @@ impl<'s> Init<'s> for SimDevice<'static> {
         let output = unsafe { core::mem::transmute::<&'s Self::Output, &'static Self::Output>(out) };
         */
 
+        // This is not unsafe and would work except we can't downcast things
+        // that aren't 'static.
+        // (This also involves changing SimDevice<'static> → SimDevice<'s> and
+        // ControlImpl from Sim<'static> to Sim<'s>, as they *should* be.)
+        /*
+        let input = Some(SourceShim::new());
+        let output = Some(Mutex::new(Vec::new()));
+        let storage: &'s mut _ = b.put::<'s, _>(SimDevice::<'s> { sim: None, input, output });
+
+        let inp = storage.input.as_ref().unwrap();
+        let out = storage.output.as_ref().unwrap();
+
+        let (shims, _, _) = new_shim_peripherals_set::<'static, 's, _, _>(inp, out);
+        let shim_copy = Shims::from_peripheral_set(&shims);
+        */
+
+        // storage.sim = Some(new_sim(shims));
+
         // Meanwhile, this is safe but leaks memory 🙁.
         /*  */
         let storage: &'s mut _ = b.put(SimDevice {
