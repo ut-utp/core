@@ -80,7 +80,7 @@ macro_rules! single_test_inner {
         };
 
         #[allow(unused_imports)]
-        use std::sync::Mutex;
+        use std::sync::{Arc, Mutex};
 
         let flags = PeripheralInterruptFlags::new();
 
@@ -120,9 +120,9 @@ macro_rules! single_test_inner {
 
         $(
             #[allow(unused)]
-            let $inp = SourceShim::new();
+            let $inp = Arc::new(SourceShim::new());
             #[allow(unused)]
-            let $out = Mutex::new(Vec::<u8>::new());
+            let $out = Arc::new(Mutex::new(Vec::<u8>::new()));
 
             let (custom_peripherals, _, _): (Per<'_, '_>, _, _) =
                 new_shim_peripherals_set(&$inp, &$out);
@@ -300,6 +300,29 @@ mod smoke_tests {
                 let mut s = String::new();
 
                 <&[u8]>::read_to_string(&mut out.lock().unwrap().as_ref(), &mut s);
+            }
+        }
+    }
+
+    fn thread_safe() {
+        use lc3_application_support::io_peripherals::{InputSink, OutputSource};
+
+        single_test_inner! {
+            insns: [],
+            with io peripherals: { source as inp, sink as out },
+            pre: |p| {
+                let inp = inp.clone();
+                let out = out.clone();
+
+                std::thread::spawn(move || {
+                    loop {
+                        inp.put_char('a');
+                    }
+                });
+
+                std::thread::spawn(move || {
+                    loop { out.get_chars().map(|o| println!("{}", o)); }
+                });
             }
         }
     }
