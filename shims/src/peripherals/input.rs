@@ -23,6 +23,12 @@ pub trait Source {
     fn get_char(&self) -> Option<u8>;
 }
 
+impl<S: Source> Source for Arc<S> {
+    fn get_char(&self) -> Option<u8> {
+        self.get_char()
+    }
+}
+
 impl<S: Source> Source for Arc<Mutex<S>> {
     fn get_char(&self) -> Option<u8> {
         self.lock().unwrap().get_char()
