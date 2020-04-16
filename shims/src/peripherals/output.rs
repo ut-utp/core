@@ -65,7 +65,7 @@ impl<'o, 'int> OutputShim<'o, 'int> {
     }
 }
 
-impl<'out, 'int: 'out> Output<'int> for OutputShim<'out, 'int> {
+impl<'out, 'int> Output<'int> for OutputShim<'out, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),

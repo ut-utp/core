@@ -24,7 +24,7 @@ pub use output::{OutputShim, Sink};
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, RwLock, Mutex};
 
-pub type ShareablePeripheralsShim<'int: 'io, 'io> = PeripheralSet<
+pub type ShareablePeripheralsShim<'int, 'io> = PeripheralSet<
     'int,
     Arc<RwLock<GpioShim<'int>>>,
     Arc<RwLock<AdcShim>>,
@@ -37,6 +37,12 @@ pub type ShareablePeripheralsShim<'int: 'io, 'io> = PeripheralSet<
 
 sa::assert_impl_all!(ShareablePeripheralsShim: Sync, Send);
 
+// The assumption here is that your interrupt flags and input source/output sink
+// live for the same amount of time (or, can be made to live for the same
+// amount of time with lifetime sub-typing).
+//
+// This is usually (always?) fine; in the cases where it isn't you can ditch
+// this type alias and spell out the type manually.
 pub type PeripheralsShim<'s> = PeripheralSet<
     's,
     GpioShim<'s>,
