@@ -1,5 +1,11 @@
 #![macro_use]
 
+#[doc(inline)]
+pub use crate::single_test_inner;
+
+#[doc(inline)]
+pub use crate::single_test;
+
 // Setup func runs before anything is set; teardown func runs after everything
 // is checked but the order shouldn't matter.
 //
