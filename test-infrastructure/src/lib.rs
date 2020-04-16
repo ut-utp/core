@@ -43,14 +43,23 @@
 #[doc(no_inline)]
 pub use {
     lc3_isa::{insn, Addr, Instruction, Reg, Word},
-    lc3_shims::memory::MemoryShim,
-    lc3_shims::peripherals::{PeripheralsShim, ShareablePeripheralsShim},
-    lc3_baseline_sim::interp::{PeripheralInterruptFlags, Interpreter},
-    lc3_baseline_sim::interp::{InstructionInterpreterPeripheralAccess},
+    lc3_shims::{
+        memory::MemoryShim,
+        peripherals::{
+            PeripheralsShim, ShareablePeripheralsShim, SourceShim
+        },
+    },
+    lc3_baseline_sim::interp::{
+        PeripheralInterruptFlags, Interpreter,
+        InstructionInterpreterPeripheralAccess,
+        InstructionInterpreter
+    },
+    lc3_application_support::shim_support::new_shim_peripherals_set
 };
 
 #[doc(no_inline)]
 pub use pretty_assertions::*;
+
 
 mod runner;
 #[macro_use] pub mod macros;
