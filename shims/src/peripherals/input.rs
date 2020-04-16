@@ -120,6 +120,45 @@ impl<'int, 'i> InputShim<'i, 'int> {
             }
         }
     }
+
+    pub fn get_inner_ref(&self) -> &(dyn Source + Send + Sync + 'i) {
+        &*self.source
+    }
+}
+
+impl<'int> InputShim<'static, 'int> {
+    pub fn get_inner<T: 'static + Clone>(&mut self) -> Result<Box<T>, ()> {
+        use std::any::Any;
+
+        let InputShim {
+            source,
+            flag,
+            interrupt_enable_bit,
+            data,
+        } = std::mem::replace(self, InputShim::default());
+
+        self.flag = flag;
+        self.interrupt_enable_bit = interrupt_enable_bit;
+        self.data = data;
+
+        let source: Box<Any> = if let OwnedOrRef::Owned(inner) = source {
+            inner
+        } else {
+            self.source = source;
+            return Err(())
+        };
+
+        match Box::<dyn std::any::Any>::downcast::<T>(source) {
+            Ok(inner) => {
+                self.source = inner.clone();
+                Ok(inner)
+            },
+            Err(old) => {
+                self.source = old;
+                Err(())
+            }
+        }
+    }
 }
 
 impl<'inp, 'int> Input<'int> for InputShim<'inp, 'int> {

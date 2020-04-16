@@ -63,6 +63,10 @@ impl<'o, 'int> OutputShim<'o, 'int> {
             interrupt_enable_bit: false,
         }
     }
+
+    pub fn get_inner_ref(&self) -> &(dyn Sink + Send + Sync + 'o) {
+        &*self.sink
+    }
 }
 
 impl<'out, 'int> Output<'int> for OutputShim<'out, 'int> {
