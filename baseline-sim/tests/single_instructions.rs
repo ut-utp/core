@@ -110,7 +110,8 @@ mod single_instructions {
                 (|_p| {}), // (no-op)
                 (|_p| {}), // (no-op)
                 &flags,
-                None
+                None,
+                None,
             );
         })}};
     }
