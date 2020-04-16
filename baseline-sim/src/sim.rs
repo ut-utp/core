@@ -422,6 +422,14 @@ where
                     // }
                 }
 
+                // And errors
+                match self.get_error() {
+                    Some(err) => {
+                        return (Paused, Some(Event::Error { err }));
+                    },
+                    None => {},
+                }
+
                 // If we didn't hit a breakpoint/watchpoint, the state doesn't change.
                 // If we were running, we're still running.
                 // If we were halted before, we're still halted (handled above).
@@ -528,7 +536,7 @@ where
     }
 
     fn get_error(&self) -> Option<Error> {
-        unimplemented!()
+        self.interp.get_error()
     }
 
     fn get_gpio_states(&self) -> GpioPinArr<GpioState> {
