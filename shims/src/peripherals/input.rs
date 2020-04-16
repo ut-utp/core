@@ -5,7 +5,7 @@ use lc3_traits::peripherals::input::{Input, InputError};
 use core::cell::Cell;
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::io::{stdin, Read};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// The source from which Inputs will read characters.
 ///
@@ -23,9 +23,17 @@ pub trait Source {
     fn get_char(&self) -> Option<u8>;
 }
 
+impl<S: Source> Source for Arc<Mutex<S>> {
+    fn get_char(&self) -> Option<u8> {
+        self.lock().unwrap().get_char()
+    }
+}
+
 pub struct SourceShim {
     last_char: Mutex<Option<u8>>,
 }
+
+sa::assert_impl_all!(SourceShim: Send, Sync);
 
 impl SourceShim {
     pub fn new() -> Self {
@@ -123,41 +131,6 @@ impl<'int, 'i> InputShim<'i, 'int> {
 
     pub fn get_inner_ref(&self) -> &(dyn Source + Send + Sync + 'i) {
         &*self.source
-    }
-}
-
-impl<'int> InputShim<'static, 'int> {
-    pub fn get_inner<T: 'static + Clone>(&mut self) -> Result<Box<T>, ()> {
-        use std::any::Any;
-
-        let InputShim {
-            source,
-            flag,
-            interrupt_enable_bit,
-            data,
-        } = std::mem::replace(self, InputShim::default());
-
-        self.flag = flag;
-        self.interrupt_enable_bit = interrupt_enable_bit;
-        self.data = data;
-
-        let source: Box<Any> = if let OwnedOrRef::Owned(inner) = source {
-            inner
-        } else {
-            self.source = source;
-            return Err(())
-        };
-
-        match Box::<dyn std::any::Any>::downcast::<T>(source) {
-            Ok(inner) => {
-                self.source = inner.clone();
-                Ok(inner)
-            },
-            Err(old) => {
-                self.source = old;
-                Err(())
-            }
-        }
     }
 }
 

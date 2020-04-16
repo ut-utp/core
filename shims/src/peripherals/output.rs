@@ -3,12 +3,8 @@ use std::io::{stdout, Error as IoError, Write};
 
 use crate::peripherals::OwnedOrRef;
 
-use std::convert::AsMut;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use std::io::Result as IoResult;
 
@@ -27,6 +23,16 @@ impl<W: Write> Sink for Mutex<W> {
 
     fn flush(&self) -> IoResult<()> {
         self.lock().unwrap().flush()
+    }
+}
+
+impl<S: Sink> Sink for Arc<S> {
+    fn put_char(&self, c: u8) -> IoResult<usize> {
+        self.put_char(c)
+    }
+
+    fn flush(&self) -> IoResult<()> {
+        self.flush()
     }
 }
 
