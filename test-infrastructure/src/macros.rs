@@ -70,58 +70,42 @@ macro_rules! single_test_inner {
         let teardown_func = teardown_func_cast(|_p: &Interpreter<'_, MemoryShim, ShareablePeripheralsShim<'_, '_>>| { }, &flags); // no-op if not specified
         $(let teardown_func = teardown_func_cast(|$peripherals_t: &Interpreter<'_, MemoryShim, ShareablePeripheralsShim<'_, '_>>| $teardown, &flags);)?
 
-        // fn lifetime_hinter<'flags>(
-        //     flags: &'flags PeripheralInterruptFlags,
-        //     setup_func: impl FnOnce(&mut ShareablePeripheralsShim<'flags, 'static>),
-        //     teardown_func: impl FnOnce(&Interpreter<'flags, MemoryShim, ShareablePeripheralsShim<'flags, 'static>>)
-        // ) {
-            #[allow(unused_mut)]
-            let mut regs: [Option<Word>; Reg::NUM_REGS] = [None, None, None, None, None, None, None, None];
-            $(regs[Into::<u8>::into($r) as usize] = Some($v);)*
+        #[allow(unused_mut)]
+        let mut regs: [Option<Word>; Reg::NUM_REGS] = [None, None, None, None, None, None, None, None];
+        $(regs[Into::<u8>::into($r) as usize] = Some($v);)*
 
-            #[allow(unused_mut)]
-            let mut checks: Vec<(Addr, Word)> = Vec::new();
-            $(checks.push(($addr, $val));)*
+        #[allow(unused_mut)]
+        let mut checks: Vec<(Addr, Word)> = Vec::new();
+        $(checks.push(($addr, $val));)*
 
-            #[allow(unused_mut)]
-            let mut prefill: Vec<(Addr, Word)> = Vec::new();
-            $($(prefill.push(($addr_p, $val_p));)*)?
-            $($(prefill.push(($addr_expr, $val_expr));)*)?
+        #[allow(unused_mut)]
+        let mut prefill: Vec<(Addr, Word)> = Vec::new();
+        $($(prefill.push(($addr_p, $val_p));)*)?
+        $($(prefill.push(($addr_expr, $val_expr));)*)?
 
-            #[allow(unused_mut)]
-            let mut insns: Vec<Instruction> = Vec::new();
-            $(insns.push(insn!($($insn)*));)*
+        #[allow(unused_mut)]
+        let mut insns: Vec<Instruction> = Vec::new();
+        $(insns.push(insn!($($insn)*));)*
 
-            #[allow(unused)]
-            let steps: Option<usize> = None;
-            $(let steps: Option<usize> = Some($steps);)?
+        #[allow(unused)]
+        let steps: Option<usize> = None;
+        $(let steps: Option<usize> = Some($steps);)?
 
-            #[allow(unused)]
-            let os: Option<(MemoryShim, Addr)> = None;
-            $(let os = Some(($os, $os_addr));)?
+        #[allow(unused)]
+        let os: Option<(MemoryShim, Addr)> = None;
+        $(let os = Some(($os, $os_addr));)?
 
-            interp_test_runner::<'_, MemoryShim, ShareablePeripheralsShim<'_, '_>, _, _>(
-                prefill,
-                insns,
-                steps,
-                regs,
-                None,
-                checks,
-                // (|_|{}),
-                // (|_|{}),
-                // (|p: &mut ShareablePeripheralsShim<'flags, 'static>| (setup_func)(p)),
-                // (|i: &Interpreter<'flags, MemoryShim, ShareablePeripheralsShim<'flags, 'static>>| (teardown_func)(i)),
-                setup_func,
-                teardown_func,
-                &flags,
-                os,
-            );
-        // }
-
-        // lifetime_hinter(
-        //     &flags,
-        //     setup_func,
-        //     teardown_func,
-        // );
+        interp_test_runner::<'_, MemoryShim, ShareablePeripheralsShim<'_, '_>, _, _>(
+            prefill,
+            insns,
+            steps,
+            regs,
+            None,
+            checks,
+            setup_func,
+            teardown_func,
+            &flags,
+            os,
+        );
     }};
 }
