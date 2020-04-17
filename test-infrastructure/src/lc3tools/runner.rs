@@ -38,7 +38,7 @@ pub struct MemEntry {
 
 // TODO: actually check the final PC, PSR, CC, and MCR.
 
-pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flags>, PF, TF>
+pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flags>>
 (
     insns: Vec<Instruction>,
     flags: &'flags PeripheralInterruptFlags,

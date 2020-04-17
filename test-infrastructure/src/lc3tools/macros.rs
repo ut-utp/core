@@ -9,7 +9,7 @@ macro_rules! lc3_sequence {
     ) => {
         $(#[doc = $panics] #[should_panic])?
         #[test]
-        fn $name() -> std::io::Result<()> { $crate::with_larger_stack(None, || {
+        fn $name() -> std::io::Result<()> { $crate::with_larger_stack::<std::io::Result<()>, _>(None, || {
             use $crate::{
                 Instruction, PeripheralInterruptFlags, MemoryShim, PeripheralsShim, insn
             };
@@ -20,7 +20,7 @@ macro_rules! lc3_sequence {
 
             let flags = PeripheralInterruptFlags::new();
 
-            $crate::lc3tools::lc3tools_tester::<MemoryShim, PeripheralsShim, _, _>(
+            $crate::lc3tools::lc3tools_tester::<MemoryShim, PeripheralsShim>(
                 insns,
                 &flags,
                 None
