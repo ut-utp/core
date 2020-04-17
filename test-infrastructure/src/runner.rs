@@ -1,3 +1,6 @@
+//! Home of the workhorse of this crate: `interp_test_runner`; the thing that
+//! actually runs the interpreter.
+
 use lc3_isa::{Addr, Instruction, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;

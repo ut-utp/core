@@ -65,5 +65,7 @@ mod runner;
 #[macro_use] pub mod macros;
 mod misc;
 
+#[macro_use] pub mod lc3tools;
+
 pub use runner::*;
 pub use misc::*;

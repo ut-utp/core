@@ -1,3 +1,5 @@
+//! Macros for writing Interpreter tests.
+
 #![macro_use]
 
 #[doc(inline)]
