@@ -7,7 +7,7 @@ edition = "2018"
 workspace = ".."
 
 description = "Traits defining the LC-3's peripherals, memory, and control interface."
-homepage = "https://ut-utp.github.io"
+homepage = "https://utp.tools"
 repository = "http://github.com/ut-utp/prototype"
 
 readme = "README.md"

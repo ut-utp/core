@@ -358,15 +358,16 @@ where
         use State::*;
 
         if let RunningUntilEvent = self.get_state() {
-            // TODO: does this weird micro optimization help?
-            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
-                for _ in 0..STEPS_IN_A_TICK {
-                    // this is safe since overshooting (calling step when we have NOPs) is fine
-                    self.step();
-                }
-
-                return STEPS_IN_A_TICK;
-            }
+            // TODO: Some configurable flag for events
+//            // TODO: does this weird micro optimization help?
+//            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
+//                for _ in 0..STEPS_IN_A_TICK {
+//                    // this is safe since overshooting (calling step when we have NOPs) is fine
+//                    self.step();
+//                }
+//
+//                return STEPS_IN_A_TICK;
+//            }
 
             for _ in 0..STEPS_IN_A_TICK {
                 if let Some(e) = self.step() {
@@ -420,6 +421,14 @@ where
                     // }).next() {
                     //     return (Paused, Some(Event::MemoryWatch { addr, data }));
                     // }
+                }
+
+                // And errors
+                match self.get_error() {
+                    Some(err) => {
+                        return (Paused, Some(Event::Error { err }));
+                    },
+                    None => {},
                 }
 
                 // If we didn't hit a breakpoint/watchpoint, the state doesn't change.
@@ -528,7 +537,7 @@ where
     }
 
     fn get_error(&self) -> Option<Error> {
-        unimplemented!()
+        self.interp.get_error()
     }
 
     fn get_gpio_states(&self) -> GpioPinArr<GpioState> {

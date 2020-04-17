@@ -7,7 +7,7 @@ edition = "2018"
 workspace = ".."
 
 description = "An instruction level simulator for the LC-3."
-homepage = "https://ut-utp.github.io"
+homepage = "https://utp.tools"
 repository = "http://github.com/ut-utp/prototype"
 
 readme = "README.md"
@@ -31,7 +31,7 @@ maintenance = { status = "actively-developed" }
 lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
 lc3-macros = { path = "../macros", version = "0.1.0" }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
-
+rand = "0.3.0"
 static_assertions = "1.1.0"
 
 [dev-dependencies]

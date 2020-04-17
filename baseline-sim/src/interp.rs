@@ -634,7 +634,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn push(&mut self, word: Word) -> WriteAttempt {
         // This function will *only ever push onto the system stack*:
         if self[R6] == 0x0 {
-            panic!("System stack overflow!");
+            self.set_error(SystemStackOverflow);
+            return Err(Acv);    // TODO: Kind of an ACV, but not really?
         }
 
         self[R6] -= 1;
@@ -949,6 +950,7 @@ use super::mem_mapped::{
     CLKR,
     T0CR, T0DR, T1CR, T1DR
 };
+use lc3_traits::error::Error::SystemStackOverflow;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");

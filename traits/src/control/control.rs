@@ -28,6 +28,7 @@ pub const MAX_MEMORY_WATCHPOINTS: usize = 10;
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
+    Error { err: Error },
     Interrupted, // If we get paused or stepped, this is returned. (TODO: we currently only return this if we're paused!! not sure if stopping on a step is reasonable behavior)
     Halted,
 }
