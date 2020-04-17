@@ -35,6 +35,8 @@ pub enum Error {
 
     InputError(InputError),
     OutputError(OutputError),
+
+    SystemStackOverflow,
     ///// TODO: finish
 }
 
@@ -116,6 +118,7 @@ impl From<Error> for ErrorHandlingStrategy {
             AdcMiscError(_) => Silent,
             InputError(_) => Silent,        // TODO: what to actually do here?
             OutputError(_) => Silent,       // TODO: and here?
+            SystemStackOverflow => Silent,
         }
     }
 }
