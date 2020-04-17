@@ -5,6 +5,7 @@ use core::{
     iter::{ExactSizeIterator, Iterator, FusedIterator},
     mem::{replace, size_of, transmute, transmute_copy, MaybeUninit},
     ops::{Index, IndexMut},
+    convert::{AsRef, AsMut},
 };
 
 // Note: Capacity is a constant so that the transition to const generics (once
@@ -461,6 +462,18 @@ impl<T> IndexMut<usize> for Fifo<T> {
     #[inline]
     fn index_mut(&mut self, idx: usize) -> &mut T {
         &mut self.as_mut_slice()[idx]
+    }
+}
+
+impl<T> AsRef<[T]> for Fifo<T> {
+    fn as_ref(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
+impl<T> AsMut<[T]> for Fifo<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.as_mut_slice()
     }
 }
 

@@ -563,14 +563,15 @@ dependencies = [
 
 [[package]]
 name = "heapless"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10b591a0032f114b7a77d4fbfab452660c553055515b7d7ece355db080d19087"
+checksum = "8ffa511365b12346c5fbe759d82f80d3aa70d9f1ba01955594f84a1a6bbab985"
 dependencies = [
  "as-slice",
  "generic-array 0.13.2",
  "hash32",
  "serde",
+ "stable_deref_trait",
 ]
 
 [[package]]
@@ -939,11 +940,10 @@ dependencies = [
 
 [[package]]
 name = "postcard"
-version = "0.4.3"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f61f42c9617f3d7b447ee300bf80cb16c7cd7b28ca88555822793f073f69719f"
+checksum = "d2ba083a6a640a9f09d294c0f504acdd7a2b000c179e80c73d4b7a036bfd8164"
 dependencies = [
- "byteorder",
  "heapless",
  "postcard-cobs",
  "serde",

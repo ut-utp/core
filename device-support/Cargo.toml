@@ -31,8 +31,9 @@ maintenance = { status = "actively-developed" }
 lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
 
-serde = { version = "1.0", default-features = false }
-postcard = "0.4.3"
+serde = { version = "1.0", default-features = false } # Disable the `std` feature
+postcard = "0.5.0"
+# bbqueue = "0.4.4" # TODO
 embedded-hal = "0.2.3"
 static_assertions = "1.1.0"
 bytes = { version = "0.5.3", default-features = false, optional = true }
