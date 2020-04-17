@@ -15,8 +15,13 @@ pub trait Transport<SendFormat, RecvFormat> {
 
     fn send(&self, message: SendFormat) -> Result<(), Self::SendErr>;
 
-    // None if no messages were sent, Some(message) otherwise.
+    // Err if no messages were sent, Some(message) otherwise.
+    //
+    // TODO: make this Res<Opt<Recv>, Err>!
     fn get(&self) -> Result<RecvFormat, Self::RecvErr>; // TODO: should this be wrapped in a Result?
+
+    // Number of invalid/discarded messages.
+    fn num_get_errors(&self) -> u64 { 0 }
 }
 
 using_std! {
