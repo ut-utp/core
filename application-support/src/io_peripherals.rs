@@ -7,7 +7,7 @@
 use lc3_shims::peripherals::{Sink, SourceShim};
 
 use std::io::{Read, Write};
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 
 /// A trait for [`Input`] Peripherals that lets us, a controller, supply the
@@ -96,28 +96,56 @@ impl InputSink for Arc<SourceShim> {
     }
 }
 
-// Mirrors the blanket impl that `Sink` has but also requires `Read` support so
-// that we can actually implement OutputSource.
-impl<W: Write> OutputSource for Mutex<W>
-where
-    Mutex<W>: Sink, // This is really guaranteed.
-    W: Deref,
-    for<'r> &'r <W as Deref>::Target: Read,
-{
-    fn get_chars(&self) -> Option<String> {
-        let mut s = String::new();
-        let source = self.lock().unwrap();
+// TODO: fix this!
+// // Mirrors the blanket impl that `Sink` has but also requires `Read` support so
+// // that we can actually implement OutputSource.
+// impl<W: Write> OutputSource for Mutex<W>
+// where
+//     Mutex<W>: Sink, // This is really guaranteed.
+//     W: Deref,
+//     // W: DerefMut,
+//     for<'r> &'r <W as Deref>::Target: Read,
+// {
+//     fn get_chars(&self) -> Option<String> {
+//         let mut s = String::new();
+//         let source = self.lock().unwrap();
 
-        // This will just not pull characters into the output string if we
-        // encounter non-utf8 characters (see the docs for
-        // `Read::read_to_string`).
-        // TODO: maybe handle non-utf8 chars differently.
-        // let mut r: &<W as Deref>::Target = source.deref();
-        <W as Deref>::deref(&source)
-            .read_to_string(&mut s)
+//         // This will just not pull characters into the output string if we
+//         // encounter non-utf8 characters (see the docs for
+//         // `Read::read_to_string`).
+//         // TODO: maybe handle non-utf8 chars differently.
+//         // let mut r: &<W as Deref>::Target = source.deref();
+//         <W as Deref>::deref(&source)
+//             .read_to_string(&mut s)
+//             .ok()
+//             .filter(|n| *n > 0)
+//             .map(|_| s)
+//     }
+// }
+
+// Note that `Vec` actually only supports `Read` by way of `Deref`-ing into a
+// `u8` slice; this is no good for us becuase it means that
+// `Read::read_to_string` doesn't actually remove the characters from the `Vec`.
+// So, we have the special impl for Vec below:
+impl OutputSource for Mutex<Vec<u8>> {
+    fn get_chars(&self) -> Option<String> {
+        let mut v = self.lock().unwrap();
+
+        // Unlike the impl above, this will throw away any non-Unicode
+        // characters along with everything else that's currently in the `Vec`.
+        // TODO: maybe handle non-utf8 characters differently or at least be
+        // consistent with the impl above.
+        let s = v.drain(..).collect();
+
+        String::from_utf8(s)
             .ok()
-            .filter(|n| *n > 0)
-            .map(|_| s)
+            .filter(|s| s.len() > 0)
+
+        // let s: String = v.drain(..)
+        //     .collect::<Option<String>>()
+        //     .ok()
+        //     .filter(|n| *n > 0)
+        //     .map(|_| s)
     }
 }
 
