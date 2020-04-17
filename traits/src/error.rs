@@ -68,10 +68,10 @@ impl Display for Error {
                 unimplemented!();       // TODO
             }
             Error::InputError(_) => {
-                unimplemented!();       // TODO
+                return write!(f, "Input error occurred");       // TODO: make this meaningful
             }
             Error::OutputError(_) => {
-                unimplemented!();       // TODO
+                return write!(f, "Output error occurred");       // TODO: make this meaningful
             }
             Error::SystemStackOverflow => {
                 return write!(f, "Overflowed system stack");
