@@ -385,8 +385,15 @@ where
         let current_machine_state = self.interp.step();
         let (new_state, event) = (|m: MachineState| match m {
             MachineState::Halted => {
-                // If we're halted, we can't have hit a breakpoint or a watchpoint.
-                (Halted, Some(Event::Halted))
+                // If we're halted, we can't have hit a breakpoint or a watchpoint,
+                // but we might have overflowed our stack or run into some other error.
+                let event = if let Some(err) = self.get_error() {
+                    Event::Error { err }
+                } else {
+                    Event::Halted
+                };
+
+                (Halted, Some(event))
             }
             MachineState::Running => {
                 // Check for breakpoints:
@@ -463,6 +470,7 @@ where
             // (Halted, Halted, None) => unreachable!(), // this is fine but will never happen as impl'ed above
 
             (RunningUntilEvent, Paused, Some(e)) |
+            (RunningUntilEvent, Halted, Some(e @ Event::Error { .. })) |
             (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
                 // println!("resolving the device future");
                 self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e).unwrap();
@@ -474,6 +482,7 @@ where
             (Paused, Paused, e @ Some(_))                    |
             (Paused, Paused, e @ None)                       |
             (Paused, Halted, e @ Some(Event::Halted))        |
+            (Paused, Halted, e @ Some(Event::Error { .. }))  |
             (Halted, Halted, e @ Some(Event::Halted)) => {
                 self.state = new_state;
                 e
@@ -481,7 +490,7 @@ where
 
             (RunningUntilEvent, Halted, Some(_)) |
             (Paused, Halted, Some(_))            |
-            (Halted, Halted, Some(_)) => unreachable!("Transitions to the `Halted` state must only produce halted events."),
+            (Halted, Halted, Some(_)) => unreachable!("Transitions to the `Halted` state must only produce halted events or error events."),
 
             (RunningUntilEvent, RunningUntilEvent, Some(_)) => unreachable!("Can't yield an event and not finish a `RunningUntilEvent`."),
 
