@@ -25,6 +25,7 @@ pub const ADC_PINS: AdcPinArr<AdcPin> = {
 }; // TODO: once we get the derive macro, get rid of this.
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum AdcState {
     Enabled,
     Disabled,

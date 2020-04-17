@@ -55,6 +55,7 @@ impl From<GpioPin> for usize {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum GpioState {
     Input,
     Output,

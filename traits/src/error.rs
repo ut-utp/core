@@ -42,8 +42,41 @@ pub enum Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        // TODO
-        unimplemented!()
+        match self {
+            Error::InvalidGpioWrite(err) => {
+                return write!(f, "Attempted to write to {} when in {} mode", (err.0).0, (err.0).1);
+            }
+            Error::InvalidGpioWrites(_) => {
+                unimplemented!();       // TODO
+            }
+            Error::InvalidGpioRead(err) => {
+                return write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1);
+            }
+            Error::InvalidGpioReads(_) => {
+                unimplemented!();       // TODO
+            }
+            Error::GpioMiscError(_) => {
+                unimplemented!();       // TODO
+            }
+            Error::InvalidAdcRead(err) => {
+                return write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1);
+            }
+            Error::InvalidAdcReads(_) => {
+                unimplemented!();       // TODO
+            }
+            Error::AdcMiscError(_) => {
+                unimplemented!();       // TODO
+            }
+            Error::InputError(_) => {
+                unimplemented!();       // TODO
+            }
+            Error::OutputError(_) => {
+                unimplemented!();       // TODO
+            }
+            Error::SystemStackOverflow => {
+                return write!(f, "Overflowed system stack");
+            }
+        }
     }
 }
 
