@@ -12,7 +12,7 @@ const STACK_SIZE: usize = 32 * 1024 * 1024;
 // #[with_larger_stack]
 // fn foo() { ... }
 // ```
-pub fn with_larger_stack<F: FnOnce() + Send + 'static>(n: Option<String>, f: F) {
+pub fn with_larger_stack<R: Send + 'static, F: FnOnce() -> R + Send + 'static>(n: Option<String>, f: F) -> R{
     let child = thread::Builder::new()
         .stack_size(STACK_SIZE)
         .name(n.unwrap_or_else(||
@@ -58,7 +58,7 @@ pub fn with_larger_stack<F: FnOnce() + Send + 'static>(n: Option<String>, f: F) 
     // So, I think we just have to live with it for now. Hopefully our tests
     // aren't noisy.
 
-    child.join().unwrap();
+    child.join().unwrap()
 }
 
 // Won't work as expected for tolerances greater than half u16 width.

@@ -4,7 +4,6 @@
 use lc3_isa::{Addr, Instruction, Word};
 use lc3_traits::memory::Memory;
 use lc3_traits::peripherals::Peripherals;
-use std::io::prelude::*;
 use lc3_baseline_sim::interp::{PeripheralInterruptFlags, InstructionInterpreter,
     Interpreter, InterpreterBuilder, MachineState
 };
