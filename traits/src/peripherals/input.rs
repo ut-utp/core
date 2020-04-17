@@ -2,6 +2,7 @@
 use crate::peripheral_trait;
 
 use core::sync::atomic::AtomicBool;
+use core::fmt::{self, Display};
 
 use serde::{Deserialize, Serialize};
 
@@ -28,7 +29,21 @@ pub trait Input<'a>: Default {
 }}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct InputError;
+pub enum InputError {
+    NonUnicodeCharacter(u8),
+    IoError,
+}
+
+impl Display for InputError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use InputError::*;
+
+        match self {
+            NonUnicodeCharacter(c) => write!(fmt, "Tried to read a non-unicode input: {:#2X}", c),
+            IoError => write!(fmt, "I/O error when reading input"),
+        }
+    }
+}
 
 // TODO: roll this into the macro
 using_std! {

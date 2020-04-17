@@ -42,40 +42,23 @@ pub enum Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        use Error::*;
+
         match self {
-            Error::InvalidGpioWrite(err) => {
-                return write!(f, "Attempted to write to {} when in {} mode", (err.0).0, (err.0).1);
-            }
-            Error::InvalidGpioWrites(_) => {
-                unimplemented!();       // TODO
-            }
-            Error::InvalidGpioRead(err) => {
-                return write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1);
-            }
-            Error::InvalidGpioReads(_) => {
-                unimplemented!();       // TODO
-            }
-            Error::GpioMiscError(_) => {
-                unimplemented!();       // TODO
-            }
-            Error::InvalidAdcRead(err) => {
-                return write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1);
-            }
-            Error::InvalidAdcReads(_) => {
-                unimplemented!();       // TODO
-            }
-            Error::AdcMiscError(_) => {
-                unimplemented!();       // TODO
-            }
-            Error::InputError(_) => {
-                return write!(f, "Input error occurred");       // TODO: make this meaningful
-            }
-            Error::OutputError(_) => {
-                return write!(f, "Output error occurred");       // TODO: make this meaningful
-            }
-            Error::SystemStackOverflow => {
-                return write!(f, "Overflowed system stack");
-            }
+            InvalidGpioWrite(err) =>
+                write!(f, "Attempted to write to {} when in {} mode", (err.0).0, (err.0).1),
+            InvalidGpioWrites(_) => todo!(),
+            InvalidGpioRead(err) =>
+                write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1),
+            InvalidGpioReads(_) => todo!(),
+            GpioMiscError(_) => todo!(),
+            InvalidAdcRead(err) =>
+                write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1),
+            InvalidAdcReads(_) => todo!(),
+            AdcMiscError(_) => todo!(),
+            OutputError(e) => write!(f, "{}", e),
+            InputError(e) => write!(f, "{}", e),
+            SystemStackOverflow => write!(f, "Overflowed system stack"),
         }
     }
 }
