@@ -1,3 +1,3 @@
 mod postcard;
 
-// pub use postcard::PostcardEncoding;
+pub use self::postcard::PostcardEncode;
