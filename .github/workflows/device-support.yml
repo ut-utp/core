@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         crate: [ lc3-device-support ]
-        features: ['', no_std, alloc ]
+        features: ['', no_std, alloc, host_transport ]
         os: [ windows-latest, ubuntu-latest, macOS-latest ]
         rust:
           - stable
@@ -50,7 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         crate: [ lc3-device-support ]
-        features: ['', no_std, alloc ]
+        features: ['', no_std, alloc, host_transport ]
         os: [ ubuntu-latest ]
         rust: [ stable, nightly ]
 

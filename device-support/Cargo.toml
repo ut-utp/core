@@ -42,7 +42,7 @@ static_assertions = "1.1.0"
 bytes = { version = "0.5.3", default-features = false, optional = true }
 
 # host-transport deps:
-tokio_serial = { version = "4.3.3", optional = true }
+mio-serial = { version = "3.3.1", optional = true }
 
 
 [dev-dependencies]
@@ -53,4 +53,4 @@ pretty_assertions = "0.6.1"
 default = []
 no_std = ["lc3-isa/no_std", "lc3-traits/no_std"]
 alloc = ["bytes"]
-host_transport = ["tokio_serial"]
+host_transport = ["mio-serial"]
