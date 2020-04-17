@@ -38,6 +38,18 @@ pub struct MemEntry {
 
 // TODO: actually check the final PC, PSR, CC, and MCR.
 
+const DEBUG: bool = false;
+
+macro_rules! d {
+    ($e:expr) => {
+        if DEBUG {
+            dbg!($e)
+        } else {
+            $e
+        }
+    };
+}
+
 pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flags>>
 (
     insns: Vec<Instruction>,
@@ -53,7 +65,7 @@ pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flag
         .expect("LC3TOOLS_BIN must be set to use the `lc3tools_tester` function");
 
     // Make the asm file.
-    let lc3_asm_file_path = &format!("{}/test_lc3_{}.asm", OUT_DIR, test_num);
+    let lc3_asm_file_path = &format!("{}/test_lc3_{}.txt    ", OUT_DIR, test_num);
     let mut lc3_asm_file = File::create(lc3_asm_file_path)?;
 
     // Write out the instructions:
@@ -63,7 +75,7 @@ pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flag
         .chain(once(".end".to_string()));             // and finally, the end
 
     for line in iter {
-        writeln!(lc3_asm_file, "{}", line)?
+        writeln!(lc3_asm_file, "{}", d!(line))?
     }
 
     // Run the program in lc3tools and collect the trace.
@@ -82,21 +94,29 @@ pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flag
     let mut cc = None;
     let mut mcr = None;
 
+    // for `0x25` style formatting
+    fn parse_hex_val(v: &str) -> u16 {
+        d!(v);
+        Word::from_str_radix(&v[2..], 16).unwrap()
+    }
+
     fn parse_reg(r: &str) -> Option<Word> {
         match r.split(" ").collect::<Vec<_>>().as_slice() {
-            [_, r, ..] => Some(Word::from_str_radix(r, 16).unwrap()),
+            [_, r, ..] => Some(parse_hex_val(r)),
             _ => unreachable!(),
         }
     }
 
     let output = String::from_utf8(output).unwrap();
+    if DEBUG { println!("{}", output) }
+
     for line in output.lines().filter(|l| !l.is_empty()) {
-        match line {
+        match d!(line) {
             pair if line.starts_with("0x") => {
                 match pair.split(": ").collect::<Vec<&str>>().as_slice() {
                     [addr, word, ..] => memory.push(MemEntry {
-                        addr: Addr::from_str_radix(addr, 16).unwrap(),
-                        word: Word::from_str_radix(word, 16).unwrap(),
+                        addr: parse_hex_val(addr),
+                        word: parse_hex_val(&word[0..6]),
                     }),
                     _ => unreachable!(),
                 }
@@ -104,29 +124,28 @@ pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flag
 
             pc_val if line.starts_with("PC") => {
                 match pc_val.split(" ").collect::<Vec<_>>().as_slice() {
-                    [_, pc_val, ..] => pc = Some(Addr::from_str_radix(pc_val, 16).unwrap()),
+                    [_, pc_val, ..] => pc = Some(parse_hex_val(pc_val)),
                     _ => unreachable!(),
                 }
             }
 
             psr_val if line.starts_with("PSR") => {
                 match psr_val.split(" ").collect::<Vec<_>>().as_slice() {
-                    [_, psr_val, ..] => psr = Some(Addr::from_str_radix(psr_val, 16).unwrap()),
+                    [_, psr_val, ..] => psr = Some(parse_hex_val(psr_val)),
                     _ => unreachable!(),
                 }
             }
 
             cc_val if line.starts_with("CC") => {
                 match cc_val.split(" ").collect::<Vec<_>>().as_slice() {
-                    [_, cc_val, ..] => {},
+                    [_, cc_val, ..] => cc = Some(cc_val),
                     _ => unreachable!(),
                 }
-                cc = Some(Addr::from_str_radix(cc_val, 16).unwrap());
             }
 
             mcr_val if line.starts_with("MCR") => {
                 match mcr_val.split(" ").collect::<Vec<_>>().as_slice() {
-                    [_, mcr_val, ..] => mcr = Some(Addr::from_str_radix(mcr_val, 16).unwrap()),
+                    [_, mcr_val, ..] => mcr = Some(parse_hex_val(mcr_val)),
                     _ => unreachable!(),
                 }
             }

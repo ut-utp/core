@@ -9,12 +9,14 @@ asm() { "${LC3_BIN_DIR}/assembler" "${@}"; }
 sim() { "${LC3_BIN_DIR}/simulator" "${@}"; }
 
 num_insns=$(head -n 1 "$FILE1")
-tail -n +2 "$FILE1" > "$FILE1.asm"
+tail -n +2 "${FILE1}" > "${FILE1}.asm"
+
+echo "Executing ${num_insns} instructions.." >&2
 
 asm "${FILE1}.asm"
 
 (cat <<-EOF
-	run "${num_insns}"
+	run ${num_insns}
 	regs
 	mem 0 0xFDFF
 	regs
@@ -22,4 +24,4 @@ asm "${FILE1}.asm"
 EOF
 ) | sim "${FILE1}.obj"
 
-rm -f "${FILE1}.obj" "${FILE1}.asm" "${FILE1}" &> /dev/null
+rm -f "${FILE1}.obj" "${FILE1}.asm" "${FILE1}" > /dev/null
