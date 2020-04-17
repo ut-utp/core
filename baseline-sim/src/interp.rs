@@ -701,7 +701,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             return;
         }
 
-        self.get_special_reg::<PSR>().set_priority(self, 5);    // TODO: revert this to PRIORITY 3
+        self.get_special_reg::<PSR>().set_priority(self, 3);
     }
 
     fn handle_trap(&mut self, trap_vec: u8) {
@@ -735,10 +735,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             return false;
         }
 
-        // TODO: Set nzp to z here
-        self.set_cc(0);
-
         self.handle_exception(int_vec);
+        self.set_cc(0);
         self.get_special_reg::<PSR>().set_priority(self, priority);
 
         true
