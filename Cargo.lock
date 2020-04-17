@@ -669,6 +669,7 @@ dependencies = [
  "embedded-hal",
  "lc3-isa",
  "lc3-traits",
+ "nb",
  "postcard",
  "pretty_assertions",
  "serde",
