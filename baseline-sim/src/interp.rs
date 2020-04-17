@@ -138,14 +138,14 @@ pub trait InstructionInterpreter:
     fn type_id() -> TypeId { core::any::TypeId::of::<Instruction>() }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Acv;
 
 pub type ReadAttempt = Result<Word, Acv>;
 
 pub type WriteAttempt = Result<(), Acv>;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum MachineState {
     Running,
     Halted,
@@ -633,7 +633,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
     fn push(&mut self, word: Word) -> WriteAttempt {
         // This function will *only ever push onto the system stack*:
-        if self[R6] == 0x0 {
+        if self[R6] <= lc3_isa::OS_START_ADDR {
             self.set_error(SystemStackOverflow);
             self.halt();
             return Err(Acv);    // TODO: Kind of an ACV, but not really?
@@ -697,7 +697,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // We're in privileged mode now so this should only error if we've
         // overflowed our stack.
         if let Err(Acv) = self.push_state() {
-            debug_assert!(self.state, MachineState::Halted);
+            debug_assert_eq!(self.state, MachineState::Halted);
             return;
         }
 
