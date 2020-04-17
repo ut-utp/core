@@ -635,6 +635,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // This function will *only ever push onto the system stack*:
         if self[R6] == 0x0 {
             self.set_error(SystemStackOverflow);
+            self.halt();
             return Err(Acv);    // TODO: Kind of an ACV, but not really?
         }
 
