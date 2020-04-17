@@ -7,7 +7,6 @@ use PwmPin::*;
 
 single_test! {
     enable,
-    pre: |p| { },
     prefill: {
         0x3005: 20,
         0x3006: 128
@@ -19,8 +18,6 @@ single_test! {
         { TRAP #0x50 },
         { TRAP #0x25 },
     ],
-    regs: { },
-    memory: { },
     post: |i| {
         let p = i.get_peripherals();
         eq!(Pwm::get_state(p, P0), Enabled(NonZeroU8::new(20).unwrap()));
@@ -31,18 +28,15 @@ single_test! {
 
 single_test! {
     disable,
-    pre: |p| {
-        Pwm::set_state(p, P0, Enabled(NonZeroU8::new(20).unwrap()));
-        Pwm::set_duty_cycle(p, P0, 128);
-    },
-    prefill: { },
     insns: [
         { AND R0, R0, #0 },
         { TRAP #0x51 },
         { TRAP #0x25 },
     ],
-    regs: { },
-    memory: { },
+    pre: |p| {
+        Pwm::set_state(p, P0, Enabled(NonZeroU8::new(20).unwrap()));
+        Pwm::set_duty_cycle(p, P0, 128);
+    },
     post: |i| {
         let p = i.get_peripherals();
         eq!(Pwm::get_state(p, P0), Disabled);
@@ -53,10 +47,6 @@ single_test! {
 
 single_test! {
     get_period,
-    pre: |p| {
-        Pwm::set_state(p, P0, Enabled(NonZeroU8::new(20).unwrap()));
-        Pwm::set_duty_cycle(p, P0, 128);
-    },
     prefill: { 0x3004: 0 },
     insns: [
         { AND R0, R0, #0 },
@@ -64,8 +54,10 @@ single_test! {
         { ST R0, #1 },
         { TRAP #0x25 },
     ],
-    regs: { },
-    memory: { },
+    pre: |p| {
+        Pwm::set_state(p, P0, Enabled(NonZeroU8::new(20).unwrap()));
+        Pwm::set_duty_cycle(p, P0, 128);
+    },
     post: |i| {
         eq!(i.get_word_unchecked(0x3004), 20);
     },
@@ -74,7 +66,6 @@ single_test! {
 
 single_test! {
     get_period_disabled,
-    pre: |p| { },
     prefill: { 0x3004: 0xBEEF },
     insns: [
         { AND R0, R0, #0 },
@@ -82,8 +73,6 @@ single_test! {
         { ST R0, #1 },
         { TRAP #0x25 },
     ],
-    regs: { },
-    memory: { },
     post: |i| {
         eq!(i.get_word_unchecked(0x3004), 0);
     },
@@ -92,7 +81,6 @@ single_test! {
 
 single_test! {
     get_period_invalid_pin,
-    pre: |p| { },
     prefill: { 0x3005: 0xBEEF },
     insns: [
         { AND R0, R0, #0 },
@@ -101,8 +89,6 @@ single_test! {
         { ST R0, #1 },
         { TRAP #0x25 },
     ],
-    regs: { },
-    memory: { },
     post: |i| {
         eq!(i.get_word_unchecked(0x3005), 0);
     },
@@ -111,10 +97,6 @@ single_test! {
 
 single_test! {
     get_duty,
-    pre: |p| {
-        Pwm::set_state(p, P0, Enabled(NonZeroU8::new(20).unwrap()));
-        Pwm::set_duty_cycle(p, P0, 128);
-    },
     prefill: { 0x3004: 0 },
     insns: [
         { AND R0, R0, #0 },
@@ -122,8 +104,10 @@ single_test! {
         { ST R0, #1 },
         { TRAP #0x25 },
     ],
-    regs: { },
-    memory: { },
+    pre: |p| {
+        Pwm::set_state(p, P0, Enabled(NonZeroU8::new(20).unwrap()));
+        Pwm::set_duty_cycle(p, P0, 128);
+    },
     post: |i| {
         eq!(i.get_word_unchecked(0x3004), 128);
     },

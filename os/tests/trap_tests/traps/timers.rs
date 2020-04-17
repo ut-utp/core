@@ -8,7 +8,6 @@ use TimerState::*;
 // TODO: flaky (race condition in shim/interpreter's interrupt handling?)
 single_test! {
     singleshot,
-    pre: |p| { },
     prefill: {
         0x300F: 200,
         0x3010: 0
@@ -34,9 +33,6 @@ single_test! {
         { ADD R6, R6, #1 },
         { RTI } // x300E
     ],
-    regs: { },
-    memory: { },
-    post: |i| { },
     with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
 }
 
@@ -44,7 +40,6 @@ single_test! {
 // TODO: check timing is correct. Seems too fast
 single_test! {
     repeated,
-    pre: |p| { },
     prefill: {
         0x3011: 200,
         0x3012: 0,
@@ -73,16 +68,12 @@ single_test! {
         { ADD R6, R6, #1 },
         { RTI } // x3010
     ],
-    regs: { },
-    memory: { },
-    post: |i| { },
     with os { MemoryShim::new(**OS_IMAGE) } @ OS_START_ADDR
 }
 
 // TODO: check timing is correct. Seems too fast
 single_test! {
     disable,
-    pre: |p| { },
     prefill: {
         0x3015: 200,
         0x3016: 0,
@@ -116,8 +107,6 @@ single_test! {
         { ADD R6, R6, #1 },
         { RTI } // x3013
     ],
-    regs: { },
-    memory: { },
     post: |i| {
         let p = i.get_peripherals();
         eq!(Timers::get_state(p, T1), Disabled);
@@ -127,7 +116,6 @@ single_test! {
 
 single_test! {
     get_mode,
-    pre: |p| { },
     prefill: {
         0x3008: 1000,
         0x3009: 1,
@@ -142,8 +130,6 @@ single_test! {
         { TRAP #0x25 },
         { RTI }, // x3007
     ],
-    regs: { },
-    memory: { },
     post: |i| {
         eq!(i.get_word_unchecked(0x3009), 0);
     },
@@ -152,7 +138,6 @@ single_test! {
 
 single_test! {
     get_period,
-    pre: |p| { },
     prefill: {
         0x3008: 1000,
         0x3009: 0,
@@ -167,8 +152,6 @@ single_test! {
         { TRAP #0x25 },
         { RTI }, // x3007
     ],
-    regs: { },
-    memory: { },
     post: |i| {
         eq!(i.get_word_unchecked(0x3009), 1000);
     },
