@@ -3,8 +3,6 @@ extern crate lc3_test_infrastructure as lti;
 use lti::{insn, Addr, Instruction, Reg, Word};
 use lti::{MemoryShim, PeripheralsShim, PeripheralInterruptFlags};
 
-
-
 #[cfg(test)]
 mod single_instructions {
     use super::*;
@@ -46,7 +44,8 @@ mod single_instructions {
                 (|_p| {}), // (no-op)
                 (|_p| {}), // (no-op)
                 &flags,
-                &None
+                None,
+                None,
             );
         })}};
     }

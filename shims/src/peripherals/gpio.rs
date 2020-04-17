@@ -39,9 +39,9 @@ impl From<State> for GpioState {
 ///     mode.
 ///   - The state of a pin (input, output, interrupt, or disabled) can be
 ///     retrieved at any time.
-pub struct GpioShim<'a> {
+pub struct GpioShim<'gint> {
     states: GpioPinArr<State>,
-    flags: Option<&'a GpioPinArr<AtomicBool>>,
+    flags: Option<&'gint GpioPinArr<AtomicBool>>,
 }
 
 impl Index<GpioPin> for GpioShim<'_> {

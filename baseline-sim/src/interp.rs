@@ -239,11 +239,11 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 
 // #[derive(Debug, Default, Clone)] // TODO: Clone
 #[derive(Debug)]
-pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
+pub struct Interpreter<'per, M: Memory, P: Peripherals<'per>> {
     memory: M,
     peripherals: P,
     // flags: OwnedOrRef<'a, PeripheralInterruptFlags>,
-    flags: PhantomData<OwnedOrRef<'a, PeripheralInterruptFlags>>,
+    flags: PhantomData<OwnedOrRef<'per, PeripheralInterruptFlags>>,
     regs: [Word; Reg::NUM_REGS],
     pc: Word, //TODO: what should the default for this be
     state: MachineState,

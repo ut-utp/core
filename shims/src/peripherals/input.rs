@@ -5,7 +5,7 @@ use lc3_traits::peripherals::input::{Input, InputError};
 use core::cell::Cell;
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::io::{stdin, Read};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// The source from which Inputs will read characters.
 ///
@@ -23,9 +23,23 @@ pub trait Source {
     fn get_char(&self) -> Option<u8>;
 }
 
+impl<S: Source> Source for Arc<S> {
+    fn get_char(&self) -> Option<u8> {
+        self.get_char()
+    }
+}
+
+impl<S: Source> Source for Arc<Mutex<S>> {
+    fn get_char(&self) -> Option<u8> {
+        self.lock().unwrap().get_char()
+    }
+}
+
 pub struct SourceShim {
     last_char: Mutex<Option<u8>>,
 }
+
+sa::assert_impl_all!(SourceShim: Send, Sync);
 
 impl SourceShim {
     pub fn new() -> Self {
@@ -57,8 +71,8 @@ impl Source for SourceShim {
 }
 
 // #[derive(Clone)] // TODO: Debug
-pub struct InputShim<'i, 'int> {
-    source: OwnedOrRef<'i, dyn Source + Send + Sync + 'i>,
+pub struct InputShim<'inp, 'int> {
+    source: OwnedOrRef<'inp, dyn Source + Send + Sync + 'inp>,
     flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
     data: Cell<Option<u8>>,
@@ -120,9 +134,13 @@ impl<'int, 'i> InputShim<'i, 'int> {
             }
         }
     }
+
+    pub fn get_inner_ref(&self) -> &(dyn Source + Send + Sync + 'i) {
+        &*self.source
+    }
 }
 
-impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
+impl<'inp, 'int> Input<'int> for InputShim<'inp, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),

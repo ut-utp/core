@@ -9,10 +9,8 @@ use core::convert::{TryFrom, TryInto};
 
 use pretty_assertions::assert_eq;
 
-
-
-
-pub fn interp_test_runner<'a, M: Memory + Default + Clone, P: Peripherals<'a>, PF, TF>
+#[inline]
+pub fn interp_test_runner<'flags, M: Memory + Default + Clone, P: Peripherals<'flags>, PF, TF>
 (
     prefilled_memory_locations: Vec<(Addr, Word)>,
     insns: Vec<Instruction>,
@@ -22,31 +20,37 @@ pub fn interp_test_runner<'a, M: Memory + Default + Clone, P: Peripherals<'a>, P
     memory_locations: Vec<(Addr, Word)>,
     setup_func: PF,
     teardown_func: TF,
-    flags: &'a PeripheralInterruptFlags,
-    alt_memory: &Option<(M, Addr)>,
+    flags: &'flags PeripheralInterruptFlags,
+    alt_memory: Option<(M, Addr)>,
+    alt_peripherals: Option<P>,
 )
 where
     for<'p> PF: FnOnce(&'p mut P),
-    for<'p> TF: FnOnce(&'p Interpreter<M, P>), // Note: we could pass by value
-                                               // since this is the last thing
-                                               // we do.
-    // Interpreter<'a, M, P>: core::ops::Deref<Target = P>,
-    // Interpreter<'a, M, P>: InstructionInterpreterPeripheralAccess<'a>,
+    for<'i> TF: FnOnce(&'i Interpreter<'flags, M, P>), // Note: we could pass by value
+                                                       // since this is the last thing
+                                                       // we do.
 {
     let mut addr = 0x3000;
 
-    let mut interp: Interpreter<M, P> = if let Some((mem, addr)) = alt_memory {
-        let mut int: Interpreter<M, P> = InterpreterBuilder::new()
-            .with_defaults()
-            .with_memory(mem.clone())
+    let interp_builder = InterpreterBuilder::new().with_defaults();
+
+    let interp_builder = if let Some(peripherals) = alt_peripherals {
+        interp_builder.with_peripherals(peripherals)
+    } else {
+        interp_builder
+    };
+
+    let mut interp: Interpreter<'flags, M, P> = if let Some((mem, addr)) = alt_memory {
+        let mut int: Interpreter<'flags, M, P> = interp_builder
+            .with_memory(mem)
             .build();
 
         int.reset();
-        int.set_pc(*addr);
+        int.set_pc(addr);
 
         int
     } else {
-        let mut int = Interpreter::<M, P>::default();
+        let mut int = interp_builder.build();
 
         int.reset();
         int.set_pc(addr);

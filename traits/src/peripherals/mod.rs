@@ -138,10 +138,6 @@ where
         &self.adc
     }
 
-    pub fn get_adc_mut(&mut self) -> &mut A {
-        &mut self.adc
-    }
-
     pub fn get_pwm(&self) -> &P {
         &self.pwm
     }

@@ -19,9 +19,7 @@ categories = ["simulation", "development-tools::testing"]
 license = "MPL-2.0"
 
 [badges]
-# Note: this is (intentionally) not _explicitly_ tested in CI; actual tests depend on
-# this crate though.
-# github-actions = { repository = "ut-utp/prototype", workflow = "_" }
+github-actions = { repository = "ut-utp/prototype", workflow = "test-infrastructure" }
 codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
 
 is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }
@@ -35,6 +33,8 @@ lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
 lc3-macros = { path = "../macros", version = "0.1.0" }
 lc3-shims = { path = "../shims", version = "0.1.0", default-features = false }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
+lc3-application-support = { path = "../application-support", version = "0.1.0" }
+
 rand = "0.3"
 pretty_assertions = "0.6.1"
 

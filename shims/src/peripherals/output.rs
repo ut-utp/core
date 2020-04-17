@@ -3,12 +3,8 @@ use std::io::{stdout, Error as IoError, Write};
 
 use crate::peripherals::OwnedOrRef;
 
-use std::convert::AsMut;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use std::io::Result as IoResult;
 
@@ -30,9 +26,19 @@ impl<W: Write> Sink for Mutex<W> {
     }
 }
 
+impl<S: Sink> Sink for Arc<S> {
+    fn put_char(&self, c: u8) -> IoResult<usize> {
+        self.put_char(c)
+    }
+
+    fn flush(&self) -> IoResult<()> {
+        self.flush()
+    }
+}
+
 // #[derive(Clone)] // TODO: Debug
-pub struct OutputShim<'o, 'int> {
-    sink: OwnedOrRef<'o, dyn Sink + Send + Sync + 'o>,
+pub struct OutputShim<'out, 'int> {
+    sink: OwnedOrRef<'out, dyn Sink + Send + Sync + 'out>,
     flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
 }
@@ -63,9 +69,13 @@ impl<'o, 'int> OutputShim<'o, 'int> {
             interrupt_enable_bit: false,
         }
     }
+
+    pub fn get_inner_ref(&self) -> &(dyn Sink + Send + Sync + 'o) {
+        &*self.sink
+    }
 }
 
-impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
+impl<'out, 'int> Output<'int> for OutputShim<'out, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
