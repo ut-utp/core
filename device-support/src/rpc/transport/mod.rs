@@ -12,3 +12,8 @@ sa::const_assert!(fifo::CAPACITY >= (3 * size_of::<RequestMessage>()));
 sa::const_assert!(fifo::CAPACITY >= (3 * size_of::<ResponseMessage>()));
 
 pub mod uart_simple;
+
+using_std! {
+    #[cfg(feature = "host_transport")]
+    pub mod uart_host;
+}
