@@ -176,7 +176,7 @@ impl<'inp, 'int> Input<'int> for InputShim<'inp, 'int> {
             Some(flag) => flag.store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
-        self.data.get().ok_or(InputError)
+        self.data.get().ok_or(InputError::NoDataAvailable)
     }
 
     fn current_data_unread(&self) -> bool {

@@ -35,7 +35,7 @@ pub type ShareablePeripheralsShim<'int, 'io> = PeripheralSet<
     Arc<Mutex<OutputShim<'io, 'int>>>,
 >;
 
-sa::assert_impl_all!(ShareablePeripheralsShim: Sync, Send);
+sa::assert_impl_all!(ShareablePeripheralsShim<'_, '_>: Sync, Send);
 
 // The assumption here is that your interrupt flags and input source/output sink
 // live for the same amount of time (or, can be made to live for the same
