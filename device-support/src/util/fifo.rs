@@ -4,6 +4,7 @@ use core::{
     fmt::{self, Debug},
     iter::{ExactSizeIterator, Iterator, FusedIterator},
     mem::{replace, size_of, transmute, transmute_copy, MaybeUninit},
+    ops::{Index, IndexMut},
 };
 
 // Note: Capacity is a constant so that the transition to const generics (once
@@ -244,17 +245,17 @@ impl<T> Fifo<T> {
         }
     }
 
-    /// Returns a slice consisting of the data currently in the `Fifo` without
-    /// removing it.
+    /// Returns a mutable slice consisting of the data currently in the `Fifo`
+    /// without removing it.
     #[inline]
-    pub fn as_slice(&self) -> &[T] {
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
         // starting == ending can either mean a full fifo or an empty one so
         // we use our length field to handle this case separately
-        if self.is_empty() {
-            &[]
+        if Fifo::is_empty(self) {
+            &mut []
         } else {
             if self.ending > self.starting {
-                let s = &self.data
+                let s = &mut self.data
                     [(self.starting as usize)..(self.ending as usize)];
 
                 // Again, leaning on our invariants and assuming this is all
@@ -279,9 +280,41 @@ impl<T> Fifo<T> {
                 }
             } else if self.ending <= self.starting {
                 // Gotta do it in two parts then.
-                let s = &self.data[(self.starting as usize)..];
+                let s = &mut self.data[(self.starting as usize)..];
 
                 // Same as above.
+                #[allow(unsafe_code)]
+                unsafe {
+                    transmute(s)
+                }
+            } else {
+                unreachable!()
+            }
+        }
+    }
+
+    /// Returns a slice consisting of the data currently in the `Fifo`without
+    /// removing it.
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        // This contains the exact logic from as_mut_slice above.
+        // TODO: is there a way to avoid duplicating this?
+
+        if self.is_empty() {
+            &[]
+        } else {
+            if self.ending > self.starting {
+                let s = & self.data
+                    [(self.starting as usize)..(self.ending as usize)];
+
+                #[allow(unsafe_code)]
+                unsafe {
+                    transmute(s)
+                }
+            } else if self.ending <= self.starting {
+                // Gotta do it in two parts then.
+                let s = & self.data[(self.starting as usize)..];
+
                 #[allow(unsafe_code)]
                 unsafe {
                     transmute(s)
