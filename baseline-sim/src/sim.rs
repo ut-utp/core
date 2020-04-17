@@ -358,15 +358,16 @@ where
         use State::*;
 
         if let RunningUntilEvent = self.get_state() {
-            // TODO: does this weird micro optimization help?
-            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
-                for _ in 0..STEPS_IN_A_TICK {
-                    // this is safe since overshooting (calling step when we have NOPs) is fine
-                    self.step();
-                }
-
-                return STEPS_IN_A_TICK;
-            }
+            // TODO: Some configurable flag for events
+//            // TODO: does this weird micro optimization help?
+//            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
+//                for _ in 0..STEPS_IN_A_TICK {
+//                    // this is safe since overshooting (calling step when we have NOPs) is fine
+//                    self.step();
+//                }
+//
+//                return STEPS_IN_A_TICK;
+//            }
 
             for _ in 0..STEPS_IN_A_TICK {
                 if let Some(e) = self.step() {
