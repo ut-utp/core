@@ -32,6 +32,7 @@ pub trait Input<'a>: Default {
 pub enum InputError {
     NonUnicodeCharacter(u8),
     IoError,
+    NoDataAvailable,
 }
 
 impl Display for InputError {
@@ -41,6 +42,16 @@ impl Display for InputError {
         match self {
             NonUnicodeCharacter(c) => write!(fmt, "Tried to read a non-unicode input: {:#2X}", c),
             IoError => write!(fmt, "I/O error when reading input"),
+            NoDataAvailable => write!(fmt, "Attempted to read when no data had been inputted"),
+        }
+    }
+}
+
+using_std! {
+    use std::io::Error;
+    impl From<Error> for InputError {
+        fn from(_e: Error) -> InputError {
+            InputError::IoError
         }
     }
 }

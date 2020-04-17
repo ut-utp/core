@@ -86,7 +86,7 @@ pub struct InputStub;
 
 use super::input::InputError;
 impl<'a> Input<'a> for InputStub {
-    fn read_data(&self) -> Result<u8, InputError> { Err(InputError) }
+    fn read_data(&self) -> Result<u8, InputError> { Err(InputError::NoDataAvailable) }
     fn current_data_unread(&self) -> bool { false }
 
     fn register_interrupt_flag(&mut self, _flag: &'a AtomicBool) { }
@@ -103,8 +103,8 @@ pub struct OutputStub;
 use super::output::OutputError;
 
 impl<'a> Output<'a> for OutputStub {
-    fn write_data(&mut self, c: u8) -> Result<(), OutputError> { Ok(()) }
-    fn current_data_written(&self) -> bool { true }
+    fn write_data(&mut self, c: u8) -> Result<(), OutputError> { Err(OutputError::NotReady) }
+    fn current_data_written(&self) -> bool { false }
 
     fn register_interrupt_flag(&mut self, _flag: &'a AtomicBool) { }
     fn interrupt_occurred(&self) -> bool { false }

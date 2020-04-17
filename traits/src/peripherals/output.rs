@@ -27,6 +27,7 @@ pub trait Output<'a>: Default {
 pub enum OutputError {
     NonUnicodeCharacter(u8),
     IoError,
+    NotReady,
 }
 
 impl Display for OutputError {
@@ -36,6 +37,16 @@ impl Display for OutputError {
         match self {
             NonUnicodeCharacter(c) => write!(fmt, "Tried to write a non-unicode output: {:#2X}", c),
             IoError => write!(fmt, "I/O error when writing output"),
+            NotReady => write!(fmt, "Attempted to write when the output was not ready")
+        }
+    }
+}
+
+using_std! {
+    use std::io::Error;
+    impl From<Error> for OutputError {
+        fn from(_e: Error) -> OutputError {
+            OutputError::IoError
         }
     }
 }
