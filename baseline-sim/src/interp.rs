@@ -730,7 +730,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         // TODO: check that the ordering here is right
 
         // Make sure that the priority is high enough to interrupt:
-        if self.get_special_reg::<PSR>().get_priority() >= priority {
+        if self.get_special_reg::<PSR>().get_priority() > priority {
             // Gotta wait.
             return false;
         }
