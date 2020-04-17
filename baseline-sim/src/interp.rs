@@ -694,8 +694,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             // the supervisor stack pointer and BSR has the user stack pointer.
         }
 
-        // We're in privileged mode now so this should never panic.
-        self.push_state().unwrap();
+        // We're in privileged mode now so this should only error if we've
+        // overflowed our stack.
+        if let Err(Acv) = self.push_state() {
+            debug_assert!(self.state, MachineState::Halted);
+            return;
+        }
 
         self.get_special_reg::<PSR>().set_priority(self, 3);
     }
