@@ -613,6 +613,9 @@ fn os() -> AssembledProgram {
             ADD R6, R6, #-1;            // And push that onto the stack next.
             STR R0, R6, #0;
 
+            // Clear R0 (so all the registers are 0 for the user program).
+            AND R0, R0, #0;
+
             // Finally start the program!
             RTI;
 
