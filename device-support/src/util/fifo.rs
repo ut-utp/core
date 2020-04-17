@@ -448,6 +448,22 @@ impl<T: Clone> Fifo<T> {
     }
 }
 
+impl<T> Index<usize> for Fifo<T> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, idx: usize) -> &T {
+        &self.as_slice()[idx]
+    }
+}
+
+impl<T> IndexMut<usize> for Fifo<T> {
+    #[inline]
+    fn index_mut(&mut self, idx: usize) -> &mut T {
+        &mut self.as_mut_slice()[idx]
+    }
+}
+
 // Use `Iterator::by_ref` to retain ownership of the iterator
 impl<T> Iterator for /*&mut */Fifo<T> {
     type Item = T;
