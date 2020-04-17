@@ -37,6 +37,9 @@ jobs:
           command: check
           args: -p ${{ matrix.crate }} --no-default-features --features ${{ matrix.features }}
 
+      # TODO: if linux/macos, grab lc3tools, build it, and set the `LC3TOOLS_BIN` env
+      # var to the path to `bin`.
+
       - name: Run cargo test
         uses: actions-rs/cargo@v1
         with:

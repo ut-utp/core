@@ -3,69 +3,134 @@
 //!
 //! [lc3tools]: https://github.com/chiragsakhuja/lc3tools
 
-use crate::{Peripherals, Memory, Instruction, PeripheralInterruptFlags, Interpreter};
+use crate::{
+    Peripherals, Memory, Instruction, PeripheralInterruptFlags, Interpreter,
+    InstructionInterpreter, Addr, Word, Reg,
+};
 
+use lc3_baseline_sim::interp::MachineState;
 
-pub struct Strings {
-    temp_string: u16,
-}
+use std::fs::{File, remove_file};
+use std::io::{self, BufReader, Write};
+use std::process::Command;
+use std::convert::{TryFrom, TryInto};
+use std::iter;
+use std::env;
 
+use rand::Rng;
+
+#[derive(Debug)]
 pub struct Memory {
-    mem_loc: u16,
-    val: u16,
+    addr: Addr,
+    val: Word,
 }
+
+// TODO: make this attempt to _install_ lc3tools? Not sure but we should do
+// better than the below.
+
+// TODO: ditch the bash script for sending things through pipes straight into
+// a `Child`.
+
+// TODO: we assume that there are no branches or control flow instructions! This
+// is very limiting!
 
 pub fn lc3tools_tester<'flags, M: Memory + Default + Clone, P: Peripherals<'flags>, PF, TF>
 (
-    prefilled_memory_locations: Vec<(Addr, Word)>,
     insns: Vec<Instruction>,
-    lc3_insns: Vec<String>,
-    setup_func: PF,
-    teardown_func: TF,
     flags: &'flags PeripheralInterruptFlags,
-    alt_memory: &Option<(M, Addr)>,
-)
-where
-    for<'p> PF: FnOnce(&'p mut P),
-    for<'i> TF: FnOnce(&'i Interpreter<M, P>),
-
-    {
+    alt_memory: Option<(M, Addr)>,
+) -> io::Result<()> {
     let mut rng = rand::thread_rng();
-    let n1: u8 = rng.gen();
-    let file1_str = &format!("./test_lc3_{}.txt", n1);
+    let test_num: u8 = rng.gen();
 
-    let file1 = File::create(file1_str.to_string());
+    const OUT_DIR: &'static str = env!("OUT_DIR");
 
-    let mut insns_lc3tools = Vec::<String>::new();
-    let num_steps = lc3_insns.len();
-    insns_lc3tools.push(format!("{}", num_steps).to_string());
-    insns_lc3tools.push(".orig x3000".to_string());
-    for lc3_insn in lc3_insns {
-        insns_lc3tools.push(lc3_insn);
+    let lc3tools_bin_dir = env::var_os("LC3TOOLS_BIN")
+        .expect("LC3TOOLS_BIN must be set to use the `lc3tools_tester` function");
+
+    // Make the asm file.
+    let lc3_asm_file = &format!("{}/test_lc3_{}.asm", OUT_DIR, test_num);
+    let lc3_asm_file = File::create(lc3_asm_file)?;
+
+    // Write out the instructions:
+    let iter = once(format!("{}", insns.len()))       // start with the number of instructions
+        .chain(once(".orig x3000".to_string()))       // followed by the orig..
+        .chain(insns.iter().map(ToString::to_string)) // ..the instructions..
+        .chain(once(".end"));                         // and finally, the end
+
+    for line in iter {
+        writeln!(lc3_asm_file, "{}", line)?
     }
-    insns_lc3tools.push(".end".to_string());
-    let mut string_insns = insns_lc3tools.join("\n");
 
-    file1.unwrap().write_all(string_insns.as_bytes());
+    // Run the program in lc3tools and collect the trace.
+    let outfile = format!("{}/lc3tools_output_", OUT_DIR, test_num);
 
-    let outfile = &format!("lc3tools_output_{}.txt", n1);
-    let mut output_command = Command::new("bash").arg("./lc3tools_executor.sh").arg(file1_str).arg(&format!("{}", n1)).spawn().unwrap();
+    let outfile = &format!("lc3tools_output_{}.txt", test_num);
+    let mut output = Command::new(format!("{}/lc3tools_executor.sh", OUT_DIR))
+        .arg(lc3_asm_file)
+        .arg(lc3tools_bin_dir)
+        .output()?
+        .stdout()
+        .expect("stdout from `lc3tools_executor.sh`");
 
-    let _result = output_command.wait().unwrap();
+    let mut memory = Vec::<Memory>::new();
+    let mut regs = [None; Reg::NUM_REGS];
 
-    let mut file = File::open(outfile).expect("Can't open File");
-    let reader = BufReader::new(file);
+    let mut pc = None;
+    let mut psr = None;
+    let mut cc = None;
+    let mut mcr = None;
 
-    let mut vec_mem = Vec::<memory>::new();
-    let mut vec_registers = Vec::<strings>::new();
+    fn parse_reg(r: &str) -> Word {
+        let [_, r, ..] = r.split(" ");
+        Word::from_str_radix(r, 16).unwrap()
+    }
 
-    let mut pc = String::new();
-    let mut pc = String::new();
-    let mut psr = String::new();
-    let mut cc = String::new();
-    let mut mcr = String::new();
+    let output = String::from_utf8(output).unwrap();
+    for line in output.lines().filter(|l| !l.is_empty()) {
+        match line {
+            pair if line.starts_with("0x") => {
+                let [addr, val, ..] = pair.split(": ");
 
+                memory.push(Memory {
+                    addr: Addr::from_str_radix(addr, 16).unwrap(),
+                    word: Word::from_str_radix(word, 16).unwrap(),
+                });
+            },
 
+            pc_val if line.starts_with("PC") => {
+                let [_, pc_val, ..] = pc_val.split(" ");
+                pc = Some(Addr::from_str_radix(pc_val, 16).unwrap());
+            }
+
+            psr_val if line.starts_with("PSR") => {
+                let [_, psr_val, ..] = psr_var.split(" ");
+                psr = Some(Addr::from_str_radix(psr_val, 16).unwrap());
+            }
+
+            cc_val if line.starts_with("CC") => {
+                let [_, cc_val, ..] = cc_val.split(" ");
+                cc = Some(Addr::from_str_radix(cc_val, 16).unwrap());
+            }
+
+            mcc_val if line.starts_with("MCR") => {
+                let [_, mcr_val, ..] = mcr_val.split(" ");
+                mcr = Some(Addr::from_str_radix(mcr_val, 16).unwrap());
+            }
+
+            lower_regs if line.contains("R0:") => {
+                let [_, r0, r1, r2, r3, ..] = lower_regs.split("R");
+                regs[0..4] = [parse_reg(r0), parse_reg(r1), parse_reg(r2), parse_reg(r3)];
+            }
+
+            upper_regs if line.contains("R4:") => {
+                let [_, r4, r5, r6, r7, ..] = upper_regs.split("R");
+                regs[4..8] = [parse_reg(r4), parse_reg(r5), parse_reg(r6), parse_reg(r7)];
+            }
+        }
+    }
+
+    // Run the program on the UTP simulator:
     let mut addr = 0x3000;
 
     let mut interp: Interpreter<M, P> = if let Some((mem, addr)) = alt_memory {
@@ -75,7 +140,7 @@ where
             .build();
 
         int.reset();
-        int.set_pc(*addr);
+        int.set_pc(addr);
 
         int
     } else {
@@ -89,114 +154,42 @@ where
 
     interp.init(flags);
 
-    // Run the setup func:
-    setup_func(&mut *interp);
-
-    // Prefill the memory locations:
-    for (addr, word) in prefilled_memory_locations.iter() {
-        // Crashes on ACVs! (they should not happen at this point)
-        interp.set_word(*addr, *word).unwrap()
-    }
-
     for insn in insns {
-
         interp.set_word_unchecked(addr, insn.into());
-
         addr += 1;
     }
 
-    for _ in 0..num_steps {
+    // TODO: we assume that there are no branches or control flow instructions!
+    // This is very limiting!
+    for _ in 0..insns.len() {
         interp.step();
     }
 
-
-    for line_temp in reader.lines() {
-        let line = line_temp.unwrap();
-        //println!("{:?}", line);
-
-        if !line.is_empty(){
-
-            let address = &line[0..2];
-            if address == "0x" {
-
-                let value: u16 = hex_string_to_integer(line.split(" ").collect::<Vec<&str>>()[1].to_string());
-
-                let mem_location: u16 = hex_string_to_integer(line.split(" ").collect::<Vec<&str>>()[0].to_string().replace(":", ""));
-                //println!("{:?}", mem_location);
-                 vec_mem.push(memory{mem_loc: mem_location, val: value});
-
-            }
-            else if address == "PC" {
-                pc = line.split(" ").collect::<Vec<&str>>()[1].to_string();
-
-
-
-            }
-            else if address == "PSR" {
-                psr = line.split(" ").collect::<Vec<&str>>()[1].to_string();
-            }
-            else if address == "CC" {
-                cc = line.split(" ").collect::<Vec<&str>>()[1].to_string();
-            }
-            else if address == "MCR" {
-                mcr = line.split(" ").collect::<Vec<&str>>()[1].to_string();
-            }
-
-            if line.contains("R0:"){
-                vec_registers = Vec::<strings>::new();
-                let registers0123 = line.split("R").collect::<Vec<&str>>();
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers0123[1].split(" ").collect::<Vec<&str>>()[1].to_string())});
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers0123[2].split(" ").collect::<Vec<&str>>()[1].to_string())});
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers0123[3].split(" ").collect::<Vec<&str>>()[1].to_string())});
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers0123[4].split(" ").collect::<Vec<&str>>()[1].to_string())});
-            } else if line.contains("R4:"){
-                let registers4567 = line.split("R").collect::<Vec<&str>>();
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers4567[1].split(" ").collect::<Vec<&str>>()[1].to_string())});
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers4567[2].split(" ").collect::<Vec<&str>>()[1].to_string())});
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers4567[3].split(" ").collect::<Vec<&str>>()[1].to_string())});
-                vec_registers.push(strings{temp_string: hex_string_to_integer(registers4567[4].split(" ").collect::<Vec<&str>>()[1].to_string())});
-            }
-        }
-
-    }
-
-
      // Check registers:
-     for (idx, r) in vec_registers.iter().enumerate() {
-            let reg_word = r.temp_string;
+     for (idx, expected) in registers.iter().enumerate() {
             let val = interp.get_register((idx as u8).try_into().unwrap());
-            assert_eq!(
-                reg_word,
+            crate::assert_eq!(
+                expected,
                 val,
-                "Expected R{} to be {:?}, was {:?}",
+                "Expected R{} to be {:?} (lc3tools), was {:?}.",
                 idx,
-                reg_word,
+                expected,
                 val,
             );
 
     }
 
     // Check memory:
-    for object in vec_mem.iter() {
-        let addr = object.mem_loc;
-        let word = object.val;
+    // TODO(DavidRollins): check memory after all the ACVS... need to find a
+    // workaround...
+    for Memory { addr, word } in vec_mem.iter() {
         let val = interp.get_word_unchecked(addr);
-        if addr > 768{ // check memory after all the ACVS... need to find a workaround...
+        if addr > 768{
             assert_eq!(
                 word, val,
-                "Expected memory location {:#04X} to be {:#04X}",
-                addr, val
+                "Expected memory location {:#04X} to be {:#04X} (lc3tools), was {:?}",
+                addr, val, word
             );
         }
-
     }
-
-    // Run the teardown func:
-    teardown_func(&interp);
-
-    remove_file(outfile);
-
-
-
-
 }

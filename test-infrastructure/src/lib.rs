@@ -65,6 +65,8 @@ mod runner;
 #[macro_use] pub mod macros;
 mod misc;
 
+// The bash script will not work on Windows.
+#[cfg(target_family = "unix")]
 #[macro_use] pub mod lc3tools;
 
 pub use runner::*;
