@@ -60,6 +60,8 @@ using_std! {
                 log::trace!("GOT: {:?}", m);
             }
 
+            res
+
             // this breaks `run_until_event`!!
             // This is because calls to Device::step (where progress is made)
             // can't happen anymore if we block here since tick calls this
