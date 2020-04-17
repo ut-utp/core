@@ -6,7 +6,7 @@ use crate::mem_mapped::{MemMapped, KBDR};
 use lc3_isa::{Addr, Reg, Word};
 use lc3_traits::control::{Control, Event, State};
 use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
-use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo};
+use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo, Version};
 use lc3_traits::control::load::{
     PageIndex, PageWriteStart, StartPageWriteError, PageChunkError,
     FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS,
@@ -585,14 +585,18 @@ where
         Clock::get_milliseconds(self.interp.get_peripherals())
     }
 
-    fn get_info(&self) -> DeviceInfo {
+    fn get_device_info(&self) -> DeviceInfo {
         DeviceInfo::new(
-            self.interp.get_program_metadata(),
-            Default::default(), // TODO: when we add other capabilities
-            I::type_id(),
             self.id(),
+            I::VER,
+            I::type_id(),
+            Default::default(), // TODO: when we add other capabilities
             Default::default(), // no proxies (yet)
         )
+    }
+
+    fn get_program_metadata(&self) -> ProgramMetadata {
+        self.interp.get_program_metadata()
     }
 
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) {

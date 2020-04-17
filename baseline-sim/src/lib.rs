@@ -53,6 +53,8 @@
 
 extern crate static_assertions as sa;
 
+#[allow(unused_extern_crates)]
+extern crate core; // makes rls actually look into the standard library (hack)
 
 pub mod interp;
 pub mod mem_mapped;

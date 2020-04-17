@@ -11,8 +11,8 @@ use crate::error::Error;
 use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
 use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
-use crate::peripherals::timers::{TimerArr, TimerMode, TimerState};
-use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier};
+use crate::peripherals::timers::{TimerArr, TimerState};
+use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier, Verion};
 use super::load::{PageIndex, PageWriteStart, StartPageWriteError, PageChunkError, FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS};
 
 use lc3_isa::{Addr, Reg, Word, PSR};
@@ -194,16 +194,21 @@ pub trait Control {
     //
     // We kind of got around this with the `PeripheralSet` struct in the peripherals module, but I'm not sure it'd work here.
 
-    fn get_info(&self) -> DeviceInfo {
+    // We encourage implementors to not return different device names,
+    // capabilities, and versions dynamically _unless they have a good reason
+    // for doing so_ (i.e. attaching an SD Card to a particular implementation
+    // enables the disk peripheral).
+    fn get_device_info(&self) -> DeviceInfo {
         DeviceInfo::new(
-            ProgramMetadata::default(),
-            Capabilities::default(),
-            core::any::TypeId::of::<()>(),
             self.id(),
+            super::version_from_crate!(),
+            core::any::TypeId::of::<()>(),
+            Capabilities::default(),
             Default::default() // (no proxies by default)
         )
     }
 
+    fn get_program_metadata(&self) -> ProgramMetadata;
     fn set_program_metadata(&mut self, metadata: ProgramMetadata);
 
     // Should actually be an associated constant but isn't because of object

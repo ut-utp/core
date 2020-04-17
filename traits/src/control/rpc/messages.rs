@@ -40,11 +40,12 @@ use serde::{Serialize, Deserialize};
 // We're not using static_assertions here so that we can get an error that tells
 // us how much we're off by.
 static __REQ_SIZE_CHECK: () = {
-    let s = core::mem::size_of::<RequestMessage>();
     let canary = [()];
 
-    canary[s - 40] // panic if the size of RequestMessage changes
+    canary[REQUEST_MESSAGE_SIZE - 40] // panic if the size of RequestMessage changes
 };
+
+pub const REQUEST_MESSAGE_SIZE: usize = core::mem::size_of::<RequestMessage>();
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Clone)]
@@ -99,7 +100,9 @@ pub enum RequestMessage { // messages for everything but tick()
     GetPwmConfig,
     GetClock,
 
-    GetInfo,
+    GetDeviceInfo,
+
+    GetProgramMetadata,
     SetProgramMetadata { metadata: ProgramMetadata },
 
     // no id!
@@ -107,11 +110,12 @@ pub enum RequestMessage { // messages for everything but tick()
 
 #[allow(dead_code)]
 static __RESP_SIZE_CHECK: () = {
-    let s = core::mem::size_of::<ResponseMessage>();
     let canary = [()];
 
-    canary[s - 72] // panic if the size of ResponseMessage changes
+    canary[RESPONSE_MESSAGE_SIZE - 72] // panic if the size of ResponseMessage changes
 };
+
+pub const RESPONSE_MESSAGE_SIZE: usize = core::mem::size_of::<ResponseMessage>();
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Clone)]
@@ -166,7 +170,9 @@ pub enum ResponseMessage { // messages for everything but tick()
     GetPwmConfig(PwmPinArr<u8>), // TODO
     GetClock(Word),
 
-    GetInfo(DeviceInfo),
+    GetDeviceInfo(DeviceInfo),
+
+    GetProgramMetadata(ProgramMetadata),
     SetProgramMetadata,
 
     // no id!

@@ -25,9 +25,10 @@ use crate::peripherals::{
 
 use lc3_isa::{Reg, Addr, Word};
 
+use core::cell::RefCell;
+use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::sync::atomic::{AtomicBool, Ordering};
-use core::fmt::Debug;
 
 // Converts calls on the control interface to messages and sends said messages.
 //
@@ -59,8 +60,10 @@ where
     T: Transport<<ReqEnc as Encode<Req>>::Encoded, <RespDec as Decode<Resp>>::Encoded>,
     S: EventFutureSharedStatePorcelain,
 {
-    encoding: PhantomData<(Req, Resp, ReqEnc, RespDec)>,
+    _encoded_formats: PhantomData<(Req, Resp)>,
     pub transport: T,
+    enc: RefCell<ReqEnc>,
+    dec: RefCell<RespDec>,
     // pending_messages: Cell<[Option<ControlMessage>; 2]>,
     // pending_messages: [Option<ControlMessage>; 2],
     shared_state: &'a S,
@@ -86,10 +89,12 @@ where
     // Note: we take `decode` and `encode` as parameters here even though the
     // actual value is never used so that users don't have to resort to using
     // the turbofish syntax to specify what they want the encoding layer to be.
-    pub /*const*/ fn new(_enc: E, _dec: D, transport: T, shared_state: &'a S) -> Self {
+    pub /*const*/ fn new(enc: E, dec: D, transport: T, shared_state: &'a S) -> Self {
         Self {
             // encoding,
-            encoding: PhantomData,
+            _encoded_formats: PhantomData,
+            enc: RefCell::new(enc),
+            dec: RefCell::new(dec),
             transport,
             // pending_messages: Cell::new([None; 2]),
             // pending_messages: [None; 2],
@@ -117,8 +122,8 @@ where
     // Responses to our one non-blocking call (`run_until_event`) are the only
     // thing that could interrupt this.
     fn tick(&self) -> Option<ResponseMessage> {
-        let encoded_message = self.transport.get()?;
-        let message = D::decode(&encoded_message).unwrap(); // TODO: don't panic;
+        let encoded_message = self.transport.get().ok()?;
+        let message = self.dec.borrow_mut().decode(&encoded_message).unwrap(); // TODO: don't panic;
         let message = message.into();
 
         if let ResponseMessage::RunUntilEvent(event) = message {
@@ -144,7 +149,7 @@ macro_rules! ctrl {
     ($s:ident, $req:expr, $resp:pat$(, $ret:expr)?) => {{
         use RequestMessage::*;
         use ResponseMessage as R;
-        $s.transport.send(E::encode($req.into())).unwrap(); // TODO: don't panic
+        $s.transport.send($s.enc.borrow_mut().encode($req.into())).unwrap(); // TODO: don't panic
 
         loop {
             if let Some(m) = Controller::tick($s) {
@@ -221,7 +226,7 @@ where
         // If we're already waiting for an event, don't bother sending the
         // request along again:
         if !self.waiting_for_event.load(Ordering::SeqCst) {
-            self.transport.send(E::encode(RequestMessage::RunUntilEvent.into())).unwrap();
+            self.transport.send(self.enc.borrow_mut().encode(RequestMessage::RunUntilEvent.into())).unwrap();
 
             // Wait for the acknowledge:
             loop {
@@ -285,7 +290,9 @@ where
     fn get_pwm_config(&self) -> PwmPinArr<u8> { ctrl!(self, GetPwmConfig, R::GetPwmConfig(r), r) }
     fn get_clock(&self) -> Word { ctrl!(self, GetClock, R::GetClock(r), r) }
 
-    fn get_info(&self) -> DeviceInfo { ctrl!(self, GetInfo, R::GetInfo(r), r) }
+    fn get_device_info(&self) -> DeviceInfo { ctrl!(self, GetDeviceInfo, R::GetDeviceInfo(r), r) }
+
+    fn get_program_metadata(&self) -> ProgramMetadata { ctrl!(self, GetProgramMetadata, R::GetProgramMetadata(r), r) }
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) { ctrl!(self, SetProgramMetadata { metadata }, R::SetProgramMetadata) }
 
     fn id(&self) -> crate::control::metadata::Identifier {

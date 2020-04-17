@@ -1,4 +1,4 @@
-//! Traits defining the LC-3's peripherals, memory, and control interface.
+//! Supporting materials for devices running the UTP LC-3 Simulator.
 //!
 //! TODO!
 
@@ -43,17 +43,23 @@
 #![doc(html_logo_url = "")] // TODO!
 
 // Mark the crate as no_std if the `no_std` feature is enabled.
-#![cfg_attr(all(feature = "no_std", not(test)), no_std)]
+#![cfg_attr(feature = "no_std", no_std)]
 
 macro_rules! using_std { ($($i:item)*) => ($(#[cfg(not(feature = "no_std"))]$i)*) }
+macro_rules! using_alloc { ($($i:item)*) => ($(#[cfg(feature = "alloc")]$i)*) }
+
+using_alloc! { #[allow(unused_extern_crates)] extern crate alloc; }
 
 #[allow(unused_extern_crates)]
 extern crate core; // makes rls actually look into the standard library (hack)
 
 extern crate static_assertions as sa;
 
-pub mod error;
 
-pub mod control;
 pub mod memory;
+
 pub mod peripherals;
+
+pub mod rpc;
+
+pub mod util;

@@ -14,7 +14,7 @@ use core::fmt::{Debug, Display};
 pub enum SnapshotError {
     UnrecordableState,
     UninterruptableState,
-    Other(&'static str),
+    Other(&'static str), // TODO: this should perhaps be a &dyn Debug or something
 }
 
 impl From<Infallible> for SnapshotError {

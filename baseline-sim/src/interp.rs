@@ -9,7 +9,7 @@ use lc3_isa::{
     PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR, TRAP_VECTOR_TABLE_START_ADDR,
     USER_PROGRAM_START_ADDR,
 };
-use lc3_traits::control::metadata::{Identifier, ProgramMetadata};
+use lc3_traits::control::metadata::{Identifier, ProgramMetadata, Version, version_from_crate};
 use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
@@ -102,6 +102,8 @@ pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
 {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Insn");
+    const VER: Version = Version::empty()
+        .pre_from_str_that_crashes_on_invalid_inputs("????");
 
     fn step(&mut self) -> MachineState;
 
@@ -957,6 +959,7 @@ use lc3_traits::error::Error::SystemStackOverflow;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");
+    const VER: Version = version_from_crate!();
 
     fn step(&mut self) -> MachineState {
         if let state @ MachineState::Halted = self.get_machine_state() {

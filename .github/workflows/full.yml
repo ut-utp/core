@@ -2,6 +2,20 @@ on: [ push, pull_request ]
 
 name: full
 
+# TODO: cargo workspace builds are problematic for us since they take the union
+# of the features for a crate from all crates in the workspace: even for leaf
+# crates on the dependency graph (i.e. if my workspace contains A, B, and Z
+# with Z having two incompatible features, a and b where A requires a and B
+# requires b, when a workspace build is run Z will be built with a and b — even
+# though A does not depend on B and vice versa).
+#
+# So, we should perhaps switch to having the full test just build and test each
+# crate in the workspace separately. Or we should do away with this workflow
+# entirely.
+#
+# Update this has been resolved for now, but we're playing an increasingly
+# precarious game here..
+
 jobs:
   check:
     name: Check + test
@@ -50,7 +64,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        crate: [ lc3-baseline-sim ]
         os: [ ubuntu-latest ]
         rust: [ stable, nightly ]
 
