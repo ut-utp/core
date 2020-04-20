@@ -970,10 +970,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
 
         // Increment PC (state 18):
-        let current_pc = self.get_pc();
+        let mut current_pc = self.get_pc();
         self.set_pc(current_pc.wrapping_add(1)); // TODO: ???
 
-        self.check_interrupts();
+        if self.check_interrupts() {
+            current_pc = self.get_pc();     // update current_pc to ISR address
+        };
 
         match self.get_word(current_pc).and_then(|w| match w.try_into() {
             Ok(insn) => self.instruction_step_inner(insn),
