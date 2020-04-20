@@ -118,20 +118,21 @@ mod decode {
 
     // TODO: have a default like this for PostcardEncode (Cobs<Fifo<u8>>)
     #[derive(Debug, Default)]
-    pub struct PostcardDecode<'a, Out, F = Cobs<Fifo<u8>>>
+    pub struct PostcardDecode<Out, F = Cobs<Fifo<u8>>>
     where
-        Out: Debug + Deserialize<'a>,
+        Out: Debug,
+        for<'de> Out: Deserialize<'de>,
         F: SerFlavor,
         <F as SerFlavor>::Output: Debug,
     {
         _f: PhantomData<F>,
         _o: PhantomData<Out>,
-        _l: PhantomData<&'a ()>,
     }
 
-    impl<'a, Out, F> PostcardDecode<'a, Out, F>
+    impl<Out, F> PostcardDecode<Out, F>
     where
-        Out: Debug + Deserialize<'a>,
+        Out: Debug,
+        for<'de> Out: Deserialize<'de>,
         F: SerFlavor,
         <F as SerFlavor>::Output: Debug,
     {
@@ -139,7 +140,6 @@ mod decode {
             Self {
                 _f: PhantomData,
                 _o: PhantomData,
-                _l: PhantomData,
             }
         }
     }
@@ -150,15 +150,10 @@ mod decode {
     // TODO: this cloning stuff is bad; can we change Decode to give a mutable
     // reference to the encoded data (and switch back to AsMut).
 
-    // TODO: not really sure what to do with the lifetimes here.
-    impl<'a, F, Out> Decode<Out> for PostcardDecode<'a, Out, Cobs<F>>
+    impl<F, Out> Decode<Out> for PostcardDecode<Out, Cobs<F>>
     where
-        // Out: Debug + 'static + Deserialize<'a>,
-        // Out: Clone, // This is also a hack! (TODO)
         Out: Debug,
-        Out: 'static,
-        for<'de> Out: Deserialize<'de>, // TODO: I think this is right and should be copied to the other places; we should ditch `'a`.
-        // Out: Clone, // This is also a hack! (TODO)
+        for<'de> Out: Deserialize<'de>,
         F: SerFlavor,
         F: IndexMut<usize, Output = u8>,
         Cobs<F>: SerFlavor,
