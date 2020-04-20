@@ -17,9 +17,9 @@ checksum = "7825f6833612eb2414095684fcf6c635becf3ce97fe48cf6421321e93bfbd53c"
 
 [[package]]
 name = "arbitrary"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75153c95fdedd7db9732dfbfc3702324a1627eec91ba56e37cd0ac78314ab2ed"
+checksum = "1148c9b25d393a07c4cc3ef5dd30f82a40a1c261018c4a670611ed8e76cad3ea"
 dependencies = [
  "derive_arbitrary",
 ]
@@ -269,13 +269,13 @@ dependencies = [
 
 [[package]]
 name = "derive_arbitrary"
-version = "0.4.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caedd6a71b6d00bdc458ec8ffbfd12689c1ee7ffa69ad9933310aaf2f08f18d8"
+checksum = "9735d3bee627701429c04d0e5bbaa966d22dcd64e50e4296e5aa960a15159881"
 dependencies = [
  "proc-macro2",
+ "quote",
  "syn",
- "synstructure",
 ]
 
 [[package]]
@@ -856,18 +856,6 @@ checksum = "123bd9499cfb380418d509322d7a6d52e5315f064fe4b3ad18a53d6b92c07859"
 dependencies = [
  "proc-macro2",
  "quote",
- "unicode-xid",
-]
-
-[[package]]
-name = "synstructure"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67656ea1dc1b41b1451851562ea232ec2e5a80242139f7e679ceccfb5d61f545"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
  "unicode-xid",
 ]
 
