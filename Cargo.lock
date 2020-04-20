@@ -494,6 +494,7 @@ version = "0.1.0"
 dependencies = [
  "lazy_static",
  "lc3-baseline-sim",
+ "lc3-device-support",
  "lc3-shims",
  "lc3-traits",
  "pretty_assertions",

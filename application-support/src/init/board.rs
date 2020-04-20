@@ -5,13 +5,16 @@ use crate::{
     shim_support::Shims,
 };
 
+use lc3_shims::peripherals::SourceShim;
 use lc3_traits::control::rpc::{
     futures::SyncEventFutureSharedState,
     Controller, RequestMessage, ResponseMessage,
 };
 use lc3_device_support::{
-    transport::uart_host::{HostUartTransport, SerialPortSettings},
-    encoding::{PostcardEncode, PostcardDecode},
+    rpc::{
+        transport::uart_host::{HostUartTransport, SerialPortSettings},
+        encoding::{PostcardEncode, PostcardDecode, Cobs},
+    },
     util::Fifo,
 };
 
@@ -20,6 +23,7 @@ use std::{
     thread::Builder as ThreadBuilder,
     path::Path,
     default::Default,
+    marker::PhantomData,
 };
 
 // Static data that we need:
@@ -40,39 +44,46 @@ type Cont<'ss, EncFunc: FnMut() -> Cobs<Fifo<u8>>> = Controller<
     PostcardDecode<ResponseMessage, Cobs<Fifo<u8>>>,
 >;
 
-#[derive(Debug)]
-pub struct BoardDevice<'ss, EncFunc: FnMut() -> Cobs<Fifo<u8>>> {
+// #[derive(Debug)]
+pub struct BoardDevice<'ss, EncFunc, P>
+where
+    EncFunc: FnMut() -> Cobs<Fifo<u8>>,
+    P: AsRef<Path>,
+{
     controller: Cont<'ss, EncFunc>,
+    _p: PhantomData<P>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum SerialSettings {
     DefaultsWithBaudRate { baud_rate: u32 },
     Custom(SerialPortSettings),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardConfig<P: AsRef<Path>> {
     path: P,
     serial_settings: SerialSettings,
 }
 
-impl<P: AsRef<Path>> Default for BoardConfig<P>
+impl<P: AsRef<Path>> Default for BoardConfig<&'static P>
 where
+    &'static P: AsRef<Path>,
+    P: 'static,
     str: AsRef<P>
 {
     fn default() -> Self {
         #[cfg(target_os = "windows")]
-        Self::detect_windows()
+        { Self::detect_windows() }
 
         #[cfg(target_os = "macos")]
-        Self::detect_macos()
+        { Self::detect_macos() }
 
         #[cfg(target_os = "linux")]
-        Self::detect_linux()
+        { Self::detect_linux() }
 
         #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-        Self::new(AsRef::<P>::as_ref("/dev/tm4c"), 1_500_000)
+        { Self::new(AsRef::<P>::as_ref("/dev/tm4c"), 1_500_000) }
     }
 }
 
@@ -80,8 +91,10 @@ where
 //
 // [this script](https://github.com/ut-ras/Rasware/blob/f3750ff0b8f7f7791da2fee365462d4c78f62a49/RASLib/detect-board)
 
-impl<P: AsRef<Path>> BoardConfig<P>
+impl<P: AsRef<Path>> BoardConfig<&'static P>
 where
+    &'static P: AsRef<Path>,
+    P: 'static,
     str: AsRef<P>
 {
     #[cfg(target_os = "windows")]
@@ -101,14 +114,14 @@ where
 }
 
 impl<P: AsRef<Path>> BoardConfig<P> {
-    pub const fn new<P>(path: P, baud_rate: u32) -> Self {
+    pub /*const*/ fn new(path: P, baud_rate: u32) -> Self {
         Self {
             path,
-            serial_settings: SerialSettings::DefaultsWithBaudRate(baud_rate),
+            serial_settings: SerialSettings::DefaultsWithBaudRate { baud_rate },
         }
     }
 
-    pub const fn new_with_config<P: AsRef<Path>>(path: P, config: SerialPortSettings) -> Self {
+    pub /*const*/ fn new_with_config(path: P, config: SerialPortSettings) -> Self {
         Self {
             path,
             serial_settings: SerialSettings::Custom(config),
@@ -122,25 +135,31 @@ impl<P: AsRef<Path>> BoardConfig<P> {
         // (TODO)
         match self.serial_settings {
             SerialSettings::DefaultsWithBaudRate { baud_rate } => {
-                HostUartTransport::new(self.path, baud_rate)
+                HostUartTransport::new(self.path, baud_rate).unwrap()
             },
 
             SerialSettings::Custom(config) => {
-                HostUartTransport::new_with_config(self.path, config)
+                HostUartTransport::new_with_config(self.path, config).unwrap()
             },
         }
     }
 }
 
-impl<'s, P, EncFunc> Init<'s> for BoardDevice<'static, EncFunc>
+impl<'s, P> Init<'s> for BoardDevice<'static, Box<dyn FnMut() -> Cobs<Fifo<u8>>>, P>
 where
     P: AsRef<Path>,
+    P: 'static,
     BoardConfig<P>: Default,
-    EncFunc: FnMut() -> Cobs<Fifo<u8>>,
 {
     type Config = BoardConfig<P>;
 
-    type ControlImpl = Cont<'static, EncFunc>;
+    // Until we get existential types (or `impl Trait` in type aliases) we can't
+    // just say a type parameter is some specific type that we can't name (i.e.
+    // a particular function).
+    //
+    // Instead we have to name it explicitly, so we do this unfortunate hack:
+    type ControlImpl = Cont<'static, Box<dyn FnMut() -> Cobs<Fifo<u8>>>>;
+
     type Input = SourceShim; // TODO
     type Output = Mutex<Vec<u8>>; // TODO
 
@@ -153,14 +172,16 @@ where
         Option<&'s Self::Input>,
         Option<&'s Self::Output>,
     ) {
+        let func: Box<dyn FnMut() -> Cobs<Fifo<u8>>> = Box::new(|| Cobs::try_new(Fifo::new()).unwrap());
+
         let controller = Controller::new(
-            PostcardEncode::with_fifo(),
+            PostcardEncode::new(func),
             PostcardDecode::new(),
             config.new_transport(),
-            &EVENT_FUTURE_SHARED_STATE_CONT
+            &*EVENT_FUTURE_SHARED_STATE_CONT
         );
 
-        let storage: &'s mut _ = b.put(BoardDevice { controller });
+        let storage: &'s mut _ = b.put(BoardDevice::<_, P> { controller, _p: PhantomData });
 
         (
             &mut storage.controller,
