@@ -5,7 +5,7 @@ use crate::mem_mapped::{MemMapped, KBDR};
 
 use lc3_isa::{Addr, Reg, Word};
 use lc3_traits::control::{Control, Event, State};
-use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH};
 use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo, Version};
 use lc3_traits::control::load::{
     PageIndex, PageWriteStart, StartPageWriteError, PageChunkError,
@@ -29,6 +29,8 @@ use core::ops::Deref;
 use core::fmt::{self, Debug};
 // use core::pin::Pin;
 // use core::task::{Context, Poll};
+
+use core::usize;
 
 #[derive(Clone)]
 enum LoadApiState {
@@ -69,6 +71,7 @@ where
     watchpoints: [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS], // TODO: change to throw these when the location being watched to written to; not just when the value is changed...
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
+    depth_breakpoint: Option<usize>,
     state: State,
     shared_state: Option<&'ss S>,
     load_api_state: LoadApiState,
@@ -96,6 +99,7 @@ where
             watchpoints: [None; MAX_MEMORY_WATCHPOINTS],
             num_set_breakpoints: 0,
             num_set_watchpoints: 0,
+            depth_breakpoint: None,
             state: State::Paused,
             shared_state: None,
             load_api_state: LoadApiState::default(),
@@ -332,6 +336,28 @@ where
         self.watchpoints
     }
 
+    // TODO: panics if relative_depth = isize::min_value()
+    fn set_relative_depth_breakpoint(&mut self, relative_depth: isize) -> Result<Option<isize>, ()> {
+        self.depth_breakpoint = match relative_depth.is_negative() {
+            true => {
+                Some(self.interp.get_call_stack_depth().saturating_sub(relative_depth.abs() as usize))
+            },
+            false => {
+                Some(self.interp.get_call_stack_depth().saturating_add(relative_depth as usize))
+            }
+        };
+        Ok(None)
+    }
+
+    fn unset_depth_breakpoint(&mut self) -> Result<(), ()> {
+        self.depth_breakpoint = None;
+        Ok(())
+    }
+
+    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH] {
+        self.interp.get_call_stack()
+    }
+
     fn run_until_event(&mut self) -> <Self as Control>::EventFuture {
         //! Note: the same batching rules that apply to the shared state apply here (see
         //! [`SharedStateState`]; basically `S` controls how this handles multiple
@@ -438,6 +464,16 @@ where
                     None => {},
                 }
 
+                // And the depth breakpoint
+                match self.depth_breakpoint {
+                    Some(val) => {
+                        if val == self.interp.get_call_stack_depth() {
+                            return (Paused, Some(Event::DepthBreakpoint));
+                        }
+                    },
+                    None => {},
+                }
+
                 // If we didn't hit a breakpoint/watchpoint, the state doesn't change.
                 // If we were running, we're still running.
                 // If we were halted before, we're still halted (handled above).
@@ -472,6 +508,8 @@ where
             (RunningUntilEvent, Paused, Some(e)) |
             (RunningUntilEvent, Halted, Some(e @ Event::Error { .. })) |
             (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
+                // Unset the depth breakpoint upon any event
+                self.unset_depth_breakpoint();
                 // println!("resolving the device future");
                 self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e).unwrap();
                 self.state = new_state;
