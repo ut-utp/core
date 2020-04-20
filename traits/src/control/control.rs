@@ -23,6 +23,7 @@ use serde::{Deserialize, Serialize};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHPOINTS: usize = 10;
+pub const MAX_CALL_STACK_DEPTH: usize = 10;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Event {

@@ -11,6 +11,7 @@ use lc3_isa::{
 };
 use lc3_traits::control::metadata::{Identifier, ProgramMetadata, Version, version_from_crate};
 use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
+use lc3_traits::control::control::MAX_CALL_STACK_DEPTH;
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
@@ -239,6 +240,60 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 //     }
 // }
 
+#[derive(Debug)]
+pub struct CallStack {
+    stack: [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH],
+    depth: usize,
+}
+
+impl CallStack {
+    pub const fn new() -> Self {
+        Self {
+            stack: [None; MAX_CALL_STACK_DEPTH],
+            depth: 0,
+        }
+    }
+
+    // Push subroutine address to call stack if stack is not full
+    // Always increments depth
+    // -> true if pushed, false otherwise
+    pub fn push(&mut self, subroutine: Addr, in_user_mode: bool) -> bool {
+        let mut success = false;
+
+        // Check if stack is not full
+        if self.depth < MAX_CALL_STACK_DEPTH {
+            self.stack[self.depth] = Some((subroutine, in_user_mode));
+            success = true;
+        }
+
+        // Increment depth
+        self.depth = match self.depth.checked_add(1) {
+            Some(val) => val,
+            None => panic!("Overflowed depth of call stack!"),
+        };
+
+        success
+    }
+
+    // Pop subroutine address off of call stack if top of stack matches current depth
+    // Always decrements depth
+    // -> true if popped, false otherwise
+    pub fn pop(&mut self) -> bool {
+        let mut success = false;
+
+        // Decrement depth, saturates at 0 (unsigned)
+        self.depth = self.depth.saturating_sub(1);
+
+        // Check if depth exceeds max saved addrs
+        if self.depth < MAX_CALL_STACK_DEPTH {
+            self.stack[self.depth] = None;
+            success = true;
+        }
+
+        success
+    }
+}
+
 // #[derive(Debug, Default, Clone)] // TODO: Clone
 #[derive(Debug)]
 pub struct Interpreter<'per, M: Memory, P: Peripherals<'per>> {
@@ -250,6 +305,7 @@ pub struct Interpreter<'per, M: Memory, P: Peripherals<'per>> {
     pc: Word, //TODO: what should the default for this be
     state: MachineState,
     error: Cell<Option<Error>>,
+    call_stack: CallStack,
 }
 
 impl<'a, M: Memory + Default, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
@@ -554,6 +610,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             pc,
             state,
             error: Cell::new(None),
+            call_stack: CallStack::new(),
         };
 
         // TODO: we can't call this.
@@ -664,8 +721,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     }
 
     fn restore_state(&mut self) -> Result<(), Acv> {
-        // Restore the PC and then the PSR.
+        // Update call stack on return
+        self.pop_call_stack();
 
+        // Restore the PC and then the PSR.
         self.pop()
             .map(|w| self.set_pc(w))
             .and_then(|()| self.pop().map(|w| self.set_special_reg::<PSR>(w)))
@@ -717,6 +776,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         self.pc = self
             .get_word(TRAP_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(trap_vec)))
             .unwrap();
+
+        self.push_call_stack(self.pc, self.get_special_reg::<PSR>().in_user_mode());
     }
 
     // TODO: find a word that generalizes exception and trap...
@@ -729,6 +790,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         self.pc = self
             .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(ex_vec)))
             .unwrap();
+
+        self.push_call_stack(self.pc, self.get_special_reg::<PSR>().in_user_mode());
     }
 
     fn handle_interrupt(&mut self, int_vec: u8, priority: u8) -> bool {
@@ -830,6 +893,28 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                 i!(PC <- pc);
             }};
 
+            ([S+] PC <- $($rest:tt)*) => {{
+                _insn_inner_gen!($);
+                #[allow(unused_mut)]
+                let mut pc: Addr;
+
+                _insn_inner!(pc | $($rest)*);
+                i!(PC <- pc);
+
+                self.push_call_stack(pc, self.get_special_reg::<PSR>().in_user_mode());
+            }};
+
+            ([S-] PC <- $($rest:tt)*) => {{
+                _insn_inner_gen!($);
+                #[allow(unused_mut)]
+                let mut pc: Addr;
+
+                _insn_inner!(pc | $($rest)*);
+                i!(PC <- pc);
+
+                self.pop_call_stack();
+            }};
+
             (mem[$($addr:tt)*] <- $($word:tt)*) => {{
                 _insn_inner_gen!($);
                 #[allow(unused_mut)]
@@ -909,15 +994,15 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                     I!(PC <- PC + offset9)
                 }
             }
-            Jmp { base: R7 } | Ret => I!(PC <- R[R7]),
+            Jmp { base: R7 } | Ret => I!([S-] PC <- R[R7]),
             Jmp { base } => I!(PC <- R[base]),
             Jsr { offset11 } => {
                 I!(R7 <- PC);
-                I!(PC <- PC + offset11)
+                I!([S+] PC <- PC + offset11)
             }
             Jsrr { base } => {
                 let (pc, new_pc) = (self.get_pc(), self[base]);
-                I!(PC <- new_pc);
+                I!([S+] PC <- new_pc);
                 I!(R7 <- pc)
             }
             Ld { dr, offset9 } => I!(dr <- mem[PC + offset9]),
@@ -948,6 +1033,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         }
 
         Ok(())
+    }
+
+    fn push_call_stack(&mut self, subroutine: Addr, in_user_mode: bool) -> bool {
+        self.call_stack.push(subroutine, in_user_mode)
+    }
+
+    fn pop_call_stack(&mut self) -> bool {
+        self.call_stack.pop()
     }
 }
 
@@ -1113,6 +1206,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.state = MachineState::Running;
 
         self.error.set(None);
+        self.call_stack = CallStack::new();
     }
 
     fn halt(&mut self) {
