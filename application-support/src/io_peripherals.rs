@@ -152,6 +152,6 @@ impl OutputSource for Mutex<Vec<u8>> {
 // Mirrors the blanket impl that `Sink` has.
 impl<O: OutputSource> OutputSource for Arc<O> {
     fn get_chars(&self) -> Option<String> {
-        self.get_chars()
+        O::get_chars(self)
     }
 }
