@@ -9,7 +9,7 @@ use super::{State, Event, Control, Transport};
 use super::messages::{RequestMessage, ResponseMessage};
 use super::encoding::{Encode, Decode, Transparent};
 use super::futures::{EventFutureSharedStatePorcelain, EventFuture};
-use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH};
 use crate::control::load::{
     LoadApiSession, CHUNK_SIZE_IN_WORDS, PageWriteStart, PageIndex, Offset,
     StartPageWriteError, PageChunkError, FinishPageWriteError
@@ -217,6 +217,16 @@ where
     }
     fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS] { ctrl!(self, GetMemoryWatchpoints, R::GetMemoryWatchpoints(r), r) }
     fn get_max_memory_watchpoints(&self) -> usize { ctrl!(self, GetMaxMemoryWatchpoints, R::GetMaxMemoryWatchpoints(r), r) }
+
+    fn set_relative_depth_breakpoint(&mut self, relative_depth: isize) -> Result<Option<isize>, ()> {
+        unimplemented!()        // TODO
+    }
+    fn unset_depth_breakpoint(&mut self) -> Result<(), ()> {
+        unimplemented!()        // TODO
+    }
+    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH] {
+        unimplemented!()        // TODO
+    }
 
     // Execution control functions:
     fn run_until_event(&mut self) -> Self::EventFuture {

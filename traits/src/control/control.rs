@@ -29,6 +29,7 @@ pub const MAX_CALL_STACK_DEPTH: usize = 10;
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
+    DepthBreakpoint,
     Error { err: Error },
     Interrupted, // If we get paused or stepped, this is returned. (TODO: we currently only return this if we're paused!! not sure if stopping on a step is reasonable behavior)
     Halted,
@@ -135,6 +136,15 @@ pub trait Control {
     fn get_max_memory_watchpoints(&self) -> usize {
         MAX_MEMORY_WATCHPOINTS
     }
+
+    // Can be used to pause the simulator based on depth.
+    // For example,
+    // step over:   set_relative_depth_breakpoint(0)
+    // step in:     set_relative_depth_breakpoint(1)
+    // step out:    set_relative_depth_breakpoint(-1)
+    fn set_relative_depth_breakpoint(&mut self, relative_depth: isize) -> Result<Option<isize>, ()>;
+    fn unset_depth_breakpoint(&mut self) -> Result<(), ()>;
+    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH];
 
     // Execution control functions:
     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
