@@ -15,6 +15,8 @@ use lc3_traits::control::rpc::{
 use std::{sync::Mutex, thread::Builder as ThreadBuilder};
 
 // Static data that we need:
+// TODO: note that this will cause problems if more than 1 instance of this
+// simulator is instantiated.
 lazy_static::lazy_static! {
     pub static ref EVENT_FUTURE_SHARED_STATE_CONT: SyncEventFutureSharedState =
         SyncEventFutureSharedState::new();
@@ -43,8 +45,9 @@ impl<'s> Init<'s> for SimWithRpcDevice<'static> {
     type Input = SourceShim;
     type Output = Mutex<Vec<u8>>;
 
-    fn init(
+    fn init_with_config(
         b: &'s mut BlackBox,
+        _config: Self::Config,
     ) -> (
         &'s mut Self::ControlImpl,
         Option<Shims<'static>>,

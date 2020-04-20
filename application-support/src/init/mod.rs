@@ -104,18 +104,17 @@ pub trait Init<'s> {
         Option<Shims<'static>>,
         Option<&'s Self::Input>,
         Option<&'s Self::Output>,
-    );
+    ) {
+        Self::init_with_config(b, Default::default())
+    }
 
-    // By default, there are no configuration options.
     fn init_with_config(
         b: &'s mut BlackBox,
-        _config: Self::Config,
+        config: Self::Config,
     ) -> (
         &'s mut Self::ControlImpl,
         Option<Shims<'static>>,
         Option<&'s Self::Input>,
         Option<&'s Self::Output>,
-    ) {
-        Self::init(b)
-    }
+    );
 }
