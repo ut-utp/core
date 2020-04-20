@@ -706,7 +706,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             return;
         }
 
-        self.get_special_reg::<PSR>().set_priority(self, 3);
+//        self.get_special_reg::<PSR>().set_priority(self, 3);
     }
 
     fn handle_trap(&mut self, trap_vec: u8) {
