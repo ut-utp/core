@@ -740,6 +740,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             return false;
         }
 
+        // Haven't executed instruction at PC-1, so must store PC-1 on stack, not PC
+        self.pc -= 1;
+
         self.handle_exception(int_vec);
         self.set_cc(0);
         self.get_special_reg::<PSR>().set_priority(self, priority);
