@@ -101,13 +101,28 @@ mod encode {
         Inp: ?Sized + Debug + Serialize,
         F: SerFlavor,
         <F as SerFlavor>::Output: Debug,
-        Func: Fn() -> F,
+        Func: FnMut() -> F,
     {
         type Encoded = <F as SerFlavor>::Output;
 
         fn encode(&mut self, message: &Inp) -> <F as SerFlavor>::Output {
             // postcard::
             serialize_with_flavor(message, (self.flavor_func)())
+                .expect("a successful encode")
+        }
+    }
+
+    impl<Inp, F, Func> Encode<Inp> for PostcardEncode<Inp, F, Func>
+    where
+        Inp: Debug + Serialize,
+        F: SerFlavor,
+        <F as SerFlavor>::Output: Debug,
+        Func: FnMut() -> F,
+    {
+        type Encoded = <F as SerFlavor>::Output;
+
+        fn encode(&mut self, message: Inp) -> <F as SerFlavor>::Output {
+            serialize_with_flavor(&message, (self.flavor_func)())
                 .expect("a successful encode")
         }
     }
