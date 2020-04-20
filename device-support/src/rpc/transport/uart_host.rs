@@ -6,9 +6,9 @@ use lc3_traits::control::rpc::Transport;
 use lc3_traits::control::{Identifier, Version, version_from_crate};
 
 use mio_serial::{
-    Serial, SerialPortSettings, DataBits, FlowControl, Parity, StopBits,
-    SerialPort
+    Serial, DataBits, FlowControl, Parity, StopBits, SerialPort
 };
+pub use mio_serial::SerialPortSettings;
 
 use std::path::Path;
 use std::io::Result as IoResult;
