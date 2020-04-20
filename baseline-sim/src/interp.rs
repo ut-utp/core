@@ -655,11 +655,11 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     }
 
     // TODO: Swap result out
-    fn push_state(&mut self) -> WriteAttempt {
-        // Push the PSR and then the PC so that the PC gets popped first.
+    fn push_state(&mut self, saved_psr: Word) -> WriteAttempt {
+        // Push the saved PSR and then the PC so that the PC gets popped first.
         // (Popping the PSR first could trigger an ACV)
 
-        self.push(*self.get_special_reg::<PSR>())
+        self.push(saved_psr)
             .and_then(|()| self.push(self.get_pc()))
     }
 
@@ -684,6 +684,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn prep_for_execution_event(&mut self) {
         let mut psr = self.get_special_reg::<PSR>();
 
+        // Need to save a temporary copy of the PSR before switching to supervisor mode
+        let saved_psr: Word = *self.get_special_reg::<PSR>();
+
         // If we're in user mode..
         if psr.in_user_mode() {
             // ..switch to supervisor mode..
@@ -698,7 +701,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
         // We're in privileged mode now so this should only error if we've
         // overflowed our stack.
-        if let Err(Acv) = self.push_state() {
+        if let Err(Acv) = self.push_state(saved_psr) {
             debug_assert_eq!(self.state, MachineState::Halted);
             return;
         }
