@@ -131,6 +131,9 @@ pub trait InstructionInterpreter:
     fn set_error(&self, err: Error);
     fn get_error(&self) -> Option<Error>;
 
+    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH];
+    fn get_call_stack_depth(&self) -> usize;
+
     // Taken straight from Memory:
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
 
@@ -1223,6 +1226,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
 
     fn get_error(&self) -> Option<Error> {
         self.error.take()
+    }
+
+    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH] {
+        self.call_stack.stack
+    }
+
+    fn get_call_stack_depth(&self) -> usize {
+        self.call_stack.depth
     }
 
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
