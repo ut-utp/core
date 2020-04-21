@@ -21,7 +21,7 @@ use lc3_device_support::{
 use std::{
     sync::Mutex,
     thread::Builder as ThreadBuilder,
-    path::Path,
+    path::{Path, PathBuf},
     default::Default,
     marker::PhantomData,
 };
@@ -85,6 +85,14 @@ where
 
         #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
         { Self::new(AsRef::<P>::as_ref("/dev/tm4c"), 1_500_000) }
+    }
+}
+
+// TODO: actually have this use the platform stuff (spin off the functions below into
+// things that just return a PathBuf, I think).
+impl Default for BoardConfig<PathBuf> {
+    fn default() -> Self {
+        Self::new(PathBuf::from("/dev/lm4f"), 1_500_000)
     }
 }
 
