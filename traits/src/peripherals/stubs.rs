@@ -103,8 +103,8 @@ pub struct OutputStub;
 use super::output::OutputError;
 
 impl<'a> Output<'a> for OutputStub {
-    fn write_data(&mut self, c: u8) -> Result<(), OutputError> { Err(OutputError::NotReady) }
-    fn current_data_written(&self) -> bool { false }
+    fn write_data(&mut self, c: u8) -> Result<(), OutputError> { Ok(()) }
+    fn current_data_written(&self) -> bool { true }
 
     fn register_interrupt_flag(&mut self, _flag: &'a AtomicBool) { }
     fn interrupt_occurred(&self) -> bool { false }
