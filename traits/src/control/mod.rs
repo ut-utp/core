@@ -16,6 +16,9 @@ pub use load::{load_memory_dump, Progress};
 pub mod snapshot;
 pub use snapshot::{Snapshot, SnapshotError};
 
+pub mod ranges;
+pub use ranges::UnifiedRange;
+
 pub mod rpc;
 
 // Ensure that the Control trait is Object Safe.

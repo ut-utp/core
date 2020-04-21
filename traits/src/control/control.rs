@@ -13,7 +13,11 @@ use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
 use crate::peripherals::timers::{TimerArr, TimerState, TimerMode};
 use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier};
-use super::load::{PageIndex, PageWriteStart, StartPageWriteError, PageChunkError, FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS};
+use super::UnifiedRange;
+use super::load::{
+    PageIndex, PageWriteStart, StartPageWriteError, PageChunkError,
+    FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS
+};
 
 use lc3_isa::{Addr, Reg, Word, PSR};
 
