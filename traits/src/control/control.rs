@@ -29,6 +29,14 @@ pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHPOINTS: usize = 10;
 pub const MAX_CALL_STACK_DEPTH: usize = 10;
 
+pub type Idx = u8;
+
+// Verify that the chosen index type can serve as an index with the number of
+// breakpoints/watchpoints/call stack frames we intend to support.
+sa::const_assert!(MAX_BREAKPOINTS <= (Idx::MAX as usize));
+sa::const_assert!(MAX_MEMORY_WATCHPOINTS <= (Idx::MAX as usize));
+sa::const_assert!(MAX_CALL_STACK_DEPTH <= (Idx::MAX as usize));
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Event {
     Breakpoint { addr: Addr },
@@ -127,18 +135,18 @@ pub trait Control {
         page: LoadApiSession<PageIndex>,
     ) -> Result<(), FinishPageWriteError>;
 
-    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
-    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<Idx, ()>;
+    fn unset_breakpoint(&mut self, idx: Idx) -> Result<(), ()>;
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS];
-    fn get_max_breakpoints(&self) -> usize {
-        MAX_BREAKPOINTS
+    fn get_max_breakpoints(&self) -> Idx {
+        MAX_BREAKPOINTS as Idx
     }
 
-    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()>;
-    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()>;
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<Idx, ()>;
+    fn unset_memory_watchpoint(&mut self, idx: Idx) -> Result<(), ()>;
     fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS];
-    fn get_max_memory_watchpoints(&self) -> usize {
-        MAX_MEMORY_WATCHPOINTS
+    fn get_max_memory_watchpoints(&self) -> Idx {
+        MAX_MEMORY_WATCHPOINTS as Idx
     }
 
     // Can be used to pause the simulator based on depth.
