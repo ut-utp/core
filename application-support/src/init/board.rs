@@ -45,7 +45,7 @@ type Cont<'ss, EncFunc: FnMut() -> Cobs<Fifo<u8>>> = Controller<
 >;
 
 // #[derive(Debug)]
-pub struct BoardDevice<'ss, EncFunc, P>
+pub struct BoardDevice<'ss, EncFunc = Box<dyn FnMut() -> Cobs<Fifo<u8>>>, P = &'static Path>
 where
     EncFunc: FnMut() -> Cobs<Fifo<u8>>,
     P: AsRef<Path>,
@@ -66,6 +66,7 @@ pub struct BoardConfig<P: AsRef<Path>> {
     serial_settings: SerialSettings,
 }
 
+// TODO: use Strings instead?
 impl<P: AsRef<Path>> Default for BoardConfig<&'static P>
 where
     &'static P: AsRef<Path>,
