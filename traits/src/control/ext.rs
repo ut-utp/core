@@ -37,4 +37,4 @@ pub trait StepControl: Control {
     }
 }
 
-impl<C: Control> DebugStepping for C { }
+impl<C: Control> StepControl for C { }

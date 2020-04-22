@@ -209,7 +209,7 @@ pub trait Control {
     ///
     /// Frames that are `Some` exist; other's are not present. The number of
     /// frames returned should be (MAX_CALL_STACK_DEPTH).min()
-    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH];
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH];
 
     // Execution control functions:
     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.

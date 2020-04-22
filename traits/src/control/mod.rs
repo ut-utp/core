@@ -8,7 +8,7 @@ pub use metadata::{
 };
 
 pub mod control;
-pub use control::{Control, Event, State, ProcessorMode};
+pub use control::{Control, Event, State, ProcessorMode, Idx};
 
 pub mod ext;
 pub use ext::StepControl;
