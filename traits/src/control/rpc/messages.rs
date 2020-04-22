@@ -1,12 +1,14 @@
 //! Messages used for proxying [Control trait](super::Control) functions.
 
 use super::{State, Event};
-use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::control::{
+    MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH
+};
 use crate::control::load::{
     LoadApiSession, CHUNK_SIZE_IN_WORDS, PageWriteStart, PageIndex, Offset,
     StartPageWriteError, PageChunkError, FinishPageWriteError
 };
-use crate::control::{ProgramMetadata, DeviceInfo};
+use crate::control::{ProgramMetadata, DeviceInfo, UnifiedRange, ProcessorMode, Idx};
 use crate::error::Error as Lc3Error;
 use crate::peripherals::{
     adc::{AdcPinArr, AdcState, AdcReadError},
@@ -69,14 +71,19 @@ pub enum RequestMessage { // messages for everything but tick()
     FinishPageWrite { page: LoadApiSession<PageIndex> },
 
     SetBreakpoint { addr: Addr },
-    UnsetBreakpoint { idx: usize },
+    UnsetBreakpoint { idx: Idx },
     GetBreakpoints,
     GetMaxBreakpoints,
 
     SetMemoryWatchpoint { addr: Addr },
-    UnsetMemoryWatchpoint { idx: usize },
+    UnsetMemoryWatchpoint { idx: Idx },
     GetMemoryWatchpoints,
     GetMaxMemoryWatchpoints,
+
+    SetDepthCondition { condition: UnifiedRange<u64> },
+    UnsetDepthCondition,
+    GetDepth,
+    GetCallStack,
 
     // no tick!
     RunUntilEvent,
@@ -138,15 +145,20 @@ pub enum ResponseMessage { // messages for everything but tick()
     SendPageChunk(Result<(), PageChunkError>),
     FinishPageWrite(Result<(), FinishPageWriteError>),
 
-    SetBreakpoint(Result<usize, ()>),
+    SetBreakpoint(Result<Idx, ()>),
     UnsetBreakpoint(Result<(), ()>),
     GetBreakpoints([Option<Addr>; MAX_BREAKPOINTS]),
-    GetMaxBreakpoints(usize),
+    GetMaxBreakpoints(Idx),
 
-    SetMemoryWatchpoint(Result<usize, ()>),
+    SetMemoryWatchpoint(Result<Idx, ()>),
     UnsetMemoryWatchpoint(Result<(), ()>),
     GetMemoryWatchpoints([Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS]),
-    GetMaxMemoryWatchpoints(usize),
+    GetMaxMemoryWatchpoints(Idx),
+
+    SetDepthCondition(Result<Option<UnifiedRange<u64>>, ()>),
+    UnsetDepthCondition(Option<UnifiedRange<u64>>),
+    GetDepth(Result<u64, ()>),
+    GetCallStack([Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH]),
 
     // no tick!
     RunUntilEventAck, // Special acknowledge message for run until event.
