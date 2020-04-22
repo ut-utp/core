@@ -54,6 +54,14 @@ pub enum State {
     Halted,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ProcessorMode {
+    /// Privileged Mode
+    Supervisor = 0,
+    /// User Mode
+    User = 1,
+}
+
 // Actually maybe make this Control a super trait of this can have Control still retain
 // EventFuture and run_until_event. (TODO)
 // pub trait Driver: Control { type EventFuture:

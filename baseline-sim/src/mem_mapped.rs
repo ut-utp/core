@@ -1177,6 +1177,8 @@ mem_mapped!(special: BSP, BSP_ADDR, "Backup Stack Pointer.");
 
 mem_mapped!(special: PSR, PSR_ADDR, "Program Status Register.");
 
+use lc3_traits::control::ProcessorMode;
+
 impl PSR {
     pub fn get_priority(&self) -> u8 {
         self.u8(8..10)
@@ -1191,6 +1193,14 @@ impl PSR {
 
         // Don't return a `WriteAttempt` since PSR accesses don't produce ACVs (and are hence infallible).
         self.write_current_value(interp).unwrap();
+    }
+
+    pub fn get_mode(&self) -> ProcessorMode {
+        if self.in_user_mode() {
+            ProcessorMode::User
+        } else {
+            ProcessorMode::Supervisor
+        }
     }
 
     pub fn in_user_mode(&self) -> bool {
