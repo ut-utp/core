@@ -11,6 +11,7 @@ pub mod control;
 pub use control::{Control, Event, State, ProcessorMode};
 
 pub mod ext;
+pub use ext::StepControl;
 
 pub mod load;
 pub use load::{load_memory_dump, Progress};

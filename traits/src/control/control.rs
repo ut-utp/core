@@ -161,7 +161,7 @@ pub trait Control {
     ///
     /// Note that this is a low-level interface; for the usual high-level debug
     /// functionality (step-in, step-out, step-over) see the [`ext`] module and
-    /// the [`DebugExtensions`] trait.
+    /// the [`StepControl`] trait.
     ///
     /// When the current call stack depth is within the range given, a
     /// [`DepthReached`] [`Event`] is returned.
@@ -180,7 +180,7 @@ pub trait Control {
     ///
     /// [`ext`]: super::ext
     /// [`DepthReached`]: Event::DepthReached
-    /// [`DebugExtensions`]: ???
+    /// [`StepControl`]: super::StepControl
     /// [`Event`]: Event
     /// [`UnifiedRange`]: UnifiedRange
     /// [`set_configuration`]: Control::set_configuration

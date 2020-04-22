@@ -11,7 +11,7 @@ pub enum DepthBreakpoint {
     StepOver,
 }
 
-pub trait DebugStepping: Control {
+pub trait StepControl: Control {
     fn set_depth_breakpoint(&mut self, bp: DepthBreakpoint) -> Result<(), ()> {
         let curr = self.get_depth()?;
 
