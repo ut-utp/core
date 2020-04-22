@@ -157,13 +157,55 @@ pub trait Control {
         MAX_MEMORY_WATCHPOINTS as Idx
     }
 
-    // Can be used to pause the simulator based on depth.
-    // For example,
-    // step over:   set_relative_depth_breakpoint(0)
-    // step in:     set_relative_depth_breakpoint(1)
-    // step out:    set_relative_depth_breakpoint(-1)
-    fn set_relative_depth_breakpoint(&mut self, relative_depth: isize) -> Result<Option<isize>, ()>;
-    fn unset_depth_breakpoint(&mut self) -> Result<(), ()>;
+    /// Can be used to trigger an event based on the call stack depth.
+    ///
+    /// Note that this is a low-level interface; for the usual high-level debug
+    /// functionality (step-in, step-out, step-over) see the [`ext`] module and
+    /// the [`DebugExtensions`] trait.
+    ///
+    /// When the current call stack depth is within the range given, a
+    /// [`DepthReached`] [`Event`] is returned.
+    ///
+    /// This function returns a Result; `Ok` if the depth condition was
+    /// successfully registered and `Err` otherwise. `Ok` will contain an
+    /// `Option` of a [`UnifiedRange`]; if there was already an existing
+    /// breakpoint condition (which this call replaced), it will be returned
+    /// (i.e. the `Option` will be `Some`).
+    ///
+    /// The only reason a depth condition should fail to register is if the
+    /// `Control` implementation does not currently have depth tracking enabled.
+    /// You can use the config functions ([`set_configuration`] and
+    /// [`get_configuration`]) to enable/disable depth tracking and get the
+    /// current setting. (TODO: config)
+    ///
+    /// [`ext`]: super::ext
+    /// [`DepthReached`]: Event::DepthReached
+    /// [`DebugExtensions`]: ???
+    /// [`Event`]: Event
+    /// [`UnifiedRange`]: UnifiedRange
+    /// [`set_configuration`]: Control::set_configuration
+    /// [`get_configuration`]: Control::get_configuration
+    fn set_depth_condition(&mut self,
+        condition: UnifiedRange<u64>
+    )-> Result<Option<UnifiedRange<u64>>, ()>;
+
+    /// Unsets the current depth condition, if there is one.
+    ///
+    /// Returns the depth condition that was dropped (if there was one).
+    fn unset_depth_condition(&mut self) -> Option<UnifiedRange<u64>>;
+
+    /// Gets the current depth of the call stack.
+    ///
+    /// Like [`set_depth_condition`], this returns a `Result` that will be an
+    /// `Err` only if depth tracking is disabled.
+    ///
+    /// [`set_depth_condition`]: Control::set_depth_condition
+    fn get_depth(&self) -> Result<u64, ()>;
+
+    /// Gets the first [`MAX_CALL_STACK_DEPTH`] frames of the call stack.
+    ///
+    /// Frames that are `Some` exist; other's are not present. The number of
+    /// frames returned should be (MAX_CALL_STACK_DEPTH).min()
     fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH];
 
     // Execution control functions:
