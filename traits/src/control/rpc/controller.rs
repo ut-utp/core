@@ -9,12 +9,15 @@ use super::{State, Event, Control, Transport};
 use super::messages::{RequestMessage, ResponseMessage};
 use super::encoding::{Encode, Decode, Transparent};
 use super::futures::{EventFutureSharedStatePorcelain, EventFuture};
-use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH};
+use crate::control::control::{
+    MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH,
+    ProcessorMode, Idx
+};
 use crate::control::load::{
     LoadApiSession, CHUNK_SIZE_IN_WORDS, PageWriteStart, PageIndex, Offset,
     StartPageWriteError, PageChunkError, FinishPageWriteError
 };
-use crate::control::{ProgramMetadata, DeviceInfo};
+use crate::control::{ProgramMetadata, DeviceInfo, UnifiedRange};
 use crate::error::Error as Lc3Error;
 use crate::peripherals::{
     adc::{AdcPinArr, AdcState, AdcReadError},
@@ -200,32 +203,31 @@ where
         ctrl!(self, FinishPageWrite { page }, R::FinishPageWrite(r), r)
     }
 
-    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<Idx, ()> {
         ctrl!(self, SetBreakpoint { addr }, R::SetBreakpoint(r), r)
     }
-    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
+    fn unset_breakpoint(&mut self, idx: Idx) -> Result<(), ()> {
         ctrl!(self, UnsetBreakpoint { idx }, R::UnsetBreakpoint(r), r)
     }
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS] { ctrl!(self, GetBreakpoints, R::GetBreakpoints(r), r) }
-    fn get_max_breakpoints(&self) -> usize { ctrl!(self, GetMaxBreakpoints, R::GetMaxBreakpoints(r), r) }
+    fn get_max_breakpoints(&self) -> Idx { ctrl!(self, GetMaxBreakpoints, R::GetMaxBreakpoints(r), r) }
 
-    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<Idx, ()> {
         ctrl!(self, SetMemoryWatchpoint { addr }, R::SetMemoryWatchpoint(r), r)
     }
-    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
+    fn unset_memory_watchpoint(&mut self, idx: Idx) -> Result<(), ()> {
         ctrl!(self, UnsetMemoryWatchpoint { idx }, R::UnsetBreakpoint(r), r)
     }
     fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS] { ctrl!(self, GetMemoryWatchpoints, R::GetMemoryWatchpoints(r), r) }
-    fn get_max_memory_watchpoints(&self) -> usize { ctrl!(self, GetMaxMemoryWatchpoints, R::GetMaxMemoryWatchpoints(r), r) }
+    fn get_max_memory_watchpoints(&self) -> Idx { ctrl!(self, GetMaxMemoryWatchpoints, R::GetMaxMemoryWatchpoints(r), r) }
 
-    fn set_relative_depth_breakpoint(&mut self, relative_depth: isize) -> Result<Option<isize>, ()> {
-        unimplemented!()        // TODO
+    fn set_depth_condition(&mut self, condition: UnifiedRange<u64>) -> Result<Option<UnifiedRange<u64>>, ()> {
+        ctrl!(self, SetDepthCondition { condition }, R::SetDepthCondition(r), r)
     }
-    fn unset_depth_breakpoint(&mut self) -> Result<(), ()> {
-        unimplemented!()        // TODO
-    }
-    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH] {
-        unimplemented!()        // TODO
+    fn unset_depth_condition(&mut self) -> Option<UnifiedRange<u64>> { ctrl!(self, UnsetDepthCondition, R::UnsetDepthCondition(r), r) }
+    fn get_depth(&self) -> Result<u64, ()> { ctrl!(self, GetDepth, R::GetDepth(r), r) }
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH] {
+        ctrl!(self, GetCallStack, R::GetCallStack(r), r)
     }
 
     // Execution control functions:

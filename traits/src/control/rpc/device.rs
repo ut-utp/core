@@ -345,6 +345,11 @@ where
                 (GetMemoryWatchpoints => R::GetMemoryWatchpoints(r)) with r = c.get_memory_watchpoints();
                 (GetMaxMemoryWatchpoints => R::GetMaxMemoryWatchpoints(r)) with r = c.get_max_memory_watchpoints();
 
+                (SetDepthCondition { condition } => R::SetDepthCondition(r)) with r = c.set_depth_condition(condition);
+                (UnsetDepthCondition => R::UnsetDepthCondition(r)) with r = c.unset_depth_condition();
+                (GetDepth => R::GetDepth(r)) with r = c.get_depth();
+                (GetCallStack => R::GetCallStack(r)) with r = c.get_call_stack();
+
                 (Step => R::Step(r)) with r = c.step();
                 (Pause => R::Pause) with _ = c.pause();
                 (GetState => R::GetState(r)) with r = c.get_state();
