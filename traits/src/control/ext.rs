@@ -37,4 +37,4 @@ pub trait StepControl: Control {
     }
 }
 
-impl<C: Control> StepControl for C { }
+impl<C: Control + ?Sized> StepControl for C { }
