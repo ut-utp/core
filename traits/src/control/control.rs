@@ -40,6 +40,23 @@ sa::const_assert!(MAX_CALL_STACK_DEPTH <= (Idx::max_value() as usize));
 // Also verify that the chosen index type is smaller than `usize`:
 sa::const_assert!(core::mem::size_of::<Idx>() <= core::mem::size_of::<usize>());
 
+pub enum DebugStep {
+    STEP_OVER(usize),
+    STEP_IN(usize),
+    STEP_OUT(usize),
+}
+
+use DebugStep::*;
+impl Into<UnifiedRange<usize>> for DebugStep {
+    fn into(self) -> UnifiedRange<usize> {
+        match self {
+            STEP_OVER(cur_depth) => (..=cur_depth).into(),
+            STEP_IN(cur_depth) => (cur_depth..).into(),
+            STEP_OUT(cur_depth) => (..cur_depth).into(),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Event {
     Breakpoint { addr: Addr },

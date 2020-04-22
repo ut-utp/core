@@ -4,7 +4,7 @@ use crate::interp::{InstructionInterpreter, InstructionInterpreterPeripheralAcce
 use crate::mem_mapped::{MemMapped, KBDR};
 
 use lc3_isa::{Addr, Reg, Word};
-use lc3_traits::control::{Control, Event, State};
+use lc3_traits::control::{Control, Event, State, UnifiedRange, Idx, ProcessorMode};
 use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH};
 use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo, Version};
 use lc3_traits::control::load::{
@@ -31,6 +31,7 @@ use core::fmt::{self, Debug};
 // use core::task::{Context, Poll};
 
 use core::usize;
+use sa::_core::ops::RangeBounds;
 
 #[derive(Clone)]
 enum LoadApiState {
@@ -71,7 +72,7 @@ where
     watchpoints: [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS], // TODO: change to throw these when the location being watched to written to; not just when the value is changed...
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
-    depth_breakpoint: Option<usize>,
+    depth_breakpoint_range: Option<UnifiedRange<u64>>,
     state: State,
     shared_state: Option<&'ss S>,
     load_api_state: LoadApiState,
@@ -99,7 +100,7 @@ where
             watchpoints: [None; MAX_MEMORY_WATCHPOINTS],
             num_set_breakpoints: 0,
             num_set_watchpoints: 0,
-            depth_breakpoint: None,
+            depth_breakpoint_range: None,
             state: State::Paused,
             shared_state: None,
             load_api_state: LoadApiState::default(),
@@ -258,7 +259,7 @@ where
         }
     }
 
-    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<Idx, ()> {
         // Scan for the next open slot:
         for (idx, bp) in self.breakpoints.iter_mut().enumerate() {
             if let Some(a) = bp {
@@ -267,22 +268,22 @@ where
                 // (note that this doesn't increment the number of set
                 // breakpoints since it's not adding a new one)
                 if addr == *a {
-                    return Ok(idx)
+                    return Ok(idx as Idx)
                 }
             } else {
                 // If we reach an empty slot, use it.
                 self.num_set_breakpoints += 1;
                 *bp = Some(addr);
-                return Ok(idx)
+                return Ok(idx as Idx)
             }
         }
 
         Err(())
     }
 
-    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
-        if idx < MAX_BREAKPOINTS {
-            self.breakpoints[idx].take().map(|_| {
+    fn unset_breakpoint(&mut self, idx: Idx) -> Result<(), ()> {
+        if idx < self.get_max_breakpoints() {
+            self.breakpoints[idx as usize].take().map(|_| {
                 // If we actually removed a breakpoint, subtract the count:
                 self.num_set_breakpoints -= 1;
                 ()
@@ -297,7 +298,7 @@ where
     }
 
     // TODO: breakpoints and watchpoints look macroable
-    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<Idx, ()> {
         let current_val = self.read_word(addr); // TODO: is read_word okay? What if this is a mem mapped address.
         // TODO: maybe move this into the right spot and fix the borrow checker issues.
 
@@ -307,22 +308,22 @@ where
                 // For each watchpoint, check if it's already for the memory
                 // location we want (note: doesn't increment the count):
                 if addr == *a {
-                    return Ok(idx)
+                    return Ok(idx as Idx)
                 }
             } else {
                 // If we reach an empty slot, use it.
                 self.num_set_watchpoints += 1;
                 *wp = Some((addr, current_val));
-                return Ok(idx)
+                return Ok(idx as Idx)
             }
         }
 
         Err(())
     }
 
-    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
-        if idx < MAX_MEMORY_WATCHPOINTS {
-            self.watchpoints[idx].take().map(|_| {
+    fn unset_memory_watchpoint(&mut self, idx: Idx) -> Result<(), ()> {
+        if idx < self.get_max_memory_watchpoints() {
+            self.watchpoints[idx as usize].take().map(|_| {
                 // If we actually removed a watchpoint, subtract the count:
                 self.num_set_watchpoints -= 1;
                 ()
@@ -337,24 +338,23 @@ where
     }
 
     // TODO: panics if relative_depth = isize::min_value()
-    fn set_relative_depth_breakpoint(&mut self, relative_depth: isize) -> Result<Option<isize>, ()> {
-        self.depth_breakpoint = match relative_depth.is_negative() {
-            true => {
-                Some(self.interp.get_call_stack_depth().saturating_sub(relative_depth.abs() as usize))
-            },
-            false => {
-                Some(self.interp.get_call_stack_depth().saturating_add(relative_depth as usize))
-            }
-        };
-        Ok(None)
+    fn set_depth_condition(&mut self, condition: UnifiedRange<u64>) -> Result<Option<UnifiedRange<u64>>, ()> {
+        let prev_range = self.depth_breakpoint_range;
+        self.depth_breakpoint_range = Some(condition);
+        Ok(prev_range)
     }
 
-    fn unset_depth_breakpoint(&mut self) -> Result<(), ()> {
-        self.depth_breakpoint = None;
-        Ok(())
+    fn unset_depth_condition(&mut self) -> Option<UnifiedRange<u64>>{
+        let prev_range = self.depth_breakpoint_range;
+        self.depth_breakpoint_range = None;
+        prev_range
     }
 
-    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH] {
+    fn get_depth(&self) -> Result<u64, ()> {
+        Ok(self.interp.get_call_stack_depth())
+    }
+
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH] {
         self.interp.get_call_stack()
     }
 
@@ -465,10 +465,11 @@ where
                 }
 
                 // And the depth breakpoint
-                match self.depth_breakpoint {
-                    Some(val) => {
-                        if val == self.interp.get_call_stack_depth() {
-                            return (Paused, Some(Event::DepthBreakpoint));
+                match &self.depth_breakpoint_range {
+                    Some(range) => {
+                        let cur_depth = self.interp.get_call_stack_depth();
+                        if range.contains(&cur_depth) {
+                            return (Paused, Some(Event::DepthReached{current_depth: cur_depth}));
                         }
                     },
                     None => {},
@@ -509,7 +510,7 @@ where
             (RunningUntilEvent, Halted, Some(e @ Event::Error { .. })) |
             (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
                 // Unset the depth breakpoint upon any event
-                self.unset_depth_breakpoint();
+                self.unset_depth_condition();
                 // println!("resolving the device future");
                 self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e).unwrap();
                 self.state = new_state;

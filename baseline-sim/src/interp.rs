@@ -131,8 +131,8 @@ pub trait InstructionInterpreter:
     fn set_error(&self, err: Error);
     fn get_error(&self) -> Option<Error>;
 
-    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH];
-    fn get_call_stack_depth(&self) -> usize;
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH];
+    fn get_call_stack_depth(&self) -> u64;
 
     // Taken straight from Memory:
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
@@ -245,8 +245,8 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 
 #[derive(Debug)]
 pub struct CallStack {
-    stack: [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH],
-    depth: usize,
+    stack: [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH],
+    depth: u64,
 }
 
 impl CallStack {
@@ -264,8 +264,9 @@ impl CallStack {
         let mut success = false;
 
         // Check if stack is not full
-        if self.depth < MAX_CALL_STACK_DEPTH {
-            self.stack[self.depth] = Some((subroutine, in_user_mode));
+        if self.depth < MAX_CALL_STACK_DEPTH as u64 {
+            let processor_mode = if in_user_mode {ProcessorMode::User} else {ProcessorMode::Supervisor};
+            self.stack[self.depth as usize] = Some((subroutine, processor_mode));
             success = true;
         }
 
@@ -288,8 +289,8 @@ impl CallStack {
         self.depth = self.depth.saturating_sub(1);
 
         // Check if depth exceeds max saved addrs
-        if self.depth < MAX_CALL_STACK_DEPTH {
-            self.stack[self.depth] = None;
+        if self.depth < MAX_CALL_STACK_DEPTH as u64 {
+            self.stack[self.depth as usize] = None;
             success = true;
         }
 
@@ -1058,6 +1059,7 @@ use super::mem_mapped::{
     T0CR, T0DR, T1CR, T1DR
 };
 use lc3_traits::error::Error::SystemStackOverflow;
+use lc3_traits::control::ProcessorMode;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");
@@ -1228,11 +1230,11 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         self.error.take()
     }
 
-    fn get_call_stack(&self) -> [Option<(Addr, bool)>; MAX_CALL_STACK_DEPTH] {
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH] {
         self.call_stack.stack
     }
 
-    fn get_call_stack_depth(&self) -> usize {
+    fn get_call_stack_depth(&self) -> u64 {
         self.call_stack.depth
     }
 

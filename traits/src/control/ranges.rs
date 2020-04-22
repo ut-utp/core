@@ -10,7 +10,7 @@ use core::ops::{
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct UnifiedRange<T> {
     start: Bound<T>,
     end: Bound<T>,
@@ -18,7 +18,7 @@ pub struct UnifiedRange<T> {
 
 // A copy of `core::ops::Bound` that we can serialize (and turn into
 // `core::ops::Bound` instances).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum Bound<T> {
     Includes(T),
     Excludes(T),
