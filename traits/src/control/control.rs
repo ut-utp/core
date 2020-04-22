@@ -33,15 +33,18 @@ pub type Idx = u8;
 
 // Verify that the chosen index type can serve as an index with the number of
 // breakpoints/watchpoints/call stack frames we intend to support.
-sa::const_assert!(MAX_BREAKPOINTS <= (Idx::MAX as usize));
-sa::const_assert!(MAX_MEMORY_WATCHPOINTS <= (Idx::MAX as usize));
-sa::const_assert!(MAX_CALL_STACK_DEPTH <= (Idx::MAX as usize));
+sa::const_assert!(MAX_BREAKPOINTS <= (Idx::max_value() as usize));
+sa::const_assert!(MAX_MEMORY_WATCHPOINTS <= (Idx::max_value() as usize));
+sa::const_assert!(MAX_CALL_STACK_DEPTH <= (Idx::max_value() as usize));
+
+// Also verify that the chosen index type is smaller than `usize`:
+sa::const_assert!(core::mem::size_of::<Idx>() <= core::mem::size_of::<usize>());
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
-    DepthBreakpoint,
+    DepthReached { current_depth: u64 },
     Error { err: Error },
     Interrupted, // If we get paused or stepped, this is returned. (TODO: we currently only return this if we're paused!! not sure if stopping on a step is reasonable behavior)
     Halted,
