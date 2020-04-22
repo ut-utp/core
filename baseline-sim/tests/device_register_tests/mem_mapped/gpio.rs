@@ -268,8 +268,7 @@ mod read {
     
     
                             let _set = Gpio::set_state(p, *pin, *states[num]).unwrap();
-                            let state = Gpio::get_state(p, *pin);
-                            eq!(state, Input);
+                            
                         }
                     }, 
                 }
@@ -367,7 +366,6 @@ mod read {
                     },
                     pre: |p| {
                         for (pin, state) in GPIO_PINS.iter().zip(states.clone()) {
-                           
                             let _set = Gpio::set_state(p, *pin, *state);
                             
                         }
@@ -385,9 +383,6 @@ mod write {
     use super::*;
     use lc3_traits::peripherals::gpio::*;
 
-
-
-    
     // test that when you write in output mode that you can read the values back in 
     #[test]
     fn write_output_testing() { with_larger_stack(None, || {
@@ -502,6 +497,7 @@ mod write {
                     for pin in GPIO_PINS.iter() {
                         let _set = Gpio::set_state(p, *pin, Output);
                     }
+                    
                 }
                 post: |i| {
                     for (pin, pin_val) in GPIO_PINS.iter().zip(gpio_bools.iter()) {
