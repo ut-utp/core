@@ -24,9 +24,9 @@ use lc3_traits::control::load::Index as IndexWrapper;
 ///   4: 0x0400 - 0x04FF :: backed (OS)
 ///   5: 0x0500 - 0x05FF :: backed (config)
 ///   6: 0x0600 - 0x06FF :: backed (???)
-// ///   7: 0x0700 - 0x07FF :: backed (???)
-// ///   8: 0x0800 - 0x08FF :: backed (???)
-// ///   9: 0x0900 - 0x09FF :: backed (???)
+///   7: 0x0700 - 0x07FF :: backed (???)
+///   8: 0x0800 - 0x08FF :: backed (???)
+///   9: 0x0900 - 0x09FF :: backed (???)
 /// ..........................................
 ///  47: 0x2F00 - 0x2FFF :: backed (OS stack)
 ///  48: 0x3000 - 0x30FF :: backed (user prog)
@@ -39,7 +39,7 @@ use lc3_traits::control::load::Index as IndexWrapper;
 ///  55: 0x3700 - 0x37FF :: backed (user prog)
 ///  56: 0x3800 - 0x38FF :: backed (user prog)
 ///  57: 0x3900 - 0x39FF :: backed (user prog)
-// ///  58: 0x3A00 - 0x3AFF :: backed (user prog)
+///  58: 0x3A00 - 0x3AFF :: backed (user prog)
 // ///  59: 0x3B00 - 0x3BFF :: backed (user prog)
 // ///  60: 0x3C00 - 0x3CFF :: backed (user prog)
 // ///  61: 0x3D00 - 0x3DFF :: backed (user prog)
@@ -52,13 +52,13 @@ use lc3_traits::control::load::Index as IndexWrapper;
 /// 254: 0xFE00 - 0xFEFF :: backed (mem mapped special)
 /// 255: 0xFF00 - 0xFFFF :: backed (mem mapped special)
 ///
-/// 20 of these pages will occupy 10KiB of RAM, which we should be able to
+/// 24 of these pages will occupy 10KiB of RAM, which we should be able to
 /// handle.
 ///
 #[repr(packed)]
 pub struct PartialMemory {
     program_data: ProgramMetadata,
-    pages: [[Word; Self::PAGE_SIZE]; 20],
+    pages: [[Word; Self::PAGE_SIZE]; 24],
     zero: Word,
     void: Word,
 }
@@ -67,10 +67,10 @@ static __PARTIAL_MEM_SIZE_CHK: () = {
     let canary = [()];
     let size = core::mem::size_of::<PartialMemory>();
 
-    canary[size - ((20 * 512) + 8 + 28)]
+    canary[size - ((24 * 512) + 8 + 28)]
 };
 
-sa::const_assert!(core::mem::size_of::<PartialMemory>() == (20 * 512) + 8 + 28);
+sa::const_assert!(core::mem::size_of::<PartialMemory>() == (24 * 512) + 8 + 28);
 
 impl PartialMemory {
     const PAGE_SIZE: usize = 0x0100; // TODO: Use `PageAccess`?
@@ -79,9 +79,9 @@ impl PartialMemory {
         let offset: usize = (addr as usize) % Self::PAGE_SIZE;
 
         match addr {
-            0x0000..=0x06FF => Some(((addr as usize / Self::PAGE_SIZE), offset)),
-            0x2F00..=0x39FF => Some(((addr as usize / Self::PAGE_SIZE) - 0x2F + 7, offset)),
-            0xFE00..=0xFEFF => Some(((addr as usize / Self::PAGE_SIZE) - 0xFE + 18, offset)),
+            0x0000..=0x07FF => Some(((addr as usize / Self::PAGE_SIZE), offset)),
+            0x2F00..=0x3AFF => Some(((addr as usize / Self::PAGE_SIZE) - 0x2F + 10, offset)),
+            0xFE00..=0xFEFF => Some(((addr as usize / Self::PAGE_SIZE) - 0xFE + 22, offset)),
             _ => None,
         }
     }
@@ -117,7 +117,7 @@ impl IndexMut<Addr> for PartialMemory {
 impl Default for PartialMemory {
     fn default() -> Self {
         Self {
-            pages: [[0; PartialMemory::PAGE_SIZE]; 20],
+            pages: [[0; PartialMemory::PAGE_SIZE]; 24],
             program_data: ProgramMetadata::default(),
             zero: 0,
             void: 0,
