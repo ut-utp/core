@@ -55,12 +55,22 @@ use lc3_traits::control::load::Index as IndexWrapper;
 /// 20 of these pages will occupy 10KiB of RAM, which we should be able to
 /// handle.
 ///
+#[repr(packed)]
 pub struct PartialMemory {
     program_data: ProgramMetadata,
     pages: [[Word; Self::PAGE_SIZE]; 20],
     zero: Word,
     void: Word,
 }
+
+static __PARTIAL_MEM_SIZE_CHK: () = {
+    let canary = [()];
+    let size = core::mem::size_of::<PartialMemory>();
+
+    canary[size - ((20 * 512) + 8 + 28)]
+};
+
+sa::const_assert!(core::mem::size_of::<PartialMemory>() == (20 * 512) + 8 + 28);
 
 impl PartialMemory {
     const PAGE_SIZE: usize = 0x0100; // TODO: Use `PageAccess`?
@@ -130,4 +140,32 @@ impl Memory for PartialMemory {
 
     fn get_program_metadata(&self) -> ProgramMetadata { self.program_data.clone() }
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) { self.program_data = metadata }
+}
+
+#[deny(unconditional_recursion)]
+impl Index<Addr> for &'_ mut PartialMemory {
+    type Output = Word;
+
+    fn index(&self, addr: Addr) -> &Self::Output {
+        (&**self).index(addr)
+    }
+}
+
+#[deny(unconditional_recursion)]
+impl IndexMut<Addr> for &'_ mut PartialMemory {
+    fn index_mut(&mut self, addr: Addr) -> &mut Self::Output {
+        (&mut **self).index_mut(addr)
+    }
+}
+
+#[deny(unconditional_recursion)]
+impl Memory for &'_ mut PartialMemory {
+    fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
+        (&mut **self).commit_page(page_idx, page)
+    }
+
+    fn reset(&mut self) { (&mut **self).reset() }
+
+    fn get_program_metadata(&self) -> ProgramMetadata { (&**self).get_program_metadata() }
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata) { (&mut **self).set_program_metadata(metadata) }
 }
