@@ -25,8 +25,8 @@ use lc3_traits::control::load::Index as IndexWrapper;
 ///   5: 0x0500 - 0x05FF :: backed (config)
 ///   6: 0x0600 - 0x06FF :: backed (???)
 ///   7: 0x0700 - 0x07FF :: backed (???)
-///   8: 0x0800 - 0x08FF :: backed (???)
-///   9: 0x0900 - 0x09FF :: backed (???)
+// ///   8: 0x0800 - 0x08FF :: backed (???)
+// ///   9: 0x0900 - 0x09FF :: backed (???)
 /// ..........................................
 ///  47: 0x2F00 - 0x2FFF :: backed (OS stack)
 ///  48: 0x3000 - 0x30FF :: backed (user prog)
@@ -46,19 +46,19 @@ use lc3_traits::control::load::Index as IndexWrapper;
 ///  62: 0x3E00 - 0x3EFF :: backed (user prog)
 ///  63: 0x3F00 - 0x3FFF :: backed (user prog)
 ///  64: 0x4000 - 0x40FF :: backed (user prog)
-///  65: 0x4100 - 0x41FF :: backed (user prog)
-///  66: 0x4200 - 0x42FF :: backed (user prog)
+// ///  65: 0x4100 - 0x41FF :: backed (user prog)
+// ///  66: 0x4200 - 0x42FF :: backed (user prog)
 /// ..........................................
 /// 254: 0xFE00 - 0xFEFF :: backed (mem mapped special)
 /// 255: 0xFF00 - 0xFFFF :: backed (mem mapped special)
 ///
-/// 32 of these pages will occupy 10KiB of RAM, which we should be able to
+/// 28 of these pages will occupy 14KiB of RAM, which we should be able to
 /// handle.
 ///
 #[repr(packed)]
 pub struct PartialMemory {
     program_data: ProgramMetadata,
-    pages: [[Word; Self::PAGE_SIZE]; 32],
+    pages: [[Word; Self::PAGE_SIZE]; 28],
     zero: Word,
     void: Word,
 }
@@ -67,10 +67,10 @@ static __PARTIAL_MEM_SIZE_CHK: () = {
     let canary = [()];
     let size = core::mem::size_of::<PartialMemory>();
 
-    canary[size - ((32 * 512) + 8 + 28)]
+    canary[size - ((28 * 512) + 8 + 28)]
 };
 
-sa::const_assert!(core::mem::size_of::<PartialMemory>() == (32 * 512) + 8 + 28);
+sa::const_assert!(core::mem::size_of::<PartialMemory>() == (28 * 512) + 8 + 28);
 
 impl PartialMemory {
     const PAGE_SIZE: usize = 0x0100; // TODO: Use `PageAccess`?
@@ -80,8 +80,8 @@ impl PartialMemory {
 
         match addr {
             0x0000..=0x07FF => Some(((addr as usize / Self::PAGE_SIZE), offset)),
-            0x2F00..=0x42FF => Some(((addr as usize / Self::PAGE_SIZE) - 0x2F + 10, offset)),
-            0xFE00..=0xFEFF => Some(((addr as usize / Self::PAGE_SIZE) - 0xFE + 30, offset)),
+            0x2F00..=0x40FF => Some(((addr as usize / Self::PAGE_SIZE) - 0x2F + 8, offset)),
+            0xFE00..=0xFEFF => Some(((addr as usize / Self::PAGE_SIZE) - 0xFE + 26, offset)),
             _ => None,
         }
     }
@@ -117,7 +117,7 @@ impl IndexMut<Addr> for PartialMemory {
 impl Default for PartialMemory {
     fn default() -> Self {
         Self {
-            pages: [[0; PartialMemory::PAGE_SIZE]; 32],
+            pages: [[0; PartialMemory::PAGE_SIZE]; 28],
             program_data: ProgramMetadata::default(),
             zero: 0,
             void: 0,
