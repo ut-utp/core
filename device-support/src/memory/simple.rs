@@ -142,6 +142,23 @@ impl Memory for PartialMemory {
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) { self.program_data = metadata }
 }
 
+// For want of placement new:
+// We can't construct this in place — as in, inside the `Interpreter` struct;
+// instead we have to construct it, and then _move it_ into place. This is a
+// meaningful distinction for embedded things because doing the latter requires
+// allocating enough stack space for *two* instances of this type: one that's
+// going to be moved and one _inside_ of the Interpreter. Even though the memory
+// instance that's going to be moved can have its stack space repurposed, the
+// point is that this makes the maximum stack space required greater than what
+// the device actually has (this is also why we can't use the
+// `InterpreterBuilder` interface on embedded, I think). It's not clear to me
+// why the optimizer can't const fold the stack instance of this type away
+// (perhaps if we actually had a const constructor?).
+//
+// As a workaround, below we implement the Memory trait on _references_ to this
+// type. That way, just a reference to the initial stack allocated memory
+// instance can be used and passed in as the Interpreter's memory impl.
+
 #[deny(unconditional_recursion)]
 impl Index<Addr> for &'_ mut PartialMemory {
     type Output = Word;
