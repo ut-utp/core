@@ -36,15 +36,19 @@ use lc3_traits::control::Control;
 
 use std::any::Any;
 
-pub mod board;
 pub mod sim;
-pub mod sim_rpc;
 pub mod websocket;
 
-pub use board::*;
 pub use sim::*;
-pub use sim_rpc::*;
 pub use websocket::*;
+
+not_wasm! {
+    pub mod board;
+    pub mod sim_rpc;
+
+    pub use board::*;
+    pub use sim_rpc::*;
+}
 
 #[derive(Debug)]
 pub struct BlackBox {

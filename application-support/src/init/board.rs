@@ -62,8 +62,8 @@ enum SerialSettings {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoardConfig<P: AsRef<Path>> {
-    path: P,
-    serial_settings: SerialSettings,
+    pub path: P,
+    pub serial_settings: SerialSettings,
 }
 
 // TODO: use Strings instead?
