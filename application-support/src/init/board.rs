@@ -55,7 +55,7 @@ where
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum SerialSettings {
+pub enum SerialSettings {
     DefaultsWithBaudRate { baud_rate: u32 },
     Custom(SerialPortSettings),
 }
