@@ -75,6 +75,7 @@ sa::const_assert!(core::mem::size_of::<PartialMemory>() == (28 * 512) + 8 + 28);
 impl PartialMemory {
     const PAGE_SIZE: usize = 0x0100; // TODO: Use `PageAccess`?
 
+    #[inline]
     fn addr_to_page(addr: Addr) -> Option<(usize, usize)> {
         let offset: usize = (addr as usize) % Self::PAGE_SIZE;
 
@@ -90,6 +91,7 @@ impl PartialMemory {
 impl Index<Addr> for PartialMemory {
     type Output = Word;
 
+    #[inline]
     fn index(&self, addr: Addr) -> &Self::Output {
         match PartialMemory::addr_to_page(addr) {
             Some((page, offset)) => {
@@ -101,6 +103,7 @@ impl Index<Addr> for PartialMemory {
 }
 
 impl IndexMut<Addr> for PartialMemory {
+    #[inline]
     fn index_mut(&mut self, addr: Addr) -> &mut Self::Output {
         match PartialMemory::addr_to_page(addr) {
             Some((page, offset)) => {
@@ -116,9 +119,16 @@ impl IndexMut<Addr> for PartialMemory {
 
 impl Default for PartialMemory {
     fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl PartialMemory {
+    #[inline]
+    pub const fn new() -> Self {
         Self {
             pages: [[0; PartialMemory::PAGE_SIZE]; 28],
-            program_data: ProgramMetadata::default(),
+            program_data: ProgramMetadata::empty(),
             zero: 0,
             void: 0,
         }

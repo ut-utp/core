@@ -34,6 +34,10 @@ impl Default for ProgramId {
 }
 
 impl ProgramId {
+    pub const fn unknown() -> Self {
+        Self::Unknown
+    }
+
     // Can't be const until const traits arrive (`Hasher`).
     pub fn new(program: &MemoryDump) -> Self {
         #[allow(deprecated)]
@@ -50,7 +54,7 @@ impl ProgramId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ProgramMetadata {
     pub name: LongIdentifier,
     pub id: ProgramId,
@@ -58,7 +62,21 @@ pub struct ProgramMetadata {
     pub last_modified: u64,
 }
 
+impl Default for ProgramMetadata {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl ProgramMetadata {
+    pub const fn empty() -> Self {
+        Self {
+            name: LongIdentifier::unknown(),
+            id: ProgramId::unknown(),
+            last_modified: 0,
+        }
+    }
+
     pub fn new(
         name: LongIdentifier,
         program: &MemoryDump,
@@ -132,11 +150,15 @@ impl LongIdentifier {
 
 impl Default for LongIdentifier {
     fn default() -> Self {
-        Self::new_from_str("unknown!").unwrap()
+        Self::unknown()
     }
 }
 
 impl LongIdentifier {
+    pub const fn unknown() -> Self {
+        Self::new_from_str_that_crashes_on_invalid_inputs("unknown!")
+    }
+
     pub fn new(name: [u8; Self::MAX_LEN]) -> Result<Self, ()> {
         if !name.iter().all(|c| c.is_ascii()) {
             Err(())
@@ -161,6 +183,51 @@ impl LongIdentifier {
         }
 
         Ok(Self(arr))
+    }
+
+    pub const fn new_that_crashes_on_invalid_inputs(
+        name: [u8; Self::MAX_LEN],
+    ) -> Self {
+        // `is_ascii` == `*c & 128 == 0`
+        let canary: [(); 1] = [()];
+
+        macro_rules! is_ascii {
+            ($($num:literal)*) => {$(
+                // check that the high bit isn't set:
+                canary[(name[$num] & 128) as usize];
+            )*};
+        }
+
+        is_ascii!{ 0 1 2 3 4 5 6 7 }
+
+        Self(name)
+    }
+
+    pub const fn new_from_str_that_crashes_on_invalid_inputs(
+        name: &str,
+    ) -> Self {
+        let slice = name.as_bytes();
+
+        let canary: [(); 1] = [()];
+        let input_length_is_not_eight = canary;
+
+        // check that the input length isn't anything other than 8
+        input_length_is_not_eight[slice.len() ^ 8];
+
+        // let [a, b, c, d, e, f, g, h] = *slice;
+        // Self::new_that_crashes_on_invalid_inputs([
+        //     /*a, b, c, d, e, f, g, h,*/
+        // ])
+
+        macro_rules! slice2arr {
+            ($arr:ident: $($idx:literal)*) => {[$(
+                $arr[$idx],
+            )*]};
+        }
+
+        Self::new_that_crashes_on_invalid_inputs(
+            slice2arr!(slice: 0 1 2 3 4 5 6 7)
+        )
     }
 }
 
