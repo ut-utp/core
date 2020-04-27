@@ -568,11 +568,12 @@ where
     fn reset(&mut self) {
         self.interp.halt();
 
+        self.unset_depth_condition();
+
         // Resolve all futures! Doesn't cause problems if reset is called
         // multiple times.
         let _ = self.step();
 
-        self.unset_depth_condition();
         // TODO: unset + reset watchpoints here
 
         InstructionInterpreter::reset(&mut self.interp);
