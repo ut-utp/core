@@ -82,7 +82,7 @@ impl PartialMemory {
         match addr {
             0x0000..=0x07FF => Some(((addr as usize / Self::PAGE_SIZE), offset)),
             0x2F00..=0x40FF => Some(((addr as usize / Self::PAGE_SIZE) - 0x2F + 8, offset)),
-            0xFE00..=0xFEFF => Some(((addr as usize / Self::PAGE_SIZE) - 0xFE + 26, offset)),
+            0xFE00..=0xFFFF => Some(((addr as usize / Self::PAGE_SIZE) - 0xFE + 26, offset)),
             _ => None,
         }
     }
