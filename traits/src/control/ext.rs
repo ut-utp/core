@@ -15,10 +15,11 @@ pub trait StepControl: Control {
     fn set_depth_breakpoint(&mut self, bp: DepthBreakpoint) -> Result<(), ()> {
         let curr = self.get_depth()?;
 
+        #[forbid(unreachable_patterns)]
         let range = match bp {
-            StepOut => (..curr).into(),
-            StepIn => (curr..).into(),
-            StepOver => (..=curr).into(),
+            DepthBreakpoint::StepOut => (..curr).into(),
+            DepthBreakpoint::StepIn => (curr..).into(),
+            DepthBreakpoint::StepOver => (..=curr).into(),
         };
 
         self.set_depth_condition(range).map(|_| ())
