@@ -29,7 +29,7 @@ pub trait StepControl: Control {
     }
 
     fn step_in(&mut self) -> Result<(), ()> {
-        self.set_depth_breakpoint(DepthBreakpoint::StepOut)
+        self.set_depth_breakpoint(DepthBreakpoint::StepIn)
     }
 
     fn step_over(&mut self) -> Result<(), ()> {
