@@ -572,7 +572,7 @@ where
         // multiple times.
         let _ = self.step();
 
-        // TODO: unset depth condition here
+        self.unset_depth_condition();
         // TODO: unset + reset watchpoints here
 
         InstructionInterpreter::reset(&mut self.interp);
