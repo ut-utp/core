@@ -65,8 +65,27 @@ impl Transport<Fifo<u8>, Fifo<u8>> for HostUartTransport {
     fn send(&self, message: Fifo<u8>) -> IoResult<()> {
         let mut serial = self.serial.borrow_mut();
 
-        serial.write(message.as_slice()).map(|_| ())?;
-        serial.flush()
+        use std::io::ErrorKind;
+
+        macro_rules! block {
+            ($e:expr) => {
+                loop {
+                    match $e {
+                        Ok(()) => break IoResult::Ok(()),
+                        Err(e) => match e.kind() {
+                            ErrorKind::WouldBlock => continue,
+                            _ => return Err(e),
+                        }
+                    }
+                }
+            };
+        }
+
+        // serial.write(message.as_slice()).map(|_| ())?;
+        // serial.flush()
+
+        block!(serial.write(message.as_slice()).map(|_| ()));
+        block!(serial.flush())
     }
 
     fn get(&self) -> Result<Fifo<u8>, Option<Error>> {
