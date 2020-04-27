@@ -24,7 +24,7 @@ lc3-shims = { path = "shims", version = "0.1.0" }
 lc3-traits = { path = "traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
 lc3-os = { path = "os", version = "0.1.0" }
 
-criterion = "0.3.0"
+criterion = "0.3.2"
 async-std = "1.4.0"
 lazy_static = "1.4.0"
 
