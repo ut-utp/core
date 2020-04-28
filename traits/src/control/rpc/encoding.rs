@@ -176,7 +176,7 @@ use core::convert::Infallible;
 pub trait Encode<Message: Debug> {
     type Encoded: Debug;
 
-    fn encode(&mut self, message: Message) -> Self::Encoded;
+    fn encode(&mut self, message: &Message) -> Self::Encoded;
 }
 
 // Implementors provide:
@@ -206,10 +206,10 @@ impl<T> Default for CoreConvert<T> {
 impl<Encoded, Message> Encode<Message> for CoreConvert<Encoded>
 where
     Encoded: Debug,
-    Message: Debug + Into<Encoded>,
+    Message: Debug + Clone + Into<Encoded>,
 {
     type Encoded = Encoded;
-    fn encode(&mut self, message: Message) -> Self::Encoded { message.into() }
+    fn encode(&mut self, message: &Message) -> Self::Encoded { message.clone().into() }
 }
 
 impl<Encoded, Message> Decode<Message> for CoreConvert<Encoded>
@@ -292,11 +292,12 @@ impl<T: Debug> Default for Transparent<T> {
     }
 }
 
-impl<Message: Debug> Encode<Message> for Transparent<Message> {
+impl<Message: Debug + Clone> Encode<Message> for Transparent<Message> {
     type Encoded = Message;
 
-    fn encode(&mut self, message: Message) -> Self::Encoded {
-        message
+    #[inline]
+    fn encode(&mut self, message: &Message) -> Self::Encoded {
+        message.clone()
     }
 }
 
@@ -304,6 +305,7 @@ impl<Message: Debug + Clone> Decode<Message> for Transparent<Message> {
     type Encoded = Message;
     type Err = Infallible;
 
+    #[inline]
     fn decode(&mut self, message: &Self::Encoded) -> Result<Message, Self::Err> {
         Ok(message.clone())
     }
@@ -362,7 +364,7 @@ where
 {
     type Encoded = <Enc as Encode<Message>>::Encoded;
 
-    fn encode(&mut self, message: Message) -> Self::Encoded {
+    fn encode(&mut self, message: &Message) -> Self::Encoded {
         self.enc.encode(message)
         // <Enc as Encode<Message>>::encode(message)
     }
@@ -434,6 +436,7 @@ impl<A, Outer> ChainedEncode<A, <Outer as Encode<A>>::Encoded, Outer, Transparen
 where
     A: Debug,
     Outer: Default + Encode<A>,
+    <Outer as Encode<A>>::Encoded: Clone,
 {
     pub fn new_detached() -> Self { Default::default() }
 }
@@ -442,6 +445,7 @@ impl<A, Outer> ChainedEncode<A, <Outer as Encode<A>>::Encoded, Outer, Transparen
 where
     A: Debug,
     Outer: Encode<A>,
+    <Outer as Encode<A>>::Encoded: Clone,
 {
     pub /*const*/ fn new(outer: Outer) -> Self {
         // Self::with(outer, Transparent::default())
@@ -550,9 +554,9 @@ where
 {
     type Encoded = <Inner as Encode<B>>::Encoded;
 
-    fn encode(&mut self, message: A) -> Self::Encoded {
+    fn encode(&mut self, message: &A) -> Self::Encoded {
         let b: B = <Outer as Encode<A>>::encode(&mut self.outer, message);
-        <Inner as Encode<B>>::encode(&mut self.inner, b)
+        <Inner as Encode<B>>::encode(&mut self.inner, &b)
     }
 }
 
@@ -926,9 +930,9 @@ where
 {
     type Encoded = <Inner as Encode<B>>::Encoded;
 
-    fn encode(&mut self, message: A) -> <Inner as Encode<B>>::Encoded {
+    fn encode(&mut self, message: &A) -> <Inner as Encode<B>>::Encoded {
         let b: B = <Outer as Encode<A>>::encode(&mut self.outer, message);
-        <Inner as Encode<B>>::encode(&mut self.inner, b)
+        <Inner as Encode<B>>::encode(&mut self.inner, &b)
     }
 }
 
@@ -1009,7 +1013,7 @@ mod tests {
     #[test]
     fn transparent() {
         fn check<T: Debug + Clone + Eq>(inp: T) {
-            assert_eq!(inp, Transparent::default().encode(inp.clone()));
+            assert_eq!(inp, Transparent::default().encode(&inp.clone()));
             assert_eq!(inp, Transparent::default().decode(&inp).unwrap());
         }
 
