@@ -188,42 +188,188 @@ pub enum ResponseMessage { // messages for everything but tick()
     // no id!
 }
 
-// TODO: maybe do the below so the transparent Encoding can be used with
-// RequestMessage / ResponseMessage?
+
+// This workaround allows us to avoid having a Clone impl on RequestMessage and
+// ResponseMessage which allows us to avoid having a Clone impl on
+// LoadApiSession which makes it harder to misuse the Load API.
 //
-// // This workaround allows us to avoid having a Clone impl on RequestMessage and
-// // ResponseMessage which allows us to avoid having a Clone impl on
-// // LoadApiSession which makes it harder to misuse the Load API.
-// //
-// // However, as the below illustrates the absence of a Clone impl for
-// // LoadApiSession does not close all the holes; it's still possible to 'clone'
-// // it using Serialize/Deserialize as we do below.
-// use core::convert::Infallible;
-// use crate::control::rpc::encoding::{Encode, Decode, Transparent};
+// The absence of a Clone impl for LoadApiSession does not close all the holes;
+// it's still possible to 'clone' it using Serialize/Deserialize.
+//
+// This was going to be the workaround for implementing Transparent for Req/Resp
+// below but rather than go through the trouble of creating our own no-op serde
+// Serializer and Deserializer, we just implement Clone (using unsafe). The
+// reasoning here is that there are already holes in LoadApiSession and being
+// able to clone a Request or Response Message with a LoadApiSession instance in
+// it isn't really a problem since people outside of this crate can't actually
+// extract the fields of Req/Resp messages.
+//
+// As for the use of unsafe: LoadApiSession is the only thing in the type that
+// doesn't impl Clone and this is not for memory safety reasons.
+//
+// In case this is not true for fields that are added later (and also because
+// not everything in the above impls Copy) we match on the variants and
+// clone/copy them manually.
 
-// type Req = RequestMessage;
-// type Resp = ResponseMessage
+use core::mem::MaybeUninit;
+use core::ptr::copy;
 
-// impl Encode<Req> for Transparent<Req> {
-//     type Encoded = Req;
-// }
+unsafe fn force_clone<T>(inp: &T) -> T {
+    let mut out: MaybeUninit<T> = MaybeUninit::uninit();
 
-// impl Decode<Req> for Transparent<Req> {
-//     type Encoded = Req;
-//     type Err = Infallible;
+    #[allow(unsafe_code, unused_unsafe)]
+    // This isn't universally safe; the caller has to promise that T is really
+    // a Copy type (or _could be_ a Copy type).
+    unsafe { copy(inp as *const _, out.as_mut_ptr(), 1); }
 
-//     fn decode(&mut self, message: &Req) -> Result<Req, Infallible> {
+    #[allow(unsafe_code, unused_unsafe)]
+    // This is safe since we just wrote to all the bits in T when we did the
+    // copy above.
+    unsafe { out.assume_init() }
+}
 
-//     }
-// }
+impl Clone for RequestMessage {
+    #[must_use = "cloning is often expensive and is not expected to have side effects"]
+    #[inline]
+    fn clone(&self) -> Self {
+        use RequestMessage::*;
+        macro_rules! variants {
+            ($(
+                $nom:tt $({ $($fields:ident),* })?
+            ),*) => {
+                match self {
+                    $(
+                        $nom $({ $($fields),* })? => $nom $({ $($fields: $fields.clone()),* })?,
+                    )*
+                    StartPageWrite { page, checksum } => {
+                        StartPageWrite {
+                            #[allow(unsafe_code)]
+                            page: unsafe { force_clone(page) },
+                            checksum: *checksum,
+                        }
+                    },
+                    SendPageChunk { offset, chunk } => {
+                        SendPageChunk {
+                            #[allow(unsafe_code)]
+                            offset: unsafe { force_clone(offset) },
+                            chunk: chunk.clone(),
+                        }
+                    },
+                    FinishPageWrite { page } => {
+                        FinishPageWrite {
+                            #[allow(unsafe_code)]
+                            page: unsafe { force_clone(page) }
+                        }
+                    }
+                }
+            };
+        }
 
-// impl Encode<Resp> for Transparent<Resp> {
-//     type Encoded = Resp;
+        variants! {
+            GetPc,
+            SetPc { addr },
+            GetRegister { reg },
+            SetRegister { reg, data },
+            GetRegistersPsrAndPc,
+            ReadWord { addr },
+            WriteWord { addr, word },
+            SetBreakpoint { addr },
+            UnsetBreakpoint { idx },
+            GetBreakpoints,
+            GetMaxBreakpoints,
+            SetMemoryWatchpoint { addr },
+            UnsetMemoryWatchpoint { idx },
+            GetMemoryWatchpoints,
+            GetMaxMemoryWatchpoints,
+            SetDepthCondition { condition },
+            UnsetDepthCondition,
+            GetDepth,
+            GetCallStack,
+            RunUntilEvent,
+            Step,
+            Pause,
+            GetState,
+            Reset,
+            GetError,
+            GetGpioStates,
+            GetGpioReadings,
+            GetAdcStates,
+            GetAdcReadings,
+            GetTimerModes,
+            GetTimerStates,
+            GetPwmStates,
+            GetPwmConfig,
+            GetClock,
+            GetDeviceInfo,
+            GetProgramMetadata,
+            SetProgramMetadata { metadata }
+        }
+    }
+}
 
-// }
+impl Clone for ResponseMessage {
+    #[must_use = "cloning is often expensive and is not expected to have side effects"]
+    #[inline]
+    fn clone(&self) -> Self {
+        use ResponseMessage::*;
+        macro_rules! variants {
+            ($(
+                $nom:tt $(( $($fields:ident),* ))?
+            ),*) => {
+                match self {
+                    $(
+                        $nom $(( $($fields),* ))? => $nom $(( $($fields.clone()),* ))?,
+                    )*
+                    StartPageWrite(r) => {
+                        #[allow(unsafe_code)]
+                        StartPageWrite(unsafe { force_clone(r) })
+                    }
+                }
+            };
+        }
 
-// impl Decode<ResponseMessage> for Transparent<Resp> {
-//     type Encoded = Resp;
-//     type Err = core::convert::Infallible;
+        variants! {
+            GetPc(a),
+            SetPc,
+            GetRegister(w),
+            SetRegister,
+            GetRegistersPsrAndPc(t),
+            ReadWord(w),
+            WriteWord,
+            SetBreakpoint(r),
+            UnsetBreakpoint(r),
+            GetBreakpoints(bps),
+            GetMaxBreakpoints(i),
+            SetMemoryWatchpoint(r),
+            UnsetMemoryWatchpoint(r),
+            GetMemoryWatchpoints(wps),
+            GetMaxMemoryWatchpoints(i),
+            SetDepthCondition(r),
+            UnsetDepthCondition(r),
+            GetDepth(r),
+            GetCallStack(s),
+            RunUntilEventAck,
+            RunUntilEvent(e),
+            Step(e),
+            Pause,
+            GetState(s),
+            Reset,
+            GetError(e),
+            GetGpioStates(s),
+            GetGpioReadings(r),
+            GetAdcStates(s),
+            GetAdcReadings(r),
+            GetTimerModes(m),
+            GetTimerStates(s),
+            GetPwmStates(s),
+            GetPwmConfig(c),
+            GetClock(w),
+            GetDeviceInfo(i),
+            GetProgramMetadata(m),
+            SetProgramMetadata,
 
-// }
+            SendPageChunk(r),
+            FinishPageWrite(r)
+        }
+    }
+}
