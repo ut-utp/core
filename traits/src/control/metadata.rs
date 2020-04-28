@@ -145,7 +145,7 @@ using_std! {
 pub struct LongIdentifier([u8; 8]);
 
 impl LongIdentifier {
-    const MAX_LEN: usize = 8;
+    pub const MAX_LEN: usize = 8;
 }
 
 impl Default for LongIdentifier {
@@ -248,7 +248,7 @@ impl AsRef<str> for LongIdentifier {
 pub struct Identifier([u8; 4]);
 
 impl Identifier {
-    const MAX_LEN: usize = 4;
+    pub const MAX_LEN: usize = 4;
 }
 
 impl Identifier {
