@@ -691,6 +691,18 @@ impl Bits for Word {
     }
 }
 
+// TODO: make this a macro; impl for u8, u16, u32, u64, u128, usize
+impl Bits for u32 {
+    fn bit(self, bit: u32) -> bool {
+        ((self >> bit) & 1) == 1
+    }
+
+    fn bits(self, range: Range<u32>) -> usize {
+        let mask = !(core::u32::MAX << ((range.end + 1) - range.start));
+        ((self >> range.start) & mask) as usize
+    }
+}
+
 impl TryFrom<Word> for Instruction {
     type Error = Word;
 
