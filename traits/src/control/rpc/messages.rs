@@ -50,7 +50,6 @@ static __REQ_SIZE_CHECK: () = {
 pub const REQUEST_MESSAGE_SIZE: usize = core::mem::size_of::<RequestMessage>();
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum RequestMessage { // messages for everything but tick()
     GetPc,
@@ -125,7 +124,6 @@ static __RESP_SIZE_CHECK: () = {
 pub const RESPONSE_MESSAGE_SIZE: usize = core::mem::size_of::<ResponseMessage>();
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum ResponseMessage { // messages for everything but tick()
     GetPc(Addr),
@@ -189,3 +187,43 @@ pub enum ResponseMessage { // messages for everything but tick()
 
     // no id!
 }
+
+// TODO: maybe do the below so the transparent Encoding can be used with
+// RequestMessage / ResponseMessage?
+//
+// // This workaround allows us to avoid having a Clone impl on RequestMessage and
+// // ResponseMessage which allows us to avoid having a Clone impl on
+// // LoadApiSession which makes it harder to misuse the Load API.
+// //
+// // However, as the below illustrates the absence of a Clone impl for
+// // LoadApiSession does not close all the holes; it's still possible to 'clone'
+// // it using Serialize/Deserialize as we do below.
+// use core::convert::Infallible;
+// use crate::control::rpc::encoding::{Encode, Decode, Transparent};
+
+// type Req = RequestMessage;
+// type Resp = ResponseMessage
+
+// impl Encode<Req> for Transparent<Req> {
+//     type Encoded = Req;
+// }
+
+// impl Decode<Req> for Transparent<Req> {
+//     type Encoded = Req;
+//     type Err = Infallible;
+
+//     fn decode(&mut self, message: &Req) -> Result<Req, Infallible> {
+
+//     }
+// }
+
+// impl Encode<Resp> for Transparent<Resp> {
+//     type Encoded = Resp;
+
+// }
+
+// impl Decode<ResponseMessage> for Transparent<Resp> {
+//     type Encoded = Resp;
+//     type Err = core::convert::Infallible;
+
+// }
