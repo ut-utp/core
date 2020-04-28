@@ -8,7 +8,7 @@ use crate::{
 
 use lc3_shims::peripherals::SourceShim;
 use lc3_traits::control::rpc::{
-    encoding::Transparent, futures::SyncEventFutureSharedState, mpsc_sync_pair,
+    encoding::JsonEncoding, futures::SyncEventFutureSharedState, mpsc_sync_pair,
     Controller, MpscTransport, RequestMessage, ResponseMessage,
 };
 
@@ -24,12 +24,12 @@ lazy_static::lazy_static! {
 
 type Cont<'ss> = Controller<
     'ss,
-    MpscTransport<RequestMessage, ResponseMessage>,
+    MpscTransport<String, String>,
     SyncEventFutureSharedState,
     RequestMessage,
     ResponseMessage,
-    Transparent<RequestMessage>,
-    Transparent<ResponseMessage>,
+    JsonEncoding,
+    JsonEncoding,
 >;
 
 pub struct SimWithRpcDevice<'ss> {
@@ -66,10 +66,10 @@ impl<'s> Init<'s> for SimWithRpcDevice<'static> {
         let (controller, device) = mpsc_sync_pair::<
             RequestMessage,
             ResponseMessage,
-            Transparent<_>,
-            Transparent<_>,
-            Transparent<_>,
-            Transparent<_>,
+            JsonEncoding,
+            JsonEncoding,
+            JsonEncoding,
+            JsonEncoding,
             _,
         >(&EVENT_FUTURE_SHARED_STATE_CONT);
 
