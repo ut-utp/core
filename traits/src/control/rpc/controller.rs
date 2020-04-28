@@ -111,29 +111,14 @@ where
 // TODO: this is a stopgap; eventually we should have an error variant on the
 // req/resp message enums. See the notes in `device-support/src/rpc/mod.rs` for
 // more.
-//
-// TODO: when the Try trait goes stable, impl it on this type.
+
+// TODO: when the Try trait goes stable, impl it on this type or something like it.
 /*#[derive(Debug, Clone)]
-enum TickAttempt<M> {
+enum TickAttempt<M, D, T> {
     NoMessage,
     Message(M),
-    DecodeError,
-    TransportError,
-}
-
-impl<M> From<Option<M>> for TickAttempt<M> {
-    fn from(opt: Option<M>) -> Self {
-        match opt {
-            Some(m) => TickAttempt::Message(m),
-            None => TickAttempt::NoMessage,
-        }
-    }
-}
-
-impl<M, E> From<Result<M, Option<E>>> for TickAttempt<M> {
-    fn from(transport_res: Result<M, Option<E>>) -> Self {
-        todo!()
-    }
+    DecodeError(D),
+    TransportError(T),
 }*/
 
 // Until we have Try this is more ergonomic:
@@ -143,12 +128,6 @@ enum TickError<DecErr, TranspErr> {
 }
 
 type TickAttempt<M, D, T> = Result<M, Option<TickError<D, T>>>;
-
-// impl<D, T> From<Option<T>> for Option<TickError<D, T>> {
-//     fn from(transport_err: Option<T>) -> Self {
-//         transport_err.map(|t| TickError::TransportError(t))
-//     }
-// }
 
 impl<'a, Req, Resp, E, D, T, S> Controller<'a, T, S, Req, Resp, E, D>
 where
