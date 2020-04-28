@@ -44,7 +44,7 @@ where
     <R as Read<u8>>::Error: Debug,
     <W as Write<u8>>::Error: Debug,
 {
-    type RecvErr = Option<R::Error>; // TODO: fix this by changing `get` in Transport
+    type RecvErr = R::Error;
     type SendErr = W::Error;
 
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("UART");

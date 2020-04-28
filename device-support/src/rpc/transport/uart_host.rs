@@ -50,7 +50,7 @@ impl HostUartTransport {
 // TODO: on std especially we don't need to pass around buffers; we can be
 // zero-copy...
 impl Transport<Fifo<u8>, Fifo<u8>> for HostUartTransport {
-    type RecvErr = Option<Error>; // TODO: again, this is a stopgap.
+    type RecvErr = Error;
     type SendErr = Error;
 
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("UART");
