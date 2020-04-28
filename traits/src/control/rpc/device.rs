@@ -287,11 +287,12 @@ where
                 // println!("device future is done!");
                 self.pending_event_future = None;
 
-                let enc = self.enc.encode(R::RunUntilEvent(event).into());
+                let enc = self.enc.encode(&R::RunUntilEvent(event).into());
                 self.transport.send(enc).unwrap(); // TODO: don't panic?
             }
         }
 
+        // TODO: don't panic on decode failures here.
         while let Ok(m) = self.transport.get().map(|enc| self.dec.decode(&enc).unwrap().into()) {
             num_processed_messages += 1;
 
@@ -305,11 +306,11 @@ where
                             } else {
                                 // self.pending_event_future = Some(Pin::new(c.run_until_event()));
                                 self.pending_event_future = Some(c.run_until_event());
-                                self.transport.send(self.enc.encode(R::RunUntilEventAck.into())).unwrap()
+                                self.transport.send(self.enc.encode(&R::RunUntilEventAck.into())).unwrap()
                             }
                         },
                         $(
-                            $req => self.transport.send(self.enc.encode({
+                            $req => self.transport.send(self.enc.encode(&{
                                 let $r = $resp_expr;
                                 $($resp)+
                             }.into())).unwrap(),

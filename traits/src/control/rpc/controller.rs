@@ -108,6 +108,48 @@ where
     }
 }
 
+// TODO: this is a stopgap; eventually we should have an error variant on the
+// req/resp message enums. See the notes in `device-support/src/rpc/mod.rs` for
+// more.
+//
+// TODO: when the Try trait goes stable, impl it on this type.
+/*#[derive(Debug, Clone)]
+enum TickAttempt<M> {
+    NoMessage,
+    Message(M),
+    DecodeError,
+    TransportError,
+}
+
+impl<M> From<Option<M>> for TickAttempt<M> {
+    fn from(opt: Option<M>) -> Self {
+        match opt {
+            Some(m) => TickAttempt::Message(m),
+            None => TickAttempt::NoMessage,
+        }
+    }
+}
+
+impl<M, E> From<Result<M, Option<E>>> for TickAttempt<M> {
+    fn from(transport_res: Result<M, Option<E>>) -> Self {
+        todo!()
+    }
+}*/
+
+// Until we have Try this is more ergonomic:
+enum TickError<DecErr, TranspErr> {
+    DecodeError(DecErr),
+    TransportError(TranspErr),
+}
+
+type TickAttempt<M, D, T> = Result<M, Option<TickError<D, T>>>;
+
+// impl<D, T> From<Option<T>> for Option<TickError<D, T>> {
+//     fn from(transport_err: Option<T>) -> Self {
+//         transport_err.map(|t| TickError::TransportError(t))
+//     }
+// }
+
 impl<'a, Req, Resp, E, D, T, S> Controller<'a, T, S, Req, Resp, E, D>
 where
     Req: Debug,
@@ -124,9 +166,14 @@ where
     //
     // Responses to our one non-blocking call (`run_until_event`) are the only
     // thing that could interrupt this.
-    fn tick(&self) -> Option<ResponseMessage> {
-        let encoded_message = self.transport.get().ok()?;
-        let message = self.dec.borrow_mut().decode(&encoded_message).unwrap(); // TODO: don't panic;
+    fn tick(&self) -> TickAttempt<ResponseMessage, D::Err, T::RecvErr> {
+        let encoded_message = self.transport.get()
+            .map_err(|e| e.map(|inner| TickError::TransportError(inner)))?;
+
+        let message = self.dec.borrow_mut()
+            .decode(&encoded_message)
+            .map_err(|d| Some(TickError::DecodeError(d)))?; // TODO: do better?
+
         let message = message.into();
 
         if let ResponseMessage::RunUntilEvent(event) = message {
@@ -135,14 +182,14 @@ where
                 self.shared_state.resolve_all(event).unwrap();
                 self.waiting_for_event.store(false, Ordering::SeqCst);
 
-                None
+                /*NoMessage*/ Err(None)
             } else {
                 // Something has gone very wrong.
                 // We were told an event happened but we never asked.
                 unreachable!()
             }
         } else {
-            Some(message)
+            Ok(message)
         }
     }
 }
@@ -152,14 +199,39 @@ macro_rules! ctrl {
     ($s:ident, $req:expr, $resp:pat$(, $ret:expr)?) => {{
         use RequestMessage::*;
         use ResponseMessage as R;
-        $s.transport.send($s.enc.borrow_mut().encode($req.into())).unwrap(); // TODO: don't panic
+        let m = $req.into();
+
+        $s.transport.send($s.enc.borrow_mut().encode(&m)).unwrap(); // TODO: don't panic? not sure how we'd realistically deal with any transport errors..
 
         loop {
-            if let Some(m) = Controller::tick($s) {
-                if let $resp = m {
-                    break $($ret)?
-                } else {
-                    panic!("Incorrect response for message!")
+            match Controller::tick($s) {
+                // If we got a message, process it:
+                Ok(m) => {
+                    if let $resp = m {
+                        break $($ret)?
+                    } else {
+                        panic!("Incorrect response for message!")
+                    }
+                },
+
+                // If we got no message, try, try again:
+                Err(None) => { },
+
+                // If we got a transport error, bail:
+                Err(Some(TickError::TransportError(e))) => panic!("Transport error! `{:?}`", e),
+
+                // If we got a decode error, assume a problem in transmission
+                // and try again.
+                Err(Some(TickError::DecodeError(e))) => {
+                    log::trace!("Decode Error: `{:?}`", e);
+
+                    // TODO: because send _consumes_ the message we have to do
+                    // the encode here. On the one hand having the transport
+                    // consume the message should allow for good zero-copy
+                    // impls but on the other hand it means we can't cache the
+                    // encode in situations like these... Not sure what the
+                    // right tradeoff is.
+                    $s.transport.send($s.enc.borrow_mut().encode(&m)).unwrap(); // TODO: don't panic?
                 }
             }
         }
@@ -235,19 +307,34 @@ where
         // If we're in a sealed batch with pending futures, just crash.
         self.shared_state.add_new_future().expect("no new futures once a batch starts to resolve");
 
+        // TODO: factor out this code; it's a copy of that in the ctrl! macro.
+
+        let m = RequestMessage::RunUntilEvent.into();
+
         // If we're already waiting for an event, don't bother sending the
         // request along again:
         if !self.waiting_for_event.load(Ordering::SeqCst) {
-            self.transport.send(self.enc.borrow_mut().encode(RequestMessage::RunUntilEvent.into())).unwrap();
+            self.transport.send(self.enc.borrow_mut().encode(&m)).unwrap();
 
             // Wait for the acknowledge:
             loop {
-                if let Some(m) = Controller::tick(self) {
-                    if let ResponseMessage::RunUntilEventAck = m {
+                match Controller::tick(self) {
+                    Ok(m) => if let ResponseMessage::RunUntilEventAck = m {
                         break;
                     } else {
                         panic!("Incorrect response for message!")
                     }
+
+                    Err(None) => {},
+
+                    Err(Some(TickError::TransportError(e))) => {
+                        panic!("Transport Error! {:?}", e)
+                    },
+
+                    Err(Some(TickError::DecodeError(e))) => {
+                        log::trace!("Decode Error: {:?}", e);
+                        self.transport.send(self.enc.borrow_mut().encode(&m)).unwrap();
+                    },
                 }
             }
 
@@ -267,7 +354,11 @@ where
         // We should never actually get a message here (run until event responses are
         // handled within `Self::tick()`) though.
         // Self::tick(self).unwrap_none(); // when this goes stable, use this, maybe (TODO)
-        if Self::tick(self).is_some() { panic!("Controller received a message in tick!") }
+        if let Err(None) = Self::tick(self) {
+            /* We expect to get nothing here. */
+        } else {
+            panic!("Controller received a message in tick!")
+        }
 
         // This function can (probably, TODO) be safely _not_ called so we
         // return 0:
