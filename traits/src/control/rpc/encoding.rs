@@ -956,23 +956,27 @@ where
 }
 
 using_std! {
+    use serde::{Serialize, de::DeserializeOwned};
+
     #[cfg(feature = "json_encoding_layer")]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
     pub struct JsonEncoding;
 
     #[cfg(feature = "json_encoding_layer")]
-    impl<Message: Debug> Encode<Message> for JsonEncoding {
+    impl<Message: Debug + Serialize> Encode<Message> for JsonEncoding {
         type Encoded = String;
 
-        fn encode(&mut self, message: Message) -> Self::Encoded {
-            serde_json::to_string(&message).unwrap()
+        fn encode(&mut self, message: &Message) -> Self::Encoded {
+            serde_json::to_string(message).unwrap()
         }
     }
 
     #[cfg(feature = "json_encoding_layer")]
-    impl<Message: Debug> Decode<Message> for JsonEncoding {
+    impl<Message: Debug + DeserializeOwned> Decode<Message> for JsonEncoding {
+        type Encoded = String;
         type Err = serde_json::error::Error;
 
-        fn decode(&mut self, encoded: &Self::Encoded) -> Result<ControlMessage, Self::Err> {
+        fn decode(&mut self, encoded: &Self::Encoded) -> Result<Message, Self::Err> {
             serde_json::from_str(encoded)
         }
     }
