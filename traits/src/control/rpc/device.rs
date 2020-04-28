@@ -292,8 +292,9 @@ where
             }
         }
 
-        // TODO: don't panic on decode failures here.
-        while let Ok(m) = self.transport.get().map(|enc| self.dec.decode(&enc).unwrap().into()) {
+        // TODO: we don't panic on decode failures here, but this is only a stopgap,
+        // first pass solution.
+        while let Ok(m) = self.transport.get().and_then(|enc| self.dec.decode(&enc).map_err(|_| None).map(Into::into)) {
             num_processed_messages += 1;
 
             macro_rules! dev {
