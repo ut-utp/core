@@ -1,5 +1,7 @@
 //! A benchmark that just tries to measure execution speed.
 
+#![cfg_attr(feature = "nightly", feature(test))]
+// #![feature(test)]
 // TODO: have CI run this and give us reports
 
 extern crate criterion;
@@ -8,7 +10,13 @@ extern crate criterion;
 mod common;
 use common::*;
 
-use criterion::black_box;
+#[cfg(feature = "nightly")]
+use std::hint::black_box;
+
+// use criterion::black_box;
+// ^ doesn't work so we just provide a shim for when we're not on nightly:
+#[cfg(not(feature = "nightly"))]
+fn black_box<T>(inp: T) -> T { inp }
 
 // const ITERS: [Word; 6] = [1, 10, 100, 1000, 10_000, 50_000];
 const ITERS: [Word; 5] = [1, 10, 100, 1000, 10_000];
@@ -37,7 +45,7 @@ fn bench_fib(c: &mut Criterion) {
             |b, num| {
                 // eprintln!("hello!");
                 // println!("hello!");
-                let mut int = bare_interpreter(build_fib_memory_image(*num), &flags);
+                let mut int = black_box(bare_interpreter(build_fib_memory_image(*num), &flags));
                 b.iter(|| {
                     int.reset();
                     while let MachineState::Running = int.step() {}

@@ -41,6 +41,11 @@ name = "overhead"
 harness = false
 
 
+[features]
+default = []
+nightly = [] # For benchmarking.
+
+
 [profile.bench]
 opt-level = 3
 debug = false
