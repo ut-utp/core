@@ -24,10 +24,11 @@ pub trait Transport<SendFormat, RecvFormat> {
     /// active). If this function were to block, all progress would be tied to
     /// receiving messages and `run_until_event` would cease to work.
     ///
-    /// Err if no messages were sent, Some(message) otherwise.
-    //
-    // TODO: make this Res<Opt<Recv>, Err>!
-    fn get(&self) -> Result<RecvFormat, Self::RecvErr>; // TODO: should this be wrapped in a Result?
+    /// Err(None) if no messages were sent, Ok(message) otherwise.
+    /// Err(Some(_)) on transport errors.
+    // TODO: went from Result<Option<M>, Err> to Result<M, Option<Err>>; is this
+    // fine? is there a better way?
+    fn get(&self) -> Result<RecvFormat, Option<Self::RecvErr>>;
 
     // Number of invalid/discarded messages.
     fn num_get_errors(&self) -> u64 { 0 }
@@ -53,14 +54,17 @@ using_std! {
             self.tx.send(message)
         }
 
-        fn get(&self) -> Result<Recv, Self::RecvErr> {
+        fn get(&self) -> Result<Recv, Option<Self::RecvErr>> {
             let res = self.rx.try_recv();
 
             if let Ok(ref m) = res {
                 log::trace!("GOT: {:?}", m);
             }
 
-            res
+            res.map_err(|e| match e {
+                TryRecvError::Empty => None,
+                e => Some(e),
+            })
 
             // this breaks `run_until_event`!!
             // This is because calls to Device::step (where progress is made)
