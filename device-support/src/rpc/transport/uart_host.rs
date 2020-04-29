@@ -5,21 +5,22 @@ use crate::util::Fifo;
 use lc3_traits::control::rpc::Transport;
 use lc3_traits::control::{Identifier, Version, version_from_crate};
 
-use mio_serial::{
-    Serial, DataBits, FlowControl, Parity, StopBits, SerialPort
+use serialport::{
+    DataBits, FlowControl, Parity, StopBits, SerialPort,
+    open_with_settings
 };
-pub use mio_serial::SerialPortSettings;
+pub use serialport::SerialPortSettings;
 
 use std::path::Path;
-use std::io::Result as IoResult;
-use std::io::{Read, Write, Error, ErrorKind};
+use std::io::{Read, Write, Error, ErrorKind, Result as IoResult};
 use std::convert::AsRef;
 use std::cell::RefCell;
 use std::time::Duration;
+use std::ffi::OsStr;
 
-#[derive(Debug)]
+// TODO: Debug impl
 pub struct HostUartTransport {
-    serial: RefCell<Serial>,
+    serial: RefCell<Box<dyn SerialPort>>,
     internal_buffer: RefCell<Fifo<u8>>,
 }
 
@@ -38,7 +39,7 @@ impl HostUartTransport {
     }
 
     pub fn new_with_config<P: AsRef<Path>>(path: P, config: SerialPortSettings) -> IoResult<Self> {
-        let serial = Serial::from_path(path, &config)?;
+        let serial = open_with_settings(AsRef::<OsStr>::as_ref(path.as_ref()), &config)?;
 
         Ok(Self {
             serial: RefCell::new(serial),
@@ -65,8 +66,7 @@ impl Transport<Fifo<u8>, Fifo<u8>> for HostUartTransport {
     fn send(&self, message: Fifo<u8>) -> IoResult<()> {
         let mut serial = self.serial.borrow_mut();
 
-        use std::io::ErrorKind;
-
+        // TODO: is this still what we want?
         macro_rules! block {
             ($e:expr) => {
                 loop {
@@ -96,11 +96,11 @@ impl Transport<Fifo<u8>, Fifo<u8>> for HostUartTransport {
 
         let mut temp_buf = [0; 1];
 
-        loop {
+        while serial.bytes_to_read().map_err(|e| Some(e.into()))? != 0 {
             match serial.read(&mut temp_buf) {
                 Ok(1) => {
                     if temp_buf[0] == 0 {
-                        break Ok(core::mem::replace(&mut buf, Fifo::new()))
+                        return Ok(core::mem::replace(&mut buf, Fifo::new()))
                     } else {
                         // TODO: don't panic here; see the note in uart_simple
                         buf.push(temp_buf[0]).unwrap()
@@ -109,14 +109,26 @@ impl Transport<Fifo<u8>, Fifo<u8>> for HostUartTransport {
                 Ok(0) => {},
                 Ok(_) => unreachable!(),
                 Err(err) => {
-                    if let ErrorKind::WouldBlock = err.kind() {
-                        break Err(None)
+                    // if let std::io::ErrorKind::Io(kind) = err.kind() {
+                    //     if let std::io::ErrorKind::WouldBlock = kind {
+                    //         return Err(None)
+                    //     } else {
+                    //         return Err(Some(err))
+                    //     }
+                    // } else {
+                    //     return Err(Some(err))
+                    // }
+
+                    if let std::io::ErrorKind::WouldBlock = err.kind() {
+                        return Err(None)
                     } else {
-                        break Err(Some(err))
+                        return Err(Some(err))
                     }
                 }
             }
         }
+
+        Err(None)
     }
 }
 

@@ -43,7 +43,7 @@ bytes = { version = "0.5.3", default-features = false, optional = true }
 
 # host-transport deps:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-mio-serial = { version = "3.3.1", optional = true }
+serialport = { version = "3.3.0", optional = true }
 
 
 [dev-dependencies]
@@ -54,4 +54,4 @@ pretty_assertions = "0.6.1"
 default = []
 no_std = ["lc3-isa/no_std", "lc3-traits/no_std"]
 alloc = ["bytes"]
-host_transport = ["mio-serial"]
+host_transport = ["serialport"]
