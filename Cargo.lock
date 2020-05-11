@@ -77,6 +77,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 
 [[package]]
+name = "base-x"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b20b618342cf9891c292c4f5ac2cde7287cc5c87e87e9c769d617793607dec1"
+
+[[package]]
 name = "bitflags"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -129,7 +135,7 @@ checksum = "31850b4a4d6bae316f7a09e691c944c28299298837edc0a03f755618c23cbc01"
 dependencies = [
  "num-integer",
  "num-traits",
- "time",
+ "time 0.1.42",
 ]
 
 [[package]]
@@ -283,6 +289,12 @@ name = "difference"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "524cbf6897b527295dff137cec09ecf3a05f4fddffd7dfcd1585403449e74198"
+
+[[package]]
+name = "discard"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "212d0f5754cb6769937f4501cc0e67f4f4483c8d2c3e1e922ee9edbe4ab4c7c0"
 
 [[package]]
 name = "either"
@@ -466,7 +478,7 @@ dependencies = [
  "lc3-macros",
  "lc3-traits",
  "pretty_assertions",
- "time",
+ "time 0.2.15",
  "timer",
 ]
 
@@ -593,7 +605,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2ad2a91a8e869eeb30b9cb3119ae87773a8f4ae617f41b1eb9c154b2905f7bd6"
 dependencies = [
  "memchr",
- "version_check",
+ "version_check 0.1.5",
 ]
 
 [[package]]
@@ -681,6 +693,12 @@ dependencies = [
  "difference",
  "output_vt100",
 ]
+
+[[package]]
+name = "proc-macro-hack"
+version = "0.5.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d659fe7c6d27f25e9d80a1a094c223f5246f6a6596453e09d7229bf42750b63"
 
 [[package]]
 name = "proc-macro2"
@@ -831,6 +849,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha1"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
+
+[[package]]
 name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -843,10 +867,65 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bf77cb82ba8453b42b6ae1d692e4cdc92f9a47beaf89a847c8be83f4e328ad3"
 
 [[package]]
+name = "standback"
+version = "0.2.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47e4b8c631c998468961a9ea159f064c5c8499b95b5e4a34b77849d45949d540"
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "stdweb"
+version = "0.4.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d022496b16281348b52d0e30ae99e01a73d737b2f45d38fed4edf79f9325a1d5"
+dependencies = [
+ "discard",
+ "rustc_version",
+ "stdweb-derive",
+ "stdweb-internal-macros",
+ "stdweb-internal-runtime",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "stdweb-derive"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c87a60a40fccc84bef0652345bbbbbe20a605bf5d0ce81719fc476f5c03b50ef"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_derive",
+ "syn",
+]
+
+[[package]]
+name = "stdweb-internal-macros"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58fa5ff6ad0d98d1ffa8cb115892b6e69d67799f6763e162a1c9db421dc22e11"
+dependencies = [
+ "base-x",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "sha1",
+ "syn",
+]
+
+[[package]]
+name = "stdweb-internal-runtime"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "213701ba3370744dcd1a12960caa4843b3d68b4d1c0a5d575e0d65b2ee9d16c0"
 
 [[package]]
 name = "syn"
@@ -892,6 +971,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "time"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1330829d2e6c06771eeae476be12ff1aa9eb5e29ca718a431ab27168efde6c1"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "standback",
+ "stdweb",
+ "time-macros",
+ "version_check 0.9.1",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "time-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ae9b6e9f095bc105e183e3cd493d72579be3181ad4004fceb01adbe9eecab2d"
+dependencies = [
+ "proc-macro-hack",
+ "time-macros-impl",
+]
+
+[[package]]
+name = "time-macros-impl"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5c3be1edfad6027c69f5491cf4cb310d1a71ecd6af742788c6ff8bced86b8fa"
+dependencies = [
+ "proc-macro-hack",
+ "proc-macro2",
+ "quote",
+ "standback",
+ "syn",
+]
+
+[[package]]
 name = "timer"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -933,6 +1050,12 @@ name = "version_check"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "914b1a6776c4c929a602fafd8bc742e06365d4bcbe48c30f9cca5824f70dc9dd"
+
+[[package]]
+name = "version_check"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "078775d0255232fb988e6fccf26ddc9d1ac274299aaedcedce21c6f72cc533ce"
 
 [[package]]
 name = "walkdir"
