@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         crate: [ lc3-isa ]
-        features: ['', no_std, strict ]
+        features: ['', no_std, strict, arbitrary ]
         os: [ windows-latest, ubuntu-latest, macOS-latest ]
         rust:
           - stable
@@ -50,7 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         crate: [ lc3-isa ]
-        features: ['', no_std, strict ]
+        features: ['', no_std, strict, arbitrary ]
         os: [ ubuntu-latest ]
         rust: [ stable, nightly ]
 

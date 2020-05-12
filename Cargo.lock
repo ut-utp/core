@@ -51,6 +51,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arbitrary"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75153c95fdedd7db9732dfbfc3702324a1627eec91ba56e37cd0ac78314ab2ed"
+dependencies = [
+ "derive_arbitrary",
+]
+
+[[package]]
 name = "async-std"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -306,6 +315,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_arbitrary"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "caedd6a71b6d00bdc458ec8ffbfd12689c1ee7ffa69ad9933310aaf2f08f18d8"
+dependencies = [
+ "proc-macro2",
+ "syn",
+ "synstructure",
+]
+
+[[package]]
 name = "difference"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -532,7 +552,8 @@ dependencies = [
 name = "lc3-isa"
 version = "0.1.0"
 dependencies = [
- "itertools 0.9.0",
+ "arbitrary",
+ "itertools",
  "lc3-macros",
  "pretty_assertions",
  "serde",
@@ -1109,6 +1130,18 @@ checksum = "410a7488c0a728c7ceb4ad59b9567eb4053d02e8cc7f5c0e0eeeb39518369213"
 dependencies = [
  "proc-macro2",
  "quote",
+ "unicode-xid",
+]
+
+[[package]]
+name = "synstructure"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67656ea1dc1b41b1451851562ea232ec2e5a80242139f7e679ceccfb5d61f545"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
  "unicode-xid",
 ]
 

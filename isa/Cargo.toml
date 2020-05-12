@@ -32,6 +32,7 @@ lc3-macros = { path = "../macros", version = "0.1.0" }
 
 serde = { version = "1.0", default-features = false, features = ["derive"]}
 static_assertions = "1.1.0"
+arbitrary = { version = "0.4.1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 itertools = "0.9.0"
@@ -42,4 +43,6 @@ pretty_assertions = "0.6.1"
 default = ["no_std"]
 no_std = []
 strict = []
+
+# arbitrary = ["arbitrary"] is implict and can't be used with `no_std`
 nightly-const = [] # Requires nightly; isn't tested by CI.
