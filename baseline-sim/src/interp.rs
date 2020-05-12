@@ -9,11 +9,14 @@ use lc3_isa::{
     PRIVILEGE_MODE_VIOLATION_EXCEPTION_VECTOR, TRAP_VECTOR_TABLE_START_ADDR,
     USER_PROGRAM_START_ADDR,
 };
-use lc3_traits::control::metadata::{Identifier, ProgramMetadata};
+use lc3_traits::control::metadata::{Identifier, ProgramMetadata, Version, version_from_crate};
 use lc3_traits::control::load::{PageIndex, PAGE_SIZE_IN_WORDS};
+use lc3_traits::control::control::MAX_CALL_STACK_DEPTH;
 use lc3_traits::peripherals::{gpio::GpioPinArr, timers::TimerArr};
 use lc3_traits::{memory::Memory, peripherals::Peripherals};
 use lc3_traits::peripherals::{gpio::Gpio, input::Input, output::Output, timers::Timers};
+use lc3_traits::error::Error;
+use crate::mem_mapped::Interrupt;
 
 use core::any::TypeId;
 use core::convert::TryInto;
@@ -21,6 +24,7 @@ use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
 use core::sync::atomic::AtomicBool;
 use core::ops::{Deref, DerefMut};
+use core::cell::Cell;
 
 // TODO: Break up this file!
 
@@ -61,12 +65,46 @@ where
     fn update_special_reg<M: MemMappedSpecial>(&mut self, func: impl FnOnce(M) -> Word) {
         M::update(self, func).unwrap()
     }
+
+    fn reset_peripherals(&mut self) {
+        use lc3_traits::peripherals::gpio::{GPIO_PINS, GpioPin, GpioState};
+        use lc3_traits::peripherals::adc::{Adc, ADC_PINS, AdcPin, AdcState};
+        use lc3_traits::peripherals::pwm::{Pwm, PWM_PINS, PwmPin, PwmState};
+        use lc3_traits::peripherals::timers::{TIMERS, TimerId, TimerMode, TimerState};
+        use lc3_traits::peripherals::clock::Clock;
+
+        for pin in GPIO_PINS.iter() {
+            Gpio::set_state(self.get_peripherals_mut(), *pin, GpioState::Disabled);
+            Gpio::reset_interrupt_flag(self.get_peripherals_mut(), *pin);
+        }
+
+        for pin in ADC_PINS.iter() {
+            Adc::set_state(self.get_peripherals_mut(), *pin, AdcState::Disabled);
+        }
+
+        for pin in PWM_PINS.iter() {
+            Pwm::set_state(self.get_peripherals_mut(), *pin, PwmState::Disabled);
+            Pwm::set_duty_cycle(self.get_peripherals_mut(), *pin, 0);
+        }
+
+        for id in TIMERS.iter() {
+            Timers::set_mode(self.get_peripherals_mut(), *id, TimerMode::SingleShot);
+            Timers::set_state(self.get_peripherals_mut(), *id, TimerState::Disabled);
+            Timers::reset_interrupt_flag(self.get_peripherals_mut(), *id);
+        }
+
+        Clock::set_milliseconds(self.get_peripherals_mut(), 0);
+        Input::reset_interrupt_flag(self.get_peripherals_mut());
+        Output::reset_interrupt_flag(self.get_peripherals_mut());
+    }
 }
 
 pub trait InstructionInterpreter:
     Index<Reg, Output = Word> + IndexMut<Reg, Output = Word> + Sized
 {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Insn");
+    const VER: Version = Version::empty()
+        .pre_from_str_that_crashes_on_invalid_inputs("????");
 
     fn step(&mut self) -> MachineState;
 
@@ -90,6 +128,12 @@ pub trait InstructionInterpreter:
     fn reset(&mut self);
     fn halt(&mut self); // TODO: have the MCR set this, etc.
 
+    fn set_error(&self, err: Error);
+    fn get_error(&self) -> Option<Error>;
+
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH];
+    fn get_call_stack_depth(&self) -> u64;
+
     // Taken straight from Memory:
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]);
 
@@ -100,14 +144,14 @@ pub trait InstructionInterpreter:
     fn type_id() -> TypeId { core::any::TypeId::of::<Instruction>() }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Acv;
 
 pub type ReadAttempt = Result<Word, Acv>;
 
 pub type WriteAttempt = Result<(), Acv>;
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum MachineState {
     Running,
     Halted,
@@ -199,26 +243,82 @@ impl<T> Deref for OwnedOrRef<'_, T> {
 //     }
 // }
 
+#[derive(Debug)]
+pub struct CallStack {
+    stack: [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH],
+    depth: u64,
+}
+
+impl CallStack {
+    pub const fn new() -> Self {
+        Self {
+            stack: [None; MAX_CALL_STACK_DEPTH],
+            depth: 0,
+        }
+    }
+
+    // Push subroutine address to call stack if stack is not full
+    // Always increments depth
+    // -> true if pushed, false otherwise
+    pub fn push(&mut self, subroutine: Addr, in_user_mode: bool) -> bool {
+        let mut success = false;
+
+        // Check if stack is not full
+        if self.depth < MAX_CALL_STACK_DEPTH as u64 {
+            let processor_mode = if in_user_mode {ProcessorMode::User} else {ProcessorMode::Supervisor};
+            self.stack[self.depth as usize] = Some((subroutine, processor_mode));
+            success = true;
+        }
+
+        // Increment depth
+        self.depth = match self.depth.checked_add(1) {
+            Some(val) => val,
+            None => panic!("Overflowed depth of call stack!"),
+        };
+
+        success
+    }
+
+    // Pop subroutine address off of call stack if top of stack matches current depth
+    // Always decrements depth
+    // -> true if popped, false otherwise
+    pub fn pop(&mut self) -> bool {
+        let mut success = false;
+
+        // Decrement depth, saturates at 0 (unsigned)
+        self.depth = self.depth.saturating_sub(1);
+
+        // Check if depth exceeds max saved addrs
+        if self.depth < MAX_CALL_STACK_DEPTH as u64 {
+            self.stack[self.depth as usize] = None;
+            success = true;
+        }
+
+        success
+    }
+}
+
 // #[derive(Debug, Default, Clone)] // TODO: Clone
-#[derive(Debug, Default)]
-pub struct Interpreter<'a, M: Memory, P: Peripherals<'a>> {
+#[derive(Debug)]
+pub struct Interpreter<'per, M: Memory, P: Peripherals<'per>> {
     memory: M,
     peripherals: P,
-    flags: OwnedOrRef<'a, PeripheralInterruptFlags>,
+    // flags: OwnedOrRef<'a, PeripheralInterruptFlags>,
+    flags: PhantomData<OwnedOrRef<'per, PeripheralInterruptFlags>>,
     regs: [Word; Reg::NUM_REGS],
     pc: Word, //TODO: what should the default for this be
     state: MachineState,
+    error: Cell<Option<Error>>,
+    call_stack: CallStack,
 }
 
-// impl<'a, M: Memory, P> Default for Interpreter<'a, M, P>
-// where for <'p> P: Peripherals<'p> {
-//     fn default() -> Self {
-//         Self {
-//             memory: Default::default(),
-//             peripherals: P
-//         }
-//     }
-// }
+impl<'a, M: Memory + Default, P: Peripherals<'a>> Default for Interpreter<'a, M, P> {
+    fn default() -> Self {
+        InterpreterBuilder::new()
+            .with_defaults()
+            .build()
+    }
+}
 
 #[derive(Debug)]
 pub struct Set;
@@ -509,13 +609,37 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         let mut interp = Self {
             memory,
             peripherals,
-            flags,
+            flags: PhantomData,
             regs,
             pc,
             state,
+            error: Cell::new(None),
+            call_stack: CallStack::new(),
         };
 
-        interp.reset(); // TODO: should we? won't that negate setting the regs and pc and stuff?
+        // TODO: we can't call this.
+        // This is a problem; we need to drop the `flags` field from `Interpreter` and
+        // make the builder ensure that flags (that live long enough) are actually
+        // passed in.
+        //
+        // Or rather we can have the flags field be of type
+        // `&'a PeripheralInterruptFlags`; the Default impl can use Box::leak to provide
+        // this.
+        //
+        // interp.init(&interp.flags);
+
+        // For now, the following workaround:
+        if let OwnedOrRef::Ref(r) = flags {
+            interp.init(r);
+        } else {
+            // warn!("unsupported, sorry!");
+            // TODO: let's just do this instead of using OwnedOrRef.
+            // at some point we should just strip out all of the OwnedOrRef stuff.
+            static INTERNAL_INACCESSIBLE_PERIPHERAL_FLAGS: PeripheralInterruptFlags = PeripheralInterruptFlags::new();
+            interp.init(&INTERNAL_INACCESSIBLE_PERIPHERAL_FLAGS);
+        }
+
+        interp.reset(); // TODO: remove pc/regs options from the interpreter builder
         interp
     }
 }
@@ -572,8 +696,10 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
     fn push(&mut self, word: Word) -> WriteAttempt {
         // This function will *only ever push onto the system stack*:
-        if self[R6] == 0x0 {
-            panic!("System stack overflow!");
+        if self[R6] <= lc3_isa::OS_START_ADDR {
+            self.set_error(SystemStackOverflow);
+            self.halt();
+            return Err(Acv);    // TODO: Kind of an ACV, but not really?
         }
 
         self[R6] -= 1;
@@ -590,17 +716,19 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     }
 
     // TODO: Swap result out
-    fn push_state(&mut self) -> WriteAttempt {
-        // Push the PSR and then the PC so that the PC gets popped first.
+    fn push_state(&mut self, saved_psr: Word) -> WriteAttempt {
+        // Push the saved PSR and then the PC so that the PC gets popped first.
         // (Popping the PSR first could trigger an ACV)
 
-        self.push(*self.get_special_reg::<PSR>())
+        self.push(saved_psr)
             .and_then(|()| self.push(self.get_pc()))
     }
 
     fn restore_state(&mut self) -> Result<(), Acv> {
-        // Restore the PC and then the PSR.
+        // Update call stack on return
+        self.pop_call_stack();
 
+        // Restore the PC and then the PSR.
         self.pop()
             .map(|w| self.set_pc(w))
             .and_then(|()| self.pop().map(|w| self.set_special_reg::<PSR>(w)))
@@ -619,6 +747,9 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
     fn prep_for_execution_event(&mut self) {
         let mut psr = self.get_special_reg::<PSR>();
 
+        // Need to save a temporary copy of the PSR before switching to supervisor mode
+        let saved_psr: Word = *self.get_special_reg::<PSR>();
+
         // If we're in user mode..
         if psr.in_user_mode() {
             // ..switch to supervisor mode..
@@ -631,10 +762,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
             // the supervisor stack pointer and BSR has the user stack pointer.
         }
 
-        // We're in privileged mode now so this should never panic.
-        self.push_state().unwrap();
+        // We're in privileged mode now so this should only error if we've
+        // overflowed our stack.
+        if let Err(Acv) = self.push_state(saved_psr) {
+            debug_assert_eq!(self.state, MachineState::Halted);
+            return;
+        }
 
-        self.get_special_reg::<PSR>().set_priority(self, 3);
+//        self.get_special_reg::<PSR>().set_priority(self, 3);
     }
 
     fn handle_trap(&mut self, trap_vec: u8) {
@@ -645,6 +780,8 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         self.pc = self
             .get_word(TRAP_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(trap_vec)))
             .unwrap();
+
+        self.push_call_stack(self.pc, self.get_special_reg::<PSR>().in_user_mode());
     }
 
     // TODO: find a word that generalizes exception and trap...
@@ -657,20 +794,24 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
         self.pc = self
             .get_word(INTERRUPT_VECTOR_TABLE_START_ADDR | (Into::<Word>::into(ex_vec)))
             .unwrap();
+
+        self.push_call_stack(self.pc, self.get_special_reg::<PSR>().in_user_mode());
     }
 
     fn handle_interrupt(&mut self, int_vec: u8, priority: u8) -> bool {
         // TODO: check that the ordering here is right
 
         // Make sure that the priority is high enough to interrupt:
-        if self.get_special_reg::<PSR>().get_priority() >= priority {
+        if self.get_special_reg::<PSR>().get_priority() > priority {
             // Gotta wait.
             return false;
         }
 
-        // TODO: Set nzp to z here
+        // Haven't executed instruction at PC-1, so must store PC-1 on stack, not PC
+        self.pc -= 1;
 
         self.handle_exception(int_vec);
+        self.set_cc(0);
         self.get_special_reg::<PSR>().set_priority(self, priority);
 
         true
@@ -756,6 +897,28 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                 i!(PC <- pc);
             }};
 
+            ([S+] PC <- $($rest:tt)*) => {{
+                _insn_inner_gen!($);
+                #[allow(unused_mut)]
+                let mut pc: Addr;
+
+                _insn_inner!(pc | $($rest)*);
+                i!(PC <- pc);
+
+                self.push_call_stack(pc, self.get_special_reg::<PSR>().in_user_mode());
+            }};
+
+            ([S-] PC <- $($rest:tt)*) => {{
+                _insn_inner_gen!($);
+                #[allow(unused_mut)]
+                let mut pc: Addr;
+
+                _insn_inner!(pc | $($rest)*);
+                i!(PC <- pc);
+
+                self.pop_call_stack();
+            }};
+
             (mem[$($addr:tt)*] <- $($word:tt)*) => {{
                 _insn_inner_gen!($);
                 #[allow(unused_mut)]
@@ -835,16 +998,15 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
                     I!(PC <- PC + offset9)
                 }
             }
-            Jmp { base: R7 } | Ret => I!(PC <- R[R7]),
+            Jmp { base: R7 } | Ret => I!([S-] PC <- R[R7]),
             Jmp { base } => I!(PC <- R[base]),
             Jsr { offset11 } => {
                 I!(R7 <- PC);
-                I!(PC <- PC + offset11)
+                I!([S+] PC <- PC + offset11)
             }
             Jsrr { base } => {
-                // TODO: add a test where base _is_ R7!!
                 let (pc, new_pc) = (self.get_pc(), self[base]);
-                I!(PC <- new_pc);
+                I!([S+] PC <- new_pc);
                 I!(R7 <- pc)
             }
             Ld { dr, offset9 } => I!(dr <- mem[PC + offset9]),
@@ -876,20 +1038,32 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
         Ok(())
     }
+
+    fn push_call_stack(&mut self, subroutine: Addr, in_user_mode: bool) -> bool {
+        self.call_stack.push(subroutine, in_user_mode)
+    }
+
+    fn pop_call_stack(&mut self) -> bool {
+        self.call_stack.pop()
+    }
 }
 
-use super::mem_mapped::{BSP, DDR, DSR, KBDR, KBSR, PSR};
 use super::mem_mapped::{
+    KBSR, KBDR,
+    DSR, DDR,
+    BSP, PSR,
     G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+    A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+    P0CR, P0DR, P1CR, P1DR,
+    CLKR,
+    T0CR, T0DR, T1CR, T1DR
 };
-use super::mem_mapped::{
-    T0CR, T1CR,
-};
-use lc3_traits::peripherals::gpio::GPIO_PINS;
-use crate::mem_mapped::Interrupt;
+use lc3_traits::error::Error::SystemStackOverflow;
+use lc3_traits::control::ProcessorMode;
 
 impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'a, M, P> {
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("Base");
+    const VER: Version = version_from_crate!();
 
     fn step(&mut self) -> MachineState {
         if let state @ MachineState::Halted = self.get_machine_state() {
@@ -897,10 +1071,12 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
 
         // Increment PC (state 18):
-        let current_pc = self.get_pc();
+        let mut current_pc = self.get_pc();
         self.set_pc(current_pc.wrapping_add(1)); // TODO: ???
 
-        self.check_interrupts();
+        if self.check_interrupts() {
+            return self.get_machine_state();
+        };
 
         match self.get_word(current_pc).and_then(|w| match w.try_into() {
             Ok(insn) => self.instruction_step_inner(insn),
@@ -956,8 +1132,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             }
 
             devices!(
-                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
+                KBSR, KBDR,
+                DSR, DDR,
+                BSP, PSR, MCR,
+                G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+                A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+                P0CR, P0DR, P1CR, P1DR,
+                CLKR,
+                T0CR, T0DR, T1CR, T1DR
             )
         } else {
             self.set_word_force_memory_backed(addr, word)
@@ -979,8 +1161,14 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
             }
 
             devices!(
-                KBSR, KBDR, DSR, DDR, BSP, PSR, G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR,
-                G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR, MCR
+                KBSR, KBDR,
+                DSR, DDR,
+                BSP, PSR, MCR,
+                G0CR, G0DR, G1CR, G1DR, G2CR, G2DR, G3CR, G3DR, G4CR, G4DR, G5CR, G5DR, G6CR, G6DR, G7CR, G7DR,
+                A0CR, A0DR, A1CR, A1DR, A2CR, A2DR, A3CR, A3DR, A4CR, A4DR, A5CR, A5DR,
+                P0CR, P0DR, P1CR, P1DR,
+                CLKR,
+                T0CR, T0DR, T1CR, T1DR
             )
         } else {
             self.get_word_force_memory_backed(addr)
@@ -1000,11 +1188,6 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
     }
 
     fn reset(&mut self) {
-        self.memory.reset();
-
-        // self.pc = 0; // TODO?
-        self.set_cc(0);
-
         // TODO: Reset Vector
         // On start!
         // PC = 0x200
@@ -1013,16 +1196,22 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         // pri = 7
         // MCR = 0;
         self.pc = lc3_isa::OS_START_ADDR;
-        self.set_cc(0);
+
+        // Reset memory _before_ setting the PSR and MCR so we don't wipe out
+        // their values.
+        self.memory.reset();
+
         self.get_special_reg::<PSR>().set_priority(self, 7);
         self.get_special_reg::<MCR>().run(self);
+        self.set_cc(0);
 
-        // TODO: zero the registers
-        // TODO: what do we do about memory?
+        self.regs = [0; Reg::NUM_REGS];
 
-        // TODO!
-        // unimplemented!();
+        self.reset_peripherals();
         self.state = MachineState::Running;
+
+        self.error.set(None);
+        self.call_stack = CallStack::new();
     }
 
     fn halt(&mut self) {
@@ -1031,6 +1220,22 @@ impl<'a, M: Memory, P: Peripherals<'a>> InstructionInterpreter for Interpreter<'
         }
 
         self.state = MachineState::Halted;
+    }
+
+    fn set_error(&self, err: Error) {
+        self.error.set(Some(err));
+    }
+
+    fn get_error(&self) -> Option<Error> {
+        self.error.take()
+    }
+
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH] {
+        self.call_stack.stack
+    }
+
+    fn get_call_stack_depth(&self) -> u64 {
+        self.call_stack.depth
     }
 
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {

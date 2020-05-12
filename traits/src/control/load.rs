@@ -109,15 +109,6 @@ pub struct PageWriteStart(pub PageIndex);
 
 // Private field so users can't construct this manually.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Clone)] // This compromises our API. Unfortunately it's easier to offer
-                 // this impl than to redo Encoding's Decode to move the values
-                 // it encodes (doing so would also possibly hurt performance).
-                 //
-                 // We also already offer this escape hatch (kind of) since we
-                 // offer Serialize and Deserialize impls for this type.
-                 //
-                 // So, it'll just have to be another thing users who call the
-                 // unsafe constructor have to keep track of.
 pub struct LoadApiSession<State>(State);
 
 impl<T: Copy> LoadApiSession<T> { pub fn get(&self) -> T { self.0 } }

@@ -1,0 +1,44 @@
+[package]
+name = "lc3-test-infrastructure"
+version = "0.1.0"
+authors = ["UT UTP <ut.utp.group@gmail.com>"]
+edition = "2018"
+publish = false # Only really useful for us
+
+workspace = ".."
+
+description = "Traits defining the LC-3's peripherals, memory, and control interface."
+homepage = "https://utp.tools"
+repository = "http://github.com/ut-utp/prototype"
+
+readme = "README.md"
+
+keywords = ["lc-3", "traits", "peripherals", "utp"]
+categories = ["simulation", "development-tools::testing"]
+
+license = "MPL-2.0"
+
+[badges]
+github-actions = { repository = "ut-utp/prototype", workflow = "test-infrastructure" }
+codecov = { repository = "ut-utp/prototype", branch = "master", service = "github" }
+
+is-it-maintained-issue-resolution = { repository = "ut-utp/prototype" }
+is-it-maintained-open-issues = { repository = "ut-utp/prototype" }
+maintenance = { status = "actively-developed" }
+
+
+[dependencies]
+lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0", default-features = false }
+lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
+lc3-macros = { path = "../macros", version = "0.1.0" }
+lc3-shims = { path = "../shims", version = "0.1.0", default-features = false }
+lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
+lc3-application-support = { path = "../application-support", version = "0.1.0" }
+
+rand = "0.7.3"
+pretty_assertions = "0.6.1"
+
+
+[features]
+
+

@@ -2,6 +2,7 @@
 use crate::peripheral_trait;
 
 use core::sync::atomic::AtomicBool;
+use core::fmt::{self, Display};
 
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +24,32 @@ pub trait Output<'a>: Default {
 }}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct OutputError;
+pub enum OutputError {
+    NonUnicodeCharacter(u8),
+    IoError,
+    NotReady,
+}
+
+impl Display for OutputError {
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use OutputError::*;
+
+        match self {
+            NonUnicodeCharacter(c) => write!(fmt, "Tried to write a non-unicode output: {:#2X}", c),
+            IoError => write!(fmt, "I/O error when writing output"),
+            NotReady => write!(fmt, "Attempted to write when the output was not ready")
+        }
+    }
+}
+
+using_std! {
+    use std::io::Error;
+    impl From<Error> for OutputError {
+        fn from(_e: Error) -> OutputError {
+            OutputError::IoError
+        }
+    }
+}
 
 using_std! {
     use std::sync::{Arc, RwLock};

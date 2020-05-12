@@ -4,9 +4,9 @@ use crate::interp::{InstructionInterpreter, InstructionInterpreterPeripheralAcce
 use crate::mem_mapped::{MemMapped, KBDR};
 
 use lc3_isa::{Addr, Reg, Word};
-use lc3_traits::control::{Control, Event, State};
-use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
-use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo};
+use lc3_traits::control::{Control, Event, State, UnifiedRange, Idx, ProcessorMode};
+use lc3_traits::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH};
+use lc3_traits::control::metadata::{Identifier, ProgramMetadata, DeviceInfo, Version};
 use lc3_traits::control::load::{
     PageIndex, PageWriteStart, StartPageWriteError, PageChunkError,
     FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS,
@@ -20,7 +20,7 @@ use lc3_traits::peripherals::adc::{Adc, AdcPinArr, AdcReadError, AdcState};
 use lc3_traits::peripherals::clock::Clock;
 use lc3_traits::peripherals::gpio::{Gpio, GpioPinArr, GpioReadError, GpioState};
 use lc3_traits::peripherals::pwm::{Pwm, PwmPinArr, PwmState};
-use lc3_traits::peripherals::timers::{TimerArr, TimerState, Timers};
+use lc3_traits::peripherals::timers::{Timers, TimerArr, TimerMode, TimerState};
 use lc3_traits::peripherals::Peripherals;
 
 // use core::future::Future;
@@ -29,6 +29,9 @@ use core::ops::Deref;
 use core::fmt::{self, Debug};
 // use core::pin::Pin;
 // use core::task::{Context, Poll};
+
+use core::usize;
+use sa::_core::ops::RangeBounds;
 
 #[derive(Clone)]
 enum LoadApiState {
@@ -69,6 +72,7 @@ where
     watchpoints: [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS], // TODO: change to throw these when the location being watched to written to; not just when the value is changed...
     num_set_breakpoints: usize,
     num_set_watchpoints: usize,
+    depth_breakpoint_range: Option<UnifiedRange<u64>>,
     state: State,
     shared_state: Option<&'ss S>,
     load_api_state: LoadApiState,
@@ -96,6 +100,7 @@ where
             watchpoints: [None; MAX_MEMORY_WATCHPOINTS],
             num_set_breakpoints: 0,
             num_set_watchpoints: 0,
+            depth_breakpoint_range: None,
             state: State::Paused,
             shared_state: None,
             load_api_state: LoadApiState::default(),
@@ -254,7 +259,7 @@ where
         }
     }
 
-    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<Idx, ()> {
         // Scan for the next open slot:
         for (idx, bp) in self.breakpoints.iter_mut().enumerate() {
             if let Some(a) = bp {
@@ -263,22 +268,22 @@ where
                 // (note that this doesn't increment the number of set
                 // breakpoints since it's not adding a new one)
                 if addr == *a {
-                    return Ok(idx)
+                    return Ok(idx as Idx)
                 }
             } else {
                 // If we reach an empty slot, use it.
                 self.num_set_breakpoints += 1;
                 *bp = Some(addr);
-                return Ok(idx)
+                return Ok(idx as Idx)
             }
         }
 
         Err(())
     }
 
-    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()> {
-        if idx < MAX_BREAKPOINTS {
-            self.breakpoints[idx].take().map(|_| {
+    fn unset_breakpoint(&mut self, idx: Idx) -> Result<(), ()> {
+        if idx < self.get_max_breakpoints() {
+            self.breakpoints[idx as usize].take().map(|_| {
                 // If we actually removed a breakpoint, subtract the count:
                 self.num_set_breakpoints -= 1;
                 ()
@@ -293,7 +298,7 @@ where
     }
 
     // TODO: breakpoints and watchpoints look macroable
-    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()> {
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<Idx, ()> {
         let current_val = self.read_word(addr); // TODO: is read_word okay? What if this is a mem mapped address.
         // TODO: maybe move this into the right spot and fix the borrow checker issues.
 
@@ -303,22 +308,22 @@ where
                 // For each watchpoint, check if it's already for the memory
                 // location we want (note: doesn't increment the count):
                 if addr == *a {
-                    return Ok(idx)
+                    return Ok(idx as Idx)
                 }
             } else {
                 // If we reach an empty slot, use it.
                 self.num_set_watchpoints += 1;
                 *wp = Some((addr, current_val));
-                return Ok(idx)
+                return Ok(idx as Idx)
             }
         }
 
         Err(())
     }
 
-    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()> {
-        if idx < MAX_MEMORY_WATCHPOINTS {
-            self.watchpoints[idx].take().map(|_| {
+    fn unset_memory_watchpoint(&mut self, idx: Idx) -> Result<(), ()> {
+        if idx < self.get_max_memory_watchpoints() {
+            self.watchpoints[idx as usize].take().map(|_| {
                 // If we actually removed a watchpoint, subtract the count:
                 self.num_set_watchpoints -= 1;
                 ()
@@ -330,6 +335,27 @@ where
 
     fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS] {
         self.watchpoints
+    }
+
+    // TODO: panics if relative_depth = isize::min_value()
+    fn set_depth_condition(&mut self, condition: UnifiedRange<u64>) -> Result<Option<UnifiedRange<u64>>, ()> {
+        let prev_range = self.depth_breakpoint_range;
+        self.depth_breakpoint_range = Some(condition);
+        Ok(prev_range)
+    }
+
+    fn unset_depth_condition(&mut self) -> Option<UnifiedRange<u64>>{
+        let prev_range = self.depth_breakpoint_range;
+        self.depth_breakpoint_range = None;
+        prev_range
+    }
+
+    fn get_depth(&self) -> Result<u64, ()> {
+        Ok(self.interp.get_call_stack_depth())
+    }
+
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH] {
+        self.interp.get_call_stack()
     }
 
     fn run_until_event(&mut self) -> <Self as Control>::EventFuture {
@@ -358,15 +384,16 @@ where
         use State::*;
 
         if let RunningUntilEvent = self.get_state() {
-            // TODO: does this weird micro optimization help?
-            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
-                for _ in 0..STEPS_IN_A_TICK {
-                    // this is safe since overshooting (calling step when we have NOPs) is fine
-                    self.step();
-                }
-
-                return STEPS_IN_A_TICK;
-            }
+            // TODO: Some configurable flag for events
+//            // TODO: does this weird micro optimization help?
+//            if self.num_set_watchpoints == 0 && self.num_set_breakpoints == 0 {
+//                for _ in 0..STEPS_IN_A_TICK {
+//                    // this is safe since overshooting (calling step when we have NOPs) is fine
+//                    self.step();
+//                }
+//
+//                return STEPS_IN_A_TICK;
+//            }
 
             for _ in 0..STEPS_IN_A_TICK {
                 if let Some(e) = self.step() {
@@ -384,8 +411,15 @@ where
         let current_machine_state = self.interp.step();
         let (new_state, event) = (|m: MachineState| match m {
             MachineState::Halted => {
-                // If we're halted, we can't have hit a breakpoint or a watchpoint.
-                (Halted, Some(Event::Halted))
+                // If we're halted, we can't have hit a breakpoint or a watchpoint,
+                // but we might have overflowed our stack or run into some other error.
+                let event = if let Some(err) = self.get_error() {
+                    Event::Error { err }
+                } else {
+                    Event::Halted
+                };
+
+                (Halted, Some(event))
             }
             MachineState::Running => {
                 // Check for breakpoints:
@@ -422,6 +456,25 @@ where
                     // }
                 }
 
+                // And errors
+                match self.get_error() {
+                    Some(err) => {
+                        return (Paused, Some(Event::Error { err }));
+                    },
+                    None => {},
+                }
+
+                // And the depth breakpoint
+                match &self.depth_breakpoint_range {
+                    Some(range) => {
+                        let cur_depth = self.interp.get_call_stack_depth();
+                        if range.contains(&cur_depth) {
+                            return (Paused, Some(Event::DepthReached{current_depth: cur_depth}));
+                        }
+                    },
+                    None => {},
+                }
+
                 // If we didn't hit a breakpoint/watchpoint, the state doesn't change.
                 // If we were running, we're still running.
                 // If we were halted before, we're still halted (handled above).
@@ -454,7 +507,10 @@ where
             // (Halted, Halted, None) => unreachable!(), // this is fine but will never happen as impl'ed above
 
             (RunningUntilEvent, Paused, Some(e)) |
+            (RunningUntilEvent, Halted, Some(e @ Event::Error { .. })) |
             (RunningUntilEvent, Halted, Some(e @ Event::Halted)) => {
+                // Unset the depth breakpoint upon any event
+                self.unset_depth_condition();
                 // println!("resolving the device future");
                 self.shared_state.as_ref().expect("unreachable; must have a shared state to call a run_until_event and therefore be in `RunningUntilEvent`").resolve_all(e).unwrap();
                 self.state = new_state;
@@ -465,6 +521,7 @@ where
             (Paused, Paused, e @ Some(_))                    |
             (Paused, Paused, e @ None)                       |
             (Paused, Halted, e @ Some(Event::Halted))        |
+            (Paused, Halted, e @ Some(Event::Error { .. }))  |
             (Halted, Halted, e @ Some(Event::Halted)) => {
                 self.state = new_state;
                 e
@@ -472,7 +529,7 @@ where
 
             (RunningUntilEvent, Halted, Some(_)) |
             (Paused, Halted, Some(_))            |
-            (Halted, Halted, Some(_)) => unreachable!("Transitions to the `Halted` state must only produce halted events."),
+            (Halted, Halted, Some(_)) => unreachable!("Transitions to the `Halted` state must only produce halted events or error events."),
 
             (RunningUntilEvent, RunningUntilEvent, Some(_)) => unreachable!("Can't yield an event and not finish a `RunningUntilEvent`."),
 
@@ -511,9 +568,13 @@ where
     fn reset(&mut self) {
         self.interp.halt();
 
+        self.unset_depth_condition();
+
         // Resolve all futures! Doesn't cause problems if reset is called
         // multiple times.
         let _ = self.step();
+
+        // TODO: unset + reset watchpoints here
 
         InstructionInterpreter::reset(&mut self.interp);
         self.state = State::Paused;
@@ -528,7 +589,7 @@ where
     }
 
     fn get_error(&self) -> Option<Error> {
-        unimplemented!()
+        self.interp.get_error()
     }
 
     fn get_gpio_states(&self) -> GpioPinArr<GpioState> {
@@ -547,12 +608,12 @@ where
         Adc::read_all(self.interp.get_peripherals())
     }
 
-    fn get_timer_states(&self) -> TimerArr<TimerState> {
-        Timers::get_states(self.interp.get_peripherals())
+    fn get_timer_modes(&self) -> TimerArr<TimerMode> {
+        Timers::get_modes(self.interp.get_peripherals())
     }
 
-    fn get_timer_config(&self) -> TimerArr<Word> {
-        Timers::get_periods(self.interp.get_peripherals())
+    fn get_timer_states(&self) -> TimerArr<TimerState> {
+        Timers::get_states(self.interp.get_peripherals())
     }
 
     fn get_pwm_states(&self) -> PwmPinArr<PwmState> {
@@ -567,14 +628,18 @@ where
         Clock::get_milliseconds(self.interp.get_peripherals())
     }
 
-    fn get_info(&self) -> DeviceInfo {
+    fn get_device_info(&self) -> DeviceInfo {
         DeviceInfo::new(
-            self.interp.get_program_metadata(),
-            Default::default(), // TODO: when we add other capabilities
-            I::type_id(),
             self.id(),
+            I::VER,
+            I::type_id(),
+            Default::default(), // TODO: when we add other capabilities
             Default::default(), // no proxies (yet)
         )
+    }
+
+    fn get_program_metadata(&self) -> ProgramMetadata {
+        self.interp.get_program_metadata()
     }
 
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) {

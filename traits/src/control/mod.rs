@@ -1,17 +1,26 @@
 // TODO: maybe rename this module:
+
+// `metadata` has to come before `control` because of the macro it contains.
+pub mod metadata;
+pub use metadata::{
+    AnyExt, Capabilities, DeviceInfo, Identifier, ProgramId, ProgramMetadata, TypeIdExt,
+    Version, version_from_crate
+};
+
 pub mod control;
-pub use control::{Control, Event, State};
+pub use control::{Control, Event, State, ProcessorMode, Idx};
+
+pub mod ext;
+pub use ext::StepControl;
 
 pub mod load;
 pub use load::{load_memory_dump, Progress};
 
-pub mod metadata;
-pub use metadata::{
-    AnyExt, Capabilities, DeviceInfo, Identifier, ProgramId, ProgramMetadata, TypeIdExt,
-};
-
 pub mod snapshot;
 pub use snapshot::{Snapshot, SnapshotError};
+
+pub mod ranges;
+pub use ranges::UnifiedRange;
 
 pub mod rpc;
 

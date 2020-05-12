@@ -34,6 +34,14 @@ At the moment, the primary 'users' of the platform are the following:
  - A TUI that can interact with any UTP LC-3 simulator.
      + Lives in the [`lc3-tui` crate](//github.com/ut-utp/tui).
      + Works with instances of [the simulator](baseline-sim) as well as actual devices like the [TM4C](//github.com/ut-utp/tm4c).
+ - A device support crate.
+     + This contains macros and pieces that aid in implementing the peripheral traits and running the simulator on devices with [embedded-hal](https://docs.rs/embedded-hal/) support. This includes:
+         * the uart transport layer
+         * the `#![no_std]` compatible encoding layer (based on [`postcard`](https://github.com/jamesmunns/postcard))
+         * (eventually (TODO)) the macros that, provided with `embedded-hal` compliant pins, provides you with peripheral trait impls
+         * miscellaneous things necessary for the above like a simple FIFO
+     + Lives in the [`lc3-device-support` crate](device-support).
+     + TODO: move out of this repo!
 
 TODO:
  - [ ] crate and doc badges on each crate

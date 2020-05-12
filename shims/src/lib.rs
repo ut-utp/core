@@ -42,5 +42,7 @@
 #![doc(test(attr(deny(rust_2018_idioms, warnings))))]
 #![doc(html_logo_url = "")] // TODO!
 
+extern crate static_assertions as sa;
+
 pub mod memory;
 pub mod peripherals;

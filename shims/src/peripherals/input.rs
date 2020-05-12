@@ -5,7 +5,7 @@ use lc3_traits::peripherals::input::{Input, InputError};
 use core::cell::Cell;
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::io::{stdin, Read};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// The source from which Inputs will read characters.
 ///
@@ -23,9 +23,23 @@ pub trait Source {
     fn get_char(&self) -> Option<u8>;
 }
 
+impl<S: Source> Source for Arc<S> {
+    fn get_char(&self) -> Option<u8> {
+        self.get_char()
+    }
+}
+
+impl<S: Source> Source for Arc<Mutex<S>> {
+    fn get_char(&self) -> Option<u8> {
+        self.lock().unwrap().get_char()
+    }
+}
+
 pub struct SourceShim {
     last_char: Mutex<Option<u8>>,
 }
+
+sa::assert_impl_all!(SourceShim: Send, Sync);
 
 impl SourceShim {
     pub fn new() -> Self {
@@ -57,16 +71,16 @@ impl Source for SourceShim {
 }
 
 // #[derive(Clone)] // TODO: Debug
-pub struct InputShim<'i, 'int> {
-    source: OwnedOrRef<'i, dyn Source + Send + Sync + 'i>,
+pub struct InputShim<'inp, 'int> {
+    source: OwnedOrRef<'inp, dyn Source + Send + Sync + 'inp>,
     flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
     data: Cell<Option<u8>>,
 }
 
-struct StdinSource;
+pub struct StdinSource;
 
-// This blocks; don't use this. This is the default though.
+// This blocks; don't use this unless you know what you're doing.
 //
 // We must implement Default because of our tyrannical super trait bounds.
 impl Source for StdinSource {
@@ -80,9 +94,11 @@ impl Source for StdinSource {
     }
 }
 
+// By default this reads from something that will never produce new values; this
+// is effectively useless.
 impl Default for InputShim<'_, '_> {
     fn default() -> Self {
-        Self::using(Box::new(StdinSource))
+        Self::using(Box::new(SourceShim::new()))
     }
 }
 
@@ -118,13 +134,20 @@ impl<'int, 'i> InputShim<'i, 'int> {
             }
         }
     }
+
+    pub fn get_inner_ref(&self) -> &(dyn Source + Send + Sync + 'i) {
+        &*self.source
+    }
 }
 
-impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
+impl<'inp, 'int> Input<'int> for InputShim<'inp, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
-            Some(_) => unreachable!(),
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flag)
+            }
         }
     }
 
@@ -153,7 +176,7 @@ impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
             Some(flag) => flag.store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
-        self.data.get().ok_or(InputError)
+        self.data.get().ok_or(InputError::NoDataAvailable)
     }
 
     fn current_data_unread(&self) -> bool {
@@ -169,5 +192,5 @@ impl<'int: 'i, 'i> Input<'int> for InputShim<'i, 'int> {
 mod tests {
     use super::*;
 
-    use pretty_assertions::{assert_eq, assert_ne};
+    use lc3_test_infrastructure::{assert_eq, assert_ne};
 }

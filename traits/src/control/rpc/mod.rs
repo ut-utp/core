@@ -82,15 +82,15 @@ pub fn new_pair<
     Resp: Debug,
 
     // Controller:
-    ReqEnc: Encode<Req>, // = Transparent,
-    RespDec: Decode<Resp>, // = Transparent,
+    ReqEnc: Default + Encode<Req>, // = Transparent,
+    RespDec: Default + Decode<Resp>, // = Transparent,
     // Sends Requests, Receives Responses:
     ContTrans: Transport<<ReqEnc as Encode<Req>>::Encoded, <RespDec as Decode<Resp>>::Encoded>,
     S: EventFutureSharedStatePorcelain,
 
     // Device:
-    ReqDec: Decode<Req>, // = Transparent,
-    RespEnc: Encode<Resp>, // = Transparent,
+    ReqDec: Default + Decode<Req>, // = Transparent,
+    RespEnc: Default + Encode<Resp>, // = Transparent,
     // Sends Responses, Receives Requests:
     DevTrans: Transport<<RespEnc as Encode<Resp>>::Encoded, <ReqDec as Decode<Req>>::Encoded>,
     C: Control,
@@ -151,13 +151,13 @@ using_std! {
         Resp: Debug,
 
         // Controller:
-        ReqEnc: Encode<Req>, // = Transparent,
-        RespDec: Decode<Resp>, // = Transparent,
+        ReqEnc: Default + Encode<Req>, // = Transparent,
+        RespDec: Default + Decode<Resp>, // = Transparent,
         S: EventFutureSharedStatePorcelain,
 
         // Device:
-        ReqDec: Decode<Req>, // = Transparent,
-        RespEnc: Encode<Resp>, // = Transparent,
+        ReqDec: Default + Decode<Req>, // = Transparent,
+        RespEnc: Default + Encode<Resp>, // = Transparent,
         C: Control,
     >(
         state: &'a S,
@@ -206,12 +206,12 @@ using_std! {
         Resp: Debug,
 
         // Controller:
-        ReqEnc: Encode<Req>, // = Transparent,
-        RespDec: Decode<Resp>, // = Transparent,
+        ReqEnc: Default + Encode<Req>, // = Transparent,
+        RespDec: Default + Decode<Resp>, // = Transparent,
 
         // Device:
-        ReqDec: Decode<Req>, // = Transparent,
-        RespEnc: Encode<Resp>, // = Transparent,
+        ReqDec: Default + Decode<Req>, // = Transparent,
+        RespEnc: Default + Encode<Resp>, // = Transparent,
         C: Control,
     >(
             state: &'a SyncEventFutureSharedState

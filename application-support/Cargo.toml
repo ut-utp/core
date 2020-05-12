@@ -7,7 +7,7 @@ edition = "2018"
 workspace = ".."
 
 description = "Supporting materials for devices using the UTP LC-3 Simulator."
-homepage = "https://ut-utp.github.io"
+homepage = "https://utp.tools"
 repository = "http://github.com/ut-utp/prototype"
 
 readme = "README.md"
@@ -29,8 +29,9 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 lc3-shims = { path = "../shims", version = "0.1.0" }
-lc3-traits = { path = "../traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
+lc3-traits = { path = "../traits", version = "0.1.0", default-features = false, features = ["json_encoding_layer"] } # Enable std features
 lc3-baseline-sim = { path = "../baseline-sim", version = "0.1.0", default-features = false }
+lc3-device-support = { path = "../device-support", version = "0.1.0", default-features = false, features = ["host_transport"] }
 
 lazy_static = "1.4.0"
 

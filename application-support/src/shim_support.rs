@@ -3,31 +3,22 @@
 use crate::io_peripherals::{InputSink, OutputSource};
 
 use lc3_traits::peripherals::PeripheralSet;
-use lc3_shims::peripherals::{Source, Sink};
+use lc3_shims::peripherals::{Source, Sink, ShareablePeripheralsShim};
 use lc3_shims::peripherals::{GpioShim, AdcShim, PwmShim, TimersShim, ClockShim, InputShim, OutputShim};
 
 use std::sync::{Arc, Mutex, RwLock};
 
+pub type ShimPeripheralSet<'int, 'io> = ShareablePeripheralsShim<'int, 'io>;
+
 pub struct Shims<'int> {
     pub gpio: Arc<RwLock<GpioShim<'int>>>,
     pub adc: Arc<RwLock<AdcShim>>,
-    pub pwm: Arc<RwLock<PwmShim>>,
-    pub timers: Arc<RwLock<TimersShim<'int>>>,
+    pub pwm: Arc<Mutex<PwmShim>>,
+    pub timers: Arc<Mutex<TimersShim<'int>>>,
     pub clock: Arc<RwLock<ClockShim>>,
 }
 
-pub type ShimPeripheralSet<'int: 'io, 'io> = PeripheralSet<
-    'int,
-    Arc<RwLock<GpioShim<'int>>>,
-    Arc<RwLock<AdcShim>>,
-    Arc<RwLock<PwmShim>>,
-    Arc<RwLock<TimersShim<'int>>>,
-    Arc<RwLock<ClockShim>>,
-    Arc<Mutex<InputShim<'io, 'int>>>,
-    Arc<Mutex<OutputShim<'io, 'int>>>,
->;
-
-pub fn new_shim_peripherals_set<'int: 'io, 'io, I, O>(input: &'io I, output: &'io O)
+pub fn new_shim_peripherals_set<'int, 'io, I, O>(input: &'io I, output: &'io O)
         -> (ShimPeripheralSet<'int, 'io>, &'io impl InputSink, &'io impl OutputSource)
 where
     I: InputSink + Source + Send + Sync + 'io,
@@ -35,8 +26,8 @@ where
 {
     let gpio_shim = Arc::new(RwLock::new(GpioShim::default()));
     let adc_shim = Arc::new(RwLock::new(AdcShim::default()));
-    let pwm_shim = Arc::new(RwLock::new(PwmShim::default()));
-    let timer_shim = Arc::new(RwLock::new(TimersShim::default()));
+    let pwm_shim = Arc::new(Mutex::new(PwmShim::default()));
+    let timer_shim = Arc::new(Mutex::new(TimersShim::default()));
     let clock_shim = Arc::new(RwLock::new(ClockShim::default()));
 
     let input_shim = Arc::new(Mutex::new(InputShim::with_ref(input)));
@@ -50,8 +41,6 @@ where
 
 impl<'int> Shims<'int> {
     pub fn from_peripheral_set<'io>(p: &ShimPeripheralSet<'int, 'io>) -> Self
-    where
-        'int: 'io
     {
         Self {
             gpio: p.get_gpio().clone(),

@@ -7,7 +7,7 @@ edition = "2018"
 workspace = ".."
 
 description = "Example implementations of the LC-3 peripherals and memory suitable for simulation."
-homepage = "https://ut-utp.github.io"
+homepage = "https://utp.tools"
 repository = "http://github.com/ut-utp/prototype"
 
 readme = "README.md"
@@ -35,7 +35,10 @@ lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
 byteorder = "1.3.2"
 timer = "0.2.0"
 time = "0.1.42"
+chrono = "0.4.11"
+
+static_assertions = "1.1.0"
 
 
 [dev-dependencies]
-pretty_assertions = "0.6.1"
+lc3-test-infrastructure = { path = "../test-infrastructure", version = "0.1.0" }

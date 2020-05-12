@@ -19,6 +19,8 @@ use lc3_traits::control::{rpc::futures::SyncEventFutureSharedState, Control};
 use std::sync::Mutex;
 
 // Static data that we need:
+// TODO: note that this will cause problems if more than 1 instance of this
+// simulator is instantiated.
 lazy_static::lazy_static! {
     pub static ref EVENT_FUTURE_SHARED_STATE: SyncEventFutureSharedState =
         SyncEventFutureSharedState::new();
@@ -69,8 +71,9 @@ impl<'s> Init<'s> for SimDevice<'static> {
     type Input = SourceShim;
     type Output = Mutex<Vec<u8>>;
 
-    fn init(
+    fn init_with_config(
         b: &'s mut BlackBox,
+        _config: Self::Config,
     ) -> (
         &'s mut Self::ControlImpl,
         Option<Shims<'static>>,
@@ -97,6 +100,24 @@ impl<'s> Init<'s> for SimDevice<'static> {
         let input = unsafe { core::mem::transmute::<&'s Self::Input, &'static Self::Input>(inp) };
         let output = unsafe { core::mem::transmute::<&'s Self::Output, &'static Self::Output>(out) };
         */
+
+        // This is not unsafe and would work except we can't downcast things
+        // that aren't 'static.
+        // (This also involves changing SimDevice<'static> → SimDevice<'s> and
+        // ControlImpl from Sim<'static> to Sim<'s>, as they *should* be.)
+        /*
+        let input = Some(SourceShim::new());
+        let output = Some(Mutex::new(Vec::new()));
+        let storage: &'s mut _ = b.put::<'s, _>(SimDevice::<'s> { sim: None, input, output });
+
+        let inp = storage.input.as_ref().unwrap();
+        let out = storage.output.as_ref().unwrap();
+
+        let (shims, _, _) = new_shim_peripherals_set::<'static, 's, _, _>(inp, out);
+        let shim_copy = Shims::from_peripheral_set(&shims);
+        */
+
+        // storage.sim = Some(new_sim(shims));
 
         // Meanwhile, this is safe but leaks memory 🙁.
         /*  */

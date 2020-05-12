@@ -39,9 +39,9 @@ impl From<State> for GpioState {
 ///     mode.
 ///   - The state of a pin (input, output, interrupt, or disabled) can be
 ///     retrieved at any time.
-pub struct GpioShim<'a> {
+pub struct GpioShim<'gint> {
     states: GpioPinArr<State>,
-    flags: Option<&'a GpioPinArr<AtomicBool>>,
+    flags: Option<&'gint GpioPinArr<AtomicBool>>,
 }
 
 impl Index<GpioPin> for GpioShim<'_> {
@@ -126,11 +126,26 @@ impl GpioShim<'_> {
 impl<'a> Gpio<'a> for GpioShim<'a> {
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError> {
         use GpioState::*;
-        self[pin] = match state {
-            Input => State::Input(false),
-            Output => State::Output(false),
-            Interrupt => State::Interrupt(false),
-            Disabled => State::Disabled,
+
+        // Retain the previous value when switching between input and interrupt
+        // modes and when switching to the mode we're already in:
+        self[pin] = match (self[pin], state) {
+            (State::Input(v), Input) |
+            (State::Interrupt(v), Input) => State::Input(v),
+            (State::Disabled, Input) |
+            (State::Output(_), Input) => State::Input(false),
+
+            (State::Output(v), Output) => State::Output(v),
+            (State::Disabled, Output) |
+            (State::Input(_), Output) |
+            (State::Interrupt(_), Output) => State::Output(false),
+
+            (State::Input(v), Interrupt) |
+            (State::Interrupt(v), Interrupt) => State::Interrupt(false),
+            (State::Disabled, Interrupt) |
+            (State::Output(_), Interrupt) => State::Interrupt(false),
+
+            (_, Disabled) => State::Disabled,
         };
 
         Ok(())
@@ -161,11 +176,15 @@ impl<'a> Gpio<'a> for GpioShim<'a> {
         }
     }
 
-    // TODO: decide functionality when no previous flag registered
+    // TODO: officially note that impls must accept register_interrupt_flags being
+    // called multiple times.
     fn register_interrupt_flags(&mut self, flags: &'a GpioPinArr<AtomicBool>) {
         self.flags = match self.flags {
             None => Some(flags),
-            Some(_) => unreachable!(), // TODO: is this what we really want?
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flags)
+            }
         }
     }
 
@@ -198,7 +217,7 @@ mod tests {
     use super::*;
     use lc3_traits::peripherals::gpio::{self, Gpio, GpioPin::*};
 
-    use pretty_assertions::assert_eq;
+    use lc3_test_infrastructure::assert_eq;
 
     #[test]
     fn get_state_disabled() {

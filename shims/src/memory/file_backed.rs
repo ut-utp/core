@@ -19,6 +19,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use super::error::MemoryShimError;
 
+#[derive(Clone)]
 pub struct FileBackedMemoryShim {
     pub path: PathBuf,
     pub mem: [Word; ADDR_SPACE_SIZE_IN_WORDS],

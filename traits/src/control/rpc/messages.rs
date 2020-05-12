@@ -1,18 +1,20 @@
 //! Messages used for proxying [Control trait](super::Control) functions.
 
 use super::{State, Event};
-use crate::control::control::{MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS};
+use crate::control::control::{
+    MAX_BREAKPOINTS, MAX_MEMORY_WATCHPOINTS, MAX_CALL_STACK_DEPTH
+};
 use crate::control::load::{
     LoadApiSession, CHUNK_SIZE_IN_WORDS, PageWriteStart, PageIndex, Offset,
     StartPageWriteError, PageChunkError, FinishPageWriteError
 };
-use crate::control::{ProgramMetadata, DeviceInfo};
+use crate::control::{ProgramMetadata, DeviceInfo, UnifiedRange, ProcessorMode, Idx};
 use crate::error::Error as Lc3Error;
 use crate::peripherals::{
     adc::{AdcPinArr, AdcState, AdcReadError},
     gpio::{GpioPinArr, GpioState, GpioReadError},
     pwm::{PwmPinArr, PwmState},
-    timers::{TimerArr, TimerState},
+    timers::{TimerArr, TimerMode, TimerState},
 };
 
 use lc3_isa::{Addr, Reg, Word};
@@ -40,14 +42,14 @@ use serde::{Serialize, Deserialize};
 // We're not using static_assertions here so that we can get an error that tells
 // us how much we're off by.
 static __REQ_SIZE_CHECK: () = {
-    let s = core::mem::size_of::<RequestMessage>();
     let canary = [()];
 
-    canary[s - 40] // panic if the size of RequestMessage changes
+    canary[REQUEST_MESSAGE_SIZE - 40] // panic if the size of RequestMessage changes
 };
 
+pub const REQUEST_MESSAGE_SIZE: usize = core::mem::size_of::<RequestMessage>();
+
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum RequestMessage { // messages for everything but tick()
     GetPc,
@@ -68,14 +70,19 @@ pub enum RequestMessage { // messages for everything but tick()
     FinishPageWrite { page: LoadApiSession<PageIndex> },
 
     SetBreakpoint { addr: Addr },
-    UnsetBreakpoint { idx: usize },
+    UnsetBreakpoint { idx: Idx },
     GetBreakpoints,
     GetMaxBreakpoints,
 
     SetMemoryWatchpoint { addr: Addr },
-    UnsetMemoryWatchpoint { idx: usize },
+    UnsetMemoryWatchpoint { idx: Idx },
     GetMemoryWatchpoints,
     GetMaxMemoryWatchpoints,
+
+    SetDepthCondition { condition: UnifiedRange<u64> },
+    UnsetDepthCondition,
+    GetDepth,
+    GetCallStack,
 
     // no tick!
     RunUntilEvent,
@@ -93,13 +100,15 @@ pub enum RequestMessage { // messages for everything but tick()
     GetGpioReadings,
     GetAdcStates,
     GetAdcReadings,
+    GetTimerModes,
     GetTimerStates,
-    GetTimerConfig,
     GetPwmStates,
     GetPwmConfig,
     GetClock,
 
-    GetInfo,
+    GetDeviceInfo,
+
+    GetProgramMetadata,
     SetProgramMetadata { metadata: ProgramMetadata },
 
     // no id!
@@ -107,14 +116,14 @@ pub enum RequestMessage { // messages for everything but tick()
 
 #[allow(dead_code)]
 static __RESP_SIZE_CHECK: () = {
-    let s = core::mem::size_of::<ResponseMessage>();
     let canary = [()];
 
-    canary[s - 72] // panic if the size of ResponseMessage changes
+    canary[RESPONSE_MESSAGE_SIZE - 72] // panic if the size of ResponseMessage changes
 };
 
+pub const RESPONSE_MESSAGE_SIZE: usize = core::mem::size_of::<ResponseMessage>();
+
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Clone)]
 #[deny(clippy::large_enum_variant)]
 pub enum ResponseMessage { // messages for everything but tick()
     GetPc(Addr),
@@ -134,15 +143,20 @@ pub enum ResponseMessage { // messages for everything but tick()
     SendPageChunk(Result<(), PageChunkError>),
     FinishPageWrite(Result<(), FinishPageWriteError>),
 
-    SetBreakpoint(Result<usize, ()>),
+    SetBreakpoint(Result<Idx, ()>),
     UnsetBreakpoint(Result<(), ()>),
     GetBreakpoints([Option<Addr>; MAX_BREAKPOINTS]),
-    GetMaxBreakpoints(usize),
+    GetMaxBreakpoints(Idx),
 
-    SetMemoryWatchpoint(Result<usize, ()>),
+    SetMemoryWatchpoint(Result<Idx, ()>),
     UnsetMemoryWatchpoint(Result<(), ()>),
     GetMemoryWatchpoints([Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS]),
-    GetMaxMemoryWatchpoints(usize),
+    GetMaxMemoryWatchpoints(Idx),
+
+    SetDepthCondition(Result<Option<UnifiedRange<u64>>, ()>),
+    UnsetDepthCondition(Option<UnifiedRange<u64>>),
+    GetDepth(Result<u64, ()>),
+    GetCallStack([Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH]),
 
     // no tick!
     RunUntilEventAck, // Special acknowledge message for run until event.
@@ -160,14 +174,202 @@ pub enum ResponseMessage { // messages for everything but tick()
     GetGpioReadings(GpioPinArr<Result<bool, GpioReadError>>),
     GetAdcStates(AdcPinArr<AdcState>),
     GetAdcReadings(AdcPinArr<Result<u8, AdcReadError>>),
+    GetTimerModes(TimerArr<TimerMode>),
     GetTimerStates(TimerArr<TimerState>),
-    GetTimerConfig(TimerArr<Word>), // TODO
     GetPwmStates(PwmPinArr<PwmState>),
     GetPwmConfig(PwmPinArr<u8>), // TODO
     GetClock(Word),
 
-    GetInfo(DeviceInfo),
+    GetDeviceInfo(DeviceInfo),
+
+    GetProgramMetadata(ProgramMetadata),
     SetProgramMetadata,
 
     // no id!
+}
+
+
+// This workaround allows us to avoid having a Clone impl on RequestMessage and
+// ResponseMessage which allows us to avoid having a Clone impl on
+// LoadApiSession which makes it harder to misuse the Load API.
+//
+// The absence of a Clone impl for LoadApiSession does not close all the holes;
+// it's still possible to 'clone' it using Serialize/Deserialize.
+//
+// This was going to be the workaround for implementing Transparent for Req/Resp
+// below but rather than go through the trouble of creating our own no-op serde
+// Serializer and Deserializer, we just implement Clone (using unsafe). The
+// reasoning here is that there are already holes in LoadApiSession and being
+// able to clone a Request or Response Message with a LoadApiSession instance in
+// it isn't really a problem since people outside of this crate can't actually
+// extract the fields of Req/Resp messages.
+//
+// As for the use of unsafe: LoadApiSession is the only thing in the type that
+// doesn't impl Clone and this is not for memory safety reasons.
+//
+// In case this is not true for fields that are added later (and also because
+// not everything in the above impls Copy) we match on the variants and
+// clone/copy them manually.
+
+use core::mem::MaybeUninit;
+use core::ptr::copy;
+
+unsafe fn force_clone<T>(inp: &T) -> T {
+    let mut out: MaybeUninit<T> = MaybeUninit::uninit();
+
+    #[allow(unsafe_code, unused_unsafe)]
+    // This isn't universally safe; the caller has to promise that T is really
+    // a Copy type (or _could be_ a Copy type).
+    unsafe { copy(inp as *const _, out.as_mut_ptr(), 1); }
+
+    #[allow(unsafe_code, unused_unsafe)]
+    // This is safe since we just wrote to all the bits in T when we did the
+    // copy above.
+    unsafe { out.assume_init() }
+}
+
+impl Clone for RequestMessage {
+    #[must_use = "cloning is often expensive and is not expected to have side effects"]
+    #[inline]
+    fn clone(&self) -> Self {
+        use RequestMessage::*;
+        macro_rules! variants {
+            ($(
+                $nom:tt $({ $($fields:ident),* })?
+            ),*) => {
+                match self {
+                    $(
+                        $nom $({ $($fields),* })? => $nom $({ $($fields: $fields.clone()),* })?,
+                    )*
+                    StartPageWrite { page, checksum } => {
+                        StartPageWrite {
+                            #[allow(unsafe_code)]
+                            page: unsafe { force_clone(page) },
+                            checksum: *checksum,
+                        }
+                    },
+                    SendPageChunk { offset, chunk } => {
+                        SendPageChunk {
+                            #[allow(unsafe_code)]
+                            offset: unsafe { force_clone(offset) },
+                            chunk: chunk.clone(),
+                        }
+                    },
+                    FinishPageWrite { page } => {
+                        FinishPageWrite {
+                            #[allow(unsafe_code)]
+                            page: unsafe { force_clone(page) }
+                        }
+                    }
+                }
+            };
+        }
+
+        variants! {
+            GetPc,
+            SetPc { addr },
+            GetRegister { reg },
+            SetRegister { reg, data },
+            GetRegistersPsrAndPc,
+            ReadWord { addr },
+            WriteWord { addr, word },
+            SetBreakpoint { addr },
+            UnsetBreakpoint { idx },
+            GetBreakpoints,
+            GetMaxBreakpoints,
+            SetMemoryWatchpoint { addr },
+            UnsetMemoryWatchpoint { idx },
+            GetMemoryWatchpoints,
+            GetMaxMemoryWatchpoints,
+            SetDepthCondition { condition },
+            UnsetDepthCondition,
+            GetDepth,
+            GetCallStack,
+            RunUntilEvent,
+            Step,
+            Pause,
+            GetState,
+            Reset,
+            GetError,
+            GetGpioStates,
+            GetGpioReadings,
+            GetAdcStates,
+            GetAdcReadings,
+            GetTimerModes,
+            GetTimerStates,
+            GetPwmStates,
+            GetPwmConfig,
+            GetClock,
+            GetDeviceInfo,
+            GetProgramMetadata,
+            SetProgramMetadata { metadata }
+        }
+    }
+}
+
+impl Clone for ResponseMessage {
+    #[must_use = "cloning is often expensive and is not expected to have side effects"]
+    #[inline]
+    fn clone(&self) -> Self {
+        use ResponseMessage::*;
+        macro_rules! variants {
+            ($(
+                $nom:tt $(( $($fields:ident),* ))?
+            ),*) => {
+                match self {
+                    $(
+                        $nom $(( $($fields),* ))? => $nom $(( $($fields.clone()),* ))?,
+                    )*
+                    StartPageWrite(r) => {
+                        #[allow(unsafe_code)]
+                        StartPageWrite(unsafe { force_clone(r) })
+                    }
+                }
+            };
+        }
+
+        variants! {
+            GetPc(a),
+            SetPc,
+            GetRegister(w),
+            SetRegister,
+            GetRegistersPsrAndPc(t),
+            ReadWord(w),
+            WriteWord,
+            SetBreakpoint(r),
+            UnsetBreakpoint(r),
+            GetBreakpoints(bps),
+            GetMaxBreakpoints(i),
+            SetMemoryWatchpoint(r),
+            UnsetMemoryWatchpoint(r),
+            GetMemoryWatchpoints(wps),
+            GetMaxMemoryWatchpoints(i),
+            SetDepthCondition(r),
+            UnsetDepthCondition(r),
+            GetDepth(r),
+            GetCallStack(s),
+            RunUntilEventAck,
+            RunUntilEvent(e),
+            Step(e),
+            Pause,
+            GetState(s),
+            Reset,
+            GetError(e),
+            GetGpioStates(s),
+            GetGpioReadings(r),
+            GetAdcStates(s),
+            GetAdcReadings(r),
+            GetTimerModes(m),
+            GetTimerStates(s),
+            GetPwmStates(s),
+            GetPwmConfig(c),
+            GetClock(w),
+            GetDeviceInfo(i),
+            GetProgramMetadata(m),
+            SetProgramMetadata,
+
+            SendPageChunk(r),
+            FinishPageWrite(r)
+        }
+    }
 }

@@ -11,9 +11,13 @@ use crate::error::Error;
 use crate::peripherals::adc::{AdcPinArr, AdcReadError, AdcState};
 use crate::peripherals::gpio::{GpioPinArr, GpioReadError, GpioState};
 use crate::peripherals::pwm::{PwmPinArr, PwmState};
-use crate::peripherals::timers::{TimerArr, TimerState};
+use crate::peripherals::timers::{TimerArr, TimerState, TimerMode};
 use super::{Capabilities, DeviceInfo, ProgramMetadata, Identifier};
-use super::load::{PageIndex, PageWriteStart, StartPageWriteError, PageChunkError, FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS};
+use super::UnifiedRange;
+use super::load::{
+    PageIndex, PageWriteStart, StartPageWriteError, PageChunkError,
+    FinishPageWriteError, LoadApiSession, Offset, CHUNK_SIZE_IN_WORDS
+};
 
 use lc3_isa::{Addr, Reg, Word, PSR};
 
@@ -23,11 +27,42 @@ use serde::{Deserialize, Serialize};
 
 pub const MAX_BREAKPOINTS: usize = 10;
 pub const MAX_MEMORY_WATCHPOINTS: usize = 10;
+pub const MAX_CALL_STACK_DEPTH: usize = 10;
+
+pub type Idx = u8;
+
+// Verify that the chosen index type can serve as an index with the number of
+// breakpoints/watchpoints/call stack frames we intend to support.
+sa::const_assert!(MAX_BREAKPOINTS <= (Idx::max_value() as usize));
+sa::const_assert!(MAX_MEMORY_WATCHPOINTS <= (Idx::max_value() as usize));
+sa::const_assert!(MAX_CALL_STACK_DEPTH <= (Idx::max_value() as usize));
+
+// Also verify that the chosen index type is smaller than `usize`:
+sa::const_assert!(core::mem::size_of::<Idx>() <= core::mem::size_of::<usize>());
+
+pub enum DebugStep {
+    STEP_OVER(usize),
+    STEP_IN(usize),
+    STEP_OUT(usize),
+}
+
+use DebugStep::*;
+impl Into<UnifiedRange<usize>> for DebugStep {
+    fn into(self) -> UnifiedRange<usize> {
+        match self {
+            STEP_OVER(cur_depth) => (..=cur_depth).into(),
+            STEP_IN(cur_depth) => (cur_depth..).into(),
+            STEP_OUT(cur_depth) => (..cur_depth).into(),
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Event {
     Breakpoint { addr: Addr },
     MemoryWatch { addr: Addr, data: Word },
+    DepthReached { current_depth: u64 },
+    Error { err: Error },
     Interrupted, // If we get paused or stepped, this is returned. (TODO: we currently only return this if we're paused!! not sure if stopping on a step is reasonable behavior)
     Halted,
 }
@@ -37,6 +72,14 @@ pub enum State {
     Paused,
     RunningUntilEvent,
     Halted,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ProcessorMode {
+    /// Privileged Mode
+    Supervisor = 0,
+    /// User Mode
+    User = 1,
 }
 
 // Actually maybe make this Control a super trait of this can have Control still retain
@@ -120,19 +163,70 @@ pub trait Control {
         page: LoadApiSession<PageIndex>,
     ) -> Result<(), FinishPageWriteError>;
 
-    fn set_breakpoint(&mut self, addr: Addr) -> Result<usize, ()>;
-    fn unset_breakpoint(&mut self, idx: usize) -> Result<(), ()>;
+    fn set_breakpoint(&mut self, addr: Addr) -> Result<Idx, ()>;
+    fn unset_breakpoint(&mut self, idx: Idx) -> Result<(), ()>;
     fn get_breakpoints(&self) -> [Option<Addr>; MAX_BREAKPOINTS];
-    fn get_max_breakpoints(&self) -> usize {
-        MAX_BREAKPOINTS
+    fn get_max_breakpoints(&self) -> Idx {
+        MAX_BREAKPOINTS as Idx
     }
 
-    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<usize, ()>;
-    fn unset_memory_watchpoint(&mut self, idx: usize) -> Result<(), ()>;
+    fn set_memory_watchpoint(&mut self, addr: Addr) -> Result<Idx, ()>;
+    fn unset_memory_watchpoint(&mut self, idx: Idx) -> Result<(), ()>;
     fn get_memory_watchpoints(&self) -> [Option<(Addr, Word)>; MAX_MEMORY_WATCHPOINTS];
-    fn get_max_memory_watchpoints(&self) -> usize {
-        MAX_MEMORY_WATCHPOINTS
+    fn get_max_memory_watchpoints(&self) -> Idx {
+        MAX_MEMORY_WATCHPOINTS as Idx
     }
+
+    /// Can be used to trigger an event based on the call stack depth.
+    ///
+    /// Note that this is a low-level interface; for the usual high-level debug
+    /// functionality (step-in, step-out, step-over) see the [`ext`] module and
+    /// the [`StepControl`] trait.
+    ///
+    /// When the current call stack depth is within the range given, a
+    /// [`DepthReached`] [`Event`] is returned.
+    ///
+    /// This function returns a Result; `Ok` if the depth condition was
+    /// successfully registered and `Err` otherwise. `Ok` will contain an
+    /// `Option` of a [`UnifiedRange`]; if there was already an existing
+    /// breakpoint condition (which this call replaced), it will be returned
+    /// (i.e. the `Option` will be `Some`).
+    ///
+    /// The only reason a depth condition should fail to register is if the
+    /// `Control` implementation does not currently have depth tracking enabled.
+    /// You can use the config functions ([`set_configuration`] and
+    /// [`get_configuration`]) to enable/disable depth tracking and get the
+    /// current setting. (TODO: config)
+    ///
+    /// [`ext`]: super::ext
+    /// [`DepthReached`]: Event::DepthReached
+    /// [`StepControl`]: super::StepControl
+    /// [`Event`]: Event
+    /// [`UnifiedRange`]: UnifiedRange
+    /// [`set_configuration`]: Control::set_configuration
+    /// [`get_configuration`]: Control::get_configuration
+    fn set_depth_condition(&mut self,
+        condition: UnifiedRange<u64>
+    )-> Result<Option<UnifiedRange<u64>>, ()>;
+
+    /// Unsets the current depth condition, if there is one.
+    ///
+    /// Returns the depth condition that was dropped (if there was one).
+    fn unset_depth_condition(&mut self) -> Option<UnifiedRange<u64>>;
+
+    /// Gets the current depth of the call stack.
+    ///
+    /// Like [`set_depth_condition`], this returns a `Result` that will be an
+    /// `Err` only if depth tracking is disabled.
+    ///
+    /// [`set_depth_condition`]: Control::set_depth_condition
+    fn get_depth(&self) -> Result<u64, ()>;
+
+    /// Gets the first [`MAX_CALL_STACK_DEPTH`] frames of the call stack.
+    ///
+    /// Frames that are `Some` exist; other's are not present. The number of
+    /// frames returned should be (MAX_CALL_STACK_DEPTH).min()
+    fn get_call_stack(&self) -> [Option<(Addr, ProcessorMode)>; MAX_CALL_STACK_DEPTH];
 
     // Execution control functions:
     fn run_until_event(&mut self) -> Self::EventFuture; // Can be interrupted by step or pause.
@@ -173,8 +267,8 @@ pub trait Control {
     fn get_gpio_readings(&self) -> GpioPinArr<Result<bool, GpioReadError>>;
     fn get_adc_states(&self) -> AdcPinArr<AdcState>;
     fn get_adc_readings(&self) -> AdcPinArr<Result<u8, AdcReadError>>;
+    fn get_timer_modes(&self) -> TimerArr<TimerMode>;
     fn get_timer_states(&self) -> TimerArr<TimerState>;
-    fn get_timer_config(&self) -> TimerArr<Word>; // TODO: represent with some kind of enum? Word is problematic since it leaks interpreter impl details.
     fn get_pwm_states(&self) -> PwmPinArr<PwmState>;
     fn get_pwm_config(&self) -> PwmPinArr<u8>; // TODO: ditto with using u8 here; probably should be some kind of enum (the conflict is then we're kinda pushing implementors to represent state a certain way.. or at least to have to translate it to our enum).
     fn get_clock(&self) -> Word;
@@ -193,16 +287,21 @@ pub trait Control {
     //
     // We kind of got around this with the `PeripheralSet` struct in the peripherals module, but I'm not sure it'd work here.
 
-    fn get_info(&self) -> DeviceInfo {
+    // We encourage implementors to not return different device names,
+    // capabilities, and versions dynamically _unless they have a good reason
+    // for doing so_ (i.e. attaching an SD Card to a particular implementation
+    // enables the disk peripheral).
+    fn get_device_info(&self) -> DeviceInfo {
         DeviceInfo::new(
-            ProgramMetadata::default(),
-            Capabilities::default(),
-            core::any::TypeId::of::<()>(),
             self.id(),
+            super::version_from_crate!(),
+            core::any::TypeId::of::<()>(),
+            Capabilities::default(),
             Default::default() // (no proxies by default)
         )
     }
 
+    fn get_program_metadata(&self) -> ProgramMetadata;
     fn set_program_metadata(&mut self, metadata: ProgramMetadata);
 
     // Should actually be an associated constant but isn't because of object

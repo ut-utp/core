@@ -55,6 +55,7 @@ impl From<GpioPin> for usize {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(DisplayUsingDebug)]
 pub enum GpioState {
     Input,
     Output,
@@ -121,11 +122,12 @@ pub struct GpioReadError(pub GpioStateMismatch);
 pub struct GpioWriteError(pub GpioStateMismatch);
 
 pub type GpioStateMismatches = GpioPinArr<Option<GpioStateMismatch>>; // [Option<GpioStateMismatch>; NUM_GPIO_PINS as usize];
+impl Copy for GpioStateMismatches { }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioReadErrors(pub GpioStateMismatches);
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct GpioWriteErrors(pub GpioStateMismatches);
 
 // #[derive(Copy, Clone)]
@@ -171,6 +173,7 @@ peripheral_trait! {gpio,
 /// in input ([`GpioState::Input`]) or interrupt ([`GpioState::Interrupt`]) mode.
 ///
 /// ### Interrupts
+/// TODO: OUT OF DATE.
 /// Registering interrupts (i.e. calling
 /// [`register_interrupt`](Gpio::register_interrupt)) does not automatically put a pin
 /// in [`interrupt`](GpioState::Interrupt) mode. Instead, this only updates the handler
@@ -212,6 +215,7 @@ pub trait Gpio<'a>: Default {
 
     fn set_state(&mut self, pin: GpioPin, state: GpioState) -> Result<(), GpioMiscError>; // should probably be infallible
     fn get_state(&self, pin: GpioPin) -> GpioState;
+    #[inline]
     fn get_states(&self) -> GpioPinArr<GpioState> {
         let mut states = GpioPinArr([GpioState::Disabled; GpioPin::NUM_PINS]); // TODO (again)
 
@@ -223,6 +227,7 @@ pub trait Gpio<'a>: Default {
     }
 
     fn read(&self, pin: GpioPin) -> Result<bool, GpioReadError>; // errors on state mismatch (i.e. you tried to read but the pin is configured as an output)
+    #[inline]
     fn read_all(&self) -> GpioPinArr<Result<bool, GpioReadError>> {
         // TODO: here's a thing; [Result<bool, GpioReadError>] or Result<[bool], [GpioReadError]>?
         // The interpreter will _probably_ just use a default value upon encountering read errors
@@ -239,6 +244,7 @@ pub trait Gpio<'a>: Default {
     }
 
     fn write(&mut self, pin: GpioPin, bit: bool) -> Result<(), GpioWriteError>; // errors on state mismatch
+    #[inline]
     fn write_all(&mut self, bits: GpioPinArr<bool>) -> GpioPinArr<Result<(), GpioWriteError>> {
         // TODO: return an array of results or one result?
         // For the actual interpreter, it doesn't make a difference; we have no mechanism by which
@@ -260,8 +266,10 @@ pub trait Gpio<'a>: Default {
     fn register_interrupt_flags(&mut self, flags: &'a GpioPinArr<AtomicBool>);
     fn interrupt_occurred(&self, pin: GpioPin) -> bool;
     fn reset_interrupt_flag(&mut self, pin: GpioPin);
-    fn interrupts_enabled(&self, pin: GpioPin) -> bool;
-
+    #[inline]
+    fn interrupts_enabled(&self, pin: GpioPin) -> bool {
+        matches!(self.get_state(pin), GpioState::Interrupt)
+    }
 }}
 
 impl TryFrom<GpioPinArr<Result<bool, GpioReadError>>> for GpioReadErrors {
@@ -354,6 +362,5 @@ using_std! {
         fn interrupts_enabled(&self, pin: GpioPin) -> bool {
             RwLock::read(self).unwrap().interrupts_enabled(pin)
         }
-
     }
 }

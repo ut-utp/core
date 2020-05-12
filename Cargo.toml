@@ -5,11 +5,14 @@ members = [
     "traits",
     "shims",
     "baseline-sim",
+    "shims",
     "macros",
     "os",
     "application-support",
+    "test-infrastructure",
+    "device-support" # TODO: spin off
 ]
-exclude = [ "misc/lc3-tm4c", "misc/serial" ]
+exclude = [ "misc/lc3-tm4c", "misc/serial" ] # TODO: remove
 
 
 [package] # TODO
@@ -36,6 +39,11 @@ harness = false
 [[bench]]
 name = "overhead"
 harness = false
+
+
+[features]
+default = []
+nightly = [] # For benchmarking.
 
 
 [profile.bench]

@@ -7,7 +7,7 @@ edition = "2018"
 workspace = ".."
 
 description = "An instruction level simulator for the LC-3."
-homepage = "https://ut-utp.github.io"
+homepage = "https://utp.tools"
 repository = "http://github.com/ut-utp/prototype"
 
 readme = "README.md"
@@ -31,12 +31,16 @@ maintenance = { status = "actively-developed" }
 lc3-isa = { path = "../isa", version = "0.1.0", default-features = false }
 lc3-macros = { path = "../macros", version = "0.1.0" }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
-
 static_assertions = "1.1.0"
 
 [dev-dependencies]
-lc3-shims = { path = "../shims", version = "0.1.0", default-features = false }
-pretty_assertions = "0.6.1"
+lc3-test-infrastructure = { path = "../test-infrastructure", version = "0.1.0" }
+itertools = "0.9.0"
+
+
+[[test]]
+name = "mem_mapped"
+path = "tests/device_register_tests/mod.rs"
 
 
 [features]

@@ -1,13 +1,12 @@
 //! Just check that the OS assembles.
 
+extern crate lc3_test_infrastructure as lti;
+
 use lc3_os::*;
 
-use pretty_assertions::assert_eq;
-
-mod common;
-use common::with_larger_stack;
+use lti::{assert_eq, with_larger_stack};
 
 #[test]
 fn os_size() {
-    with_larger_stack(|| assert_eq!(OS.into_iter().count(), 0x04F9));
+    with_larger_stack(None, || assert_eq!(OS.into_iter().count(), 0x052C));
 }

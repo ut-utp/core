@@ -53,7 +53,7 @@ impl AdcShim {
 }
 
 impl Adc for AdcShim {
-    fn set_state(&mut self, pin: Pin, state: AdcState) -> Result<(), ()> {
+    fn set_state(&mut self, pin: Pin, state: AdcState) -> Result<(), AdcMiscError> {
         use AdcState::*;
         self.states[pin] = match state {
             Enabled => State::Enabled(INIT_VALUE),
@@ -80,7 +80,7 @@ mod tests {
     use super::*;
     use lc3_traits::peripherals::adc::{Adc, AdcPin::*, AdcState};
 
-    use pretty_assertions::{assert_eq, assert_ne};
+    use lc3_test_infrastructure::{assert_eq, assert_ne};
 
     #[test]
     fn get_state_initial() {

@@ -19,22 +19,29 @@ pub const GPIO_OFFSET: u8 = 0x30;
 const GPIO_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (GPIO_OFFSET as Addr);
 const GPIO_PIN_ADDRS: Addr = 2;
 
-pub const G0CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 0; // xFE30
-pub const G0DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 0 + 1; // xFE31
-pub const G1CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 0; // xFE32
-pub const G1DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 1 + 1; // xFE33
-pub const G2CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 0; // xFE34
-pub const G2DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 2 + 1; // xFE35
-pub const G3CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 0; // xFE36
-pub const G3DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 3 + 1; // xFE37
-pub const G4CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 0; // xFE38
-pub const G4DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 4 + 1; // xFE39
-pub const G5CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 0; // xFE3A
-pub const G5DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 5 + 1; // xFE3B
-pub const G6CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 0; // xFE3C
-pub const G6DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 6 + 1; // xFE3D
-pub const G7CR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 0; // xFE3E
-pub const G7DR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 7 + 1; // xFE3F
+pub const G0CR_ADDR: Addr = gpio_cr_addr(0); // xFE30
+pub const G0DR_ADDR: Addr = gpio_dr_addr(0); // xFE31
+pub const G1CR_ADDR: Addr = gpio_cr_addr(1); // xFE32
+pub const G1DR_ADDR: Addr = gpio_dr_addr(1); // xFE33
+pub const G2CR_ADDR: Addr = gpio_cr_addr(2); // xFE34
+pub const G2DR_ADDR: Addr = gpio_dr_addr(2); // xFE35
+pub const G3CR_ADDR: Addr = gpio_cr_addr(3); // xFE36
+pub const G3DR_ADDR: Addr = gpio_dr_addr(3); // xFE37
+pub const G4CR_ADDR: Addr = gpio_cr_addr(4); // xFE38
+pub const G4DR_ADDR: Addr = gpio_dr_addr(4); // xFE39
+pub const G5CR_ADDR: Addr = gpio_cr_addr(5); // xFE3A
+pub const G5DR_ADDR: Addr = gpio_dr_addr(5); // xFE3B
+pub const G6CR_ADDR: Addr = gpio_cr_addr(6); // xFE3C
+pub const G6DR_ADDR: Addr = gpio_dr_addr(6); // xFE3D
+pub const G7CR_ADDR: Addr = gpio_cr_addr(7); // xFE3E
+pub const G7DR_ADDR: Addr = gpio_dr_addr(7); // xFE3F
+
+const fn gpio_cr_addr(i: u16) -> Addr {
+    GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * i
+}
+const fn gpio_dr_addr(i: u16) -> Addr {
+    gpio_cr_addr(i) + 1
+}
 
 pub const GPIODR_ADDR: Addr = GPIO_MEM_MAPPED_BASE + GPIO_PIN_ADDRS * 8 + 0;
 
@@ -89,7 +96,6 @@ pub const T0_INT_VEC: u8 = 128 + TIMER_OFFSET + 0; // xE0
 pub const T1_INT_VEC: u8 = 128 + TIMER_OFFSET + 1; // xE1;
 pub const TIMER_INT_PRIORITY: u8 = 4;
 
-// TODO: redo with MISC_OFFSET: u8 = 0x70
 // (For one off peripherals like the clock and the display, etc.)
 pub const MISC_OFFSET: u8 = 0x70;
 const MISC_MEM_MAPPED_BASE: Addr = MEM_MAPPED_START_ADDR + (MISC_OFFSET as Addr);
@@ -102,6 +108,7 @@ use crate::interp::InstructionInterpreterPeripheralAccess;
 use core::ops::Deref;
 use lc3_isa::{Addr, Bits, SignedWord, Word, MCR as MCR_ADDR, PSR as PSR_ADDR, WORD_MAX_VAL};
 use lc3_traits::peripherals::Peripherals;
+use lc3_traits::error::Error;
 
 use crate::interp::{Acv, InstructionInterpreter, WriteAttempt};
 
@@ -336,9 +343,15 @@ impl MemMapped for KBDR {
         I: InstructionInterpreterPeripheralAccess<'a>,
         <I as Deref>::Target: Peripherals<'a>,
     {
-        Ok(Self::with_value(
-            Input::read_data(interp.get_peripherals()).unwrap() as Word,
-        )) // TODO: Do something on error
+        let data = match Input::read_data(interp.get_peripherals()) {
+            Ok(val) => val as Word,
+            Err(err) => {
+                interp.set_error(Error::from(err));
+                0
+            }
+        };
+
+        Ok(Self::with_value(data))
     }
 
     fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
@@ -583,7 +596,7 @@ macro_rules! gpio_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 use lc3_traits::peripherals::gpio::GpioState::*;
-                let state = match value.bits(0..2) {
+                let state = match value.bits(0..1) {
                     0 => Disabled,
                     1 => Output,
                     2 => Input,
@@ -591,9 +604,13 @@ macro_rules! gpio_mem_mapped {
                     _ => unreachable!()
                 };
 
-                Gpio::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
-
-                Ok(())
+                match Gpio::set_state(interp.get_peripherals_mut(), $pin, state) {
+                    Ok(()) => Ok(()),
+                    Err(err) => {
+                        interp.set_error(Error::from(err));
+                        Ok(())
+                    }
+                }
             }
         }
 
@@ -607,7 +624,6 @@ macro_rules! gpio_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 Gpio::interrupt_occurred(interp.get_peripherals(), $pin)
-                // TODO: When to reset interrupt occurred flag?
             }
 
             fn interrupt_enabled<'a, I>(interp: &I) -> bool
@@ -651,7 +667,15 @@ macro_rules! gpio_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Gpio::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+                use lc3_traits::peripherals::gpio::GpioState::*;
+
+                let word = match Gpio::read(interp.get_peripherals(), $pin) {
+                    Ok(val) => val as Word,
+                    Err(err) => {
+                        interp.set_error(Error::from(err));
+                        0x8000
+                    }
+                };
 
                 Ok(Self::with_value(word))
             }
@@ -661,10 +685,16 @@ macro_rules! gpio_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let bit: bool = value.bit(0);
-                Gpio::write(interp.get_peripherals_mut(), $pin, bit); // TODO: do something on failure
+                use lc3_traits::peripherals::gpio::GpioState::*;
 
-                Ok(())
+                let bit: bool = value.bit(0);
+                match Gpio::write(interp.get_peripherals_mut(), $pin, bit) {
+                    Ok(()) => Ok(()),
+                    Err(err) => {
+                        interp.set_error(Error::from(err));
+                        Ok(())
+                    }
+                }
             }
         }
     };
@@ -682,8 +712,8 @@ gpio_mem_mapped!(G6, "G6", G6CR, G6DR, G6CR_ADDR, G6DR_ADDR, G6_INT_VEC);
 gpio_mem_mapped!(G7, "G7", G7CR, G7DR, G7CR_ADDR, G7DR_ADDR, G7_INT_VEC);
 
 pub struct GPIODR(Word);
-
 impl Deref for GPIODR {
+
     type Target = Word;
 
     fn deref(&self) -> &Self::Target { &self.0 }
@@ -798,9 +828,13 @@ macro_rules! adc_mem_mapped {
                     true => Enabled,
                 };
 
-                Adc::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
-
-                Ok(())
+                match Adc::set_state(interp.get_peripherals_mut(), $pin, state) {
+                    Ok(()) => Ok(()),
+                    Err(err) => {
+                        interp.set_error(Error::from(err));
+                        Ok(())
+                    }
+                }
             }
         }
 
@@ -825,7 +859,15 @@ macro_rules! adc_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Adc::read(interp.get_peripherals(), $pin).map(|b| b as Word).unwrap_or(0x8000); // TODO: document and/or change the 'error' value
+                use lc3_traits::peripherals::adc::AdcState::*;
+
+                let word = match Adc::read(interp.get_peripherals(), $pin) {
+                    Ok(val) => val as Word,
+                    Err(err) => {
+                        interp.set_error(Error::from(err));
+                        0x8000
+                    }
+                };
 
                 Ok(Self::with_value(word))
             }
@@ -934,10 +976,10 @@ macro_rules! pwm_mem_mapped {
                 let state_val: u8 = value as u8;
                 let state = match state_val {
                     0 => Disabled,
-                    _ => Enabled(NonZeroU8::new(state_val).unwrap()),  // TODO: Will this fail?
+                    _ => Enabled(NonZeroU8::new(state_val).unwrap()),
                 };
 
-                Pwm::set_state(interp.get_peripherals_mut(), $pin, state).unwrap(); // TODO: do something different on error?
+                Pwm::set_state(interp.get_peripherals_mut(), $pin, state);
 
                 Ok(())
             }
@@ -964,6 +1006,8 @@ macro_rules! pwm_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
+                use lc3_traits::peripherals::pwm::PwmState::*;
+
                 let word = Pwm::get_duty_cycle(interp.get_peripherals(), $pin) as Word;
 
                 Ok(Self::with_value(word))
@@ -975,7 +1019,8 @@ macro_rules! pwm_mem_mapped {
                 <I as Deref>::Target: Peripherals<'a>,
             {
                 let duty_val: u8 = value as u8;
-                Pwm::set_duty_cycle(interp.get_peripherals_mut(), $pin, duty_val); // TODO: do something on failure
+
+                Pwm::set_duty_cycle(interp.get_peripherals_mut(), $pin, duty_val);
 
                 Ok(())
             }
@@ -1011,13 +1056,12 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let state = Timers::get_state(interp.get_peripherals(), $id);
+                let mode = Timers::get_mode(interp.get_peripherals(), $id);
 
-                use lc3_traits::peripherals::timers::TimerState::*;
-                let word: Word = match state {
-                    Disabled => 0,
+                use lc3_traits::peripherals::timers::TimerMode::*;
+                let word: Word = match mode {
+                    SingleShot => 0,
                     Repeated => 1,
-                    SingleShot => 2,
                 };
 
                 Ok(Self::with_value(word))
@@ -1028,16 +1072,14 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                use lc3_traits::peripherals::timers::TimerState::*;
-
-                let state = match value.bits(0..2) {
-                    0 | 3 => Disabled,
-                    1 => Repeated,
-                    2 => SingleShot,
-                    _ => unreachable!(),
+                use lc3_traits::peripherals::timers::TimerMode::*;
+                let mode = if value.bit(0) {
+                    Repeated
+                } else {
+                    SingleShot
                 };
 
-                Timers::set_state(interp.get_peripherals_mut(), $id, state).unwrap(); // TODO: do something different on error?
+                Timers::set_mode(interp.get_peripherals_mut(), $id, mode);
 
                 Ok(())
             }
@@ -1096,9 +1138,15 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                let word = Timers::get_period(interp.get_peripherals(), $id);
+                let state = Timers::get_state(interp.get_peripherals(), $id);
 
-                Ok(Self::with_value(word))
+                use lc3_traits::peripherals::timers::TimerState::*;
+                let value = match state {
+                    Disabled => 0,
+                    WithPeriod(period) => period.into(),
+                };
+
+                Ok(Self::with_value(value))
             }
 
             fn set<'a, I>(interp: &mut I, value: Word) -> WriteAttempt
@@ -1106,7 +1154,13 @@ macro_rules! timer_mem_mapped {
                 I: InstructionInterpreterPeripheralAccess<'a>,
                 <I as Deref>::Target: Peripherals<'a>,
             {
-                Timers::set_period(interp.get_peripherals_mut(), $id, value); // TODO: do something on failure
+                use lc3_traits::peripherals::timers::TimerState::*;
+                use lc3_traits::peripherals::timers::Period;
+                let state = match value {
+                    0 => Disabled,
+                    nonzero => WithPeriod(Period::new(nonzero).unwrap()), // TODO: will this fail?
+                };
+                Timers::set_state(interp.get_peripherals_mut(), $id, state);
 
                 Ok(())
             }
@@ -1123,6 +1177,8 @@ mem_mapped!(special: BSP, BSP_ADDR, "Backup Stack Pointer.");
 
 mem_mapped!(special: PSR, PSR_ADDR, "Program Status Register.");
 
+use lc3_traits::control::ProcessorMode;
+
 impl PSR {
     pub fn get_priority(&self) -> u8 {
         self.u8(8..10)
@@ -1137,6 +1193,14 @@ impl PSR {
 
         // Don't return a `WriteAttempt` since PSR accesses don't produce ACVs (and are hence infallible).
         self.write_current_value(interp).unwrap();
+    }
+
+    pub fn get_mode(&self) -> ProcessorMode {
+        if self.in_user_mode() {
+            ProcessorMode::User
+        } else {
+            ProcessorMode::Supervisor
+        }
     }
 
     pub fn in_user_mode(&self) -> bool {

@@ -63,7 +63,11 @@ macro_rules! nightly_const {
     );
 }
 
+#[allow(unused_extern_crates)]
+extern crate core; // makes rls actually look into the standard library (hack)
+
 extern crate static_assertions as sa;
+
 use core::mem::size_of;
 
 /// Address type/size for the LC-3.

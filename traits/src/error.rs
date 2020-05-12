@@ -2,6 +2,9 @@ use super::peripherals::gpio::{
     GpioMiscError, /* GpioInterruptRegisterError */
     GpioReadError, GpioReadErrors, GpioWriteError, GpioWriteErrors,
 };
+use super::peripherals::adc::{AdcReadError, AdcReadErrors, AdcMiscError};
+use super::peripherals::input::InputError;
+use super::peripherals::output::OutputError;
 use lc3_isa::Word;
 
 use core::fmt::Display;
@@ -18,7 +21,7 @@ use serde::{Serialize, Deserialize};
 //    + I'm warming to this idea, actually. The underlying infrastructure (peripherals, control) agree on a set of errors; how those
 //      errors make their way into LC-3 land is up to the interpreter. It's literally a matter of mapping these Errors into whatever.
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Error {
     InvalidGpioWrite(GpioWriteError),
     InvalidGpioWrites(GpioWriteErrors),
@@ -26,13 +29,37 @@ pub enum Error {
     InvalidGpioReads(GpioReadErrors),
     GpioMiscError(GpioMiscError), // Unclear if we want to expose these kind of errors in the Control interface or just make the interpreter deal with them (probably expose...) (TODO)
                                   // InvalidGpioInterruptRegistration(GpioInterruptRegisterError),
-                                  ///// TODO: finish
+    InvalidAdcRead(AdcReadError),
+    InvalidAdcReads(AdcReadErrors),
+    AdcMiscError(AdcMiscError),
+
+    InputError(InputError),
+    OutputError(OutputError),
+
+    SystemStackOverflow,
+    ///// TODO: finish
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        // TODO
-        unimplemented!()
+        use Error::*;
+
+        match self {
+            InvalidGpioWrite(err) =>
+                write!(f, "Attempted to write to {} when in {} mode", (err.0).0, (err.0).1),
+            InvalidGpioWrites(_) => todo!(),
+            InvalidGpioRead(err) =>
+                write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1),
+            InvalidGpioReads(_) => todo!(),
+            GpioMiscError(_) => todo!(),
+            InvalidAdcRead(err) =>
+                write!(f, "Attempted to read from {} when in {} mode", (err.0).0, (err.0).1),
+            InvalidAdcReads(_) => todo!(),
+            AdcMiscError(_) => todo!(),
+            OutputError(e) => write!(f, "{}", e),
+            InputError(e) => write!(f, "{}", e),
+            SystemStackOverflow => write!(f, "Overflowed system stack"),
+        }
     }
 }
 
@@ -61,6 +88,15 @@ macro_rules! err {
 }
 
 err!(GpioWriteError, Error::InvalidGpioWrite);
+err!(GpioWriteErrors, Error::InvalidGpioWrites);
+err!(GpioReadError, Error::InvalidGpioRead);
+err!(GpioReadErrors, Error::InvalidGpioReads);
+err!(GpioMiscError, Error::GpioMiscError);
+err!(AdcReadError, Error::InvalidAdcRead);
+err!(AdcReadErrors, Error::InvalidAdcReads);
+err!(AdcMiscError, Error::AdcMiscError);
+err!(InputError, Error::InputError);
+err!(OutputError, Error::OutputError);
 // TODO: finish
 
 /// Just some musings; if we go with something like this it won't live here.
@@ -91,6 +127,14 @@ impl From<Error> for ErrorHandlingStrategy {
                 // TODO: set all the mismatched bits to 0, etc.
             }
             GpioMiscError(_) => Silent,
+            InvalidAdcRead(_) => DefaultValue(0u16),
+            InvalidAdcReads(_) => {
+                unimplemented!()
+            }
+            AdcMiscError(_) => Silent,
+            InputError(_) => Silent,        // TODO: what to actually do here?
+            OutputError(_) => Silent,       // TODO: and here?
+            SystemStackOverflow => Silent,
         }
     }
 }

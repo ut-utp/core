@@ -3,12 +3,8 @@ use std::io::{stdout, Error as IoError, Write};
 
 use crate::peripherals::OwnedOrRef;
 
-use std::convert::AsMut;
-use std::marker::PhantomData;
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use std::io::Result as IoResult;
 
@@ -30,9 +26,19 @@ impl<W: Write> Sink for Mutex<W> {
     }
 }
 
+impl<S: Sink> Sink for Arc<S> {
+    fn put_char(&self, c: u8) -> IoResult<usize> {
+        self.put_char(c)
+    }
+
+    fn flush(&self) -> IoResult<()> {
+        self.flush()
+    }
+}
+
 // #[derive(Clone)] // TODO: Debug
-pub struct OutputShim<'o, 'int> {
-    sink: OwnedOrRef<'o, dyn Sink + Send + Sync + 'o>,
+pub struct OutputShim<'out, 'int> {
+    sink: OwnedOrRef<'out, dyn Sink + Send + Sync + 'out>,
     flag: Option<&'int AtomicBool>,
     interrupt_enable_bit: bool,
 }
@@ -63,13 +69,20 @@ impl<'o, 'int> OutputShim<'o, 'int> {
             interrupt_enable_bit: false,
         }
     }
+
+    pub fn get_inner_ref(&self) -> &(dyn Sink + Send + Sync + 'o) {
+        &*self.sink
+    }
 }
 
-impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
+impl<'out, 'int> Output<'int> for OutputShim<'out, 'int> {
     fn register_interrupt_flag(&mut self, flag: &'int AtomicBool) {
         self.flag = match self.flag {
             None => Some(flag),
-            Some(_) => unreachable!(),
+            Some(_) => {
+                // warn!("re-registering interrupt flags!");
+                Some(flag)
+            }
         };
 
         flag.store(true, Ordering::SeqCst);
@@ -96,12 +109,16 @@ impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
 
     // TODO: handle OutputErrors to somehow report that the write or flush went wrong
     fn write_data(&mut self, c: u8) -> Result<(), OutputError> {
+        if !c.is_ascii() {
+            return Err(OutputError::NonUnicodeCharacter(c));
+        }
+
         match self.flag {
             Some(f) => f.store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
-        self.sink.put_char(c).map_err(|_| OutputError)?;
-        self.sink.flush().map_err(|_| OutputError)?;
+        self.sink.put_char(c)?;
+        self.sink.flush()?;
         match self.flag {
             Some(f) => f.store(true, Ordering::SeqCst),
             None => unreachable!(),
@@ -110,10 +127,18 @@ impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
     }
 
     fn current_data_written(&self) -> bool {
-        match self.flag {
+        // eprintln!("Output Polled for readiness: {:?}", self.flag.unwrap().load(Ordering::SeqCst));
+
+        let val = match self.flag {
             Some(f) => f.load(Ordering::SeqCst),
             None => unreachable!(),
+        };
+
+        if !val {
+            self.flag.unwrap().store(true, Ordering::SeqCst);
         }
+
+        true
     }
 }
 
@@ -121,7 +146,7 @@ impl<'int: 'o, 'o> Output<'int> for OutputShim<'o, 'int> {
 mod tests {
     use super::*;
 
-    use pretty_assertions::assert_eq;
+    use lc3_test_infrastructure::assert_eq;
 
     #[test]
     fn write_one() {
@@ -177,6 +202,6 @@ mod tests {
         let ch1 = 'P' as u8;
         shim.write_data(ch0).unwrap();
         let res = shim.write_data(ch1);
-        assert_eq!(res, Err(OutputError));
+        assert_eq!(res, Err(OutputError::IoError));
     }
 }

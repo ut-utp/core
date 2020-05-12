@@ -3,6 +3,10 @@
 use super::isa::Instruction;
 use core::fmt::{self, Display};
 
+// TODO: impl UpperHex/LowerHex/Binary? (i.e. have immediates print in the fmt)
+// TODO: when the alternate formatting is specified (`#`), do `x25` style
+// literals instead of the usual `0x25`?
+
 impl Display for Instruction {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Instruction::*;
