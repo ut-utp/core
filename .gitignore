@@ -1,6 +1,7 @@
 ### Cargo ###
 /target
 **/*.rs.bk
+Cargo.lock
 
 ### UTP Specific Things ###
 *.mem
