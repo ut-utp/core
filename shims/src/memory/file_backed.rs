@@ -1,6 +1,6 @@
 //! A file backed [`Memory` trait](lc3_traits::memory::Memory) implementation called
 //! [`FileBackedMemoryShim`](memory::FileBackedMemoryShim).
-//! (TODO!)
+//! (TODO(#106): add docs)
 
 use std::convert::TryInto;
 use std::fs::File;
@@ -113,7 +113,7 @@ impl Memory for FileBackedMemoryShim {
     fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
         assert!(page_idx < MEM_MAPPED_START_ADDR.page_idx());
 
-        // TODO: right now we have three copies: the file, the in memory
+        // TODO(#104): right now we have three copies: the file, the in memory
         // persistent copy, and the in memory temporary copy. We only actually
         // need two; the file and the in memory persistent copy should be the
         // same which makes the in memory persistent copy redundant.
@@ -123,12 +123,12 @@ impl Memory for FileBackedMemoryShim {
         // us), we can get rid of the in memory persistent copy (`self.mem`).
         self.mem[PIdx(page_idx).as_index_range()].copy_from_slice(page);
 
-        write_to_file(&self.path, &self.mem).unwrap(); // note: crashes (TODO?)
+        write_to_file(&self.path, &self.mem).unwrap(); // TODO(#105): may crash. Is this a concern?
         self.metadata.updated_now();
     }
 
     fn reset(&mut self) {
-        // TODO: once we do the above this will become a file read call
+        // TODO(#104): once we do the above this will become a file read call
         self.current = self.mem.clone();
     }
 
