@@ -40,6 +40,18 @@ fn bench_fib(c: &mut Criterion) {
         )));
 
         group.bench_with_input(
+            BenchmarkId::new("LC3Tools", *num_iter),
+            num_iter,
+            |b, num| {
+                let mut sim = Lc3ToolsSim::new();
+                sim.load_program(&fib_program(*num));
+                b.iter(|| {
+                    sim.run(0x3000).unwrap();
+                })
+            }
+        );
+
+        group.bench_with_input(
             BenchmarkId::new("Bare Interpreter - step", *num_iter),
             num_iter,
             |b, num| {
@@ -68,12 +80,12 @@ fn bench_fib_alt() {
 
 use criterion::{criterion_group, criterion_main};
 
-// criterion_group!(benches, bench_fib);
-// criterion_main!(benches);
+criterion_group!(benches, bench_fib);
+criterion_main!(benches);
 
-fn main() {
-    let mut crit = Default::default();
+// fn main() {
+//     let mut crit = Default::default();
 
-    bench_fib(&mut crit);
-    // bench_fib_alt();
-}
+//     bench_fib(&mut crit);
+//     // bench_fib_alt();
+// }
