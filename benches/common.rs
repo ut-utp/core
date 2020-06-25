@@ -6,6 +6,8 @@ pub extern crate lc3_shims;
 pub extern crate lc3_traits;
 pub extern crate lc3_os;
 
+pub extern crate lc3tools_sys;
+
 extern crate lazy_static;
 
 use lc3_isa::{program, util::AssembledProgram};
@@ -20,10 +22,10 @@ pub const fn fib_program_executed_insn_count(num_iters: Word) -> u64 {
 // TODO: new macro that basically does the below + sets the orig hook
 // TODO: have obj conv set the orig hook
 
-pub fn build_fib_memory_image(num_iters: Word) -> MemoryDump {
+pub fn fib_program(num_iters: Word) -> AssembledProgram {
     const F: Word = 24;
 
-    let prog: AssembledProgram = program! {
+    let prog = program! {
         .ORIG #0x3000;
         BRnzp @START;
 
@@ -62,8 +64,13 @@ pub fn build_fib_memory_image(num_iters: Word) -> MemoryDump {
 
         @END
             HALT;
-    }
-    .into();
+    }.into();
+
+    prog
+}
+
+pub fn build_fib_memory_image(num_iters: Word) -> MemoryDump {
+    let prog = fib_program(num_iters);
 
     let mut image = OS_IMAGE.clone();
     image.layer_loadable(&prog);
@@ -202,4 +209,82 @@ where
     let halt = |c: &Sender<Option<()>>| c.send(None).unwrap();
 
     (halt_or_fut, halt, next)
+}
+
+use lc3tools_sys::root::{
+    lc3::sim as Lc3ToolsSimInner,
+    buffer_printer, buffer_inputter, callback_printer, callback_inputter, free_sim, get_mem, load_program, new_sim, new_sim_with_no_op_io, run_program, State as Lc3ToolsSimState,
+};
+
+pub struct Lc3ToolsSim<'inp, 'out> {
+    sim: *mut Lc3ToolsSimInner,
+    inp: Option<&'inp Vec<u8>>,
+    out: Option<&'out mut Vec<u8>>,
+}
+
+impl<'inp, 'out> Lc3ToolsSim<'inp, 'out> {
+    pub fn new() -> Self {
+        Self {
+            sim: unsafe { new_sim_with_no_op_io() },
+            inp: None,
+            out: None,
+        }
+    }
+
+    pub fn new_with_buffers(inp: &'inp Vec<u8>, out: &'out mut Vec<u8>) -> Self {
+        let i = inp.as_ptr();
+        let i_len = inp.len();
+        let o = out.as_mut_ptr();
+        let o_len = out.len();
+
+        Self {
+            sim: unsafe {
+                new_sim(
+                    buffer_printer(o_len as u64, o),
+                    buffer_inputter(i_len as u64, i),
+                )
+            },
+            inp: Some(inp),
+            out: Some(out),
+        }
+    }
+
+    pub fn new_with_callbacks(input: extern "C" fn() -> u8, output: extern "C" fn(u8)) -> Self {
+        Self {
+            sim: unsafe {
+                new_sim(
+                    callback_printer(Some(output)),
+                    callback_inputter(Some(input)),
+                )
+            },
+            inp: None,
+            out: None,
+        }
+    }
+
+    pub fn load_program(&mut self, prog: &AssembledProgram) {
+        let (mut addrs, mut words) = (Vec::new(), Vec::new());
+        for (addr, word) in prog {
+            addrs.push(addr);
+            words.push(word);
+        }
+
+        let addrs_ptr = addrs.as_ptr();
+        let words_ptr = words.as_ptr();
+        let len = addrs.len();
+
+        unsafe { load_program(self.sim, len as u16, addrs_ptr, words_ptr) };
+    }
+
+    pub fn run(&mut self, pc: Word) -> Result<Lc3ToolsSimState, Lc3ToolsSimState> {
+        let state = unsafe { run_program(self.sim, pc) };
+
+        if state.success { Ok(state) } else { Err(state) }
+    }
+}
+
+impl<'i, 'o> Drop for Lc3ToolsSim<'i,'o> {
+    fn drop(&mut self) {
+        unsafe { free_sim(self.sim) }
+    }
 }

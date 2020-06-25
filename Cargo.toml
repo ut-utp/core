@@ -27,6 +27,8 @@ lc3-shims = { path = "shims", version = "0.1.0" }
 lc3-traits = { path = "traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
 lc3-os = { path = "os", version = "0.1.0" }
 
+lc3tools-sys = { version = "1.0.6", git = "https://github.com/rrbutani/lc3tools-sys.git", branch = "main" }
+
 criterion = "0.3.0"
 async-std = "1.4.0"
 lazy_static = "1.4.0"
@@ -44,6 +46,7 @@ harness = false
 [features]
 default = []
 nightly = [] # For benchmarking.
+lto = ["lc3tools-sys/lto"] # For benchmarking.
 
 
 [profile.bench]
