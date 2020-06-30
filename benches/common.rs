@@ -10,10 +10,10 @@ pub extern crate lc3tools_sys;
 
 extern crate lazy_static;
 
-use lc3_isa::{program, util::AssembledProgram};
+pub use lc3_isa::{program, util::AssembledProgram};
 pub use lc3_isa::Word;
 
-use lc3_os::OS_IMAGE;
+pub use lc3_os::OS_IMAGE;
 
 pub const fn fib_program_executed_insn_count(num_iters: Word) -> u64 {
     (159 * (num_iters as u64) + 347)
