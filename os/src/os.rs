@@ -1785,3 +1785,5 @@ fn os() -> AssembledProgram {
 
     AssembledProgram::new(os)
 }]}
+
+// TODO: offer a variant of this that has the OS be silent (no HALT, ACV, etc. messages).
