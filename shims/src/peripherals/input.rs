@@ -124,6 +124,10 @@ impl<'int, 'i> InputShim<'i, 'int> {
         InputShim::sourced_from(OwnedOrRef::Ref(source))
     }
 
+    // TODO: this seems wrong; why are we dropping unread data here?
+    //
+    // Note that since this gets called when we check for interrupts we'll just
+    // drop data repeatedly when this interrupt is enabled.
     fn fetch_latest(&self) {
         let new_data = self.source.get_char();
         if let Some(c) = new_data {
