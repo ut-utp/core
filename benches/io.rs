@@ -20,13 +20,14 @@ use std::iter::{DoubleEndedIterator, Rev};
 use std::sync::{Arc, Mutex};
 
 pub struct BufferedInput<Iter: DoubleEndedIterator + Iterator<Item = u8>> {
-    buffer: Mutex<Rev<Iter>>,
+    // buffer: Mutex<Rev<Iter>>,
+    buffer: Mutex<Iter>,
 }
 
 impl<I: DoubleEndedIterator + Iterator<Item = u8>> BufferedInput<I> {
     pub fn new(iter: I) -> Self {
         Self {
-            buffer: Mutex::new(iter.rev()),
+            buffer: Mutex::new(iter),
         }
     }
 }
@@ -36,7 +37,8 @@ impl<I: DoubleEndedIterator + Iterator<Item = u8>> Source for BufferedInput<I> {
         // Some(dbg!(self.buffer.lock().unwrap().next().unwrap()))
         // None
         // panic!("what!!!!")
-        Some(dbg!(self.buffer.lock().unwrap().next().unwrap()))
+        // Some(dbg!(self.buffer.lock().unwrap().next().unwrap()))
+        self.buffer.lock().unwrap().next()
     }
 }
 
@@ -213,7 +215,90 @@ pub fn program(num_elements: u64) -> AssembledProgram {
     prog
 }
 
-const SIZES: [u64; 5] = [10, 10, 100, 1000, 10_000];
+pub fn raw_io_program(num_elements: u64) -> AssembledProgram {
+    let prog = program! {
+        // Disable PUTS to suppress the HALT message.
+        .ORIG #(lc3_os::traps::builtin::PUTS as Word);
+        .FILL @NEW_PUTS;
+
+        .ORIG #0x4000;
+        @NEW_PUTS RTI;
+
+        // We're going to access the memory mapped locations directly so we
+        // don't want to be in user mode:
+        .ORIG #(lc3_os::USER_PROG_START_ADDR);
+        .FILL #0x1000;
+
+        // In protected space!
+        .ORIG #0x1000;
+        BRnzp @START;
+
+        // See the note on the regular program for details.
+        @C_A .FILL #(((num_elements >> 48) as Word).wrapping_add(1));
+        @C_B .FILL #(((num_elements >> 32) as Word).wrapping_add(1));
+        @C_C .FILL #(((num_elements >> 16) as Word).wrapping_add(1));
+        @C_D .FILL #(((num_elements >> 00) as Word).wrapping_add(0));
+
+        @KBDR_ADDR .FILL #(lc3_baseline_sim::KBDR_ADDR);
+        @DDR_ADDR .FILL #(lc3_baseline_sim::DDR_ADDR);
+
+        @START
+        LD R5, @KBDR_ADDR;
+        LD R7, @DDR_ADDR;
+
+        LD R1, @C_A;
+        LD R2, @C_B;
+        LD R3, @C_C;
+        LD R4, @C_D;
+
+        // LDR R0, R5, #0;
+        // LDR R0, R5, #0;
+        // HALT;
+        // STR R0, R6, #0;
+
+        BRnzp @D_LOOP;
+
+        @A_LOOP
+            BRz @A_END;
+
+            @B_LOOP
+                BRz @B_END;
+
+                @C_LOOP
+                    BRz @C_END;
+
+                    @D_LOOP
+                        BRz @D_END;
+
+                        LDR R0, R5, #0;
+                        STR R0, R7, #0;
+
+                        ADD R4, R4, #-1;
+                        BRnzp @D_LOOP;
+
+                    @D_END
+                        ADD R4, R4, #-1;
+                        ADD R3, R3, #-1;
+                        BRnzp @C_LOOP;
+
+                @C_END
+                    ADD R3, R3, #-1;
+                    ADD R2, R2, #-1;
+                    BRnzp @B_LOOP;
+
+            @B_END
+                ADD R2, R2, #-1;
+                ADD R1, R1, #-1;
+                BRnzp @A_LOOP;
+
+        @A_END
+            HALT;
+    }.into();
+
+    prog
+}
+
+const SIZES: [u64; 5] = [1, 10, 100, 1000, 10_000];
 
 use criterion::{BatchSize, BenchmarkId, Bencher, Criterion, Throughput, PlotConfiguration, AxisScale};
 use criterion::measurement::WallTime;
@@ -233,17 +318,25 @@ fn bench_io(c: &mut Criterion) {
     for size in SIZES.iter() {
         group.throughput(Throughput::Bytes(*size));
 
-        let input_stream: Vec<u8> = byte_stream(*size as usize + 12).collect();
+        let input_stream: Vec<u8> = byte_stream(*size as usize).collect();
 
         let program = program(*size);
-        let image = {
+        let image_traps = {
             let mut image = OS_IMAGE.clone();
             image.layer_loadable(&program);
 
             image
         };
 
-        lc3_shims::memory::FileBackedMemoryShim::with_initialized_memory("dump.mem", image.clone()).flush_all_changes().unwrap();
+        let image_raw = {
+            let mut image = OS_IMAGE.clone();
+            image.layer_loadable(&raw_io_program(*size));
+
+            image
+        };
+
+        lc3_shims::memory::FileBackedMemoryShim::with_initialized_memory("dump-traps.mem", image_traps.clone()).flush_all_changes().unwrap();
+        lc3_shims::memory::FileBackedMemoryShim::with_initialized_memory("dump-raw.mem", image_raw.clone()).flush_all_changes().unwrap();
 
         // fn lc3tools_inner<'a>(
         //     b: &mut Bencher<'a, WallTime>,
@@ -360,7 +453,7 @@ fn bench_io(c: &mut Criterion) {
         // );
 
         group.bench_with_input(
-            BenchmarkId::new("Bare Interpreter", *size),
+            BenchmarkId::new("Bare Interpreter w/TRAPs", *size),
             size,
             |b, size| {
                 b.iter_custom(|iters| {
@@ -369,15 +462,40 @@ fn bench_io(c: &mut Criterion) {
                     for _ in 0..iters {
                         let mut output = Vec::<u8>::with_capacity(*size as usize);
                         let borrow = Mutex::new(&mut output);
-                        let mut int = interpreter(&image, &flags, input_stream.iter().copied(), borrow);
+                        let mut int = interpreter(&image_traps, &flags, input_stream.iter().copied(), borrow);
 
                         // let mut int = bare_interpreter(image.clone(), &flags);
 
-                        println!("START!");
+                        // println!("START!");
                         let start = Instant::now();
                         while let MachineState::Running = int.step() {}
                         acc += start.elapsed();
-                        println!("END!");
+                        // println!("END!");
+
+                        drop(int);
+                        assert_eq!(input_stream, output);
+                    }
+
+                    acc
+                });
+            }
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("Bare Interpreter w/raw IO", *size),
+            size,
+            |b, size| {
+                b.iter_custom(|iters| {
+                    let mut acc = Duration::new(0, 0);
+
+                    for _ in 0..iters {
+                        let mut output = Vec::<u8>::with_capacity(*size as usize);
+                        let borrow = Mutex::new(&mut output);
+                        let mut int = interpreter(&image_raw, &flags, input_stream.iter().copied(), borrow);
+
+                        let start = Instant::now();
+                        while let MachineState::Running = int.step() {}
+                        acc += start.elapsed();
 
                         drop(int);
                         assert_eq!(input_stream, output);
