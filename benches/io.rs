@@ -37,7 +37,7 @@ impl<I: Iterator<Item = u8>> Source for BufferedInput<I> {
 }
 
 use lc3_baseline_sim::interp::{Interpreter, InterpreterBuilder};
-use lc3_traits::peripherals::{stubs::{GpioStub, AdcStub, PwmStub, TimersStub, ClockStub, InputStub}, PeripheralSet};
+use lc3_traits::peripherals::{stubs::{GpioStub, AdcStub, PwmStub, TimersStub, ClockStub}, PeripheralSet};
 use lc3_shims::peripherals::output::{OutputShim, Sink};
 use lc3_shims::memory::MemoryShim;
 use lc3_isa::util::MemoryDump;
@@ -58,7 +58,6 @@ pub fn interpreter<'b, 's>(
         TimersStub,
         ClockStub,
         InputShim<'s, 'b>,
-        // InputStub,
         OutputShim<'s, 'b>,
     >
 > {
@@ -71,7 +70,6 @@ pub fn interpreter<'b, 's>(
         TimersStub,
         ClockStub,
         InputShim::using(Box::new(BufferedInput::new(inp))),
-        // InputStub,
         OutputShim::using(Box::new(out)),
     );
 
@@ -88,7 +86,10 @@ pub fn interpreter<'b, 's>(
 }
 
 fn byte_stream(elements: usize) -> impl Clone + Iterator<Item = u8> {
-    (0..elements).map(|i| (((i % 256) + (i * i * i) - (i + 12)) % 256) as u8)
+    (0..elements)
+        .map(|i| (((i % 256) + (i * i * i) - (i + 12)) % 256) as u8)
+        // lc3tools remaps 13s to 10s (i.e. '\r' → '\n') so we have to do this
+        .map(|i| match i { 13 => 10, i => i })
 }
 
 fn checksum(iter: impl Iterator<Item = u8>) -> u128 {
@@ -245,7 +246,7 @@ pub fn raw_io_program(num_elements: u64) -> AssembledProgram {
     prog
 }
 
-const SIZES: [u64; 5] = [1, 10, 100, 1000, 10_000];
+const SIZES: &[u64] = &[1, 10, 100, 1000, 10_000, 50_000];
 
 use criterion::{BatchSize, BenchmarkId, BenchmarkGroup, Bencher, Criterion, Throughput, PlotConfiguration, AxisScale};
 use criterion::measurement::WallTime;
@@ -283,22 +284,14 @@ fn bench_io(c: &mut Criterion) {
             image
         };
 
-/*        group.bench_with_input(
+        // LC3Tools runs take a while..
+        group.sample_size(10);
+
+        group.bench_with_input(
             BenchmarkId::new("LC3Tools", *size),
             size,
             |b, size| {
-                let mut out = Vec::with_capacity(*size as usize);
-
-                // b.iter_batched(|| {
-                //         let mut sim = Lc3ToolsSim::new_with_buffers(&input_stream, &mut out);
-                //         sim.load_program(&program);
-                //         sim
-                //     },
-                //     |sim| sim.run(0x3000).unwrap(),
-                //     BatchSize::SmallInput,
-                // );
-
-                // lc3tools_inner(b, &program, &input_stream, &mut out);
+                let mut out = (0..*size).map(|_| 0).collect();
 
                 b.iter_custom(|iters| {
                     let mut acc = Duration::new(0, 0);
@@ -311,13 +304,15 @@ fn bench_io(c: &mut Criterion) {
                         acc += start.elapsed();
 
                         drop(sim);
-                        // assert_eq!(input_stream, out);
+                        eq!(input_stream, out);
                     }
 
                     acc
                 })
             }
-        );*/
+        );
+
+        group.sample_size(100);
 
         fn interp_bench(
             group: &mut BenchmarkGroup<WallTime>,
@@ -344,7 +339,7 @@ fn bench_io(c: &mut Criterion) {
                             acc += start.elapsed();
 
                             drop(int);
-                            assert_eq!(*input_stream, output);
+                            eq!(*input_stream, output);
                         }
 
                         acc

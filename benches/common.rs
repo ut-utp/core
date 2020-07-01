@@ -7,6 +7,7 @@ pub extern crate lc3_traits;
 pub extern crate lc3_os;
 
 pub extern crate lc3tools_sys;
+pub extern crate pretty_assertions;
 
 extern crate lazy_static;
 
@@ -14,6 +15,8 @@ pub use lc3_isa::{program, util::AssembledProgram};
 pub use lc3_isa::Word;
 
 pub use lc3_os::OS_IMAGE;
+
+pub use pretty_assertions::assert_eq as eq;
 
 pub const fn fib_program_executed_insn_count(num_iters: Word) -> u64 {
     (159 * (num_iters as u64) + 347)
@@ -213,7 +216,10 @@ where
 
 use lc3tools_sys::root::{
     lc3::sim as Lc3ToolsSimInner,
-    buffer_printer, buffer_inputter, callback_printer, callback_inputter, free_sim, get_mem, load_program, new_sim, new_sim_with_no_op_io, run_program, State as Lc3ToolsSimState,
+    buffer_printer, buffer_inputter, callback_printer, callback_inputter, free_sim,
+    get_mem, load_program, new_sim, new_sim_with_no_op_io, run_program,
+    State as Lc3ToolsSimState,
+    lc3::utils::PrintType_P_SIM_OUTPUT as PrintTypeSimOutput,
 };
 
 pub struct Lc3ToolsSim<'inp, 'out> {
@@ -225,7 +231,7 @@ pub struct Lc3ToolsSim<'inp, 'out> {
 impl<'inp, 'out> Lc3ToolsSim<'inp, 'out> {
     pub fn new() -> Self {
         Self {
-            sim: unsafe { new_sim_with_no_op_io() },
+            sim: unsafe { new_sim_with_no_op_io(PrintTypeSimOutput) },
             inp: None,
             out: None,
         }
@@ -242,6 +248,7 @@ impl<'inp, 'out> Lc3ToolsSim<'inp, 'out> {
                 new_sim(
                     buffer_printer(o_len as u64, o),
                     buffer_inputter(i_len as u64, i),
+                    PrintTypeSimOutput,
                 )
             },
             inp: Some(inp),
@@ -255,6 +262,7 @@ impl<'inp, 'out> Lc3ToolsSim<'inp, 'out> {
                 new_sim(
                     callback_printer(Some(output)),
                     callback_inputter(Some(input)),
+                    PrintTypeSimOutput,
                 )
             },
             inp: None,
