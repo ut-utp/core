@@ -1818,3 +1818,12 @@ fn os() -> AssembledProgram {
 }]}
 
 // TODO: offer a variant of this that has the OS be silent (no HALT, ACV, etc. messages).
+
+// TODO: verify that the <0x3000, no user mode thing works as we expect it to..
+//  - we should have tests for this (i.e. branches to the right spot, no ACVs this way, ACVs the other way)
+//  - i don't think there's any problem with RTI-ing back to system mode but someone should check me on this
+//  - open q: is it okay that we don't do anything if the starting address is in the
+//    mem mapped region? you just immediately crash with an ACV, is what happens.
+//   - we should probably add documentation explaining that you've got to be careful about the stack pointer when you do this (i.e. don't clobber R6 or you can't use the traps or take interrupts)
+//       + as an example, I set R6 to a mem mapped address which actually — inexplicably — caused the machine to hang..
+//           * when it went to HALT, it tried to push onto the memory mapped location as part of servicing the TRAP which is definitely weird but shouldn't cause a hang... (TODO?)
