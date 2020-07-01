@@ -365,6 +365,9 @@ fn bench_io(c: &mut Criterion) {
             &input_stream,
             &image_raw,
         );
+
+        // TODO: do one that uses interrupt I/O.
+        // (imp, low-pri)
     }
 }
 

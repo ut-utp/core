@@ -112,6 +112,7 @@ impl<'out, 'int> Output<'int> for OutputShim<'out, 'int> {
         // if !c.is_ascii() {
         //     return Err(OutputError::NonUnicodeCharacter(c));
         // }
+        // ^ TODO!
 
         match self.flag {
             Some(f) => f.store(false, Ordering::SeqCst),
