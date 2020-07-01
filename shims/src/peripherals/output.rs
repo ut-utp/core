@@ -109,9 +109,9 @@ impl<'out, 'int> Output<'int> for OutputShim<'out, 'int> {
 
     // TODO: handle OutputErrors to somehow report that the write or flush went wrong
     fn write_data(&mut self, c: u8) -> Result<(), OutputError> {
-        if !c.is_ascii() {
-            return Err(OutputError::NonUnicodeCharacter(c));
-        }
+        // if !c.is_ascii() {
+        //     return Err(OutputError::NonUnicodeCharacter(c));
+        // }
 
         match self.flag {
             Some(f) => f.store(false, Ordering::SeqCst),
