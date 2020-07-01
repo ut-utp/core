@@ -16,15 +16,13 @@ use common::*;
 use lc3_traits::peripherals::input::{Input, InputError};
 use lc3_shims::peripherals::input::{InputShim, Source};
 
-use std::iter::{DoubleEndedIterator, Rev};
 use std::sync::{Arc, Mutex};
 
-pub struct BufferedInput<Iter: DoubleEndedIterator + Iterator<Item = u8>> {
-    // buffer: Mutex<Rev<Iter>>,
+pub struct BufferedInput<Iter: Iterator<Item = u8>> {
     buffer: Mutex<Iter>,
 }
 
-impl<I: DoubleEndedIterator + Iterator<Item = u8>> BufferedInput<I> {
+impl<I: Iterator<Item = u8>> BufferedInput<I> {
     pub fn new(iter: I) -> Self {
         Self {
             buffer: Mutex::new(iter),
@@ -32,12 +30,8 @@ impl<I: DoubleEndedIterator + Iterator<Item = u8>> BufferedInput<I> {
     }
 }
 
-impl<I: DoubleEndedIterator + Iterator<Item = u8>> Source for BufferedInput<I> {
+impl<I: Iterator<Item = u8>> Source for BufferedInput<I> {
     fn get_char(&self) -> Option<u8> {
-        // Some(dbg!(self.buffer.lock().unwrap().next().unwrap()))
-        // None
-        // panic!("what!!!!")
-        // Some(dbg!(self.buffer.lock().unwrap().next().unwrap()))
         self.buffer.lock().unwrap().next()
     }
 }
@@ -51,7 +45,7 @@ use lc3_isa::util::MemoryDump;
 pub fn interpreter<'b, 's>(
     program: &MemoryDump,
     flags: &'b PeripheralInterruptFlags,
-    inp: impl DoubleEndedIterator + Iterator<Item = u8> + Send + 's,
+    inp: impl Iterator<Item = u8> + Send + 's,
     out: impl Sink + Send + Sync + 's,
 ) -> Interpreter<
     'b,
@@ -93,43 +87,13 @@ pub fn interpreter<'b, 's>(
     interp
 }
 
-fn byte_stream(elements: usize) -> impl Clone + DoubleEndedIterator + Iterator<Item = u8> {
+fn byte_stream(elements: usize) -> impl Clone + Iterator<Item = u8> {
     (0..elements).map(|i| (((i % 256) + (i * i * i) - (i + 12)) % 256) as u8)
 }
 
 fn checksum(iter: impl Iterator<Item = u8>) -> u128 {
     iter.fold(1u128, |acc, b| acc * ((b + 1) as u128))
 }
-
-// pub fn program(num_elements: u64) -> AssembledProgram {
-//     let prog = program! {
-//         // Disable PUTS to suppress the HALT message.
-//         .ORIG #(lc3_os::traps::builtin::PUTS as Word);
-//         .FILL @NEW_PUTS;
-
-//         .ORIG #0x4000;
-//         @NEW_PUTS RTI;
-
-//         .ORIG #0x3000;
-//         AND R0, R0, #0;
-//         ADD R0, R0, #12;
-
-//         OUT;
-//         OUT;
-//         OUT;
-//         OUT;
-//         OUT;
-//         OUT;
-//         OUT;
-//         OUT;
-//         OUT;
-//         OUT;
-
-//         HALT;
-//     }.into();
-
-//     prog
-// }
 
 pub fn program(num_elements: u64) -> AssembledProgram {
     let prog = program! {
@@ -218,7 +182,7 @@ pub fn program(num_elements: u64) -> AssembledProgram {
 pub fn raw_io_program(num_elements: u64) -> AssembledProgram {
     let prog = program! {
         // Disable PUTS to suppress the HALT message.
-        .ORIG #(lc3_os::traps::builtin::PUTS as Word);
+        .ORIG #lc3_os::traps::builtin::PUTS as Word;
         .FILL @NEW_PUTS;
 
         .ORIG #0x4000;
@@ -226,14 +190,14 @@ pub fn raw_io_program(num_elements: u64) -> AssembledProgram {
 
         // We're going to access the memory mapped locations directly so we
         // don't want to be in user mode:
-        .ORIG #(lc3_os::USER_PROG_START_ADDR);
+        .ORIG #lc3_os::USER_PROG_START_ADDR;
         .FILL #0x1000;
 
         // In protected space!
         .ORIG #0x1000;
         BRnzp @START;
 
-        // See the note on the regular program for details.
+        // See the note on the regular program for details about the below.
         @C_A .FILL #(((num_elements >> 48) as Word).wrapping_add(1));
         @C_B .FILL #(((num_elements >> 32) as Word).wrapping_add(1));
         @C_C .FILL #(((num_elements >> 16) as Word).wrapping_add(1));
@@ -251,46 +215,29 @@ pub fn raw_io_program(num_elements: u64) -> AssembledProgram {
         LD R3, @C_C;
         LD R4, @C_D;
 
-        // LDR R0, R5, #0;
-        // LDR R0, R5, #0;
-        // HALT;
-        // STR R0, R6, #0;
-
         BRnzp @D_LOOP;
 
-        @A_LOOP
-            BRz @A_END;
-
-            @B_LOOP
-                BRz @B_END;
-
-                @C_LOOP
-                    BRz @C_END;
-
-                    @D_LOOP
-                        BRz @D_END;
-
+        @A_LOOP BRz @A_END;
+            @B_LOOP BRz @B_END;
+                @C_LOOP BRz @C_END;
+                    @D_LOOP BRz @D_END;
                         LDR R0, R5, #0;
                         STR R0, R7, #0;
 
                         ADD R4, R4, #-1;
                         BRnzp @D_LOOP;
-
                     @D_END
                         ADD R4, R4, #-1;
                         ADD R3, R3, #-1;
                         BRnzp @C_LOOP;
-
                 @C_END
                     ADD R3, R3, #-1;
                     ADD R2, R2, #-1;
                     BRnzp @B_LOOP;
-
             @B_END
                 ADD R2, R2, #-1;
                 ADD R1, R1, #-1;
                 BRnzp @A_LOOP;
-
         @A_END
             HALT;
     }.into();
@@ -300,7 +247,7 @@ pub fn raw_io_program(num_elements: u64) -> AssembledProgram {
 
 const SIZES: [u64; 5] = [1, 10, 100, 1000, 10_000];
 
-use criterion::{BatchSize, BenchmarkId, Bencher, Criterion, Throughput, PlotConfiguration, AxisScale};
+use criterion::{BatchSize, BenchmarkId, BenchmarkGroup, Bencher, Criterion, Throughput, PlotConfiguration, AxisScale};
 use criterion::measurement::WallTime;
 use lc3_baseline_sim::interp::MachineState;
 
@@ -321,6 +268,7 @@ fn bench_io(c: &mut Criterion) {
         let input_stream: Vec<u8> = byte_stream(*size as usize).collect();
 
         let program = program(*size);
+
         let image_traps = {
             let mut image = OS_IMAGE.clone();
             image.layer_loadable(&program);
@@ -334,67 +282,6 @@ fn bench_io(c: &mut Criterion) {
 
             image
         };
-
-        lc3_shims::memory::FileBackedMemoryShim::with_initialized_memory("dump-traps.mem", image_traps.clone()).flush_all_changes().unwrap();
-        lc3_shims::memory::FileBackedMemoryShim::with_initialized_memory("dump-raw.mem", image_raw.clone()).flush_all_changes().unwrap();
-
-        // fn lc3tools_inner<'a>(
-        //     b: &mut Bencher<'a, WallTime>,
-        //     prog: &AssembledProgram,
-        //     inp: &'a Vec<u8>,
-        //     out: &'a mut Vec<u8>,
-        // ) {
-        //     b.iter_batched(
-        //         || {
-        //             let mut sim = Lc3ToolsSim::<'a, 'a>::new_with_buffers(inp, out);
-        //             sim.load_program(prog);
-        //             sim
-        //         },
-        //         |sim| sim.run(0x3000).unwrap(),
-        //         BatchSize::SmallInput,
-        //     )
-        // }
-
-        // fn lc3tools<'a>(
-        //     group: &mut BenchmarkGroup<'a, WallTime>,
-        //     size: u64,
-        //     prog: &AssembledProgram,
-        //     inp: &'a Vec<u8>,
-        //     out: &'a mut Vec<u8>,
-        // ) {
-        //     group.bench_with_input(
-        //         BenchmarkId::new("LC3Tools", size),
-        //         &size,
-        //         |b, _size| lc3tools_inner(b, prog, inp, out)
-        //     );
-
-        //     assert_eq!(inp, out);
-        // }
-
-        // lc3tools(
-        //     &mut group,
-        //     *size,
-        //     &program,
-        //     &input_stream,
-        //     &mut output_stream,
-        // );
-
-        // fn lc3tools_inner<'a, 's: 'a>(
-        //     b: &'a mut Bencher<'a, WallTime>,
-        //     prog: &AssembledProgram,
-        //     inp: &'s Vec<u8>,
-        //     out: &'s mut Vec<u8>,
-        // ) {
-        //     b.iter_batched_ref(
-        //         || {
-        //             let mut sim = Lc3ToolsSim::<'a, 'a>::new_with_buffers(inp, out);
-        //             sim.load_program(prog);
-        //             sim
-        //         },
-        //         |sim| sim.run(0x3000).unwrap(),
-        //         BatchSize::SmallInput,
-        //     )
-        // }
 
 /*        group.bench_with_input(
             BenchmarkId::new("LC3Tools", *size),
@@ -432,93 +319,57 @@ fn bench_io(c: &mut Criterion) {
             }
         );*/
 
+        fn interp_bench(
+            group: &mut BenchmarkGroup<WallTime>,
+            name: impl Into<String>,
+            size: &u64,
+            flags: &PeripheralInterruptFlags,
+            input_stream: &Vec<u8>,
+            image: &MemoryDump,
+        ) {
+            group.bench_with_input(
+                BenchmarkId::new(name, *size),
+                size,
+                |b, size| {
+                    b.iter_custom(|iters| {
+                        let mut acc = Duration::new(0, 0);
 
-        // group.bench_with_input(
-        //     BenchmarkId::new("Bare Interpreter", *size),
-        //     size,
-        //     |b, size| {
-        //         let mut output = Arc::new(Mutex::new(Vec::with_capacity(*size as usize)));
-        //         let mut int = interpreter(&image, &flags, input_stream.iter().copied(), output.clone());
+                        for _ in 0..iters {
+                            let mut output = Vec::<u8>::with_capacity(*size as usize);
+                            let borrow = Mutex::new(&mut output);
+                            let mut int = interpreter(&image, &flags, input_stream.iter().copied(), borrow);
 
-        //         b.iter(|| {
-        //             int.reset();
-        //             while let MachineState::Running = int.step() {}
-        //         });
+                            let start = Instant::now();
+                            while let MachineState::Running = int.step() {}
+                            acc += start.elapsed();
 
-        //         let mut out = output.lock().unwrap();
-        //         assert_eq!(input_stream, *out);
+                            drop(int);
+                            assert_eq!(*input_stream, output);
+                        }
 
-        //         out.drain(..);
-        //     }
-        // );
+                        acc
+                    });
+                }
+            );
+        }
 
-        group.bench_with_input(
-            BenchmarkId::new("Bare Interpreter w/TRAPs", *size),
+        interp_bench(
+            &mut group,
+            "Bare Interpreter w/TRAPs",
             size,
-            |b, size| {
-                b.iter_custom(|iters| {
-                    let mut acc = Duration::new(0, 0);
-
-                    for _ in 0..iters {
-                        let mut output = Vec::<u8>::with_capacity(*size as usize);
-                        let borrow = Mutex::new(&mut output);
-                        let mut int = interpreter(&image_traps, &flags, input_stream.iter().copied(), borrow);
-
-                        // let mut int = bare_interpreter(image.clone(), &flags);
-
-                        // println!("START!");
-                        let start = Instant::now();
-                        while let MachineState::Running = int.step() {}
-                        acc += start.elapsed();
-                        // println!("END!");
-
-                        drop(int);
-                        assert_eq!(input_stream, output);
-                    }
-
-                    acc
-                });
-            }
+            &flags,
+            &input_stream,
+            &image_traps,
         );
 
-        group.bench_with_input(
-            BenchmarkId::new("Bare Interpreter w/raw IO", *size),
+        interp_bench(
+            &mut group,
+            "Bare Interpreter w/raw IO",
             size,
-            |b, size| {
-                b.iter_custom(|iters| {
-                    let mut acc = Duration::new(0, 0);
-
-                    for _ in 0..iters {
-                        let mut output = Vec::<u8>::with_capacity(*size as usize);
-                        let borrow = Mutex::new(&mut output);
-                        let mut int = interpreter(&image_raw, &flags, input_stream.iter().copied(), borrow);
-
-                        let start = Instant::now();
-                        while let MachineState::Running = int.step() {}
-                        acc += start.elapsed();
-
-                        drop(int);
-                        assert_eq!(input_stream, output);
-                    }
-
-                    acc
-                });
-            }
+            &flags,
+            &input_stream,
+            &image_raw,
         );
-
-        // group.bench_with_input(
-        //     BenchmarkId::new("Bare Interpreter - step", *num_iter),
-        //     num_iter,
-        //     |b, num| {
-        //         // eprintln!("hello!");
-        //         // println!("hello!");
-        //         let mut int = black_box(bare_interpreter(build_fib_memory_image(*num), &flags));
-        //         b.iter(|| {
-        //             int.reset();
-        //             while let MachineState::Running = int.step() {}
-        //         })
-        //     },
-        // );
     }
 }
 
