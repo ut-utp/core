@@ -69,13 +69,14 @@
 //! #### Controller Side
 //!
 //! The controller side still has a tick function to call, but it should never
-//! _need_ to be called. The return value that the [`Controller`]'s
-//! [`Control::tick`] indicates this. So, if we run such a [`Control`] impl
-//! [exactly as we run a non-rpc `Control` impl](#no-rpc-configuration), the
-//! event loop should quickly converge on basically just sleeping for the max
-//! amount of time (allowing for events to interrupt this sleep) before calling
-//! tick a few times. This is close to ideal (ideal being a pure blocking recv
-//! call that puts the thread to sleep until messages come in).
+//! _need_ to be called. The value that the [`Controller`]'s [`Control::tick`]
+//! function returns indicates this (always returns 0). So, if we run such a
+//! [`Control`] impl [exactly as we run a non-rpc `Control`
+//! impl](#no-rpc-configuration), the event loop should quickly converge on
+//! basically just sleeping for the max amount of time (allowing for events to
+//! interrupt this sleep) before calling tick a few times. This is close to
+//! ideal (ideal being a pure blocking recv call that puts the thread to sleep
+//! until messages come in).
 //!
 //!
 //! [`Control`]: `lc3_traits::control::Control`
