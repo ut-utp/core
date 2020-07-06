@@ -1,3 +1,4 @@
+not_wasm!{
 use core::convert::TryInto;
 use lc3_isa::{Word, WORD_MAX_VAL};
 use lc3_traits::peripherals::clock::Clock;
@@ -122,4 +123,9 @@ mod tests {
             100 + ((now.elapsed().as_millis() % (WORD_MAX_VAL as u128)) as u16)
         )
     }
+}
+}
+
+wasm!{
+    pub use lc3_traits::peripherals::stubs::ClockStub as ClockShim;
 }
