@@ -1,9 +1,7 @@
 //! TODO!
 
 use super::{BlackBox, Init};
-use crate::{
-    shim_support::Shims,
-};
+use crate::shim_support::Shims;
 
 use lc3_shims::peripherals::SourceShim;
 use lc3_traits::control::rpc::{

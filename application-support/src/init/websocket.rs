@@ -6,6 +6,8 @@ use crate::shim_support::Shims;
 #[derive(Debug)]
 pub struct WebSocketDevice {}
 
+// TODO!
+
 // impl<'s> Init<'s> for WebSocketDevice {
 //     type Config = ();
 

@@ -45,12 +45,30 @@
 #[allow(unused_extern_crates)]
 extern crate core; // makes rls actually look into the standard library (hack)
 
+#[macro_export]
 macro_rules! not_wasm {
     ($($i:item)*) => {
         $( #[cfg(not(target_arch = "wasm32"))] $i )*
     };
 }
 
+#[macro_export]
+macro_rules! wasm {
+    ($($i:item)*) => {
+        $( #[cfg(target_arch = "wasm32")] $i )*
+    };
+}
+
+#[macro_export]
+macro_rules! specialize {
+    (   wasm: { $($wasm_item:item)+ }
+        not: { $($other:item)+ }
+    ) => {
+        $crate::wasm! { $($wasm_item)+ }
+
+        $crate::not_wasm! { $($other)+ }
+    };
+}
 
 pub mod shim_support;
 pub mod io_peripherals;
