@@ -44,5 +44,33 @@
 
 extern crate static_assertions as sa;
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! not_wasm {
+    ($($i:item)*) => {
+        $( #[cfg(not(target_arch = "wasm32"))] $i )*
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! wasm {
+    ($($i:item)*) => {
+        $( #[cfg(target_arch = "wasm32")] $i )*
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! specialize {
+    (   wasm: { $($wasm_item:item)+ }
+        not: { $($other:item)+ }
+    ) => {
+        $crate::wasm! { $($wasm_item)+ }
+
+        $crate::not_wasm! { $($other)+ }
+    };
+}
+
 pub mod memory;
 pub mod peripherals;

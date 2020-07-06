@@ -1,4 +1,4 @@
-
+not_wasm!{
 use lc3_traits::peripherals::timers::{
     Timers, TimerArr, TimerId, TimerMode, TimerState, Period, TIMERS
 };
@@ -500,5 +500,26 @@ mod tests {
         }
 
         assert_eq!(count, 5);
+    }
+}
+}
+
+wasm! {
+    #[derive(Debug, Default)]
+    pub struct TimersShim<'t>(PhantomData<&'t ()>);
+
+    use lc3_traits::peripherals::timers::{Timers, TimerId, TimerArr, TimerMode, TimerState};
+    use core::sync::atomic::AtomicBool;
+    use core::marker::PhantomData;
+    impl<'a> Timers<'a> for TimersShim<'a> {
+        fn set_mode(&mut self, _timer: TimerId, _mode: TimerMode) { }
+        fn get_mode(&self, _timer: TimerId) -> TimerMode { TimerMode::SingleShot }
+
+        fn set_state(&mut self, _timer: TimerId, _state: TimerState) { }
+        fn get_state(&self, _timer: TimerId) -> TimerState { TimerState::Disabled }
+
+        fn register_interrupt_flags(&mut self, _flags: &'a TimerArr<AtomicBool>) {}
+        fn interrupt_occurred(&self, _timer: TimerId) -> bool { false }
+        fn reset_interrupt_flag(&mut self, _timer: TimerId) { }
     }
 }
