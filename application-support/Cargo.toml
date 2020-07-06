@@ -35,6 +35,15 @@ lc3-device-support = { path = "../device-support", version = "0.1.0", default-fe
 
 lazy_static = "1.4.0"
 
+# wasm deps:
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+futures-core = "0.3"
+futures-util = "0.3"
+web-sys = { version = "0.3", features = ["Window"] }
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"
