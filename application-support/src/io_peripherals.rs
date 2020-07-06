@@ -79,7 +79,6 @@ pub trait OutputSource {
     fn get_chars(&self) -> Option<String>;
 }
 
-
 // This is fine!
 impl InputSink for SourceShim {
     fn put_char(&self, c: char) -> Option<()> {
@@ -137,9 +136,7 @@ impl OutputSource for Mutex<Vec<u8>> {
         // consistent with the impl above.
         let s = v.drain(..).collect();
 
-        String::from_utf8(s)
-            .ok()
-            .filter(|s| s.len() > 0)
+        String::from_utf8(s).ok().filter(|s| s.len() > 0)
 
         // let s: String = v.drain(..)
         //     .collect::<Option<String>>()

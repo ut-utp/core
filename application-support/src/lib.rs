@@ -70,7 +70,7 @@ macro_rules! specialize {
     };
 }
 
-pub mod shim_support;
-pub mod io_peripherals;
-pub mod init;
 pub mod event_loop;
+pub mod init;
+pub mod io_peripherals;
+pub mod shim_support;

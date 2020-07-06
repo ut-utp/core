@@ -98,7 +98,6 @@
 //! [`Controller`]: `lc3_traits::control::rpc::Controller`
 //! [`Control::tick`]: `lc3_traits::control::Control::tick`
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Backoff {
     pub num_iters: usize,

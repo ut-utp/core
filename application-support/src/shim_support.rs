@@ -2,9 +2,11 @@
 
 use crate::io_peripherals::{InputSink, OutputSource};
 
+use lc3_shims::peripherals::{
+    AdcShim, ClockShim, GpioShim, InputShim, OutputShim, PwmShim, TimersShim,
+};
+use lc3_shims::peripherals::{ShareablePeripheralsShim, Sink, Source};
 use lc3_traits::peripherals::PeripheralSet;
-use lc3_shims::peripherals::{Source, Sink, ShareablePeripheralsShim};
-use lc3_shims::peripherals::{GpioShim, AdcShim, PwmShim, TimersShim, ClockShim, InputShim, OutputShim};
 
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -18,8 +20,14 @@ pub struct Shims<'int> {
     pub clock: Arc<RwLock<ClockShim>>,
 }
 
-pub fn new_shim_peripherals_set<'int, 'io, I, O>(input: &'io I, output: &'io O)
-        -> (ShimPeripheralSet<'int, 'io>, &'io impl InputSink, &'io impl OutputSource)
+pub fn new_shim_peripherals_set<'int, 'io, I, O>(
+    input: &'io I,
+    output: &'io O,
+) -> (
+    ShimPeripheralSet<'int, 'io>,
+    &'io impl InputSink,
+    &'io impl OutputSource,
+)
 where
     I: InputSink + Source + Send + Sync + 'io,
     O: OutputSource + Sink + Send + Sync + 'io,
@@ -33,15 +41,23 @@ where
     let input_shim = Arc::new(Mutex::new(InputShim::with_ref(input)));
     let output_shim = Arc::new(Mutex::new(OutputShim::with_ref(output)));
 
-    (PeripheralSet::new(gpio_shim, adc_shim, pwm_shim, timer_shim, clock_shim, input_shim, output_shim),
+    (
+        PeripheralSet::new(
+            gpio_shim,
+            adc_shim,
+            pwm_shim,
+            timer_shim,
+            clock_shim,
+            input_shim,
+            output_shim,
+        ),
         input,
         output,
     )
 }
 
 impl<'int> Shims<'int> {
-    pub fn from_peripheral_set<'io>(p: &ShimPeripheralSet<'int, 'io>) -> Self
-    {
+    pub fn from_peripheral_set<'io>(p: &ShimPeripheralSet<'int, 'io>) -> Self {
         Self {
             gpio: p.get_gpio().clone(),
             adc: p.get_adc().clone(),

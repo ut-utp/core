@@ -58,7 +58,7 @@ pub struct BlackBox {
 impl BlackBox {
     pub fn new() -> Self {
         Self {
-            inner: Box::new(())
+            inner: Box::new(()),
         }
     }
 }
