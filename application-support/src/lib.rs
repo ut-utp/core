@@ -45,6 +45,7 @@
 #[allow(unused_extern_crates)]
 extern crate core; // makes rls actually look into the standard library (hack)
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! not_wasm {
     ($($i:item)*) => {
@@ -52,6 +53,7 @@ macro_rules! not_wasm {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! wasm {
     ($($i:item)*) => {
@@ -59,6 +61,7 @@ macro_rules! wasm {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! specialize {
     (   wasm: { $($wasm_item:item)+ }

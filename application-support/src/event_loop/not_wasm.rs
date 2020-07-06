@@ -1,5 +1,5 @@
 //! Implementation of the [`Backoff`] interface using threads and
-//! `recv_timeout`; for platforms with threads (not WASM).
+//! `recv_timeout`; for platforms with threads (not WebAssembly).
 
 // Note: any changes to this file have to be kept in sync with the wasm
 // counterpart!
