@@ -301,6 +301,8 @@ pub mod util {
 
     use core::ops::{Deref, DerefMut};
 
+    // TODO: on `std` impl `MemoryDump` from `io::Read`?
+
     // Newtype
     #[derive(Clone)] // TODO: impl Debug + PartialEq/Eq + Ser/De + Hash
     pub struct MemoryDump(pub [Word; ADDR_SPACE_SIZE_IN_WORDS]);

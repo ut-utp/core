@@ -102,6 +102,7 @@ impl ProgramMetadata {
     }
 }
 
+// TODO: wasm! (we don't have SystemTime on wasm)
 using_std! {
     // SystemTime instead of Instant since we don't really care about
     // monotonicity.
