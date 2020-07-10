@@ -103,7 +103,7 @@ impl ProgramMetadata {
 }
 
 // TODO: wasm! (we don't have SystemTime on wasm)
-using_std! {
+using_std! { not_wasm! {
     // SystemTime instead of Instant since we don't really care about
     // monotonicity.
     use std::time::SystemTime;
@@ -136,7 +136,7 @@ using_std! {
                 .as_secs();
         }
     }
-}
+}}
 
 // If we had better const functions (+ typenum) or const generics (and better
 // const functions — mainly just loops and ranges) we wouldn't need two
