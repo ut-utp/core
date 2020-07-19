@@ -118,7 +118,10 @@ impl Default for Backoff {
 }
 
 specialize! {
-    wasm: { mod wasm; }
+    wasm: {
+        mod wasm;
+        pub use wasm::timeout;
+    }
     not: { mod not_wasm; }
 }
 

@@ -17,8 +17,9 @@ use web_sys::Window;
 
 use std::fmt::Debug;
 
-
-async fn timeout(window: &Window, ms: i32) {
+/// An async timeout function for `wasm` that leans on the browser's
+/// `setTimeout` function.
+pub async fn timeout(window: &Window, ms: i32) {
     let promise = Promise::new(&mut |resolve, reject: Function| window
         .set_timeout_with_callback_and_timeout_and_arguments_0(
             &resolve,
