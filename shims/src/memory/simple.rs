@@ -4,6 +4,7 @@
 use std::convert::TryInto;
 use std::ops::{Index, IndexMut};
 use std::path::Path;
+use std::time::Duration;
 
 use lc3_isa::{Addr, Word, ADDR_SPACE_SIZE_IN_WORDS, MEM_MAPPED_START_ADDR};
 use lc3_isa::util::MemoryDump;
@@ -12,7 +13,6 @@ use lc3_traits::control::metadata::ProgramMetadata;
 use lc3_traits::control::load::{PageIndex, Index as PIdx, PageAccess, PAGE_SIZE_IN_WORDS};
 
 use super::error::MemoryShimError;
-use super::file_backed::{read_from_file, write_to_file};
 
 /// Naïve [`Memory` trait](lc3_traits::memory::Memory) implementation.
 ///
@@ -37,7 +37,24 @@ impl Default for MemoryShim {
 
 impl MemoryShim {
     pub fn new(mem: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
+        let dump = mem.into();
+        let metadata = ProgramMetadata::new(Default::default(), &dump, Duration::from_secs(0));
 
+        Self {
+            mem,
+            current: mem.clone(),
+            metadata,
+        }
+    }
+}
+
+not_wasm!{
+use super::file_backed::{read_from_file, write_to_file};
+
+impl MemoryShim {
+    // TODO: if we offer `ProgramMetadata::new_modified_now` on wasm go back to having
+    // this just be `MemoryShim::new`.
+    pub fn new_modified_now(mem: [Word; ADDR_SPACE_SIZE_IN_WORDS]) -> Self {
         let dump = mem.into();
         let metadata = ProgramMetadata::new_modified_now(Default::default(), &dump);
 
@@ -65,7 +82,7 @@ impl MemoryShim {
 
         Ok(())
     }
-}
+}}
 
 impl From<MemoryShim> for MemoryDump {
     fn from(mem: MemoryShim) -> MemoryDump {
