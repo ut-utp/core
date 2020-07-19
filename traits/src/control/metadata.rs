@@ -103,32 +103,12 @@ impl ProgramMetadata {
 }
 
 // TODO: wasm! (we don't have SystemTime on wasm)
-using_std! { not_wasm! {
+using_std! {
     // SystemTime instead of Instant since we don't really care about
     // monotonicity.
     use std::time::SystemTime;
 
     impl ProgramMetadata {
-        pub /*const*/ fn new_modified_now(name: LongIdentifier, program: &MemoryDump) -> Self {
-            Self::new(name, program, Duration::from_secs(0)).now()
-        }
-
-        pub /*const*/ fn from_modified_now<P: Into<MemoryDump>>(name: LongIdentifier, program: P) -> Self {
-            Self::from(name, program, Duration::from_secs(0)).now()
-        }
-
-        pub fn now(mut self) -> Self {
-            self.updated_now();
-            self
-        }
-
-        pub fn updated_now(&mut self) {
-            self.last_modified = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("System time to be later than 1970-01-01 00:00:00 UTC")
-                .as_secs();
-        }
-
         pub fn modified_on(&mut self, time: SystemTime) {
             self.last_modified = time
                 .duration_since(SystemTime::UNIX_EPOCH)
@@ -136,7 +116,32 @@ using_std! { not_wasm! {
                 .as_secs();
         }
     }
-}}
+
+    not_wasm! {
+        impl ProgramMetadata {
+            pub /*const*/ fn new_modified_now(name: LongIdentifier, program: &MemoryDump) -> Self {
+                Self::new(name, program, Duration::from_secs(0)).now()
+            }
+
+            pub /*const*/ fn from_modified_now<P: Into<MemoryDump>>(name: LongIdentifier, program: P) -> Self {
+                Self::from(name, program, Duration::from_secs(0)).now()
+            }
+
+            pub fn now(mut self) -> Self {
+                self.updated_now();
+                self
+            }
+
+            pub fn updated_now(&mut self) {
+                self.last_modified = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("System time to be later than 1970-01-01 00:00:00 UTC")
+                    .as_secs();
+            }
+        }
+    }
+}
+
 
 // If we had better const functions (+ typenum) or const generics (and better
 // const functions — mainly just loops and ranges) we wouldn't need two
