@@ -27,7 +27,7 @@ lc3-shims = { path = "shims", version = "0.1.0" }
 lc3-traits = { path = "traits", version = "0.1.0", default-features = false, features = [] } # Enable std features
 lc3-os = { path = "os", version = "0.1.0" }
 
-lc3tools-sys = "=1.0.6-alpha2" # We can use the next point release (TODO).
+lc3tools-sys = "=1.0.6" # We can use the next point release (TODO).
 
 criterion = "0.3.0"
 async-std = "1.4.0"
