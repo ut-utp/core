@@ -604,17 +604,41 @@ fn os() -> AssembledProgram {
             // and since it is likely 0, a stack overflow will occur.
 
             // Prepare to switch to the user program:
-            LD R0, @USER_PROG_PSR_INIT; // Fetch the initial PSR for the user program:
 
-            ADD R6, R6, #-1;            // And then go push it onto the stack.
-            STR R0, R6, #0;
-
+            // First we get the user prog starting address and compare it to the access
+            // control boundary.
             LDI R0, @USER_PROG_START_ADDR_PTR; // Fetch the starting address of the program.
-            ADD R6, R6, #-1;            // And push that onto the stack next.
+
+            // If the address is below the boundary (0x3000), we're going to use an
+            // alternate PSR that doesn't switch the system to user mode.
+            LD R1, @NEG_ACCESS_CONTROL_BOUNDARY;
+            ADD R1, R0, R1;
+            BRn @ALT_PSR;
+
+            // If we've got a starting address above 0x3000, use the normal PSR:
+            // (Note that this doesn't account for starting addresses in the mem-mapped
+            // region; any such starting address will trigger an ACV.)
+
+                LD R1, @USER_PROG_PSR_INIT;     // Fetch the regular PSR.
+                BRnzp @PUSH_PSR;
+
+            // If we're got a starting address below 0x3000, use the alternate PSR:
+            @ALT_PSR
+
+                LD R1, @USER_PROG_PSR_INIT_ALT; // Fetch the alternate PSR.
+                BRnzp @PUSH_PSR;
+
+            @PUSH_PSR
+            ADD R6, R6, #-1;            // Push the PSR onto the stack.
+            STR R1, R6, #0;
+
+            ADD R6, R6, #-1;            // Push the starting address onto the stack next.
             STR R0, R6, #0;
 
-            // Clear R0 (so all the registers are 0 for the user program).
+            // Clear R0 and R1 (so all the registers are 0 for the user program).
+            // (R6, the stack pointer, is swapped by the system)
             AND R0, R0, #0;
+            AND R1, R1, #0;
 
             // Finally start the program!
             RTI;
@@ -627,6 +651,9 @@ fn os() -> AssembledProgram {
         @USER_PROG_START_ADDR_PTR .FILL #USER_PROG_START_ADDR;
 
         @OS_STARTING_SP_PTR .FILL #OS_STARTING_SP_ADDR;
+
+        @NEG_ACCESS_CONTROL_BOUNDARY
+            .FILL #((!lc3_isa::USER_PROGRAM_START_ADDR).wrapping_add(1));
 
         @KBSR .FILL #KBSR_ADDR;
         @KBDR .FILL #KBDR_ADDR;
@@ -649,6 +676,10 @@ fn os() -> AssembledProgram {
             //       |       \        n bit
             //       \   priority level (3)
             //   user mode
+
+        @USER_PROG_PSR_INIT_ALT
+            // Same as above, but not user mode:
+            .FILL #0b0_0000_011_00000_0_1_0;
 
         @MASK_HI_BIT .FILL #0x7FFF;
         @MASK_LOW_BYTE .FILL #0x00FF;
@@ -1785,3 +1816,14 @@ fn os() -> AssembledProgram {
 
     AssembledProgram::new(os)
 }]}
+
+// TODO: offer a variant of this that has the OS be silent (no HALT, ACV, etc. messages).
+
+// TODO: verify that the <0x3000, no user mode thing works as we expect it to..
+//  - we should have tests for this (i.e. branches to the right spot, no ACVs this way, ACVs the other way)
+//  - i don't think there's any problem with RTI-ing back to system mode but someone should check me on this
+//  - open q: is it okay that we don't do anything if the starting address is in the
+//    mem mapped region? you just immediately crash with an ACV, is what happens.
+//   - we should probably add documentation explaining that you've got to be careful about the stack pointer when you do this (i.e. don't clobber R6 or you can't use the traps or take interrupts)
+//       + as an example, I set R6 to a mem mapped address which actually — inexplicably — caused the machine to hang..
+//           * when it went to HALT, it tried to push onto the memory mapped location as part of servicing the TRAP which is definitely weird but shouldn't cause a hang... (TODO?)

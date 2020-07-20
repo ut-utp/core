@@ -1,15 +1,15 @@
 //! Shims for the various [peripheral traits](crate::peripherals).
 
 // Peripherals:
-mod adc;
-mod clock;
-mod gpio;
-mod pwm;
-mod timers;
+pub mod adc;
+pub mod clock;
+pub mod gpio;
+pub mod pwm;
+pub mod timers;
 
 // Devices:
-mod input;
-mod output;
+pub mod input;
+pub mod output;
 
 use lc3_traits::peripherals::PeripheralSet;
 

@@ -50,6 +50,18 @@ fn bench_fib(c: &mut Criterion) {
         )));
 
         group.bench_with_input(
+            BenchmarkId::new("LC3Tools", *num_iter),
+            num_iter,
+            |b, num| {
+                let mut sim = Lc3ToolsSim::new();
+                sim.load_program(&fib_program(*num));
+                b.iter(|| {
+                    sim.run(0x3000).unwrap();
+                })
+            }
+        );
+
+        group.bench_with_input(
             BenchmarkId::new("Bare Interpreter - step", *num_iter),
             num_iter,
             |b, num| {

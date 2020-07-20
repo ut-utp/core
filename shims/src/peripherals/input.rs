@@ -25,7 +25,7 @@ pub trait Source {
 
 impl<S: Source> Source for Arc<S> {
     fn get_char(&self) -> Option<u8> {
-        self.get_char()
+        <S as Source>::get_char(self)
     }
 }
 
@@ -124,13 +124,16 @@ impl<'int, 'i> InputShim<'i, 'int> {
         InputShim::sourced_from(OwnedOrRef::Ref(source))
     }
 
+    // TODO: we're duplicating state here: both the flag and `data` indicate
+    // whether we've got a char that hasn't been read yet.
     fn fetch_latest(&self) {
-        let new_data = self.source.get_char();
-        if let Some(c) = new_data {
-            self.data.replace(Some(c));
-            match self.flag {
-                Some(flag) => flag.store(true, Ordering::SeqCst),
-                None => unreachable!(),
+        if let None = self.data.get() {
+            if let Some(c) = self.source.get_char() {
+                self.data.set(Some(c));
+                match self.flag {
+                    Some(flag) => flag.store(true, Ordering::SeqCst),
+                    None => unreachable!(),
+                }
             }
         }
     }
@@ -176,7 +179,7 @@ impl<'inp, 'int> Input<'int> for InputShim<'inp, 'int> {
             Some(flag) => flag.store(false, Ordering::SeqCst),
             None => unreachable!(),
         }
-        self.data.get().ok_or(InputError::NoDataAvailable)
+        self.data.take().ok_or(InputError::NoDataAvailable)
     }
 
     fn current_data_unread(&self) -> bool {

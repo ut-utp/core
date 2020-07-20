@@ -696,6 +696,7 @@ impl<'a, M: Memory, P: Peripherals<'a>> Interpreter<'a, M, P> {
 
     fn push(&mut self, word: Word) -> WriteAttempt {
         // This function will *only ever push onto the system stack*:
+        // TODO: report an error if it's in the I/O region somehow? it's not possible in regular use but it happened to me anyways (when getting the OS not to switch to user mode)
         if self[R6] <= lc3_isa::OS_START_ADDR {
             self.set_error(SystemStackOverflow);
             self.halt();
