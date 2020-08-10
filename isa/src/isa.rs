@@ -683,27 +683,26 @@ pub trait Bits: Sized + Copy {
     }
 }
 
-impl Bits for Word {
-    fn bit(self, bit: u32) -> bool {
-        ((self >> bit) & 1) == 1
-    }
+macro_rules! bits_impl {
+    ($($ty:tt),+ $(,)?) => {$(
+        impl Bits for $ty {
+            fn bit(self, bit: u32) -> bool {
+                ((self >> bit) & 1) == 1
+            }
 
-    fn bits(self, range: Range<u32>) -> usize {
-        let mask = !(core::u16::MAX << ((range.end + 1) - range.start));
-        ((self >> range.start) & mask) as usize
-    }
+            fn bits(self, range: Range<u32>) -> usize {
+                let mask = !(core::$ty::MAX << ((range.end + 1) - range.start));
+                ((self >> range.start) & mask) as usize
+            }
+        }
+    )+};
 }
 
-// TODO: make this a macro; impl for u8, u16, u32, u64, u128, usize
-impl Bits for u32 {
-    fn bit(self, bit: u32) -> bool {
-        ((self >> bit) & 1) == 1
-    }
-
-    fn bits(self, range: Range<u32>) -> usize {
-        let mask = !(core::u32::MAX << ((range.end + 1) - range.start));
-        ((self >> range.start) & mask) as usize
-    }
+// TODO: this shouldn't be implemented for types that are larger than usize.
+// On 32 bits targets this means that this shouldn't be implemented for i64 and
+// u64 (for 16 bits targets, etc).
+bits_impl!{
+    u8, i8, u16, i16, u32, i32, i64, u64, isize, usize,
 }
 
 impl TryFrom<Word> for Instruction {
@@ -1049,24 +1048,24 @@ mod bits_tests {
 
     #[test]
     fn misc() {
-        assert_eq!(0, 1.u8(14..15));
+        assert_eq!(0, 1u16.u8(14..15));
     }
 
-    #[test] #[should_panic] fn too_many_bits_u8_one() { let _ = 256.u8(0..8); }
-    #[test] #[should_panic] fn too_many_bits_u8_two() { let _ = 256.u8(6..14); }
+    #[test] #[should_panic] fn too_many_bits_u8_one() { let _ = 256u16.u8(0..8); }
+    #[test] #[should_panic] fn too_many_bits_u8_two() { let _ = 256u16.u8(6..14); }
 
-    #[test] #[should_panic] fn too_many_bits_i8_one() { let _ = 250.i8(0..8); }
-    #[test] #[should_panic] fn too_many_bits_i8_two() { let _ = 250.i8(6..14); }
+    #[test] #[should_panic] fn too_many_bits_i8_one() { let _ = 250u16.i8(0..8); }
+    #[test] #[should_panic] fn too_many_bits_i8_two() { let _ = 250u16.i8(6..14); }
 
-    #[test] #[should_panic] fn too_many_bits_u16_one() { let _ = 256.u16(0..16); }
-    #[test] #[should_panic] fn too_many_bits_u16_two() { let _ = 256.u16(2..18); }
+    #[test] #[should_panic] fn too_many_bits_u16_one() { let _ = 256i32.u16(0..16); }
+    #[test] #[should_panic] fn too_many_bits_u16_two() { let _ = 256i32.u16(2..18); }
 
-    #[test] #[should_panic] fn too_many_bits_i16_one() { let _ = 256u16.i16(0..15); }
-    #[test] #[should_panic] fn too_many_bits_i16_two() { let _ = 256.i16(2..17); }
+    #[test] #[should_panic] fn too_many_bits_i16_one() { let _ = 256i16.i16(0..15); }
+    #[test] #[should_panic] fn too_many_bits_i16_two() { let _ = 256i16.i16(2..17); }
 
-    #[test] #[should_panic] fn too_many_bits_u32_one() { let _ = 25600.u32(0..32); }
-    #[test] #[should_panic] fn too_many_bits_u32_two() { let _ = 25600.u32(5..37); }
+    #[test] #[should_panic] fn too_many_bits_u32_one() { let _ = 25600u16.u32(0..32); }
+    #[test] #[should_panic] fn too_many_bits_u32_two() { let _ = 25600u16.u32(5..37); }
 
-    #[test] #[should_panic] fn too_many_bits_i32_one() { let _ = 25600.i32(0..31); }
-    #[test] #[should_panic] fn too_many_bits_i32_two() { let _ = 25600.i32(5..36); }
+    #[test] #[should_panic] fn too_many_bits_i32_one() { let _ = 25600u16.i32(0..31); }
+    #[test] #[should_panic] fn too_many_bits_i32_two() { let _ = 25600u16.i32(5..36); }
 }
