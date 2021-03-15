@@ -38,4 +38,4 @@ syn = { version = "1.0.5" } # features = ["derive", "visit-mut", "parsing", "ful
 
 
 [dev-dependencies]
-pretty_assertions = "0.6.1"
+pretty_assertions = "0.7.1"

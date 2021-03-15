@@ -32,7 +32,7 @@ lc3tools-sys = "=1.0.6-alpha2" # We can use the next point release (TODO).
 criterion = "0.3.0"
 async-std = "1.4.0"
 lazy_static = "1.4.0"
-pretty_assertions = "0.6.1"
+pretty_assertions = "0.7.1"
 
 
 [[bench]]
