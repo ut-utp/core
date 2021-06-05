@@ -72,6 +72,30 @@ where
 
         use nb::Error::*;
 
+        //Consider case where the time taken for an iteration in this loop to match and put an element in Fifo exceeds the limit
+        //to collect bytes from the UART hardware buffer. This could happen when the ratio of UART baud rate to clock frequency
+        //the device operates at exceeds a certain threshold. To an extent this can be alleviated by having hardware buffers like the
+        //TM4C has (16 elements), but that would eventually overflow for large messages, and some devices such as MSP430s have 
+        //just 1 element hardware buffers. This problem could potentially be solved by DMA. Seems like one use case of dma to 
+        //support high baud rates relativistic to processor speed.
+
+        // Apart from that, this looks like a good approach. Not blocking so not dependent on having the full message available in
+        // 1 invocation of get. Can keep updating the buffer among multipe invocations of this loop till the sentinel is obtained.,
+        // However, that risks dropping bytes. it might be possible to miss data if that's the case. Consider this -> get is called
+        // and it puts a byte into the Fifo. But suppose that was the only byte available (or if it read all available ytes in the device
+        // hardware buffer), then returns a wouldBlock error on the next iteration of loop, it would exit this function and suppose,
+        // the main event loop goes to do another task like updating peripheral data/reading sensors... before it invokes get again,
+        // then once it calls get again, it could be the case that there are more bytes "within" the hardware buffer limit of device to read
+        // and no overflow occured which is good, or it could be that the event loop was too slow to call get again and bytes are lost
+        // This is very likely in devices that just have a single element buffer. DMA and interrupts could solve this problem by esentially having
+        // an extended hardware buffer of whatever size we prefer by directly writing to memory and this process is not dependent on/done by the foreground thread
+
+        // So while DMA/interrupts don't necessarily increase the "speed" of data collection and processing, the main adavtage
+        // seems to be in freeing up processor from this load and having processor so more useful things instead and not worry about
+        // precise timing of collection of UART data before they are lost thus increasing baud rate to bus clock frequency ratio. Especially useful if running a multithreaded RTOS where the processor
+        // might have to do other stuff like updated peripheral sensors data...DMA however also has its own issues, This UART polling is a good implementation for a lot of use cases so it depends on weighing
+        // the tradeoffs on specific device being used, the baud rate, clock frequency, hardware Fifo length...
+        // 
         loop {
             match read.read() {
                 Ok(word) => {
