@@ -12,6 +12,7 @@ sa::const_assert!(fifo::CAPACITY >= (3 * size_of::<RequestMessage>()));
 sa::const_assert!(fifo::CAPACITY >= (3 * size_of::<ResponseMessage>()));
 
 pub mod uart_simple;
+pub mod uart_dma;
 
 using_std! {
     #[cfg(all(feature = "host_transport", not(target_arch = "wasm32")))]
