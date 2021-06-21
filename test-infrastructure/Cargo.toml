@@ -35,7 +35,7 @@ lc3-shims = { path = "../shims", version = "0.1.0", default-features = false }
 lc3-traits = { path = "../traits", version = "0.1.0", default-features = false }
 lc3-application-support = { path = "../application-support", version = "0.1.0" }
 
-rand = "0.7.3"
+rand = "0.8.4"
 pretty_assertions = "0.6.1"
 
 
