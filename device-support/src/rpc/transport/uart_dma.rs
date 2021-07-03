@@ -6,7 +6,6 @@ use lc3_traits::control::rpc::Transport;
 use lc3_traits::control::{Identifier, Version, version_from_crate};
 //use lc3_tm4c::peripherals_generic::dma::DmaChannel;
 
- use embedded_dma::{StaticReadBuffer, StaticWriteBuffer};
  use bbqueue::{BBBuffer, GrantR, GrantW, ConstBBBuffer, Consumer, Producer, ArrayLength, consts::*};
  use nb::block;
 
@@ -14,7 +13,6 @@ use core::cell::RefCell;
 use core::fmt::Debug;
 use core::ops::DerefMut;
 use core::ops::Deref;
-use stable_deref_trait::StableDeref;
 
 pub struct Dma1Channel <Peripheral> {
     peripheral: Peripheral
@@ -163,24 +161,39 @@ where
 
         let mut rx_grant = self.rx_prod.borrow_mut().grant_exact(50).unwrap();
     	device_dma_unit.dma_set_destination_address(rx_grant.buf().as_ptr() as usize);
+
+    	rx_grant.commit(50);    //This relies on the contiguous buffer property. Commiting and having the receive buffer ready to read before the data is even ready
+    						 	//is probably not how bbqueue is meant to be use. But I see no other way to do it because commiting "consumes" the grant and you can't use it again
+    						 	//so you can't commit again without reinitializing. Commiting dma_num_bytes_transferred() and read as data arrives in the loop would have been a nicer way to do it but not possibe because of this. Any better way?
+    						 	// The way bbqueue is used right now makes it seem pretty useless. Might as well just use a simple buffer/Fifo. bbqueue however would be ideal for fixed message sizes.
+    	let mut rx_buf = cons_buf.read().unwrap(); 
+
     	device_dma_unit.dma_set_transfer_length(50);   // change this 50 (ballpark message size to max message size;)
     	device_dma_unit.dma_start();
 
-            if(device_dma_unit.dma_num_bytes_transferred() > 0){
-	            rx_grant.commit(device_dma_unit.dma_num_bytes_transferred());
-	            let mut rx_buf = cons_buf.read().unwrap();
-	            for i in 0..device_dma_unit.dma_num_bytes_transferred() {
+    	loop{
+
+    		let bytes_transferred = device_dma_unit.dma_num_bytes_transferred(); //asynchronous number of bytes so call this once and use that vlue through loop to process
+
+
+            if(bytes_transferred > 0){
+	            
+	            for i in 0..bytes_transferred {    //get rid of this after changing device step impl to use slice/simpler common data structure
 	            	buf.push(rx_buf[i]).unwrap();
 	            }
 
-	            if(rx_buf[device_dma_unit.dma_num_bytes_transferred() - 1] == 0){
-	            	ret = Ok(core::mem::replace(&mut buf, Fifo::new()))
+	            if(rx_buf[bytes_transferred - 1] == 0){
+	            	rx_buf.release(50);
+	            	break Ok(core::mem::replace(&mut buf, Fifo::new()))
 	            }
 
-	            rx_buf.release(device_dma_unit.dma_num_bytes_transferred());
-
+	        }
+	        else{
+	        	rx_buf.release(50); //DMA should be pretty fast so that this case doesn't happen if data is actually coming in (atleast some data will be available within a loop iteration). So under normal circumstances this should
+	        						//only happen when no data is coming in (just bare event loop running)
+	        	break Err(None)  //should be nn blocking
 	        }
 
-	        ret
+	    }
     }
 }
