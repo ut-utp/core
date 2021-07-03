@@ -22,31 +22,31 @@ pub struct Dma1Channel <Peripheral> {
 pub trait DmaChannel {
 
     //Device secific preinitialization to enable DMA
-    fn dma_device_init(&self);
+    fn dma_device_init(&mut self);
 
     /// Data will be written to this `address`
     ///
     /// `inc` indicates whether the address will be incremented after every byte transfer
     ///
     /// NOTE this performs a volatile write
-    fn dma_set_destination_address(&self, address: usize);
+    fn dma_set_destination_address(&mut self, address: usize);
 
     /// Data will be read from this `address`
     ///
     /// `inc` indicates whether the address will be incremented after every byte transfer
     ///
     /// NOTE this performs a volatile write
-    fn dma_set_source_address(&self, address: usize);
+    fn dma_set_source_address(&mut self, address: usize);
 
     /// Number of bytes to transfer
     ///
     /// NOTE this performs a volatile write
-    fn dma_set_transfer_length(&self, len: usize);
+    fn dma_set_transfer_length(&mut self, len: usize);
 
     /// Starts the DMA transfer
     ///
     /// NOTE this performs a volatile write
-    fn dma_start(&self);
+    fn dma_start(&mut self);
 
     /// Stops the DMA transfer
     ///
