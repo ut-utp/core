@@ -6,8 +6,9 @@ use lc3_traits::control::rpc::Transport;
 use lc3_traits::control::{Identifier, Version, version_from_crate};
 //use lc3_tm4c::peripherals_generic::dma::DmaChannel;
 
- use bbqueue::{BBBuffer, GrantR, GrantW, ConstBBBuffer, Consumer, Producer, ArrayLength, consts::*};
- use nb::block;
+use embedded_hal::serial::{Read, Write};
+use bbqueue::{BBBuffer, GrantR, GrantW, ConstBBBuffer, Consumer, Producer, ArrayLength, consts::*};
+use nb::block;
 
 use core::cell::RefCell;
 use core::fmt::Debug;
@@ -61,11 +62,14 @@ pub trait DmaChannel {
     fn dma_num_bytes_transferred(&mut self) -> usize;
 }
 
-pub struct UartDMATransport<'a, T>
+pub struct UartDMATransport<'a, T, W: Write<u8>>
 where
-	T: DmaChannel
+	T: DmaChannel,
+    <W as Write<u8>>::Error: Debug,
 {
     device_dma_unit: RefCell<T>,
+    write: RefCell<W>,
+
     internal_message_buffer: RefCell<Fifo<u8>>,
 
 	rx_prod: RefCell<Producer<'a, U64>>,
@@ -110,17 +114,19 @@ static tx_buffer: BBBuffer<U64> = BBBuffer( ConstBBBuffer::new() );
 //  }
 
 
-impl<'a, T> UartDMATransport<'a, T>
+impl<'a, T, W:Write<u8>> UartDMATransport<'a, T, W>
 where
     T: DmaChannel,
+    <W as Write<u8>>::Error: Debug,
 {
-    pub fn new(dma_unit: T) -> Self {
+    pub fn new(dma_unit: T, write: W) -> Self {
 
 		let (rx_p, rx_c) = rx_buffer.try_split().unwrap();
         let (tx_p, tx_c) = tx_buffer.try_split().unwrap();
 
         Self {
             device_dma_unit: RefCell::new(dma_unit),
+            write: RefCell::new(write),
             internal_message_buffer: RefCell::new(Fifo::new_const()),
 			rx_prod: RefCell::new(rx_p),
 			rx_cons: RefCell::new(rx_c),
@@ -131,12 +137,13 @@ where
 }
 
 
-impl<'a, T> Transport<Fifo<u8>, Fifo<u8>> for UartDMATransport<'a, T>
+impl<'a, T, W:Write<u8>> Transport<Fifo<u8>, Fifo<u8>> for UartDMATransport<'a, T, W>
 where
-	T: DmaChannel
+	T: DmaChannel,
+    <W as Write<u8>>::Error: Debug,
 {
     type RecvErr = ();
-    type SendErr = ();
+    type SendErr = W::Error;
 
     const ID: Identifier = Identifier::new_from_str_that_crashes_on_invalid_inputs("UART");
     const VER: Version = {
@@ -147,8 +154,15 @@ where
         Version::new(ver.major, ver.minor, ver.patch, Some(id))
     };
 
-    fn send(&self, message: Fifo<u8>) -> Result<(), ()>  {
-		unimplemented!()
+    //TODO: Use DM here too
+    fn send(&self, message: Fifo<u8>)  -> Result<(), W::Error>{
+        let mut write = self.write.borrow_mut();
+
+        for byte in message {
+            block!(write.write(byte))?
+        }
+
+        block!(write.flush())
     }
 
     fn get(&self) -> Result<Fifo<u8>, Option<Self::RecvErr>> {  // keeping the fifo for now to test with the xisting device impl. TODO: use slice directly in poll impl to avoid repeated copies
